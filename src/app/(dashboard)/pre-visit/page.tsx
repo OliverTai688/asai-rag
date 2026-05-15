@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -46,7 +46,7 @@ const PURPOSE_LABELS: Record<VisitPurpose, string> = {
   REFERRAL: "轉介紹",
 };
 
-export default function PreVisitListPage() {
+function PreVisitListContent() {
   const router = useRouter();
   const { plans, createEmptyPlan } = useVisitStore();
   const { clients } = useClientStore();
@@ -357,3 +357,12 @@ export default function PreVisitListPage() {
     </div>
   );
 }
+
+export default function PreVisitListPage() {
+  return (
+    <Suspense fallback={<div className="p-10 text-center">載入中...</div>}>
+      <PreVisitListContent />
+    </Suspense>
+  );
+}
+
