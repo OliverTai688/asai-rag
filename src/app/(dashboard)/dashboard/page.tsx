@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { useMounted } from "@/lib/hooks/use-mounted";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Users,
@@ -169,6 +170,7 @@ function KPICard({
   bgColor: string;
 }) {
   const sparkPoints = sparkData.map((v, i) => ({ i, v }));
+  const mounted = useMounted();
 
   return (
     <motion.div
@@ -205,36 +207,40 @@ function KPICard({
 
       {/* Sparkline */}
       <div className="h-14 px-1 pb-1">
-        <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={sparkPoints} margin={{ top: 4, right: 0, left: 0, bottom: 0 }}>
-            <defs>
-              <linearGradient id={`grad-${chartColor.replace('#','')}`} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor={chartColor} stopOpacity={0.15} />
-                <stop offset="95%" stopColor={chartColor} stopOpacity={0} />
-              </linearGradient>
-            </defs>
-            <Tooltip
-              contentStyle={{
-                background: '#fff',
-                border: '1px solid #CFD8DC',
-                borderRadius: 8,
-                fontSize: 11,
-                padding: '4px 8px',
-              }}
-              formatter={(v) => [v, title]}
-              labelFormatter={() => ''}
-            />
-            <Area
-              type="monotone"
-              dataKey="v"
-              stroke={chartColor}
-              strokeWidth={1.5}
-              fill={`url(#grad-${chartColor.replace('#','')})`}
-              dot={false}
-              activeDot={{ r: 3, fill: chartColor }}
-            />
-          </AreaChart>
-        </ResponsiveContainer>
+        {mounted ? (
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={sparkPoints} margin={{ top: 4, right: 0, left: 0, bottom: 0 }}>
+              <defs>
+                <linearGradient id={`grad-${chartColor.replace('#','')}`} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor={chartColor} stopOpacity={0.15} />
+                  <stop offset="95%" stopColor={chartColor} stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <Tooltip
+                contentStyle={{
+                  background: '#fff',
+                  border: '1px solid #CFD8DC',
+                  borderRadius: 8,
+                  fontSize: 11,
+                  padding: '4px 8px',
+                }}
+                formatter={(v) => [v, title]}
+                labelFormatter={() => ''}
+              />
+              <Area
+                type="monotone"
+                dataKey="v"
+                stroke={chartColor}
+                strokeWidth={1.5}
+                fill={`url(#grad-${chartColor.replace('#','')})`}
+                dot={false}
+                activeDot={{ r: 3, fill: chartColor }}
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        ) : (
+          <div className="w-full h-full" />
+        )}
       </div>
     </Card>
     </motion.div>
