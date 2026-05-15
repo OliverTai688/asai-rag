@@ -39,7 +39,7 @@ export default function GapAnalysisPage() {
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                   <div className="flex-1 space-y-2">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-2xl bg-zinc-50 dark:bg-zinc-800 flex items-center justify-center font-bold text-zinc-900 dark:text-zinc-100 group-hover:bg-indigo-50 dark:group-hover:bg-indigo-900/20 transition-colors">
+                      <div className="w-10 h-10 rounded-2xl bg-zinc-50 dark:bg-zinc-800 flex items-center justify-center font-bold text-zinc-900 dark:text-zinc-100 group-hover:bg-[#EBF3FB] dark:group-hover:bg-[#1A3A6B]/20 transition-colors">
                         {cat.name[0]}
                       </div>
                       <div>
@@ -70,28 +70,28 @@ export default function GapAnalysisPage() {
       </div>
 
       {/* AI Suggestion Card */}
-      <Card className="rounded-3xl border-2 border-indigo-100 dark:border-indigo-900/30 bg-indigo-50/30 dark:bg-indigo-900/10 p-6">
+      <Card className="rounded-3xl border-2 border-[#D6E8F8] dark:border-[rgba(144,202,249,0.15)] bg-[#EBF3FB]/30 dark:bg-[#1A3A6B]/10 p-6">
         <div className="flex items-start gap-4">
-          <div className="w-10 h-10 rounded-2xl bg-indigo-600 flex items-center justify-center shrink-0">
+          <div className="w-10 h-10 rounded-2xl bg-[#1A3A6B] flex items-center justify-center shrink-0">
             <Sparkles className="w-6 h-6 text-white" />
           </div>
           <div className="space-y-4">
             <div>
-              <h4 className="text-lg font-bold text-indigo-900 dark:text-indigo-400">AI 實質規劃建議</h4>
-              <p className="text-sm font-medium text-indigo-700/70 dark:text-indigo-400/70">基於缺口分析，建議採取以下行動：</p>
+              <h4 className="text-lg font-bold text-[#0A2342] dark:text-[#2196F3]">AI 實質規劃建議</h4>
+              <p className="text-sm font-medium text-[#1565C0]/70 dark:text-[#2196F3]/70">基於缺口分析，建議採取以下行動：</p>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="bg-white dark:bg-zinc-900 p-4 rounded-2xl shadow-sm border border-indigo-100 dark:border-indigo-900/20">
+              <div className="bg-white dark:bg-zinc-900 p-4 rounded-2xl shadow-sm border border-[#D6E8F8] dark:border-[rgba(144,202,249,0.15)]">
                 <div className="flex items-center gap-2 mb-2">
                   <ShieldCheck className="w-4 h-4 text-green-500" />
                   <span className="text-sm font-bold">階段一：補足意外與重疾</span>
                 </div>
                 <p className="text-xs text-zinc-500 leading-relaxed font-medium">優先增加 200 萬重大傷病險與 500 萬意外險，利用定期商品槓桿，月繳預算控制在 3000 元內。</p>
               </div>
-              <div className="bg-white dark:bg-zinc-900 p-4 rounded-2xl shadow-sm border border-indigo-100 dark:border-indigo-900/20">
+              <div className="bg-white dark:bg-zinc-900 p-4 rounded-2xl shadow-sm border border-[#D6E8F8] dark:border-[rgba(144,202,249,0.15)]">
                 <div className="flex items-center gap-2 mb-2">
-                  <Target className="w-4 h-4 text-indigo-500" />
+                  <Target className="w-4 h-4 text-[#1565C0]" />
                   <span className="text-sm font-bold">階段二：退休與教育金預留</span>
                 </div>
                 <p className="text-xs text-zinc-500 leading-relaxed font-medium">當基礎保障建立後，可考慮美元分紅商品，同步解決退休規劃與子女出國留學金之幣別配置。</p>

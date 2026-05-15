@@ -10,9 +10,9 @@ export const SEED_CLIENTS: Client[] = [
     occupation: "科技業中階主管",
     annualIncome: 1800000,
     family: [
-      { relation: "配偶", name: "林小美", age: 38 },
-      { relation: "子", name: "王小明", age: 8 },
-      { relation: "女", name: "王小美", age: 5 },
+      { id: "f1", relation: "配偶", name: "林小美", age: 38 },
+      { id: "f2", relation: "子", name: "王小明", age: 8 },
+      { id: "f3", relation: "女", name: "王小美", age: 5 },
     ],
     existingPolicies: [
       { id: "p1", type: "定期壽險", amount: 5000000, provider: "國泰人壽" },
@@ -21,7 +21,7 @@ export const SEED_CLIENTS: Client[] = [
     tags: ["高意向", "雙薪家庭"],
     aiTags: ["子女教育金缺口", "醫療險不足"],
     status: "ACTIVE",
-    lastInteraction: "2026-04-20T10:00:00Z",
+    lastInteraction: "2026-05-13T10:00:00Z",
   },
   {
     id: "c_lin",
@@ -32,7 +32,7 @@ export const SEED_CLIENTS: Client[] = [
     occupation: "中小企業主",
     annualIncome: 5000000,
     family: [
-      { relation: "配偶", name: "張麗華", age: 50 },
+      { id: "f4", relation: "配偶", name: "張麗華", age: 50 },
     ],
     existingPolicies: [
       { id: "p3", type: "終身壽險", amount: 10000000, provider: "南山人壽" },
@@ -55,7 +55,7 @@ export const SEED_CLIENTS: Client[] = [
     tags: ["疑慮型", "單身"],
     aiTags: ["意外險建議", "實支實付醫療"],
     status: "PROSPECT",
-    lastInteraction: "2026-04-22T09:15:00Z",
+    lastInteraction: "2026-05-10T14:00:00Z",
   },
   {
     id: "c_lee",
@@ -66,8 +66,8 @@ export const SEED_CLIENTS: Client[] = [
     occupation: "公務員",
     annualIncome: 1200000,
     family: [
-      { relation: "配偶", name: "黃芳芬", age: 44 },
-      { relation: "子", name: "李小寶", age: 12 },
+      { id: "f5", relation: "配偶", name: "黃芳芬", age: 44 },
+      { id: "f6", relation: "子", name: "李小寶", age: 12 },
     ],
     existingPolicies: [
       { id: "p4", type: "防癌險", amount: 1000000, provider: "新光人壽" },
@@ -107,7 +107,7 @@ export const SEED_CLIENTS: Client[] = [
     tags: ["高風險業", "預算受限"],
     aiTags: ["意外險急需", "簡易醫療保障"],
     status: "PROSPECT",
-    lastInteraction: "2026-04-23T16:45:00Z",
+    lastInteraction: "2026-05-12T09:00:00Z",
   },
   {
     id: "c_huang",
@@ -118,7 +118,7 @@ export const SEED_CLIENTS: Client[] = [
     occupation: "銀行行員",
     annualIncome: 1100000,
     family: [
-      { relation: "父", name: "黃老伯", age: 70 },
+      { id: "f7", relation: "父", name: "黃老伯", age: 70 },
     ],
     existingPolicies: [
       { id: "p6", type: "投資型保單", amount: 3000000, provider: "安聯人壽" },
@@ -137,7 +137,7 @@ export const SEED_CLIENTS: Client[] = [
     occupation: "大車司機",
     annualIncome: 1500000,
     family: [
-      { relation: "配偶", name: "沈小姐", age: 40 },
+      { id: "f8", relation: "配偶", name: "沈小姐", age: 40 },
     ],
     existingPolicies: [],
     tags: ["高壓職業", "遲疑型"],
@@ -160,7 +160,7 @@ export const SEED_CLIENTS: Client[] = [
     tags: ["醫療背景", "高保障要求"],
     aiTags: ["重大疾病一次金加強"],
     status: "ACTIVE",
-    lastInteraction: "2026-04-24T08:00:00Z",
+    lastInteraction: "2026-05-14T08:00:00Z",
   },
   {
     id: "c_lo",
@@ -171,9 +171,9 @@ export const SEED_CLIENTS: Client[] = [
     occupation: "餐廳老闆",
     annualIncome: 2500000,
     family: [
-      { relation: "配偶", name: "王太太", age: 40 },
-      { relation: "子", name: "羅小弟", age: 10 },
-      { relation: "子", name: "羅小二", age: 7 },
+      { id: "f9", relation: "配偶", name: "王太太", age: 40 },
+      { id: "f10", relation: "子", name: "羅小弟", age: 10 },
+      { id: "f11", relation: "子", name: "羅小二", age: 7 },
     ],
     existingPolicies: [],
     tags: ["創業者", "資產傳承"],

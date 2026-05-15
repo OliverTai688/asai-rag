@@ -66,7 +66,7 @@ export default function ReportListPage() {
         
         <Dialog>
           <DialogTrigger>
-            <div className="inline-flex items-center justify-center rounded-full bg-indigo-600 hover:bg-indigo-700 h-11 px-6 shadow-lg shadow-indigo-500/20 text-white font-medium text-sm cursor-pointer transition-colors">
+            <div className="inline-flex items-center justify-center rounded-full bg-[#1A3A6B] hover:bg-[#1565C0] h-11 px-6 shadow-lg shadow-[#1565C0]/20 text-white font-medium text-sm cursor-pointer transition-colors">
               <PlusCircle className="w-5 h-5 mr-2" /> 生成報告
             </div>
           </DialogTrigger>
@@ -79,7 +79,7 @@ export default function ReportListPage() {
                  <button 
                   key={spin.id}
                   onClick={() => handleGenerateFromSpin(spin.id)}
-                  className="w-full flex items-center justify-between p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-900 hover:bg-indigo-50 dark:hover:bg-indigo-900/10 transition-all text-left"
+                  className="w-full flex items-center justify-between p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-900 hover:bg-[#EBF3FB] dark:hover:bg-[#0A2342]/10 transition-all text-left"
                  >
                     <div className="flex flex-col">
                        <span className="font-bold">{spin.clientName}</span>
@@ -113,7 +113,7 @@ export default function ReportListPage() {
                    <div className="p-6 bg-zinc-50 dark:bg-zinc-800/50 border-b border-zinc-100 dark:border-zinc-800 relative">
                       <div className="flex items-center gap-3 mb-4">
                          <div className="w-10 h-10 rounded-2xl bg-white dark:bg-zinc-900 flex items-center justify-center shadow-sm">
-                            <FileText className="w-5 h-5 text-indigo-600" />
+                            <FileText className="w-5 h-5 text-[#1565C0]" />
                          </div>
                          <div>
                             <h4 className="font-bold text-lg leading-none">{report.clientName}</h4>
@@ -144,7 +144,7 @@ export default function ReportListPage() {
                       </Button>
                       <Link
                         href={`/reports/${report.id}`}
-                        className={buttonVariants({ variant: "ghost", size: "icon", className: "rounded-xl w-8 h-8 text-indigo-600" })}
+                        className={buttonVariants({ variant: "ghost", size: "icon", className: "rounded-xl w-8 h-8 text-[#1565C0]" })}
                       >
                          <Eye className="w-4 h-4" />
                       </Link>

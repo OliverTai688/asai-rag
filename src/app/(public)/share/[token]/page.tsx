@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { FormattedTime } from "@/components/ui/formatted-time";
+import { Markdown } from "@/components/ui/markdown";
 
 export default function ShareReportPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = use(params);
@@ -79,14 +80,11 @@ export default function ShareReportPage({ params }: { params: Promise<{ token: s
                  {idx + 1}
               </div>
               <h2 className="text-2xl font-black mb-8 flex items-center gap-3">
-                 <div className="w-1.5 h-6 bg-indigo-600 rounded-full" />
+                 <div className="w-1.5 h-6 bg-[#1A3A6B] rounded-full" />
                  {section.title}
               </h2>
               <div className="p-8 md:p-10 rounded-[40px] bg-zinc-50 border border-zinc-100 shadow-sm relative overflow-hidden transition-all hover:shadow-md">
-                 <p className="text-lg md:text-xl text-zinc-700 font-medium leading-relaxed italic whitespace-pre-wrap">
-                    {section.content}
-                 </p>
-                 {section.type === 'recommendation' && (
+                 <Markdown content={section.content} />                 {section.type === 'recommendation' && (
                     <div className="mt-8 pt-8 border-t border-zinc-200/50 flex flex-col md:flex-row gap-4">
                        <div className="flex items-center gap-2 text-green-600 font-bold">
                           <CheckCircle2 className="w-5 h-5 fill-current" />

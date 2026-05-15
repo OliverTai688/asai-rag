@@ -37,7 +37,7 @@ export function NotificationHub() {
   const getIcon = (type: string) => {
     switch (type) {
       case 'REPORT_OPENED': return <FileText className="w-4 h-4 text-green-500" />;
-      case 'CHANCE': return <UserPlus className="w-4 h-4 text-indigo-500" />;
+      case 'CHANCE': return <UserPlus className="w-4 h-4 text-[#1565C0]" />;
       case 'OVERDUE': return <Circle className="w-4 h-4 text-red-500" />;
       default: return <Bell className="w-4 h-4 text-zinc-400" />;
     }
@@ -47,7 +47,7 @@ export function NotificationHub() {
     <DropdownMenu>
       <DropdownMenuTrigger>
         <div className="relative p-2 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors group">
-          <Bell className="w-5 h-5 text-zinc-500 group-hover:text-indigo-600" />
+          <Bell className="w-5 h-5 text-zinc-500 group-hover:text-[#1565C0]" />
           {unreadCount > 0 && (
             <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-red-500 rounded-full text-[9px] font-black text-white flex items-center justify-center ring-2 ring-white">
               {unreadCount}
@@ -59,7 +59,7 @@ export function NotificationHub() {
         <DropdownMenuLabel className="flex items-center justify-between px-3 py-2">
            <span className="font-black text-xs uppercase tracking-widest text-zinc-400">通知中心</span>
            {unreadCount > 0 && (
-             <Button variant="ghost" size="sm" className="h-6 text-[10px] font-bold text-indigo-600">
+             <Button variant="ghost" size="sm" className="h-6 text-[10px] font-bold text-[#1565C0]">
                全部標為已讀
              </Button>
            )}
@@ -78,7 +78,7 @@ export function NotificationHub() {
                 onClick={() => markAsRead(n.id)}
                 className={cn(
                   "p-3 rounded-xl flex items-start gap-3 focus:bg-zinc-50 dark:focus:bg-zinc-800 mb-1 cursor-pointer",
-                  !n.isRead && "bg-indigo-50/30 dark:bg-indigo-900/10"
+                  !n.isRead && "bg-[#EBF3FB]/30 dark:bg-[#0A2342]/10"
                 )}
                >
                  <div className="mt-1">{getIcon(n.type)}</div>
@@ -92,7 +92,7 @@ export function NotificationHub() {
            )}
         </div>
         <DropdownMenuSeparator />
-        <DropdownMenuItem className="justify-center p-2 rounded-xl text-[10px] font-black text-zinc-400 uppercase tracking-widest hover:text-indigo-600">
+        <DropdownMenuItem className="justify-center p-2 rounded-xl text-[10px] font-black text-zinc-400 uppercase tracking-widest hover:text-[#1565C0]">
            查看所有歷史記錄
         </DropdownMenuItem>
       </DropdownMenuContent>

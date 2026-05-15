@@ -61,10 +61,10 @@ export default function TheaterListPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="md:col-span-2 rounded-3xl border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden bg-gradient-to-br from-indigo-50/50 to-white dark:from-indigo-900/10 dark:to-zinc-900">
+        <Card className="md:col-span-2 rounded-3xl border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden bg-gradient-to-br from-[#EBF3FB]/50 to-white dark:from-[#1A3A6B]/10 dark:to-zinc-900">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Zap className="w-5 h-5 text-indigo-600" /> 開始新模擬
+              <Zap className="w-5 h-5 text-[#1565C0]" /> 開始新模擬
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -78,13 +78,13 @@ export default function TheaterListPage() {
                   className={cn(
                     "p-4 rounded-2xl border-2 transition-all text-left group",
                     selectedSpinId === spin.id 
-                      ? "border-indigo-600 bg-white dark:bg-zinc-800 shadow-lg shadow-indigo-500/10" 
-                      : "border-zinc-100 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900 hover:border-indigo-200"
+                      ? "border-[#1565C0] bg-white dark:bg-zinc-800 shadow-lg shadow-[#1565C0]/10" 
+                      : "border-zinc-100 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900 hover:border-[#90CAF9]/40"
                   )}
                 >
                   <div className="flex items-center gap-3 mb-2">
-                    <div className="w-8 h-8 rounded-full bg-indigo-50 dark:bg-indigo-900/20 flex items-center justify-center">
-                      <User className="w-4 h-4 text-indigo-600" />
+                    <div className="w-8 h-8 rounded-full bg-[#EBF3FB] dark:bg-[#1A3A6B]/20 flex items-center justify-center">
+                      <User className="w-4 h-4 text-[#1565C0]" />
                     </div>
                     <span className="font-bold">{spin.clientName}</span>
                   </div>
@@ -106,7 +106,7 @@ export default function TheaterListPage() {
             </div>
 
             {selectedSpinId && (
-              <div className="space-y-4 pt-4 border-t border-indigo-100 dark:border-indigo-900/20 animate-in fade-in slide-in-from-top-2">
+              <div className="space-y-4 pt-4 border-t border-[#D6E8F8] dark:border-[rgba(144,202,249,0.15)] animate-in fade-in slide-in-from-top-2">
                 <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest">選擇難度</p>
                 <div className="flex gap-2">
                   {(['EASY', 'MEDIUM', 'HARD'] as const).map(d => (
@@ -128,7 +128,7 @@ export default function TheaterListPage() {
                   ))}
                 </div>
                 <Button 
-                  className="w-full rounded-2xl h-12 bg-indigo-600 hover:bg-indigo-700 text-lg font-bold shadow-xl shadow-indigo-500/20"
+                  className="w-full rounded-2xl h-12 bg-[#1A3A6B] hover:bg-[#1565C0] text-lg font-bold shadow-xl shadow-[#1565C0]/20"
                   onClick={handleStartSim}
                 >
                   進入演練 <Play className="w-5 h-5 ml-2 fill-current" />
@@ -168,7 +168,7 @@ export default function TheaterListPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-         <Card className="rounded-3xl bg-indigo-600 text-white border-none p-6 space-y-4 relative overflow-hidden">
+         <Card className="rounded-3xl bg-[#1A3A6B] text-white border-none p-6 space-y-4 relative overflow-hidden">
             <Shield className="absolute bottom-[-10%] right-[-5%] w-32 h-32 text-white/10" />
             <h3 className="text-xl font-bold">人格庫概覽</h3>
             <div className="grid grid-cols-2 gap-2">

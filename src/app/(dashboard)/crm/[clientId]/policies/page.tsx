@@ -37,7 +37,7 @@ export default function ClientPoliciesPage() {
                 </div>
               </div>
               <div>
-                <h4 className="font-bold text-lg leading-none mb-1 group-hover:text-indigo-600 transition-colors">{policy.type}</h4>
+                <h4 className="font-bold text-lg leading-none mb-1 group-hover:text-[#1565C0] transition-colors">{policy.type}</h4>
                 <div className="flex items-center gap-4 text-xs font-bold text-zinc-400">
                   <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> {policy.provider}</span>
                 </div>

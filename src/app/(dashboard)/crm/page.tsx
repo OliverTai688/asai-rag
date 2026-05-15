@@ -19,12 +19,15 @@ import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { AddClientDialog } from "@/components/crm/add-client-dialog";
 import { FormattedTime } from "@/components/ui/formatted-time";
+import { useMounted } from "@/lib/hooks/use-mounted";
+import { Loader2, Users } from "lucide-react";
 
 export default function CRMListPage() {
   const [viewMode, setViewMode] = useState<"table" | "grid">("table");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<ClientStatus | "ALL">("ALL");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const mounted = useMounted();
 
   const allClients = useMemo(() => clientService.getAllClients(), []);
   
@@ -45,7 +48,7 @@ export default function CRMListPage() {
           <p className="text-zinc-500 font-medium">管理您的客戶資料、查看互動歷史與保障建議。</p>
         </div>
         <Button 
-          className="rounded-full bg-indigo-600 hover:bg-indigo-700 h-11 px-6 shadow-lg shadow-indigo-500/20"
+          className="rounded-full bg-[#1A3A6B] hover:bg-[#1565C0] h-11 px-6 shadow-lg shadow-[#1565C0]/20"
           onClick={() => setIsAddDialogOpen(true)}
         >
           <Plus className="w-5 h-5 mr-2" /> {STRINGS.crm.addClient}
@@ -101,7 +104,12 @@ export default function CRMListPage() {
       </div>
 
       {/* List Content */}
-      {filteredClients.length === 0 ? (
+      {!mounted ? (
+        <div className="flex flex-col items-center justify-center py-32 bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800">
+          <Loader2 className="w-8 h-8 animate-spin text-zinc-300 mb-4" />
+          <p className="text-zinc-500 font-medium">載入客戶資料中...</p>
+        </div>
+      ) : filteredClients.length === 0 ? (
         <div className="text-center py-32 bg-white dark:bg-zinc-900 rounded-3xl border-2 border-dashed border-zinc-100 dark:border-zinc-800">
           <div className="w-16 h-16 bg-zinc-50 dark:bg-zinc-800 rounded-full flex items-center justify-center mx-auto mb-4 text-zinc-300">
             <Users className="w-8 h-8" />
@@ -140,7 +148,7 @@ function ClientTableView({ clients }: { clients: Client[] }) {
               <tr key={client.id} className="group hover:bg-zinc-50/50 dark:hover:bg-zinc-800/30 transition-colors">
                 <td className="px-6 py-4">
                   <Link href={`/crm/${client.id}`} className="block group-hover:translate-x-1 transition-transform">
-                    <p className="font-bold text-sm leading-none mb-1 group-hover:text-indigo-600 dark:group-hover:text-indigo-400">{client.name}</p>
+                    <p className="font-bold text-sm leading-none mb-1 group-hover:text-[#1565C0] dark:group-hover:text-[#2196F3]">{client.name}</p>
                     <p className="text-xs text-zinc-400 font-medium">{client.email}</p>
                   </Link>
                 </td>
@@ -153,7 +161,7 @@ function ClientTableView({ clients }: { clients: Client[] }) {
                 <td className="px-6 py-4">
                   <div className="flex flex-wrap gap-1">
                     {client.aiTags.slice(0, 2).map(tag => (
-                      <Badge key={tag} className="text-[10px] py-0 h-4 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 border-none">
+                      <Badge key={tag} className="text-[10px] py-0 h-4 bg-[#EBF3FB] dark:bg-[#1A3A6B]/20 text-[#1565C0] dark:text-[#2196F3] border-none">
                         {tag}
                       </Badge>
                     ))}
@@ -187,21 +195,21 @@ function ClientGridView({ clients }: { clients: Client[] }) {
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
       {clients.map((client) => (
         <Link key={client.id} href={`/crm/${client.id}`} className="group">
-          <Card className="rounded-3xl border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden transition-all group-hover:translate-y-[-4px] group-hover:shadow-lg group-hover:border-indigo-200 dark:group-hover:border-indigo-900/40">
+          <Card className="rounded-3xl border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden transition-all group-hover:translate-y-[-4px] group-hover:shadow-lg group-hover:border-[#90CAF9]/40 dark:group-hover:border-[#0A2342]/40">
             <CardContent className="p-6">
               <div className="flex items-start justify-between mb-4">
-                <div className="w-12 h-12 rounded-2xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center group-hover:bg-indigo-50 dark:group-hover:bg-indigo-900/20 transition-colors">
-                  <Users className="w-6 h-6 text-zinc-400 group-hover:text-indigo-600 transition-colors" />
+                <div className="w-12 h-12 rounded-2xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center group-hover:bg-[#EBF3FB] dark:group-hover:bg-[#1A3A6B]/20 transition-colors">
+                  <Users className="w-6 h-6 text-zinc-400 group-hover:text-[#1565C0] transition-colors" />
                 </div>
                 <StatusBadge status={client.status} />
               </div>
               <div className="mb-4">
-                <h3 className="font-bold text-lg leading-none mb-1 group-hover:text-indigo-600 transition-colors">{client.name}</h3>
+                <h3 className="font-bold text-lg leading-none mb-1 group-hover:text-[#1565C0] transition-colors">{client.name}</h3>
                 <p className="text-xs text-zinc-500 font-medium truncate">{client.occupation}</p>
               </div>
               <div className="flex flex-wrap gap-1 mb-4 h-11 overflow-hidden">
                 {client.aiTags.map(tag => (
-                  <Badge key={tag} className="text-[10px] py-0 h-4 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 border-none">
+                  <Badge key={tag} className="text-[10px] py-0 h-4 bg-[#EBF3FB] dark:bg-[#1A3A6B]/20 text-[#1565C0] dark:text-[#2196F3] border-none">
                     {tag}
                   </Badge>
                 ))}
@@ -232,24 +240,3 @@ function StatusBadge({ status }: { status: ClientStatus }) {
   );
 }
 
-function Users(props: any) {
-  return (
-    <svg 
-      {...props} 
-      xmlns="http://www.w3.org/2000/svg" 
-      width="24" 
-      height="24" 
-      viewBox="0 0 24 24" 
-      fill="none" 
-      stroke="currentColor" 
-      strokeWidth="2" 
-      strokeLinecap="round" 
-      strokeLinejoin="round" 
-    >
-      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-      <circle cx="9" cy="7" r="4" />
-      <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
-      <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-    </svg>
-  );
-}

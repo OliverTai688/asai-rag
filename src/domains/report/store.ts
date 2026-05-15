@@ -17,6 +17,7 @@ interface ReportState {
   recordAccess: (token: string) => void;
   getReportById: (id: string) => Report | undefined;
   getReportByToken: (token: string) => Report | undefined;
+  clearAll: () => void;
 }
 
 export const useReportStore = create<ReportState>()(
@@ -80,6 +81,8 @@ export const useReportStore = create<ReportState>()(
       getReportById: (id) => get().reports.find((r) => r.id === id),
       
       getReportByToken: (token) => get().reports.find((r) => r.share?.token === token),
+
+      clearAll: () => set({ reports: [] })
     }),
     {
       name: "sincerely:v1:reports",

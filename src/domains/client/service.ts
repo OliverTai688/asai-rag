@@ -1,5 +1,5 @@
 import { useClientStore } from "./store";
-import { Client, ClientStatus } from "./types";
+import { Client, FamilyMember } from "./types";
 import { nanoid } from "nanoid";
 
 /**
@@ -67,5 +67,57 @@ export const clientService = {
       activeCount: clients.filter((c) => c.status === "ACTIVE").length,
       closedCount: clients.filter((c) => c.status === "CLOSED").length,
     };
+  },
+
+  /**
+   * 新增家屬/關係人
+   */
+  addFamilyMember: (clientId: string, member: Omit<FamilyMember, "id">) => {
+    const client = useClientStore.getState().getClientById(clientId);
+    if (!client) return;
+
+    const newMember: FamilyMember = {
+      ...member,
+      id: `f_${nanoid(6)}`,
+    };
+
+    useClientStore.getState().updateClient(clientId, {
+      family: [...client.family, newMember],
+      lastInteraction: new Date().toISOString(),
+    });
+
+    return newMember;
+  },
+
+  /**
+   * 更新家屬/關係人
+   */
+  updateFamilyMember: (clientId: string, memberId: string, updates: Partial<FamilyMember>) => {
+    const client = useClientStore.getState().getClientById(clientId);
+    if (!client) return;
+
+    const updatedFamily = client.family.map(m => 
+      m.id === memberId ? { ...m, ...updates } : m
+    );
+
+    useClientStore.getState().updateClient(clientId, {
+      family: updatedFamily,
+      lastInteraction: new Date().toISOString(),
+    });
+  },
+
+  /**
+   * 刪除家屬/關係人
+   */
+  deleteFamilyMember: (clientId: string, memberId: string) => {
+    const client = useClientStore.getState().getClientById(clientId);
+    if (!client) return;
+
+    const updatedFamily = client.family.filter(m => m.id !== memberId);
+
+    useClientStore.getState().updateClient(clientId, {
+      family: updatedFamily,
+      lastInteraction: new Date().toISOString(),
+    });
   }
 };

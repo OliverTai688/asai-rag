@@ -18,27 +18,39 @@ export const reportService = {
 
     // 1. Situation -> 需求背景
     if (spinSession) {
+      const situationItems = spinSession.outputs.SITUATION.length > 0 
+        ? spinSession.outputs.SITUATION.map(item => `- ${item}`).join('\n')
+        : '- 客戶目前正處於評估階段，主要關注資產配置的穩定性。';
+      
       sections.push({
         id: nanoid(),
         type: 'situation',
         title: '現狀與需求背景',
-        content: spinSession.outputs.SITUATION.join('；') || '客戶目前正處於評估階段，主要關注資產配置的穩定性。',
+        content: `### 核心現況\n${situationItems}`,
       });
 
       // 2. Problem -> 風險缺口
+      const problemItems = spinSession.outputs.PROBLEM.length > 0
+        ? spinSession.outputs.PROBLEM.map(item => `- ${item}`).join('\n')
+        : '- 尚未明確定義';
+
       sections.push({
         id: nanoid(),
         type: 'problem',
         title: '潛在風險缺口',
-        content: `基於討論，我們發現了以下關鍵問題：${spinSession.outputs.PROBLEM.join('、') || '尚未明確定義'}。`,
+        content: `### 關鍵缺口分析\n> 基於討論，我們發現了以下關鍵問題：\n\n${problemItems}`,
       });
 
       // 3. Implication -> 風險影響分析
+      const implicationItems = spinSession.outputs.IMPLICATION.length > 0
+        ? spinSession.outputs.IMPLICATION.map(item => `- ${item}`).join('\n')
+        : '- 若不即時處理，可能會對家庭長期財務穩健造成壓力。';
+
       sections.push({
         id: nanoid(),
         type: 'implication',
         title: '影響評估',
-        content: spinSession.outputs.IMPLICATION.join(' ') || '若不即時處理，可能會對家庭長期財務穩健造成壓力。',
+        content: `### 風險影響評估\n${implicationItems}`,
       });
     }
 
@@ -47,7 +59,7 @@ export const reportService = {
       id: nanoid(),
       type: 'recommendation',
       title: '專業建議與方案',
-      content: '建議優先補足意外與失能險種，並透過定期定額方式建構教育基金，以達成保全與增值的雙重目標。',
+      content: `### 配置建議方案\n- **優先補足**：意外與失能險種，建立家庭防護網。\n- **資產增值**：透過定期定額方式建構教育基金。\n- **核心目標**：達成保全與增值的雙重平衡。`,
     });
 
     // 5. Performance -> 內部演練回饋 (Internal Only 用)

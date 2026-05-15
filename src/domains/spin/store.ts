@@ -3,6 +3,7 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { SpinSession, SpinMessage, SpinPhase, SpinMode } from "./types";
+import { SEED_SPIN_SESSIONS, SEED_SPIN_MESSAGES } from "./mocks";
 
 interface SpinState {
   sessions: SpinSession[];
@@ -16,13 +17,14 @@ interface SpinState {
   addOutput: (sessionId: string, phase: SpinPhase, content: string) => void;
   getSessionById: (id: string) => SpinSession | undefined;
   getMessages: (sessionId: string) => SpinMessage[];
+  clearAll: () => void;
 }
 
 export const useSpinStore = create<SpinState>()(
   persist(
     (set, get) => ({
-      sessions: [],
-      messagesBySession: {},
+      sessions: SEED_SPIN_SESSIONS,
+      messagesBySession: SEED_SPIN_MESSAGES,
 
       createSession: (clientId, clientName) => {
         const id = `spin_${Date.now()}`;
@@ -117,6 +119,8 @@ export const useSpinStore = create<SpinState>()(
       getMessages: (sessionId) => {
         return get().messagesBySession[sessionId] || [];
       },
+
+      clearAll: () => set({ sessions: [], messagesBySession: {} })
     }),
     {
       name: "sincerely:v1:spin",

@@ -5,6 +5,14 @@ export interface AssistantMessage {
   createdAt: string;
 }
 
+export interface Conversation {
+  id: string;
+  title: string;
+  messages: AssistantMessage[];
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface AssistantSuggestion {
   id: string;
   label: string;

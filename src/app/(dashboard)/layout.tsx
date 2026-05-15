@@ -13,21 +13,21 @@ export default function DashboardLayout({
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   return (
-    <div className="flex h-screen bg-zinc-50 dark:bg-zinc-950 overflow-hidden relative">
+    <div className="flex h-screen bg-[#F7FAFF] dark:bg-[#0A1929] overflow-hidden relative">
       {/* Sidebar */}
       <Sidebar open={sidebarOpen} setOpen={setSidebarOpen} />
+
+      {/* Global Assistant Sidebar Column */}
+      <GlobalAssistant />
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
         <TopBar onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
         <main className="flex-1 overflow-y-auto p-6 custom-scrollbar">
-          <div className="max-w-7xl mx-auto space-y-6">
+          <div className="max-w-7xl mx-auto space-y-6 animate-page-enter">
             {children}
           </div>
         </main>
-        
-        {/* Global Assistant Component */}
-        <GlobalAssistant />
       </div>
     </div>
   );

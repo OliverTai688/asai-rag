@@ -14,39 +14,43 @@ const iconMap = {
   SYSTEM: Info,
 };
 
-const colorMap = {
-  SPIN: "text-indigo-600 bg-indigo-50 dark:bg-indigo-900/20",
-  THEATER: "text-orange-600 bg-orange-50 dark:bg-orange-900/20",
-  REPORT: "text-green-600 bg-green-50 dark:bg-green-900/20",
-  SHARE_OPEN: "text-blue-600 bg-blue-50 dark:bg-blue-900/20",
-  SYSTEM: "text-zinc-600 bg-zinc-50 dark:bg-zinc-900/20",
+const colorMap: Record<string, { icon: string; bg: string; border: string }> = {
+  SPIN:       { icon: "#1565C0", bg: "#EBF3FB", border: "#90CAF9" },
+  THEATER:    { icon: "#B8860B", bg: "#FDF3D0", border: "#C9A227" },
+  REPORT:     { icon: "#1B5E20", bg: "#E8F5E9", border: "#A5D6A7" },
+  SHARE_OPEN: { icon: "#0A2342", bg: "#D6E8F8", border: "#1976D2" },
+  SYSTEM:     { icon: "#546E7A", bg: "#F7FAFF", border: "#CFD8DC" },
 };
 
 export function ActivityTimeline({ events }: { events: InteractionEvent[] }) {
   return (
-    <Card className="rounded-3xl border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden">
-      <CardHeader className="flex flex-row items-center justify-between bg-zinc-50/50 dark:bg-zinc-900/50 border-b border-zinc-200 dark:border-zinc-800">
-        <CardTitle className="text-lg font-bold">近期活動</CardTitle>
-        <span className="text-xs text-zinc-500 font-medium">最近 8 筆記錄</span>
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between border-b border-[#EBF3FB] bg-[#F7FAFF]/50">
+        <CardTitle>近期活動</CardTitle>
+        <span className="text-[11px] text-[#546E7A] font-medium">最近 8 筆記錄</span>
       </CardHeader>
-      <CardContent className="p-6">
-        <div className="relative space-y-6 before:absolute before:inset-0 before:ml-5 before:h-full before:w-0.5 before:bg-zinc-100 dark:before:bg-zinc-800">
+      <CardContent className="p-5">
+        <div className="relative space-y-5 before:absolute before:inset-0 before:ml-[18px] before:h-full before:w-px before:bg-[#EBF3FB]">
           {events.map((event) => {
             const Icon = iconMap[event.type] || Info;
+            const colors = colorMap[event.type] || colorMap.SYSTEM;
             return (
-              <div key={event.id} className="relative flex items-start gap-4 pl-1">
-                <div className={cn("mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-4 border-white dark:border-zinc-950 z-10", colorMap[event.type])}>
-                  <Icon className="h-4 w-4" />
+              <div key={event.id} className="relative flex items-start gap-3.5">
+                <div
+                  className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 border-white z-10 shadow-sm"
+                  style={{ backgroundColor: colors.bg, borderColor: colors.border }}
+                >
+                  <Icon className="h-3.5 w-3.5" style={{ color: colors.icon }} strokeWidth={1.5} />
                 </div>
-                <div className="flex-1 space-y-1 pt-1.5">
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm font-bold leading-none">{event.title}</p>
-                    <time className="text-[10px] font-medium text-zinc-400">
+                <div className="flex-1 space-y-0.5 pt-1.5 min-w-0">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-[13px] font-semibold text-[#0A2342] leading-none truncate">{event.title}</p>
+                    <time className="text-[10px] font-medium text-[#546E7A] shrink-0">
                       {formatDate(event.timestamp, "HH:mm")}
                     </time>
                   </div>
-                  <p className="text-xs text-zinc-500 leading-relaxed font-medium">
-                    <span className="text-zinc-900 dark:text-zinc-300 mr-2">[{event.clientName}]</span>
+                  <p className="text-[12px] text-[#546E7A] leading-relaxed">
+                    <span className="text-[#1565C0] font-semibold mr-1.5">[{event.clientName}]</span>
                     {event.description}
                   </p>
                 </div>

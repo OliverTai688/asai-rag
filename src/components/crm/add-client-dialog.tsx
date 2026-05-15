@@ -151,7 +151,7 @@ export function AddClientDialog({
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)} className="rounded-full px-6">
               取消
             </Button>
-            <Button type="submit" className="rounded-full px-8 bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-500/20">
+            <Button type="submit" className="rounded-full px-8 bg-[#1A3A6B] hover:bg-[#1565C0] shadow-lg shadow-[#1565C0]/20">
               確認新增
             </Button>
           </DialogFooter>

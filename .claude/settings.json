@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(sips -c 720 1440 /tmp/dash-kpi.png --cropOffset 550 0 -o /tmp/dash-kpi-crop.png)",
+      "Bash(xargs sed *)",
+      "Bash(./node_modules/.bin/tsc --noEmit)"
+    ]
+  }
+}

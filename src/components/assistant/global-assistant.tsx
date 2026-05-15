@@ -4,64 +4,70 @@ import { useState, useEffect, useRef } from "react";
 import { useAssistantStore } from "@/domains/assistant/store";
 import { assistantService } from "@/domains/assistant/service";
 import { AssistantMessage } from "@/domains/assistant/types";
-import { 
-  Bot, 
-  User, 
-  Send, 
-  X, 
-  Sparkles, 
-  Compass, 
+import {
+  Bot,
+  X,
+  Sparkles,
   Zap,
-  ArrowRight
+  ArrowRight,
+  SquarePen,
+  Clock,
+  Trash2,
+  MessageSquare
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { 
-  Sheet, 
-  SheetContent, 
-  SheetHeader, 
-  SheetTitle, 
-  SheetDescription 
-} from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { usePathname, useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { FormattedTime } from "@/components/ui/formatted-time";
+import { AssistantInsights } from "./assistant-insights";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export function GlobalAssistant() {
   const pathname = usePathname();
   const router = useRouter();
   const scrollRef = useRef<HTMLDivElement>(null);
-  
-  const { 
-    messages, 
-    addMessage, 
-    isPanelOpen, 
-    togglePanel, 
-    suggestions, 
-    setSuggestions 
+
+  const {
+    conversations,
+    activeConversationId,
+    addMessage,
+    updateLastMessage,
+    replaceLastMessage,
+    createConversation,
+    switchConversation,
+    deleteConversation,
+    isPanelOpen,
+    togglePanel,
+    suggestions,
+    setSuggestions
   } = useAssistantStore();
-  
+
+  const messages = conversations.find(c => c.id === activeConversationId)?.messages ?? [];
+
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+  const [activeTab, setActiveTab] = useState("insights");
+  const [showHistory, setShowHistory] = useState(false);
 
-  // 當路徑改變時更新建議
   useEffect(() => {
     const context = { route: pathname };
     const nextSuggestions = assistantService.getStaticSuggestions(context);
     setSuggestions(nextSuggestions);
   }, [pathname, setSuggestions]);
 
-  // 自動捲動
   useEffect(() => {
-    if (scrollRef.current) {
+    if (scrollRef.current && !showHistory) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages, isTyping]);
+  }, [messages, isTyping, showHistory]);
 
   const handleSend = async (overrideInput?: string) => {
     const text = overrideInput || input;
     if (!text.trim() || isTyping) return;
+    setActiveTab("chat");
+    setShowHistory(false);
 
     const userMsg: AssistantMessage = {
       id: Date.now().toString(),
@@ -70,15 +76,17 @@ export function GlobalAssistant() {
       createdAt: new Date().toISOString(),
     };
 
+    const currentMessages = messages;
     setInput("");
     addMessage(userMsg);
     setIsTyping(true);
 
     try {
-      const res = await fetch("/api/mock/ai/assistant", {
+      const res = await fetch("/api/ai/chat", {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          messages: [...messages, userMsg],
+          messages: [...currentMessages, userMsg],
           context: { route: pathname }
         }),
       });
@@ -87,7 +95,7 @@ export function GlobalAssistant() {
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
-      
+
       const assistantMsg: AssistantMessage = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
@@ -95,37 +103,27 @@ export function GlobalAssistant() {
         createdAt: new Date().toISOString(),
       };
 
-      let fullText = "";
-      // 我們這裡簡單處理，先加一個空的 assistant 訊息
       addMessage({ ...assistantMsg, content: "...思考中" });
 
+      let fullText = "";
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
         const chunk = decoder.decode(value);
         fullText += chunk;
-        // 更新最後一筆訊息
-        const lastMsg = useAssistantStore.getState().messages.slice(-1)[0];
-        useAssistantStore.setState((state) => ({
-          messages: [...state.messages.slice(0, -1), { ...lastMsg, content: fullText }]
-        }));
+        useAssistantStore.getState().updateLastMessage(fullText);
       }
 
-      // 工具解析
       const tools = assistantService.parseTools(fullText);
       tools.forEach(tool => {
         if (tool.action === 'NAVIGATE') {
           toast.info(`正在導航至 ${tool.params}`);
           router.push(tool.params);
-          togglePanel(false);
         }
       });
 
       const finalContent = assistantService.cleanResponse(fullText);
-      // 再次更新最後一筆為乾淨內容
-      useAssistantStore.setState((state) => ({
-        messages: [...state.messages.slice(0, -1), { ...assistantMsg, content: finalContent }]
-      }));
+      useAssistantStore.getState().replaceLastMessage({ ...assistantMsg, content: finalContent });
 
     } catch (err) {
       toast.error("助理連線失敗");
@@ -134,115 +132,222 @@ export function GlobalAssistant() {
     }
   };
 
+  const handleNewChat = () => {
+    createConversation();
+    setActiveTab("chat");
+    setShowHistory(false);
+  };
+
+  const handleHistoryToggle = () => {
+    setActiveTab("chat");
+    setShowHistory(h => !h);
+  };
+
   return (
-    <>
-      {/* FAB */}
-      <Button 
-        onClick={() => togglePanel()}
-        className={cn(
-          "fixed bottom-6 right-6 w-14 h-14 rounded-full shadow-2xl z-50 transition-all active:scale-95 group",
-          isPanelOpen ? "bg-zinc-800 scale-0" : "bg-indigo-600 hover:bg-indigo-700"
-        )}
-      >
-        <Bot className="w-7 h-7 text-white group-hover:animate-bounce" />
-      </Button>
-
-      <Sheet open={isPanelOpen} onOpenChange={togglePanel}>
-        <SheetContent side="right" className="w-full sm:max-w-md p-0 flex flex-col border-l-zinc-200 dark:border-l-zinc-800 shadow-2xl">
-          <SheetHeader className="p-6 border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/50">
-             <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-indigo-600 flex items-center justify-center text-white shadow-lg">
-                   <Bot className="w-6 h-6" />
-                </div>
-                <div>
-                   <SheetTitle className="text-xl font-black">ASAI 智能助手</SheetTitle>
-                   <SheetDescription className="text-xs font-bold text-zinc-400 uppercase tracking-widest">
-                     Cross-Domain Copilot
-                   </SheetDescription>
-                </div>
-             </div>
-          </SheetHeader>
-
-          <div 
-            ref={scrollRef}
-            className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar"
-          >
-             {messages.length === 0 && (
-               <div className="py-10 text-center space-y-6">
-                  <div className="w-16 h-16 bg-indigo-50 dark:bg-indigo-900/20 rounded-full flex items-center justify-center mx-auto">
-                     <Sparkles className="w-8 h-8 text-indigo-600" />
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-lg">有什麼我可以幫您的？</h4>
-                    <p className="text-sm text-zinc-500 mt-2">您可以問我關於 ${pathname} 的事，或要求我跳轉到特定頁面。</p>
-                  </div>
-               </div>
-             )}
-
-             {messages.map((m) => (
-                <div key={m.id} className={cn("flex flex-col", m.role === 'user' ? "items-end" : "items-start")}>
-                   <div className={cn(
-                     "max-w-[85%] p-4 rounded-3xl text-sm leading-relaxed font-bold shadow-sm",
-                     m.role === 'user' 
-                       ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 rounded-tr-none" 
-                       : "bg-indigo-600 text-white rounded-tl-none ring-4 ring-indigo-50 dark:ring-indigo-900/20"
-                   )}>
-                      {m.content}
-                   </div>
-                    <span className="text-[9px] font-bold text-zinc-400 mt-1 uppercase tracking-tighter">
-                       {m.role} • <FormattedTime isoString={m.createdAt} />
-                    </span>
-                </div>
-             ))}
-
-             {isTyping && (
-                <div className="flex items-center gap-2">
-                   <div className="w-2 h-2 bg-indigo-400 rounded-full animate-bounce [animation-delay:-0.3s]" />
-                   <div className="w-2 h-2 bg-indigo-400 rounded-full animate-bounce [animation-delay:-0.15s]" />
-                   <div className="w-2 h-2 bg-indigo-400 rounded-full animate-bounce" />
-                </div>
-             )}
+    <div
+      className={cn(
+        "h-full border-r bg-white dark:bg-[#0F2744] transition-all duration-300 overflow-hidden flex flex-col z-30",
+        "border-[#CFD8DC] dark:border-[rgba(144,202,249,0.15)]",
+        isPanelOpen ? "w-80 opacity-100 shadow-xl" : "w-0 opacity-0 border-none"
+      )}
+    >
+      <div className="flex flex-col h-full min-w-[20rem]">
+        {/* Header */}
+        <div className="px-5 py-4 border-b border-[#CFD8DC] dark:border-[rgba(144,202,249,0.15)] bg-[#F7FAFF]/80 dark:bg-[#1A3A6B]/20 flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-[#1A3A6B] flex items-center justify-center text-white shadow-sm">
+              <Bot className="w-5 h-5 text-[#C9A227]" strokeWidth={1.5} />
+            </div>
+            <div>
+              <h2 className="text-[14px] font-bold leading-tight text-[#0A2342] dark:text-white">誠問 AI 助手</h2>
+              <p className="text-[9px] font-semibold text-[#546E7A] dark:text-[#90CAF9] uppercase tracking-widest mt-0.5">
+                Sincere Question Copilot
+              </p>
+            </div>
           </div>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleHistoryToggle}
+              className={cn("rounded-xl w-8 h-8 text-[#546E7A] hover:text-[#1565C0] hover:bg-[#EBF3FB]", showHistory && "bg-[#EBF3FB] text-[#1565C0]")}
+              title="對話歷史"
+            >
+              <Clock className="w-3.5 h-3.5" strokeWidth={1.5} />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleNewChat}
+              className="rounded-xl w-8 h-8 text-[#546E7A] hover:text-[#1565C0] hover:bg-[#EBF3FB]"
+              title="新對話"
+            >
+              <SquarePen className="w-3.5 h-3.5" strokeWidth={1.5} />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => togglePanel(false)}
+              className="rounded-xl w-8 h-8 text-[#546E7A] hover:text-[#0A2342] hover:bg-[#EBF3FB]"
+            >
+              <X className="w-3.5 h-3.5" strokeWidth={1.5} />
+            </Button>
+          </div>
+        </div>
 
-          <div className="p-6 border-t border-zinc-100 dark:border-zinc-800 space-y-4">
-             <div className="flex flex-wrap gap-2">
-                {suggestions.map((s) => (
-                  <button 
-                    key={s.id}
-                    onClick={() => handleSend(s.label)}
-                    className="px-3 py-1.5 rounded-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-[11px] font-bold text-zinc-600 dark:text-zinc-400 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200 transition-all flex items-center gap-1.5 group"
-                  >
-                     <Zap className="w-3 h-3 text-indigo-400 group-hover:fill-current" /> {s.label}
-                  </button>
-                ))}
-             </div>
-             <div className="relative">
-                <Textarea 
-                  placeholder="輸入指令或問題..."
-                  className="rounded-3xl border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 min-h-[60px] max-h-[120px] pr-12 focus-visible:ring-indigo-500 py-4 font-bold"
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
-                      e.preventDefault();
-                      handleSend();
-                    }
-                  }}
-                />
-                <Button 
-                  size="icon"
-                  className={cn(
-                    "absolute right-2 bottom-2 w-10 h-10 rounded-2xl transition-all",
-                    input.trim() ? "bg-indigo-600 text-white scale-100" : "scale-0 bg-zinc-100"
+        {/* Content */}
+        <div
+          ref={scrollRef}
+          className="flex-1 overflow-y-auto p-5 space-y-5 custom-scrollbar"
+        >
+          <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v); if (v !== "chat") setShowHistory(false); }} className="w-full">
+            <TabsList className="grid w-full grid-cols-2 mb-4 bg-[#EBF3FB] dark:bg-[#1A3A6B]/30 rounded-xl p-1 h-9">
+              <TabsTrigger value="insights" className="rounded-lg text-xs font-semibold text-[#546E7A] data-[state=active]:bg-white dark:data-[state=active]:bg-[#0F2744] data-[state=active]:text-[#1565C0] data-[state=active]:shadow-sm">
+                AI 洞察
+              </TabsTrigger>
+              <TabsTrigger value="chat" className="rounded-lg text-xs font-semibold text-[#546E7A] data-[state=active]:bg-white dark:data-[state=active]:bg-[#0F2744] data-[state=active]:text-[#1565C0] data-[state=active]:shadow-sm">
+                智能對話
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="insights" className="mt-0 animate-in fade-in slide-in-from-left-4 duration-300">
+              <AssistantInsights />
+            </TabsContent>
+
+            <TabsContent value="chat" className="mt-0 space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
+              {showHistory ? (
+                /* History List */
+                <div className="space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <p className="text-[10px] font-semibold text-[#546E7A] uppercase tracking-widest">對話歷史</p>
+                    <span className="text-[10px] text-[#546E7A]">{conversations.length} 則對話</span>
+                  </div>
+                  {conversations.length === 0 ? (
+                    <div className="py-10 text-center">
+                      <MessageSquare className="w-7 h-7 text-[#90CAF9] mx-auto mb-3" strokeWidth={1.5} />
+                      <p className="text-sm text-[#546E7A]">尚無歷史對話</p>
+                    </div>
+                  ) : (
+                    conversations.map(conv => (
+                      <button
+                        key={conv.id}
+                        onClick={() => { switchConversation(conv.id); setShowHistory(false); }}
+                        className={cn(
+                          "w-full text-left p-3 rounded-xl border transition-all group",
+                          conv.id === activeConversationId
+                            ? "bg-[#EBF3FB] border-[#90CAF9]/40 dark:bg-[#1A3A6B]/40"
+                            : "border-[#CFD8DC] dark:border-[rgba(144,202,249,0.15)] hover:bg-[#F7FAFF] dark:hover:bg-[#1A3A6B]/20"
+                        )}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="text-sm font-semibold text-[#0A2342] dark:text-[#E8F0FE] truncate flex-1 leading-snug">
+                            {conv.title}
+                          </p>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); deleteConversation(conv.id); }}
+                            className="opacity-0 group-hover:opacity-100 text-[#546E7A] hover:text-[#B71C1C] transition-opacity flex-shrink-0 mt-0.5"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" strokeWidth={1.5} />
+                          </button>
+                        </div>
+                        <p className="text-[10px] text-[#546E7A] mt-1">
+                          {conv.messages.length} 則訊息 · <FormattedTime isoString={conv.updatedAt} />
+                        </p>
+                      </button>
+                    ))
                   )}
-                  onClick={() => handleSend()}
+                </div>
+              ) : (
+                /* Chat Messages */
+                <>
+                  {messages.length === 0 && (
+                    <div className="py-10 text-center space-y-4">
+                      <div className="w-14 h-14 bg-[#EBF3FB] dark:bg-[#1A3A6B]/40 rounded-full flex items-center justify-center mx-auto">
+                        <Sparkles className="w-7 h-7 text-[#C9A227]" strokeWidth={1.5} />
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-[15px] text-[#0A2342] dark:text-white">有什麼我可以幫您的？</h4>
+                        <p className="text-sm text-[#546E7A] dark:text-[#90CAF9] mt-1.5 leading-relaxed">
+                          您可以問我關於此頁面的事，<br />或要求我導覽至其他功能。
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {messages.map((m) => (
+                    <div key={m.id} className={cn("flex flex-col", m.role === 'user' ? "items-end" : "items-start")}>
+                      <div className={cn(
+                        "max-w-[90%] px-4 py-3 rounded-2xl text-sm leading-relaxed shadow-sm whitespace-pre-wrap",
+                        m.role === 'user'
+                          ? "bg-[#EBF3FB] dark:bg-[#1A3A6B]/50 text-[#0A2342] dark:text-[#E8F0FE] rounded-tr-sm font-medium"
+                          : "bg-[#1A3A6B] text-white rounded-tl-sm ring-4 ring-[#EBF3FB] dark:ring-[#1A3A6B]/20"
+                      )}
+                        dangerouslySetInnerHTML={{
+                          __html: m.content
+                            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                            .replace(/\n/g, '<br/>')
+                        }}
+                      />
+                      <span className="text-[9px] font-semibold text-[#546E7A] mt-1 uppercase tracking-tighter">
+                        {m.role} · <FormattedTime isoString={m.createdAt} />
+                      </span>
+                    </div>
+                  ))}
+
+                  {isTyping && (
+                    <div className="flex items-center gap-1.5 pl-1">
+                      <div className="w-2 h-2 bg-[#1565C0] rounded-full animate-bounce [animation-delay:-0.3s]" />
+                      <div className="w-2 h-2 bg-[#1565C0] rounded-full animate-bounce [animation-delay:-0.15s]" />
+                      <div className="w-2 h-2 bg-[#1565C0] rounded-full animate-bounce" />
+                    </div>
+                  )}
+                </>
+              )}
+            </TabsContent>
+          </Tabs>
+        </div>
+
+        {/* Input Area */}
+        <div className="p-4 border-t border-[#CFD8DC] dark:border-[rgba(144,202,249,0.15)] space-y-3 bg-white/70 dark:bg-[#0F2744]/70 backdrop-blur-sm shrink-0">
+          {!showHistory && (
+            <div className="flex flex-wrap gap-1.5">
+              {suggestions.map((s) => (
+                <button
+                  key={s.id}
+                  onClick={() => handleSend(s.label)}
+                  className="px-3 py-1.5 rounded-full bg-[#F7FAFF] dark:bg-[#1A3A6B]/20 border border-[#CFD8DC] dark:border-[rgba(144,202,249,0.2)] text-[10px] font-semibold text-[#546E7A] dark:text-[#90CAF9] hover:bg-[#EBF3FB] hover:text-[#1565C0] hover:border-[#90CAF9] transition-all flex items-center gap-1.5 text-left"
                 >
-                  <ArrowRight className="w-5 h-5" />
-                </Button>
-             </div>
+                  <Zap className="w-3 h-3 text-[#C9A227]" strokeWidth={1.5} /> {s.label}
+                </button>
+              ))}
+            </div>
+          )}
+          <div className="relative">
+            <Textarea
+              placeholder="輸入指令或問題..."
+              className="rounded-2xl border-[#CFD8DC] dark:border-[rgba(144,202,249,0.2)] bg-[#F7FAFF] dark:bg-[#1A3A6B]/20 min-h-[56px] max-h-[120px] pr-12 focus-visible:ring-[#1565C0]/20 focus-visible:border-[#1565C0] py-3.5 text-sm text-[#0A1929] dark:text-[#E8F0FE] placeholder:text-[#546E7A] font-medium resize-none"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSend();
+                }
+              }}
+            />
+            <Button
+              size="icon"
+              className={cn(
+                "absolute right-2 bottom-2 w-8 h-8 rounded-xl transition-all",
+                input.trim() ? "bg-[#1A3A6B] text-white scale-100 hover:bg-[#1565C0]" : "scale-0 bg-[#EBF3FB]"
+              )}
+              onClick={() => handleSend()}
+            >
+              <ArrowRight className="w-4 h-4" strokeWidth={1.5} />
+            </Button>
           </div>
-        </SheetContent>
-      </Sheet>
-    </>
+        </div>
+      </div>
+    </div>
   );
 }

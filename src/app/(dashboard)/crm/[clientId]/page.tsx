@@ -1,6 +1,6 @@
 "use client";
 
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { clientService } from "@/domains/client/service";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Sparkles, TrendingUp, AlertCircle, CheckCircle2, Zap } from "lucide-react";
@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 
 export default function ClientOverviewPage() {
   const params = useParams();
+  const router = useRouter();
   const clientId = params.clientId as string;
   const client = clientService.getClientById(clientId);
 
@@ -16,15 +17,15 @@ export default function ClientOverviewPage() {
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       {/* AI Intelligence Summary */}
-      <Card className="rounded-3xl border-none shadow-md bg-gradient-to-br from-indigo-600 to-indigo-800 text-white overflow-hidden relative">
+      <Card className="rounded-3xl border-none shadow-md bg-gradient-to-br from-[#1A3A6B] to-[#1565C0] text-white overflow-hidden relative">
         <Sparkles className="absolute top-4 right-4 w-12 h-12 text-white/10" />
         <CardHeader>
-          <CardTitle className="text-xl font-bold flex items-center gap-2">
+          <CardTitle className="text-xl font-bold flex items-center gap-2 text-white">
             AI 智能洞察摘要
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <p className="text-indigo-50 leading-relaxed font-medium">
+          <p className="text-white leading-relaxed font-medium">
             基於該客戶為「{client.occupation}」且具有「{client.family.length > 0 ? "家庭責任" : "單身"}」背景，
             系統分析其核心需求在於 {client.aiTags.join(" 與 ") || "基本保障建立"}。
             建議下次面談重點：
@@ -44,13 +45,8 @@ export default function ClientOverviewPage() {
           
           <div className="pt-2">
             <button 
-              onClick={() => {
-                // We'll redirect to the list page with the client selected
-                // But since the list page doesn't take client param yet, 
-                // we'll just go to the list page.
-                window.location.href = `/pre-visit`;
-              }}
-              className="w-full bg-white text-indigo-700 h-12 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-indigo-50 transition-colors shadow-lg"
+              onClick={() => router.push(`/pre-visit?clientId=${clientId}&autoCreate=true`)}
+              className="w-full bg-white text-[#1565C0] h-12 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-[#EBF3FB] transition-colors shadow-lg"
             >
               <Zap className="w-5 h-5 fill-current" /> 開始訪前規劃
             </button>

@@ -1,0 +1,50 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Issue {
+  id          String   @id @default(uuid())
+  title       String
+  description String   @db.Text
+  category    String   // Bug, Suggestion, Feature, Feedback
+  status      IssueStatus @default(OPEN)
+  priority    IssuePriority @default(MEDIUM)
+  
+  images      String[] // Array of image URLs from Supabase Storage
+  
+  reporterId  String   // The agent who reported the issue
+  assigneeId  String?  // The admin/dev assigned to handle it
+  
+  feedback    String?  @db.Text // Admin's feedback/reply
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([reporterId])
+  @@index([status])
+}
+
+enum IssueStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum IssuePriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}

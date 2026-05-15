@@ -5,7 +5,7 @@ import { Progress, ProgressTrack, ProgressIndicator } from "@/components/ui/prog
 import { TrendingUp, User } from "lucide-react";
 
 const HEATS = [
-  { name: "王大明", engagement: 95, color: "bg-indigo-600" },
+  { name: "王大明", engagement: 95, color: "bg-[#1A3A6B]" },
   { name: "蔡佩芬", engagement: 82, color: "bg-orange-500" },
   { name: "羅德華", engagement: 74, color: "bg-blue-500" },
   { name: "李國樑", engagement: 68, color: "bg-green-500" },

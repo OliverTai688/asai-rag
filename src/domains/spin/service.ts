@@ -46,7 +46,7 @@ export const spinService = {
   cleanResponse: (text: string) => {
     return text
       .replace(/\[\[PHASE_COMPLETE\]\]/g, "")
-      .replace(/\[\[(INSIGHT|QUESTION|SUGGESTION|OUTPUT):.*?\]\]/g, "")
+      .replace(/\[\[(INSIGHT|QUESTION|SUGGESTION|OUTPUT|PROFILE):.*?\]\]/g, "")
       .trim();
   },
 
@@ -55,7 +55,7 @@ export const spinService = {
    */
   parseStructuredData: (text: string) => {
     const results: { type: string, content: string }[] = [];
-    const regex = /\[\[(INSIGHT|QUESTION|SUGGESTION|OUTPUT):(.*?)\]\]/g;
+    const regex = /\[\[(INSIGHT|QUESTION|SUGGESTION|OUTPUT|PROFILE):(.*?)\]\]/g;
     let match;
     
     while ((match = regex.exec(text)) !== null) {

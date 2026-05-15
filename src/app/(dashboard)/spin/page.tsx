@@ -25,16 +25,30 @@ import {
   DialogTitle, 
   DialogTrigger 
 } from "@/components/ui/dialog";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 export default function SpinListPage() {
   const router = useRouter();
   const { sessions, createSession } = useSpinStore();
+  const searchParams = useSearchParams();
   const [search, setSearch] = useState("");
   const [mounted, setMounted] = useState(false);
   const allClients = useMemo(() => clientService.getAllClients(), []);
 
-  useEffect(() => { setMounted(true); }, []);
+  useEffect(() => { 
+    setMounted(true); 
+    
+    const autoCreate = searchParams.get("autoCreate");
+    const clientId = searchParams.get("clientId");
+    
+    if (autoCreate === "true" && clientId) {
+      const client = allClients.find(c => c.id === clientId);
+      if (client) {
+        const session = createSession(client.id, client.name);
+        router.replace(`/spin/${session.id}`);
+      }
+    }
+  }, [searchParams, createSession, router, allClients]);
 
   const filteredClients = useMemo(() => {
     return allClients.filter(c => c.name.includes(search));
@@ -55,7 +69,7 @@ export default function SpinListPage() {
         
         <Dialog>
           <DialogTrigger>
-            <div className="inline-flex items-center justify-center rounded-full bg-indigo-600 hover:bg-indigo-700 h-11 px-6 shadow-lg shadow-indigo-500/20 text-white font-medium text-sm cursor-pointer transition-colors">
+            <div className="inline-flex items-center justify-center rounded-full bg-[#1A3A6B] hover:bg-[#1565C0] h-11 px-6 shadow-lg shadow-[#1565C0]/20 text-white font-medium text-sm cursor-pointer transition-colors">
               <Plus className="w-5 h-5 mr-2" /> 開始新對話
             </div>
           </DialogTrigger>
@@ -81,8 +95,8 @@ export default function SpinListPage() {
                     className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors text-left group"
                   >
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-indigo-50 dark:bg-indigo-900/20 flex items-center justify-center">
-                        <User className="w-4 h-4 text-indigo-600" />
+                      <div className="w-8 h-8 rounded-full bg-[#EBF3FB] dark:bg-[#1A3A6B]/20 flex items-center justify-center">
+                        <User className="w-4 h-4 text-[#1565C0]" />
                       </div>
                       <span className="font-bold">{client.name}</span>
                     </div>
@@ -97,8 +111,8 @@ export default function SpinListPage() {
 
       {sessions.length === 0 ? (
         <div className="text-center py-32 bg-white dark:bg-zinc-900 rounded-3xl border-2 border-dashed border-zinc-100 dark:border-zinc-800">
-          <div className="w-16 h-16 bg-indigo-50 dark:bg-indigo-900/20 rounded-full flex items-center justify-center mx-auto mb-4">
-            <MessageSquare className="w-8 h-8 text-indigo-600" />
+          <div className="w-16 h-16 bg-[#EBF3FB] dark:bg-[#1A3A6B]/20 rounded-full flex items-center justify-center mx-auto mb-4">
+            <MessageSquare className="w-8 h-8 text-[#1565C0]" />
           </div>
           <h3 className="text-lg font-bold mb-2">尚無對話記錄</h3>
           <p className="text-zinc-500 mb-6">點擊上方按鈕，開始為您的客戶規劃 SPIN 銷售策略。</p>
@@ -110,7 +124,7 @@ export default function SpinListPage() {
               <Card className="rounded-3xl border-zinc-200 dark:border-zinc-800 hover:shadow-md transition-all group overflow-hidden">
                 <CardContent className="p-4 flex items-center justify-between gap-4">
                   <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-900/20 flex items-center justify-center text-indigo-600 group-hover:scale-110 transition-transform">
+                    <div className="w-12 h-12 rounded-2xl bg-[#EBF3FB] dark:bg-[#1A3A6B]/20 flex items-center justify-center text-[#1565C0] group-hover:scale-110 transition-transform">
                       <MessageSquare className="w-6 h-6" />
                     </div>
                     <div>

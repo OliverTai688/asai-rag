@@ -29,6 +29,8 @@ export interface VisitMaterial {
   id: string;
   name: string;
   checked: boolean;
+  fileUrl?: string; // Link to the actual PDF/Document
+  sentAt?: string;  // History tracking: when was this sent to the client?
 }
 
 export interface VisitPlan {
@@ -38,6 +40,7 @@ export interface VisitPlan {
   status: VisitPlanStatus;
   createdAt: string;
   updatedAt: string;
+  visitTime?: string; // ISO string for scheduled visit
   
   // 區塊 C: 目標
   objectives: VisitObjective[];
@@ -54,4 +57,13 @@ export interface VisitPlan {
   // 區塊 H: 拜訪後記
   postVisitNotes?: string;
   postVisitAnalysis?: string; // AI 分析與下一步建議
+
+  // 協作與回饋
+  feedback?: {
+    id: string;
+    authorId: string;
+    authorName: string;
+    content: string;
+    createdAt: string;
+  }[];
 }

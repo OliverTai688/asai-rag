@@ -14,7 +14,8 @@ interface VisitState {
   deletePlan: (id: string) => void;
   getPlanById: (id: string) => VisitPlan | undefined;
   getPlansByClientId: (clientId: string) => VisitPlan[];
-  createEmptyPlan: (clientId: string, purpose: VisitPurpose) => string; // returns new plan ID
+  createEmptyPlan: (clientId: string, purpose: VisitPurpose, visitTime?: string) => string; // returns new plan ID
+  clearAll: () => void;
 }
 
 export const useVisitStore = create<VisitState>()(
@@ -38,7 +39,7 @@ export const useVisitStore = create<VisitState>()(
 
       getPlansByClientId: (clientId) => get().plans.filter((p) => p.clientId === clientId),
 
-      createEmptyPlan: (clientId, purpose) => {
+      createEmptyPlan: (clientId, purpose, visitTime) => {
         const newId = `plan-${Date.now()}`;
         const newPlan: VisitPlan = {
           id: newId,
@@ -47,6 +48,7 @@ export const useVisitStore = create<VisitState>()(
           status: "DRAFT",
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
+          visitTime: visitTime,
           objectives: [],
           spinQuestions: [],
           objections: [],
@@ -54,7 +56,9 @@ export const useVisitStore = create<VisitState>()(
         };
         set((state) => ({ plans: [newPlan, ...state.plans] }));
         return newId;
-      }
+      },
+
+      clearAll: () => set({ plans: [] })
     }),
     {
       name: "sincerely:v1:visits",

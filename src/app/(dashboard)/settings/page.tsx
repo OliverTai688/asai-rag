@@ -65,7 +65,7 @@ export default function SettingsPage() {
                 className={cn(
                   "w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-left transition-all",
                   activeSection === section.id
-                    ? "bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 font-semibold"
+                    ? "bg-[#EBF3FB] dark:bg-[#1A3A6B]/20 text-[#1565C0] font-semibold"
                     : "text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100"
                 )}
               >
@@ -90,7 +90,7 @@ export default function SettingsPage() {
                 <CardContent className="space-y-6">
                   {/* Avatar */}
                   <div className="flex items-center gap-6">
-                    <div className="w-20 h-20 rounded-3xl bg-indigo-600 flex items-center justify-center text-white text-2xl font-black">
+                    <div className="w-20 h-20 rounded-3xl bg-[#1A3A6B] flex items-center justify-center text-white text-2xl font-black">
                       王
                     </div>
                     <div>
@@ -121,7 +121,7 @@ export default function SettingsPage() {
                   </div>
 
                   <div className="flex justify-end">
-                    <Button className="rounded-xl bg-indigo-600 hover:bg-indigo-700 font-bold">
+                    <Button className="rounded-xl bg-[#1A3A6B] hover:bg-[#1565C0] font-bold">
                       儲存變更
                     </Button>
                   </div>
@@ -149,7 +149,7 @@ export default function SettingsPage() {
                       onClick={() => toggleNotification(setting.id)}
                       className={cn(
                         "w-11 h-6 rounded-full transition-all relative shrink-0",
-                        notifications[setting.id] ? "bg-indigo-600" : "bg-zinc-200 dark:bg-zinc-700"
+                        notifications[setting.id] ? "bg-[#1A3A6B]" : "bg-zinc-200 dark:bg-zinc-700"
                       )}
                     >
                       <span
@@ -184,18 +184,18 @@ export default function SettingsPage() {
                       className={cn(
                         "flex flex-col items-center gap-3 p-5 rounded-2xl border-2 transition-all",
                         theme === t.id
-                          ? "border-indigo-600 bg-indigo-50 dark:bg-indigo-900/20"
-                          : "border-zinc-100 dark:border-zinc-800 hover:border-indigo-200"
+                          ? "border-[#1565C0] bg-[#EBF3FB] dark:bg-[#1A3A6B]/20"
+                          : "border-zinc-100 dark:border-zinc-800 hover:border-[#90CAF9]/40"
                       )}
                     >
                       <t.icon
-                        className={cn("w-6 h-6", theme === t.id ? "text-indigo-600" : "text-zinc-400")}
+                        className={cn("w-6 h-6", theme === t.id ? "text-[#1565C0]" : "text-zinc-400")}
                       />
-                      <span className={cn("text-sm font-bold", theme === t.id ? "text-indigo-600" : "text-zinc-500")}>
+                      <span className={cn("text-sm font-bold", theme === t.id ? "text-[#1565C0]" : "text-zinc-500")}>
                         {t.label}
                       </span>
                       {theme === t.id && (
-                        <span className="w-5 h-5 rounded-full bg-indigo-600 flex items-center justify-center">
+                        <span className="w-5 h-5 rounded-full bg-[#1A3A6B] flex items-center justify-center">
                           <Check className="w-3 h-3 text-white" />
                         </span>
                       )}
@@ -206,22 +206,67 @@ export default function SettingsPage() {
             </Card>
           )}
 
-          {(activeSection === "language" || activeSection === "security" || activeSection === "data") && (
-            <Card className="rounded-3xl border-zinc-200 dark:border-zinc-800 shadow-sm">
-              <CardContent className="flex flex-col items-center justify-center py-20 text-center space-y-4">
-                <div className="w-14 h-14 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center">
-                  <Settings className="w-7 h-7 text-zinc-400 animate-spin [animation-duration:4s]" />
+          {activeSection === "data" && (
+            <Card className="rounded-3xl border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden">
+              <CardHeader className="bg-zinc-50/50 dark:bg-zinc-800/50 border-b border-zinc-100 dark:border-zinc-800">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Database className="w-4 h-4 text-[#1565C0]" />
+                  資料管理
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-6 space-y-8">
+                <div className="flex items-start justify-between">
+                  <div className="space-y-1">
+                    <p className="font-bold text-zinc-900 dark:text-zinc-100">清空訪談與規劃資料</p>
+                    <p className="text-sm text-zinc-500 font-medium max-w-md">
+                      此操作將刪除所有已建立的「訪前規劃」、「SPIN 對話紀錄」與「分析報告」。客戶資料將會保留。
+                    </p>
+                  </div>
+                  <Button 
+                    variant="destructive" 
+                    className="rounded-xl font-bold bg-red-50 text-red-600 border-red-100 hover:bg-red-100 hover:text-red-700"
+                    onClick={() => {
+                      if (confirm("確定要清空所有訪談規劃資料嗎？此操作無法還原。")) {
+                        import("@/domains/visit/store").then(m => m.useVisitStore.getState().clearAll());
+                        import("@/domains/spin/store").then(m => m.useSpinStore.getState().clearAll());
+                        import("@/domains/report/store").then(m => m.useReportStore.getState().clearAll());
+                        alert("資料已成功清空。");
+                        window.location.reload();
+                      }
+                    }}
+                  >
+                    立即清空
+                  </Button>
                 </div>
-                <div>
-                  <p className="font-bold text-lg">功能建置中</p>
-                  <p className="text-sm text-zinc-500 font-medium mt-1">此設定模組即將上線，敬請期待。</p>
+
+                <div className="pt-6 border-t border-zinc-100 dark:border-zinc-800">
+                  <div className="flex items-start justify-between">
+                    <div className="space-y-1">
+                      <p className="font-bold text-zinc-900 dark:text-zinc-100">重置應用程式</p>
+                      <p className="text-sm text-zinc-500 font-medium max-w-md">
+                        清除所有本地快取，包含客戶資料與設定，恢復至初始安裝狀態。
+                      </p>
+                    </div>
+                    <Button 
+                      variant="outline" 
+                      className="rounded-xl font-bold border-zinc-200 hover:bg-zinc-50"
+                      onClick={() => {
+                        if (confirm("確定要重置整個應用程式嗎？這將刪除所有本地存儲的資料（含客戶清單）。")) {
+                          localStorage.clear();
+                          alert("應用程式已重置。");
+                          window.location.reload();
+                        }
+                      }}
+                    >
+                      完全重置
+                    </Button>
+                  </div>
                 </div>
-                <Badge variant="outline" className="text-xs border-zinc-200 text-zinc-400 font-bold uppercase tracking-wider">
-                  Coming Soon
-                </Badge>
               </CardContent>
             </Card>
           )}
+
+          {(activeSection === "language" || activeSection === "security") && (
         </div>
       </div>
     </div>
