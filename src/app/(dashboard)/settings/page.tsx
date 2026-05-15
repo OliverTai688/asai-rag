@@ -266,7 +266,6 @@ export default function SettingsPage() {
             </Card>
           )}
 
-          {(activeSection === "language" || activeSection === "security") && (
         </div>
       </div>
     </div>

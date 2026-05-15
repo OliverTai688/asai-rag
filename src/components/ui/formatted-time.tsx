@@ -4,7 +4,7 @@ import { useMounted } from "@/lib/hooks/use-mounted";
 
 interface FormattedTimeProps {
   isoString: string;
-  format?: "time" | "date" | "datetime";
+  format?: "time" | "date" | "datetime" | "full";
 }
 
 export function FormattedTime({ isoString, format = "time" }: FormattedTimeProps) {
@@ -22,10 +22,11 @@ export function FormattedTime({ isoString, format = "time" }: FormattedTimeProps
       formatted = date.toLocaleDateString();
       break;
     case "datetime":
-      formatted = `${date.toLocaleDateString()} ${date.toLocaleTimeString()}`;
+    case "full":
+      formatted = `${date.toLocaleDateString()} ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
       break;
     default:
-      formatted = date.toLocaleTimeString();
+      formatted = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   }
 
   return <span>{formatted}</span>;

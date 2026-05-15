@@ -496,7 +496,7 @@ export default function VisitPlanDetailPage() {
             <CardContent>
               <div className="h-8 w-full flex rounded-xl overflow-hidden shadow-inner">
                 <div className="bg-[#2196F3] flex items-center justify-center text-[10px] font-bold text-white border-r border-white/20" style={{ width: "15%" }}>破冰 10'</div>
-                <div className="bg-[#EBF3FB]0 flex items-center justify-center text-[10px] font-bold text-white border-r border-white/20" style={{ width: "25%" }}>情境 15'</div>
+                <div className="bg-[#EBF3FB] flex items-center justify-center text-[10px] font-bold text-white border-r border-white/20" style={{ width: "25%" }}>情境 15'</div>
                 <div className="bg-[#1A3A6B] flex items-center justify-center text-[10px] font-bold text-white border-r border-white/20" style={{ width: "35%" }}>SPIN 20'</div>
                 <div className="bg-[#1565C0] flex items-center justify-center text-[10px] font-bold text-white" style={{ width: "25%" }}>總結 15'</div>
               </div>
@@ -871,7 +871,8 @@ function QuickLookSheet({ plan, client }: { plan: VisitPlan; client: any }) {
       <SheetTrigger className="inline-flex items-center gap-2 rounded-2xl border border-[#1565C0]/20 bg-gradient-to-br from-[#EBF3FB] to-[#D6E8F8] hover:from-[#D6E8F8] hover:to-[#EBF3FB] text-[#1565C0] font-bold text-sm px-4 h-11 transition-all shadow-sm hover:shadow-md active:scale-95">
         <Zap className="w-4 h-4 fill-current animate-pulse" /> 15 分鐘速覽
       </SheetTrigger>
-      <SheetContent className="sm:max-w-md overflow-y-auto border-l-0 p-0 bg-white">
+      <SheetContent className="sm:max-w-md border-l-0 p-0 bg-white flex flex-col h-full">
+        <div className="flex-1 overflow-y-auto scrollbar-hide">
         {/* Immersive Header */}
         <div className="relative h-48 bg-[#1A3A6B] overflow-hidden flex items-end p-6">
           <div className="absolute inset-0 opacity-20">
@@ -892,7 +893,7 @@ function QuickLookSheet({ plan, client }: { plan: VisitPlan; client: any }) {
           </div>
         </div>
         
-        <div className="p-6 space-y-10 pb-24">
+        <div className="p-6 space-y-10 pb-10">
           {/* Quick Info Bar */}
           <div className="flex items-center justify-between p-5 rounded-[2rem] bg-zinc-50 border border-zinc-100 shadow-inner">
             <div className="flex items-center gap-4">
@@ -952,7 +953,7 @@ function QuickLookSheet({ plan, client }: { plan: VisitPlan; client: any }) {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.2 + i * 0.1 }}
                   key={q.id} 
-                  className="group relative p-6 bg-white border border-zinc-100 rounded-[2rem] shadow-sm hover:shadow-xl hover:shadow-[#1565C0]/5 hover:-translate-y-1 transition-all overflow-hidden"
+                  className="group relative p-6 bg-zinc-50/50 border border-zinc-100 rounded-[2rem] hover:bg-white hover:shadow-xl hover:shadow-[#1565C0]/5 hover:-translate-y-1 transition-all overflow-hidden"
                 >
                   <div className={cn(
                     "absolute top-0 left-0 w-1.5 h-full",
@@ -960,7 +961,7 @@ function QuickLookSheet({ plan, client }: { plan: VisitPlan; client: any }) {
                     q.type === "P" ? "bg-red-400" :
                     q.type === "I" ? "bg-amber-400" : "bg-emerald-400"
                   )} />
-                  <Quote className="absolute top-4 right-4 w-12 h-12 text-zinc-50 -z-0" />
+                  <Quote className="absolute top-4 right-4 w-12 h-12 text-[#1565C0]/5 -z-0" />
                   
                   <div className="relative z-10">
                     <div className="flex items-center justify-between mb-4">
@@ -1036,15 +1037,24 @@ function QuickLookSheet({ plan, client }: { plan: VisitPlan; client: any }) {
             )}
           </section>
         </div>
+      </div>
 
-        {/* Floating Actions */}
-        <div className="absolute bottom-0 left-0 right-0 p-6 bg-white/80 backdrop-blur-xl border-t border-zinc-100 flex gap-4">
-          <Button className="flex-1 rounded-2xl bg-zinc-900 hover:bg-zinc-800 text-white gap-2 h-14 font-black text-lg shadow-xl shadow-zinc-200 transition-all hover:-translate-y-0.5 active:translate-y-0">
-            <Printer className="w-5 h-5" /> 列印小抄
-          </Button>
-          <Button variant="outline" className="flex-1 rounded-2xl border-zinc-200 hover:bg-zinc-50 gap-2 h-14 font-bold text-lg transition-all hover:-translate-y-0.5 active:translate-y-0">
-            <Share2 className="w-5 h-5" /> 分享夥伴
-          </Button>
+        {/* Floating Actions - Capsule Style */}
+        <div className="p-6 pt-2 pb-8 bg-gradient-to-t from-white via-white/80 to-transparent relative z-50">
+          <div className="bg-zinc-900 backdrop-blur-2xl rounded-[2.5rem] p-2 flex gap-2 shadow-2xl shadow-zinc-900/30 border border-white/10">
+            <Button 
+              className="flex-1 rounded-full bg-white text-zinc-900 hover:bg-zinc-100 gap-2 h-14 font-black text-lg transition-all hover:scale-[1.02] active:scale-95 shadow-lg"
+              onClick={() => window.print()}
+            >
+              <Printer className="w-5 h-5" /> 列印小抄
+            </Button>
+            <Button 
+              variant="ghost" 
+              className="flex-1 rounded-full text-white hover:bg-white/10 gap-2 h-14 font-bold text-lg transition-all hover:scale-[1.02] active:scale-95"
+            >
+              <Share2 className="w-5 h-5" /> 分享夥伴
+            </Button>
+          </div>
         </div>
       </SheetContent>
     </Sheet>
