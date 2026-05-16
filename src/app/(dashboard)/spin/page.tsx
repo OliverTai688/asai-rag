@@ -15,7 +15,7 @@ import {
   Search
 } from "lucide-react";
 import Link from "next/link";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, Suspense } from "react";
 import { Input } from "@/components/ui/input";
 import { FormattedTime } from "@/components/ui/formatted-time";
 import { 
@@ -27,7 +27,7 @@ import {
 } from "@/components/ui/dialog";
 import { useRouter, useSearchParams } from "next/navigation";
 
-export default function SpinListPage() {
+function SpinListContent() {
   const router = useRouter();
   const { sessions, createSession } = useSpinStore();
   const searchParams = useSearchParams();
@@ -149,3 +149,12 @@ export default function SpinListPage() {
     </div>
   );
 }
+
+export default function SpinListPage() {
+  return (
+    <Suspense fallback={<div className="p-10 text-center">載入中...</div>}>
+      <SpinListContent />
+    </Suspense>
+  );
+}
+
