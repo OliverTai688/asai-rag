@@ -18,6 +18,7 @@ import {
   ChevronRight,
   Bot,
   Flag,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAssistantStore } from "@/domains/assistant/store";
@@ -35,20 +36,36 @@ const navItems = [
   { name: "系統設定", href: "/settings", icon: Settings },
 ];
 
-export function Sidebar({ open, setOpen }: { open: boolean; setOpen: (open: boolean) => void }) {
+type SidebarProps = {
+  open: boolean;
+  setOpen: (open: boolean) => void;
+  className?: string;
+  mobile?: boolean;
+  onNavigate?: () => void;
+};
+
+export function Sidebar({
+  open,
+  setOpen,
+  className,
+  mobile = false,
+  onNavigate,
+}: SidebarProps) {
   const pathname = usePathname();
   const { togglePanel } = useAssistantStore();
 
   return (
     <div
+      id={mobile ? "mobile-sidebar" : undefined}
       className={cn(
-        "relative flex flex-col bg-white border-r transition-all duration-300 ease-in-out z-40",
+        "relative z-40 flex h-full shrink-0 flex-col bg-white border-r transition-all duration-300 ease-in-out",
         "border-[#D8E1EA] dark:bg-[#0F2744] dark:border-[rgba(144,202,249,0.15)]",
-        open ? "w-60" : "w-[72px]"
+        open ? "w-60" : "w-[72px]",
+        className
       )}
     >
       {/* Logo */}
-      <div className="h-16 flex items-center px-5 border-b border-[#D8E1EA] dark:border-[rgba(144,202,249,0.15)]">
+      <div className="h-16 flex items-center justify-between px-5 border-b border-[#D8E1EA] dark:border-[rgba(144,202,249,0.15)]">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-md bg-[#173762] flex items-center justify-center shrink-0 shadow-sm">
             <Sparkles className="text-[#C9A227] w-4 h-4" />
@@ -64,6 +81,17 @@ export function Sidebar({ open, setOpen }: { open: boolean; setOpen: (open: bool
             </div>
           )}
         </div>
+        {mobile && (
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="text-[#5F7080] hover:text-[#0A2342] dark:text-[#90CAF9]/70 dark:hover:text-white"
+            onClick={() => setOpen(false)}
+            aria-label="關閉導覽選單"
+          >
+            <X className="w-4 h-4" strokeWidth={1.5} />
+          </Button>
+        )}
       </div>
 
       {/* Nav Items */}
@@ -71,7 +99,7 @@ export function Sidebar({ open, setOpen }: { open: boolean; setOpen: (open: bool
         {navItems.map((item) => {
           const isActive = pathname === item.href || pathname?.startsWith(`${item.href}/`);
           return (
-            <Link key={item.href} href={item.href}>
+            <Link key={item.href} href={item.href} onClick={onNavigate}>
               <div
                 className={cn(
                   "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-150 group relative",
@@ -104,7 +132,12 @@ export function Sidebar({ open, setOpen }: { open: boolean; setOpen: (open: bool
       {/* AI Assistant Trigger */}
       <div className="px-3 pb-3 border-t border-[#D8E1EA] dark:border-[rgba(144,202,249,0.15)] pt-3">
         <button
-          onClick={() => togglePanel()}
+          onClick={() => {
+            togglePanel();
+            if (mobile) {
+              setOpen(false);
+            }
+          }}
           className={cn(
             "w-full flex items-center justify-center gap-2 rounded-lg py-2.5 px-3 transition-all duration-150",
             "bg-[#173762] hover:bg-[#0F2B50] text-white font-semibold text-[13px]",
@@ -119,23 +152,25 @@ export function Sidebar({ open, setOpen }: { open: boolean; setOpen: (open: bool
       </div>
 
       {/* Collapse Toggle */}
-      <div className="p-3 border-t border-[#D8E1EA] dark:border-[rgba(144,202,249,0.15)]">
-        <Button
-          variant="ghost"
-          size="sm"
-          className="w-full justify-center text-[#5F7080] hover:text-[#0A2342] dark:text-[#90CAF9]/60 dark:hover:text-white hover:bg-[#F3F7FB] dark:hover:bg-[#1A3A6B]/30 rounded-lg text-[12px]"
-          onClick={() => setOpen(!open)}
-        >
-          {open ? (
-            <>
-              <ChevronLeft className="w-4 h-4 mr-1.5" strokeWidth={1.5} />
-              縮小側欄
-            </>
-          ) : (
-            <ChevronRight className="w-4 h-4" strokeWidth={1.5} />
-          )}
-        </Button>
-      </div>
+      {!mobile && (
+        <div className="p-3 border-t border-[#D8E1EA] dark:border-[rgba(144,202,249,0.15)]">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-full justify-center text-[#5F7080] hover:text-[#0A2342] dark:text-[#90CAF9]/60 dark:hover:text-white hover:bg-[#F3F7FB] dark:hover:bg-[#1A3A6B]/30 rounded-lg text-[12px]"
+            onClick={() => setOpen(!open)}
+          >
+            {open ? (
+              <>
+                <ChevronLeft className="w-4 h-4 mr-1.5" strokeWidth={1.5} />
+                縮小側欄
+              </>
+            ) : (
+              <ChevronRight className="w-4 h-4" strokeWidth={1.5} />
+            )}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

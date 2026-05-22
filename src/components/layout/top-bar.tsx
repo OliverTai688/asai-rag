@@ -13,7 +13,13 @@ import {
 import { Input } from "@/components/ui/input";
 import { NotificationHub } from "./notification-hub";
 
-export function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
+export function TopBar({
+  onMenuClick,
+  mobileMenuOpen = false,
+}: {
+  onMenuClick: () => void;
+  mobileMenuOpen?: boolean;
+}) {
   return (
     <header
       className="relative h-16 flex items-center justify-between px-5 md:px-6 bg-white/95 dark:bg-[#0F2744] z-30 shrink-0"
@@ -25,6 +31,9 @@ export function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
           size="icon"
           className="lg:hidden text-[#5F7080] hover:text-[#0A2342] hover:bg-[#F3F7FB]"
           onClick={onMenuClick}
+          aria-label="開啟導覽選單"
+          aria-expanded={mobileMenuOpen}
+          aria-controls="mobile-sidebar"
         >
           <Menu className="w-5 h-5" strokeWidth={1.5} />
         </Button>

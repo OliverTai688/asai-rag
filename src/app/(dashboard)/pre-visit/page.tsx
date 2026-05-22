@@ -234,14 +234,18 @@ function PreVisitListContent() {
                 className="h-12 w-full rounded-lg bg-[#1A3A6B] text-base font-bold text-white shadow-sm transition-colors hover:bg-[#1565C0] active:scale-[0.99] disabled:opacity-50 sm:h-14"
                 disabled={!selectedClientId}
               >
-                開始規劃
+                {isQuickstart ? "下一步：生成準備包" : "開始規劃"}
               </Button>
             </div>
           </DialogContent>
         </Dialog>
       </div>
 
-      <QuickstartGuide currentStepId="pre-visit" />
+      <QuickstartGuide
+        currentStepId="pre-visit"
+        nextHref="/pre-visit?demo=quickstart"
+        nextLabel="下一步：選擇示範客戶"
+      />
 
       {/* Stats Summary */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

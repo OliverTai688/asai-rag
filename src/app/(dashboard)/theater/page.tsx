@@ -17,7 +17,7 @@ import {
   MessageSquare
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
 import { FormattedTime } from "@/components/ui/formatted-time";
 import { QuickstartGuide } from "@/components/demo/quickstart-guide";
@@ -29,10 +29,41 @@ export default function TheaterListPage() {
   
   const [selectedSpinId, setSelectedSpinId] = useState<string | null>(null);
   const [difficulty, setDifficulty] = useState<'EASY' | 'MEDIUM' | 'HARD'>('MEDIUM');
+  const quickstartCreatedRef = useRef(false);
 
   const completedSpinSessions = useMemo(() => {
     return spinSessions.filter(s => s.outputs.SITUATION.length > 0 || s.phase === "COMPLETE");
   }, [spinSessions]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const shouldAutoCreate = params.get("demo") === "quickstart" && params.get("autoCreate") === "true";
+    if (!shouldAutoCreate || quickstartCreatedRef.current) return;
+
+    const clientId = params.get("clientId") ?? "c_wang";
+    const spinId = params.get("spinId");
+    const spinSession =
+      spinSessions.find((session) => session.id === spinId) ??
+      spinSessions.find((session) => session.clientId === clientId) ??
+      spinSessions[0];
+
+    if (!spinSession) return;
+
+    const client = clientService.getClientById(spinSession.clientId);
+    if (!client) return;
+    quickstartCreatedRef.current = true;
+
+    const personaType = theaterService.derivePersona(client, spinSession);
+    const newSession = createSession({
+      spinSessionId: spinSession.id,
+      clientId: spinSession.clientId,
+      clientName: spinSession.clientName,
+      personaType,
+      difficulty: "MEDIUM",
+    });
+
+    router.replace(`/theater/${newSession.id}?demo=quickstart`);
+  }, [createSession, router, spinSessions]);
 
   const handleStartSim = () => {
     if (!selectedSpinId) return;

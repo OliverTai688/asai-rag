@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { Suspense } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   ArrowRight,
@@ -25,6 +26,7 @@ import { DashboardCalendar } from "@/components/dashboard/dashboard-calendar";
 import { useSessionStore } from "@/domains/session/store";
 import CountUp from "react-countup";
 import { motion } from "motion/react";
+import { DashboardWelcomeCard } from "@/components/demo/dashboard-welcome-card";
 
 export default function DashboardPage() {
   const { user } = useSessionStore();
@@ -50,6 +52,10 @@ export default function DashboardPage() {
           AI 洞察在線
         </Badge>
       </div>
+
+      <Suspense fallback={<div className="rounded-lg border border-[#C7D4DF] bg-white p-5 text-sm font-semibold text-[#546E7A]">載入體驗入口...</div>}>
+        <DashboardWelcomeCard />
+      </Suspense>
 
       <ExecutiveBrief />
 

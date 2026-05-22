@@ -46,6 +46,7 @@ import { useRouter, useParams } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+import { QuickstartGuide } from "@/components/demo/quickstart-guide";
 
 // ---- 型別 ----
 interface SpinSuggestion {
@@ -430,6 +431,14 @@ export default function SpinConversationPage() {
           </Button>
         </div>
       </div>
+
+      <QuickstartGuide
+        currentStepId="spin"
+        compact
+        className="mb-4"
+        nextHref={`/theater?clientId=${session.clientId}&spinId=${session.id}&autoCreate=true&demo=quickstart`}
+        nextLabel="下一步：劇場演練"
+      />
 
       {/* Phase Stepper */}
       <div className="grid grid-cols-4 gap-2 mb-4">

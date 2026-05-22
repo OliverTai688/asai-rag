@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { useReportStore } from "@/domains/report/store";
 import { reportService } from "@/domains/report/service";
 import { clientService } from "@/domains/client/service";
@@ -12,9 +12,7 @@ import {
   ChevronLeft, 
   Save, 
   Share2, 
-  Eye, 
   Printer, 
-  Copy,
   Layout,
   Settings2,
   Sparkles,
@@ -23,18 +21,18 @@ import {
   ArrowUpRight
 } from "lucide-react";
 import Link from "next/link";
-import { useRouter, useParams } from "next/navigation";
+import { useParams } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { FormattedTime } from "@/components/ui/formatted-time";
 import { Markdown } from "@/components/ui/markdown";
+import { QuickstartGuide } from "@/components/demo/quickstart-guide";
 
 export default function ReportEditorPage() {
   const params = useParams();
   const reportId = params.reportId as string;
-  const router = useRouter();
   
   const { getReportById, updateSection, generateShareToken } = useReportStore();
   const report = getReportById(reportId);
@@ -44,6 +42,15 @@ export default function ReportEditorPage() {
   const [activeTab, setActiveTab] = useState("internal");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
+  const hasMounted = useSyncExternalStore(
+    () => () => undefined,
+    () => true,
+    () => false
+  );
+
+  if (!hasMounted) {
+    return <div className="p-20 text-center text-sm font-semibold text-zinc-500">載入報告中...</div>;
+  }
 
   if (!report) return <div className="p-20 text-center">報告不存在</div>;
 
@@ -61,14 +68,20 @@ export default function ReportEditorPage() {
     toast.success("區塊更新成功");
   };
 
-  const handleShare = () => {
+  const handleShare = async () => {
     const token = report.share?.token || generateShareToken(reportId);
     const origin = typeof window !== "undefined" ? window.location.origin : "";
     const url = `${origin}/share/${token}`;
-    navigator.clipboard.writeText(url);
-    toast.success("分享連結已複製到剪貼簿！", {
-      description: "客戶可於瀏覽器直接開啟報告。",
-    });
+    try {
+      await navigator.clipboard.writeText(url);
+      toast.success("分享連結已複製到剪貼簿！", {
+        description: "客戶可於瀏覽器直接開啟報告。",
+      });
+    } catch {
+      toast.info("分享連結已建立", {
+        description: url,
+      });
+    }
   };
 
   return (
@@ -101,6 +114,14 @@ export default function ReportEditorPage() {
           </Button>
         </div>
       </div>
+
+      <QuickstartGuide
+        currentStepId="report"
+        compact
+        className="mb-8"
+        nextHref="/dashboard?demo=completed"
+        nextLabel="完成 Demo：回到總覽"
+      />
 
       <div className="flex justify-center mb-10">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full max-w-sm">

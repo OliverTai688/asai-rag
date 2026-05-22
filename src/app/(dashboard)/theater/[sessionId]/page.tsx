@@ -29,6 +29,7 @@ import { useRouter, useParams } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+import { QuickstartGuide } from "@/components/demo/quickstart-guide";
 
 export default function TheaterSimulationPage() {
   const params = useParams();
@@ -207,6 +208,14 @@ export default function TheaterSimulationPage() {
            </Progress>
         </div>
       </div>
+
+      <QuickstartGuide
+        currentStepId="theater"
+        compact
+        className="mb-4"
+        nextHref={`/reports?clientId=${session.clientId}&spinId=${session.spinSessionId}&theaterId=${session.id}&autoCreate=true&demo=quickstart`}
+        nextLabel="下一步：生成報告"
+      />
 
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-4 gap-6 min-h-0">
         {/* Main Conversation */}

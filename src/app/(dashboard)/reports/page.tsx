@@ -4,6 +4,7 @@ import { useReportStore } from "@/domains/report/store";
 import { useSpinStore } from "@/domains/spin/store";
 import { useTheaterStore } from "@/domains/theater/store";
 import { reportService } from "@/domains/report/service";
+import { clientService } from "@/domains/client/service";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -16,6 +17,8 @@ import {
   PlusCircle
 } from "lucide-react";
 import Link from "next/link";
+import { useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { FormattedTime } from "@/components/ui/formatted-time";
 import { buttonVariants } from "@/components/ui/button";
@@ -29,9 +32,37 @@ import {
 import { QuickstartGuide } from "@/components/demo/quickstart-guide";
 
 export default function ReportListPage() {
+  const router = useRouter();
   const { reports, addReport } = useReportStore();
   const { sessions: spinSessions } = useSpinStore();
   const { scoresBySession } = useTheaterStore();
+  const quickstartCreatedRef = useRef(false);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const shouldAutoCreate = params.get("demo") === "quickstart" && params.get("autoCreate") === "true";
+    if (!shouldAutoCreate || quickstartCreatedRef.current) return;
+    quickstartCreatedRef.current = true;
+
+    const clientId = params.get("clientId") ?? "c_wang";
+    const spinId = params.get("spinId");
+    const theaterId = params.get("theaterId");
+    const spin =
+      spinSessions.find((session) => session.id === spinId) ??
+      spinSessions.find((session) => session.clientId === clientId);
+    const theaterScore = theaterId ? scoresBySession[theaterId] : Object.values(scoresBySession)[0];
+    const clientName = spin?.clientName ?? clientService.getClientById(clientId)?.name ?? "王大明";
+
+    const newReport = reportService.generateReport({
+      clientId,
+      clientName,
+      spinSession: spin,
+      theaterScore,
+    });
+
+    addReport(newReport);
+    router.replace(`/reports/${newReport.id}?demo=quickstart`);
+  }, [addReport, router, scoresBySession, spinSessions]);
 
   const handleGenerateFromSpin = (spinId: string) => {
     const spin = spinSessions.find(s => s.id === spinId)!;
