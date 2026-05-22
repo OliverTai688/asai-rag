@@ -11,7 +11,6 @@ import {
   Play, 
   History, 
   User, 
-  ChevronRight, 
   Zap, 
   Shield, 
   BrainCircuit,
@@ -21,6 +20,7 @@ import { useRouter } from "next/navigation";
 import { useState, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { FormattedTime } from "@/components/ui/formatted-time";
+import { QuickstartGuide } from "@/components/demo/quickstart-guide";
 
 export default function TheaterListPage() {
   const router = useRouter();
@@ -59,6 +59,8 @@ export default function TheaterListPage() {
         <h1 className="text-3xl font-bold">劇場演練 (Theater)</h1>
         <p className="text-zinc-500 font-medium italic">「在這裡流汗，在戰場上少流血。」—— 模擬真實客戶交鋒。</p>
       </div>
+
+      <QuickstartGuide currentStepId="theater" />
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card className="md:col-span-2 rounded-3xl border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden bg-gradient-to-br from-[#EBF3FB]/50 to-white dark:from-[#1A3A6B]/10 dark:to-zinc-900">

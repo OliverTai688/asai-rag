@@ -10,7 +10,7 @@ export const experienceSummary: ExperienceSummary = {
   version: "Experience Preview 0.8",
   readiness: 72,
   promise: "20-30 分鐘內跑完客戶洞察、訪前準備、SPIN、演練、報告分享與回訪追蹤。",
-  primaryRoute: "/pre-visit",
+  primaryRoute: "/pre-visit?demo=quickstart",
 };
 
 export const experienceSteps: ExperienceStep[] = [
@@ -29,7 +29,7 @@ export const experienceSteps: ExperienceStep[] = [
     id: "visit",
     order: "02",
     title: "訪前智能規劃",
-    route: "/pre-visit",
+    route: "/pre-visit?demo=quickstart",
     routeLabel: "建立規劃",
     description: "選擇客戶與拜訪目的，生成目標、SPIN 問題、異議處理與應備資料。",
     outcome: "產出可直接帶去拜訪的準備包。",
@@ -170,4 +170,3 @@ export const developmentGaps: DevelopmentGap[] = [
     status: "partial",
   },
 ];
-

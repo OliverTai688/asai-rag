@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { 
@@ -11,20 +11,17 @@ import {
   ChevronRight, 
   Clock, 
   User, 
-  Filter,
-  MoreVertical,
   CheckCircle2,
   AlertCircle
 } from "lucide-react";
 import { useVisitStore } from "@/domains/visit/store";
 import { useClientStore } from "@/domains/client/store";
-import { VisitPurpose, VisitPlanStatus } from "@/domains/visit/types";
+import { VisitPurpose } from "@/domains/visit/types";
 import { FormattedTime } from "@/components/ui/formatted-time";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -34,8 +31,9 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
 } from "@/components/ui/select";
+import { QuickstartGuide } from "@/components/demo/quickstart-guide";
+import { demoQuickstart } from "@/domains/demo/quickstart";
 import { cn } from "@/lib/utils";
 
 const PURPOSE_LABELS: Record<VisitPurpose, string> = {
@@ -52,11 +50,20 @@ function PreVisitListContent() {
   const { clients } = useClientStore();
   
   const searchParams = useSearchParams();
+  const isQuickstart = searchParams.get("demo") === "quickstart";
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [viewMode, setViewMode] = useState<"LIST" | "CALENDAR">("LIST");
   const [newPlanClientId, setNewPlanClientId] = useState("");
   const [newPlanPurpose, setNewPlanPurpose] = useState<VisitPurpose>("FIRST_VISIT");
   const [newPlanTime, setNewPlanTime] = useState("");
+  const selectedClientId = newPlanClientId || (isQuickstart ? demoQuickstart.clientId : "");
+  const selectedPurpose = newPlanClientId
+    ? newPlanPurpose
+    : isQuickstart
+      ? (demoQuickstart.purpose as VisitPurpose)
+      : newPlanPurpose;
+  const selectedClient = clients.find((client) => client.id === selectedClientId);
+  const dialogOpen = isDialogOpen || isQuickstart;
 
   const isUrgent = (time?: string) => {
     if (!time) return false;
@@ -90,18 +97,24 @@ function PreVisitListContent() {
     
     if (autoCreate === "true" && clientId) {
       const planId = createEmptyPlan(clientId, "FIRST_VISIT");
-      router.replace(`/pre-visit/${planId}`);
+      router.replace(`/pre-visit/${planId}${isQuickstart ? "?demo=quickstart" : ""}`);
     }
-  }, [searchParams, createEmptyPlan, router]);
+  }, [searchParams, createEmptyPlan, router, isQuickstart]);
 
   const handleCreatePlan = () => {
-    if (!newPlanClientId) return;
-    const planId = createEmptyPlan(newPlanClientId, newPlanPurpose, newPlanTime || undefined);
+    if (!selectedClientId) return;
+    const planId = createEmptyPlan(selectedClientId, selectedPurpose, newPlanTime || undefined);
     setIsDialogOpen(false);
-    router.push(`/pre-visit/${planId}`);
+    router.push(`/pre-visit/${planId}${isQuickstart ? "?demo=quickstart" : ""}`);
   };
 
   const getClientName = (id: string) => clients.find(c => c.id === id)?.name || "未知客戶";
+  const handleDialogOpenChange = (open: boolean) => {
+    setIsDialogOpen(open);
+    if (!open && isQuickstart) {
+      router.replace("/pre-visit");
+    }
+  };
 
   return (
     <div className="space-y-8 pb-10">
@@ -113,36 +126,58 @@ function PreVisitListContent() {
           </p>
         </div>
         
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#1A3A6B] hover:bg-[#1565C0] text-white h-12 px-6 font-bold text-sm shadow-lg shadow-[#90CAF9]/30 transition-all active:scale-95">
+        <Dialog open={dialogOpen} onOpenChange={handleDialogOpenChange}>
+          <DialogTrigger className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-[#1A3A6B] px-4 text-sm font-bold text-white shadow-sm transition-colors hover:bg-[#1565C0] active:scale-[0.99] sm:h-12 sm:px-5">
             <Plus className="w-5 h-5" /> 新增規劃
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[480px] rounded-[2rem] border-none shadow-2xl p-0 overflow-hidden bg-white/80 backdrop-blur-xl">
-            <div className="bg-[#1A3A6B] p-8 text-white">
+          <DialogContent className="max-h-[calc(100dvh-24px)] w-[calc(100vw-24px)] max-w-[560px] overflow-hidden rounded-xl border border-[#D7DFE7] bg-white p-0 shadow-xl sm:rounded-2xl">
+            <div className="bg-[#102B52] p-5 text-white sm:p-7">
               <DialogHeader>
-                <DialogTitle className="text-2xl font-bold text-white">建立新拜訪規劃</DialogTitle>
-                <DialogDescription className="text-[#D6E8F8] mt-2 font-medium">
+                <DialogTitle className="text-xl font-bold text-white sm:text-2xl">建立新拜訪規劃</DialogTitle>
+                <DialogDescription className="mt-2 text-sm font-medium leading-6 text-[#D6E8F8]">
                   選擇客戶與拜訪目的，AI 將為您生成專屬的對話劇本。
                 </DialogDescription>
               </DialogHeader>
             </div>
             
-            <div className="p-8 space-y-6">
+            <div className="max-h-[calc(100dvh-220px)] space-y-5 overflow-y-auto p-5 sm:p-7">
+              {isQuickstart && (
+                <div className="rounded-lg border border-[#D6E8F8] bg-[#F7FAFF] p-3">
+                  <p className="text-xs font-bold text-[#1565C0]">Quickstart Demo</p>
+                  <p className="mt-1 text-sm font-semibold text-[#0A2342]">
+                    已帶入 {demoQuickstart.clientName} 與「{demoQuickstart.purposeLabel}」情境。
+                  </p>
+                </div>
+              )}
+
               <div className="space-y-3">
                 <label className="text-sm font-bold text-zinc-700 flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 rounded-full bg-[#2196F3]" />
+                  <div className="h-1.5 w-1.5 rounded-full bg-[#2196F3]" />
                   選擇客戶
                 </label>
                 <Select 
                   onValueChange={(val) => setNewPlanClientId(val ?? "")} 
-                  value={newPlanClientId}
+                  value={selectedClientId}
                 >
-                  <SelectTrigger className="rounded-2xl border-zinc-200 bg-white shadow-sm h-14 px-5">
-                    <SelectValue placeholder="搜尋或選擇客戶..." />
+                  <SelectTrigger className="h-12 rounded-lg border-[#D7DFE7] bg-white px-4 shadow-none sm:h-14">
+                    {selectedClient ? (
+                      <span className="min-w-0 flex-1 text-left">
+                        <span className="block truncate text-sm font-bold text-[#0A2342]">
+                          {selectedClient.name}
+                        </span>
+                        <span className="block truncate text-xs font-medium text-[#546E7A]">
+                          {selectedClient.occupation}
+                        </span>
+                      </span>
+                    ) : (
+                      <span className="flex-1 text-left text-sm font-medium text-zinc-400">
+                        搜尋或選擇客戶...
+                      </span>
+                    )}
                   </SelectTrigger>
-                  <SelectContent className="rounded-2xl shadow-xl border-zinc-100">
+                  <SelectContent className="rounded-lg border-[#D7DFE7] shadow-lg">
                     {clients.map((client) => (
-                      <SelectItem key={client.id} value={client.id} className="py-3 rounded-xl mx-1">
+                      <SelectItem key={client.id} value={client.id} className="mx-1 rounded-md py-3">
                         <div className="flex flex-col">
                           <span className="font-bold text-zinc-900">{client.name}</span>
                           <span className="text-xs text-zinc-500">{client.occupation}</span>
@@ -153,22 +188,24 @@ function PreVisitListContent() {
                 </Select>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                 <div className="space-y-3">
                   <label className="text-sm font-bold text-zinc-700 flex items-center gap-2">
-                    <div className="w-1.5 h-1.5 rounded-full bg-[#2196F3]" />
+                    <div className="h-1.5 w-1.5 rounded-full bg-[#2196F3]" />
                     拜訪目的
                   </label>
                   <Select 
                     onValueChange={(val) => setNewPlanPurpose(val as VisitPurpose)} 
-                    value={newPlanPurpose}
+                    value={selectedPurpose}
                   >
-                    <SelectTrigger className="rounded-2xl border-zinc-200 bg-white shadow-sm h-14 px-5 text-sm">
-                      <SelectValue placeholder="選擇目的" />
+                    <SelectTrigger className="h-12 rounded-lg border-[#D7DFE7] bg-white px-4 text-sm shadow-none sm:h-14">
+                      <span className="flex-1 text-left font-bold text-[#0A2342]">
+                        {PURPOSE_LABELS[selectedPurpose]}
+                      </span>
                     </SelectTrigger>
-                    <SelectContent className="rounded-2xl shadow-xl border-zinc-100">
+                    <SelectContent className="rounded-lg border-[#D7DFE7] shadow-lg">
                       {Object.entries(PURPOSE_LABELS).map(([value, label]) => (
-                        <SelectItem key={value} value={value} className="py-2 rounded-xl mx-1">
+                        <SelectItem key={value} value={value} className="mx-1 rounded-md py-2.5">
                           <span className="font-bold text-sm">{label}</span>
                         </SelectItem>
                       ))}
@@ -178,24 +215,24 @@ function PreVisitListContent() {
 
                 <div className="space-y-3">
                   <label className="text-sm font-bold text-zinc-700 flex items-center gap-2">
-                    <div className="w-1.5 h-1.5 rounded-full bg-[#2196F3]" />
+                    <div className="h-1.5 w-1.5 rounded-full bg-[#2196F3]" />
                     拜訪時間
                   </label>
                   <input 
                     type="datetime-local"
                     value={newPlanTime}
                     onChange={(e) => setNewPlanTime(e.target.value)}
-                    className="w-full h-14 rounded-2xl border border-zinc-200 bg-white shadow-sm px-4 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#1A3A6B]/20 transition-all"
+                    className="h-12 w-full rounded-lg border border-[#D7DFE7] bg-white px-4 text-sm font-medium shadow-none transition-all focus:outline-none focus:ring-2 focus:ring-[#1A3A6B]/20 sm:h-14"
                   />
                 </div>
               </div>
             </div>
 
-            <div className="px-8 pb-8">
+            <div className="border-t border-[#EDF1F5] bg-white p-5 sm:p-7">
               <Button 
                 onClick={handleCreatePlan}
-                className="w-full h-14 rounded-2xl bg-[#1A3A6B] hover:bg-[#1565C0] text-white font-bold text-lg shadow-lg shadow-[#D6E8F8] transition-all hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 disabled:hover:translate-y-0"
-                disabled={!newPlanClientId}
+                className="h-12 w-full rounded-lg bg-[#1A3A6B] text-base font-bold text-white shadow-sm transition-colors hover:bg-[#1565C0] active:scale-[0.99] disabled:opacity-50 sm:h-14"
+                disabled={!selectedClientId}
               >
                 開始規劃
               </Button>
@@ -203,6 +240,8 @@ function PreVisitListContent() {
           </DialogContent>
         </Dialog>
       </div>
+
+      <QuickstartGuide currentStepId="pre-visit" />
 
       {/* Stats Summary */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -365,4 +404,3 @@ export default function PreVisitListPage() {
     </Suspense>
   );
 }
-

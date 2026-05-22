@@ -21,6 +21,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { QuickstartGuide } from "@/components/demo/quickstart-guide";
 import {
   benchmarkSites,
   developmentGaps,
@@ -113,6 +114,8 @@ export default function PilotPage() {
           </div>
         </div>
       </section>
+
+      <QuickstartGuide currentStepId="overview" />
 
       <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
         {readinessSignals.map((signal) => {

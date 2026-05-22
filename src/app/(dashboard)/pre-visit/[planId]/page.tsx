@@ -57,6 +57,7 @@ import { Label } from "@/components/ui/label";
 import { FormattedTime } from "@/components/ui/formatted-time";
 import { nanoid } from "nanoid";
 import { FeedbackPanel } from "@/components/visit/feedback-panel";
+import { QuickstartGuide } from "@/components/demo/quickstart-guide";
 
 const PURPOSE_LABELS: Record<VisitPurpose, string> = {
   FIRST_VISIT: "初訪",
@@ -208,6 +209,8 @@ export default function VisitPlanDetailPage() {
           </Button>
         </div>
       </div>
+
+      <QuickstartGuide currentStepId="plan" />
 
       {/* A. Block: Selection Header */}
       <Card className="rounded-3xl border-zinc-200 shadow-sm overflow-hidden border-none bg-gradient-to-r from-[#EBF3FB] to-white">

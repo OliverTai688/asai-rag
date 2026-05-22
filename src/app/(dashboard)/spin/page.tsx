@@ -2,8 +2,6 @@
 
 import { useSpinStore } from "@/domains/spin/store";
 import { clientService } from "@/domains/client/service";
-import { STRINGS } from "@/lib/i18n/strings";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { 
@@ -26,18 +24,17 @@ import {
   DialogTrigger 
 } from "@/components/ui/dialog";
 import { useRouter, useSearchParams } from "next/navigation";
+import { QuickstartGuide } from "@/components/demo/quickstart-guide";
 
 function SpinListContent() {
   const router = useRouter();
   const { sessions, createSession } = useSpinStore();
   const searchParams = useSearchParams();
+  const isQuickstart = searchParams.get("demo") === "quickstart";
   const [search, setSearch] = useState("");
-  const [mounted, setMounted] = useState(false);
   const allClients = useMemo(() => clientService.getAllClients(), []);
 
   useEffect(() => { 
-    setMounted(true); 
-    
     const autoCreate = searchParams.get("autoCreate");
     const clientId = searchParams.get("clientId");
     
@@ -45,10 +42,10 @@ function SpinListContent() {
       const client = allClients.find(c => c.id === clientId);
       if (client) {
         const session = createSession(client.id, client.name);
-        router.replace(`/spin/${session.id}`);
+        router.replace(`/spin/${session.id}${isQuickstart ? "?demo=quickstart" : ""}`);
       }
     }
-  }, [searchParams, createSession, router, allClients]);
+  }, [searchParams, createSession, router, allClients, isQuickstart]);
 
   const filteredClients = useMemo(() => {
     return allClients.filter(c => c.name.includes(search));
@@ -56,7 +53,7 @@ function SpinListContent() {
 
   const handleStartSession = (clientId: string, clientName: string) => {
     const session = createSession(clientId, clientName);
-    router.push(`/spin/${session.id}`);
+    router.push(`/spin/${session.id}${isQuickstart ? "?demo=quickstart" : ""}`);
   };
 
   return (
@@ -109,6 +106,8 @@ function SpinListContent() {
         </Dialog>
       </div>
 
+      <QuickstartGuide currentStepId="spin" />
+
       {sessions.length === 0 ? (
         <div className="text-center py-32 bg-white dark:bg-zinc-900 rounded-3xl border-2 border-dashed border-zinc-100 dark:border-zinc-800">
           <div className="w-16 h-16 bg-[#EBF3FB] dark:bg-[#1A3A6B]/20 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -157,4 +156,3 @@ export default function SpinListPage() {
     </Suspense>
   );
 }
-

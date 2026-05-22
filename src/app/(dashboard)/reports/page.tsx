@@ -9,17 +9,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { 
   FileText, 
-  Plus, 
   ChevronRight, 
   Clock, 
   Share2, 
   Eye,
-  User,
-  MoreVertical,
   PlusCircle
 } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
 import { toast } from "sonner";
 import { FormattedTime } from "@/components/ui/formatted-time";
 import { buttonVariants } from "@/components/ui/button";
@@ -28,18 +24,16 @@ import {
   DialogContent, 
   DialogHeader, 
   DialogTitle, 
-  DialogTrigger,
-  DialogFooter
+  DialogTrigger
 } from "@/components/ui/dialog";
+import { QuickstartGuide } from "@/components/demo/quickstart-guide";
 
 export default function ReportListPage() {
   const { reports, addReport } = useReportStore();
   const { sessions: spinSessions } = useSpinStore();
   const { scoresBySession } = useTheaterStore();
-  const [isGenerating, setIsGenerating] = useState(false);
 
   const handleGenerateFromSpin = (spinId: string) => {
-    setIsGenerating(true);
     const spin = spinSessions.find(s => s.id === spinId)!;
     // 找看看有沒有對應的演練評分
     const theaterScore = Object.values(scoresBySession)[0]; // 簡化：取第一個評分
@@ -52,7 +46,6 @@ export default function ReportListPage() {
     });
 
     addReport(newReport);
-    setIsGenerating(false);
     toast.success(`${spin.clientName} 的報告已成功生成！`);
   };
 
@@ -95,6 +88,8 @@ export default function ReportListPage() {
           </DialogContent>
         </Dialog>
       </div>
+
+      <QuickstartGuide currentStepId="report" />
 
       {reports.length === 0 ? (
         <div className="text-center py-32 bg-white dark:bg-zinc-900 rounded-[40px] border-2 border-dashed border-zinc-100 dark:border-zinc-800">
