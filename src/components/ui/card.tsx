@@ -12,12 +12,13 @@ function Card({
       data-slot="card"
       data-size={size}
       className={cn(
-        "group/card flex flex-col gap-4 overflow-hidden rounded-xl bg-white text-sm text-[#0A1929]",
-        "border border-[#CFD8DC] shadow-sm hover:shadow-md transition-shadow duration-280",
+        "group/card flex flex-col gap-4 overflow-hidden rounded-lg bg-white text-sm text-[#0A1929]",
+        "border border-[#D8E1EA] shadow-[0_1px_2px_rgba(10,35,66,0.04)] transition-[border-color,box-shadow] duration-200",
+        "hover:border-[#C5D2DE] hover:shadow-[0_8px_24px_rgba(10,35,66,0.06)]",
         "dark:bg-[#0F2744] dark:border-[rgba(144,202,249,0.15)] dark:text-[#E8F0FE]",
         "py-4 has-data-[slot=card-footer]:pb-0 has-[>img:first-child]:pt-0",
         "data-[size=sm]:gap-3 data-[size=sm]:py-3 data-[size=sm]:has-data-[slot=card-footer]:pb-0",
-        "*:[img:first-child]:rounded-t-xl *:[img:last-child]:rounded-b-xl",
+        "*:[img:first-child]:rounded-t-lg *:[img:last-child]:rounded-b-lg",
         className
       )}
       {...props}
@@ -30,7 +31,7 @@ function CardHeader({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="card-header"
       className={cn(
-        "group/card-header @container/card-header grid auto-rows-min items-start gap-1 rounded-t-xl px-5",
+        "group/card-header @container/card-header grid auto-rows-min items-start gap-1 rounded-t-lg px-5",
         "group-data-[size=sm]/card:px-4",
         "has-data-[slot=card-action]:grid-cols-[1fr_auto]",
         "has-data-[slot=card-description]:grid-rows-[auto_auto]",
@@ -94,7 +95,7 @@ function CardFooter({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="card-footer"
       className={cn(
-        "flex items-center rounded-b-xl border-t border-[#EBF3FB] bg-[#F7FAFF]/60 p-5",
+        "flex items-center rounded-b-lg border-t border-[#E6EDF3] bg-[#FAFCFF] p-5",
         "dark:border-[rgba(144,202,249,0.1)] dark:bg-[#1A3A6B]/20",
         "group-data-[size=sm]/card:p-4",
         className
@@ -110,9 +111,9 @@ function CardGold({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="card"
       className={cn(
-        "relative flex flex-col gap-4 overflow-hidden rounded-xl bg-white text-sm",
-        "border border-[#C9A227]/30 shadow-sm",
-        "before:absolute before:left-0 before:top-0 before:h-full before:w-1 before:bg-gradient-to-b before:from-[#B8860B] before:to-[#D4A017]",
+        "relative flex flex-col gap-4 overflow-hidden rounded-lg bg-white text-sm",
+        "border border-[#D8E1EA] shadow-[0_1px_2px_rgba(10,35,66,0.04)]",
+        "before:absolute before:left-0 before:top-0 before:h-full before:w-0.5 before:bg-[#C9A227]",
         "dark:bg-[#0F2744] dark:border-[#C9A227]/20",
         "py-4",
         className

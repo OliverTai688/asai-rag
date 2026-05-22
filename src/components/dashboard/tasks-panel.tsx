@@ -24,32 +24,35 @@ const TASKS: Task[] = [
 export function TasksPanel() {
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between border-b border-[#EBF3FB] bg-[#F7FAFF]/50">
-        <CardTitle>今日任務</CardTitle>
-        <ListTodo className="w-4 h-4 text-[#546E7A]" strokeWidth={1.5} />
+      <CardHeader className="flex flex-row items-center justify-between border-b border-[#E6EDF3] bg-white px-5 py-3.5">
+        <div>
+          <CardTitle>今日任務</CardTitle>
+          <p className="mt-1 text-[12px] text-[#7B8B9A]">依成交機會與時效排序</p>
+        </div>
+        <ListTodo className="w-4 h-4 text-[#7B8B9A]" strokeWidth={1.5} />
       </CardHeader>
       <CardContent className="p-0">
-        <div className="divide-y divide-[#EBF3FB]">
+        <div className="divide-y divide-[#E6EDF3]">
           {TASKS.map((task) => (
             <div
               key={task.id}
-              className="flex items-center gap-4 p-4 hover:bg-[#F7FAFF] transition-colors group"
+              className="group flex items-center gap-4 p-4 transition-colors hover:bg-[#FAFCFF]"
             >
               <div className="flex-1 flex items-center gap-3.5 min-w-0">
                 <Checkbox
-                  className="rounded-full border-[#CFD8DC] shrink-0 data-[state=checked]:bg-[#1A3A6B] data-[state=checked]:border-[#1A3A6B]"
+                  className="rounded-full border-[#D8E1EA] shrink-0 data-[state=checked]:bg-[#173762] data-[state=checked]:border-[#173762]"
                 />
                 <div className="space-y-0.5 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <p className="text-[13px] font-semibold text-[#0A2342] leading-none">{task.title}</p>
                     <Badge
                       variant="outline"
-                      className="text-[10px] py-0 h-4 border-[#CFD8DC] text-[#546E7A] bg-[#F7FAFF]"
+                      className="text-[10px] py-0 h-4 border-[#D8E1EA] text-[#5F7080] bg-white"
                     >
                       {task.client}
                     </Badge>
                   </div>
-                  <div className="flex items-center gap-3 text-[11px] text-[#546E7A] font-medium">
+                  <div className="flex items-center gap-3 text-[11px] text-[#5F7080] font-medium">
                     <span className="flex items-center gap-1">
                       <Clock className="w-3 h-3" strokeWidth={1.5} /> {task.due}
                     </span>
@@ -66,7 +69,7 @@ export function TasksPanel() {
                   </div>
                 </div>
               </div>
-              <button className="opacity-0 group-hover:opacity-100 text-[11px] font-semibold text-[#1565C0] hover:text-[#0A2342] transition-all">
+              <button className="opacity-0 group-hover:opacity-100 text-[11px] font-semibold text-[#1565C0] hover:text-[#0A2342] transition-opacity">
                 去處理
               </button>
             </div>

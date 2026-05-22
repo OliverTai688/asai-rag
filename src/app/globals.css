@@ -66,7 +66,7 @@
 /* ── 誠問 AI Design System — Blue × White × Gold ── */
 :root {
   /* Semantic tokens mapped to 誠問 AI palette */
-  --background: #F7FAFF;
+  --background: #F8FAFC;
   --foreground: #0A1929;
   --card: #FFFFFF;
   --card-foreground: #0A1929;
@@ -81,8 +81,8 @@
   --accent: #E8F0FE;
   --accent-foreground: #1565C0;
   --destructive: #B71C1C;
-  --border: #CFD8DC;
-  --input: #CFD8DC;
+  --border: #D8E1EA;
+  --input: #D8E1EA;
   --ring: #1565C0;
 
   --chart-1: #1565C0;
@@ -240,9 +240,9 @@
 
 /* Custom scrollbar — brand blue */
 .custom-scrollbar::-webkit-scrollbar       { width: 4px; }
-.custom-scrollbar::-webkit-scrollbar-track { background: #EBF3FB; border-radius: 2px; }
-.custom-scrollbar::-webkit-scrollbar-thumb { background: #90CAF9; border-radius: 2px; }
-.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #1565C0; }
+.custom-scrollbar::-webkit-scrollbar-track { background: #F3F7FB; border-radius: 2px; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: #C5D2DE; border-radius: 2px; }
+.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #9AAEC1; }
 
 /* Prefers-reduced-motion: collapse all movement to opacity only */
 /* Markdown Prose Overrides */
