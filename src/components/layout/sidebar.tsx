@@ -13,6 +13,7 @@ import {
   Users2,
   Settings,
   Sparkles,
+  Compass,
   ChevronLeft,
   ChevronRight,
   Bot,
@@ -23,6 +24,7 @@ import { useAssistantStore } from "@/domains/assistant/store";
 
 const navItems = [
   { name: "總覽", href: "/dashboard", icon: LayoutDashboard },
+  { name: "體驗版", href: "/pilot", icon: Compass },
   { name: "客戶管理", href: "/crm", icon: Users },
   { name: "SPIN 對話", href: "/spin", icon: MessageSquare },
   { name: "劇場演練", href: "/theater", icon: Theater },

@@ -1,38 +1,191 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
+// Prisma schema for 誠問 AI.
+// Runtime target: Supabase Postgres.
+// Multi-tenancy is enforced by organizationId on every business table.
 
 generator client {
-  provider = "prisma-client-js"
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
 }
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
 }
 
-model Issue {
-  id          String   @id @default(uuid())
-  title       String
-  description String   @db.Text
-  category    String   // Bug, Suggestion, Feature, Feedback
-  status      IssueStatus @default(OPEN)
-  priority    IssuePriority @default(MEDIUM)
-  
-  images      String[] // Array of image URLs from Supabase Storage
-  
-  reporterId  String   // The agent who reported the issue
-  assigneeId  String?  // The admin/dev assigned to handle it
-  
-  feedback    String?  @db.Text // Admin's feedback/reply
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+enum OrganizationPlan {
+  FREE
+  STARTER
+  PRO
+  ENTERPRISE
+}
 
-  @@index([reporterId])
-  @@index([status])
+enum OrganizationStatus {
+  ACTIVE
+  PAUSED
+  ARCHIVED
+}
+
+enum UserStatus {
+  ACTIVE
+  INVITED
+  DISABLED
+}
+
+enum MemberRole {
+  OWNER
+  MANAGER
+  AGENT
+}
+
+enum MembershipStatus {
+  INVITED
+  ACTIVE
+  SUSPENDED
+}
+
+enum ClientStatus {
+  PROSPECT
+  ACTIVE
+  CLOSED
+  ARCHIVED
+}
+
+enum ClientSensitivity {
+  NORMAL
+  SENSITIVE
+  HIGHLY_SENSITIVE
+}
+
+enum PolicyStatus {
+  ACTIVE
+  PENDING
+  LAPSED
+  EXPIRED
+  UNKNOWN
+}
+
+enum VisitPurpose {
+  FIRST_VISIT
+  ADD_ON
+  RENEWAL
+  CARE
+  REFERRAL
+}
+
+enum VisitPlanStatus {
+  DRAFT
+  READY
+  COMPLETED
+  ARCHIVED
+}
+
+enum SpinPhase {
+  SITUATION
+  PROBLEM
+  IMPLICATION
+  NEED_PAYOFF
+  COMPLETE
+}
+
+enum SpinMode {
+  SELF_CLARIFY
+  QUESTION_DESIGN
+}
+
+enum SpinMessageType {
+  CHAT
+  INSIGHT
+  QUESTION
+  SUGGESTION
+  SUMMARY
+}
+
+enum MessageRole {
+  USER
+  ASSISTANT
+  SYSTEM
+}
+
+enum SessionStatus {
+  ACTIVE
+  COMPLETED
+  ABANDONED
+  ARCHIVED
+}
+
+enum TheaterPersonaType {
+  CONSERVATIVE
+  SKEPTICAL
+  BUSY
+  EMOTIONAL
+}
+
+enum TheaterDifficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+enum TheaterTurnRole {
+  AGENT
+  CLIENT
+  SYSTEM
+}
+
+enum ReportStatus {
+  DRAFT
+  READY
+  SHARED
+  ARCHIVED
+}
+
+enum ReportSectionType {
+  SITUATION
+  PROBLEM
+  IMPLICATION
+  RECOMMENDATION
+  SUMMARY
+  PERFORMANCE
+}
+
+enum ShareEventType {
+  OPEN
+  SCROLL
+  CLICK
+  EXIT
+  DOWNLOAD
+}
+
+enum InteractionEventType {
+  SPIN
+  THEATER
+  REPORT
+  SHARE_OPEN
+  VISIT
+  TASK
+  SYSTEM
+  COMPLIANCE
+}
+
+enum ComplianceStatus {
+  MISSING
+  PARTIAL
+  COMPLETE
+  REVIEW_REQUIRED
+}
+
+enum AiProvider {
+  MOCK
+  OPENAI
+  ANTHROPIC
+}
+
+enum AiModule {
+  CHAT
+  SPIN
+  THEATER
+  VISIT
+  REPORT
+  RAG
 }
 
 enum IssueStatus {
@@ -47,4 +200,497 @@ enum IssuePriority {
   MEDIUM
   HIGH
   URGENT
+}
+
+model Organization {
+  id                     String             @id @default(cuid())
+  name                   String
+  slug                   String             @unique
+  plan                   OrganizationPlan   @default(FREE)
+  status                 OrganizationStatus @default(ACTIVE)
+  logoUrl                String?            @map("logo_url")
+  brandColor             String?            @map("brand_color")
+  settings               Json?
+  seatLimit              Int                @default(3) @map("seat_limit")
+  monthlyAiQuota         Int                @default(200) @map("monthly_ai_quota")
+  monthlyAiUsed          Int                @default(0) @map("monthly_ai_used")
+  stripeCustomerId       String?            @unique @map("stripe_customer_id")
+  stripeSubscriptionId   String?            @map("stripe_subscription_id")
+  demoDataSeededAt       DateTime?          @map("demo_data_seeded_at")
+  createdAt              DateTime           @default(now()) @map("created_at")
+  updatedAt              DateTime           @updatedAt @map("updated_at")
+
+  members                OrganizationMember[]
+  clients                Client[]
+  visitPlans             VisitPlan[]
+  spinSessions           SpinSession[]
+  theaterSessions        TheaterSession[]
+  reports                Report[]
+  reportShares           ReportShare[]
+  shareEvents            ShareEvent[]
+  interactionEvents      InteractionEvent[]
+  assistantConversations AssistantConversation[]
+  aiUsageLogs            AiUsageLog[]
+  issues                 Issue[]
+
+  @@index([status])
+  @@map("organizations")
+}
+
+model User {
+  id                     String     @id @default(cuid())
+  supabaseAuthId         String?    @unique @db.Uuid @map("supabase_auth_id")
+  email                  String     @unique
+  name                   String
+  avatarUrl              String?    @map("avatar_url")
+  status                 UserStatus @default(ACTIVE)
+  lastLoginAt            DateTime?  @map("last_login_at")
+  createdAt              DateTime   @default(now()) @map("created_at")
+  updatedAt              DateTime   @updatedAt @map("updated_at")
+
+  memberships            OrganizationMember[]
+  ownedClients           Client[]   @relation("ClientOwner")
+  visitPlans             VisitPlan[] @relation("VisitPlanOwner")
+  spinSessions           SpinSession[] @relation("SpinSessionOwner")
+  theaterSessions        TheaterSession[] @relation("TheaterSessionOwner")
+  reports                Report[]   @relation("ReportOwner")
+  interactionEvents      InteractionEvent[] @relation("EventActor")
+  assistantConversations AssistantConversation[] @relation("AssistantConversationOwner")
+  aiUsageLogs            AiUsageLog[]
+  issuesReported         Issue[]    @relation("IssueReporter")
+  issuesAssigned         Issue[]    @relation("IssueAssignee")
+
+  @@index([supabaseAuthId])
+  @@index([status])
+  @@map("users")
+}
+
+model OrganizationMember {
+  id             String           @id @default(cuid())
+  organizationId String           @map("organization_id")
+  userId         String           @map("user_id")
+  role           MemberRole       @default(AGENT)
+  status         MembershipStatus @default(ACTIVE)
+  region         String?
+  title          String?
+  isDefault      Boolean          @default(false) @map("is_default")
+  invitedAt      DateTime?        @map("invited_at")
+  acceptedAt     DateTime?        @map("accepted_at")
+  createdAt      DateTime         @default(now()) @map("created_at")
+  updatedAt      DateTime         @updatedAt @map("updated_at")
+
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId])
+  @@index([userId])
+  @@index([organizationId, role])
+  @@map("organization_members")
+}
+
+model Client {
+  id                  String            @id @default(cuid())
+  organizationId      String            @map("organization_id")
+  ownerId             String?           @map("owner_id")
+  name                String
+  email               String?
+  phone               String?
+  birthDate           DateTime?         @map("birth_date")
+  occupation          String?
+  company             String?
+  annualIncome        Decimal?          @db.Decimal(15, 2) @map("annual_income")
+  status              ClientStatus      @default(PROSPECT)
+  sensitivity         ClientSensitivity @default(NORMAL)
+  tags                String[]
+  aiTags              String[]          @map("ai_tags")
+  notes               String?           @db.Text
+  source              String?
+  isDemo              Boolean           @default(false) @map("is_demo")
+  lastInteractionAt   DateTime?         @map("last_interaction_at")
+  createdAt           DateTime          @default(now()) @map("created_at")
+  updatedAt           DateTime          @updatedAt @map("updated_at")
+
+  organization        Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  owner               User?             @relation("ClientOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  familyMembers       FamilyMember[]
+  policies            Policy[]
+  complianceChecklist ComplianceChecklist?
+  visitPlans          VisitPlan[]
+  spinSessions        SpinSession[]
+  theaterSessions     TheaterSession[]
+  reports             Report[]
+  interactionEvents   InteractionEvent[]
+  aiUsageLogs         AiUsageLog[]
+  assistantConversations AssistantConversation[]
+
+  @@index([organizationId, status])
+  @@index([organizationId, ownerId])
+  @@index([organizationId, lastInteractionAt])
+  @@index([ownerId])
+  @@map("clients")
+}
+
+model FamilyMember {
+  id              String   @id @default(cuid())
+  clientId        String   @map("client_id")
+  name            String
+  relation        String
+  age             Int?
+  phone           String?
+  linkedClientId  String?  @map("linked_client_id")
+  parentMemberId  String?  @map("parent_member_id")
+  metadata        Json?
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  client          Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId])
+  @@map("family_members")
+}
+
+model Policy {
+  id              String       @id @default(cuid())
+  clientId        String       @map("client_id")
+  category        String
+  productName     String?      @map("product_name")
+  provider        String
+  policyNumber    String?      @map("policy_number")
+  insuredAmount   Decimal?     @db.Decimal(15, 2) @map("insured_amount")
+  premium         Decimal?     @db.Decimal(15, 2)
+  currency        String       @default("TWD")
+  status          PolicyStatus @default(UNKNOWN)
+  effectiveDate   DateTime?    @map("effective_date")
+  expiresAt       DateTime?    @map("expires_at")
+  metadata        Json?
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
+
+  client          Client       @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId, status])
+  @@index([expiresAt])
+  @@map("policies")
+}
+
+model ComplianceChecklist {
+  id                  String           @id @default(cuid())
+  clientId            String           @unique @map("client_id")
+  kycStatus           ComplianceStatus @default(MISSING) @map("kyc_status")
+  suitabilityStatus   ComplianceStatus @default(MISSING) @map("suitability_status")
+  consentStatus       ComplianceStatus @default(MISSING) @map("consent_status")
+  financialInfo       Json?            @map("financial_info")
+  riskProfile         Json?            @map("risk_profile")
+  missingItems        String[]         @map("missing_items")
+  reviewedAt          DateTime?        @map("reviewed_at")
+  createdAt           DateTime         @default(now()) @map("created_at")
+  updatedAt           DateTime         @updatedAt @map("updated_at")
+
+  client              Client           @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([kycStatus, suitabilityStatus])
+  @@map("compliance_checklists")
+}
+
+model VisitPlan {
+  id                 String          @id @default(cuid())
+  organizationId     String          @map("organization_id")
+  clientId           String          @map("client_id")
+  ownerId            String?         @map("owner_id")
+  purpose            VisitPurpose
+  status             VisitPlanStatus @default(DRAFT)
+  scheduledAt        DateTime?       @map("scheduled_at")
+  objectives         Json?
+  spinQuestions      Json?           @map("spin_questions")
+  objections         Json?
+  materials          Json?
+  postVisitNotes     String?         @db.Text @map("post_visit_notes")
+  postVisitAnalysis  String?         @db.Text @map("post_visit_analysis")
+  feedback           Json?
+  isDemo             Boolean         @default(false) @map("is_demo")
+  createdAt          DateTime        @default(now()) @map("created_at")
+  updatedAt          DateTime        @updatedAt @map("updated_at")
+
+  organization       Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  client             Client          @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  owner              User?           @relation("VisitPlanOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  spinSessions       SpinSession[]
+  reports            Report[]
+
+  @@index([organizationId, status])
+  @@index([clientId, scheduledAt])
+  @@index([ownerId])
+  @@map("visit_plans")
+}
+
+model SpinSession {
+  id             String        @id @default(cuid())
+  organizationId String        @map("organization_id")
+  clientId       String?       @map("client_id")
+  ownerId        String?       @map("owner_id")
+  visitPlanId    String?       @map("visit_plan_id")
+  mode           SpinMode      @default(SELF_CLARIFY)
+  phase          SpinPhase     @default(SITUATION)
+  status         SessionStatus @default(ACTIVE)
+  outputs        Json?
+  transitions    Json?
+  summary        Json?
+  metadata       Json?
+  isDemo         Boolean       @default(false) @map("is_demo")
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+
+  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  client         Client?       @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  owner          User?         @relation("SpinSessionOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  visitPlan      VisitPlan?    @relation(fields: [visitPlanId], references: [id], onDelete: SetNull)
+  messages       SpinMessage[]
+  theaterSessions TheaterSession[]
+  reports        Report[]
+
+  @@index([organizationId, status])
+  @@index([clientId, createdAt])
+  @@index([ownerId])
+  @@map("spin_sessions")
+}
+
+model SpinMessage {
+  id          String          @id @default(cuid())
+  sessionId   String          @map("session_id")
+  role        MessageRole
+  type        SpinMessageType @default(CHAT)
+  content     String          @db.Text
+  phase       SpinPhase
+  metadata    Json?
+  createdAt   DateTime        @default(now()) @map("created_at")
+
+  session     SpinSession     @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, createdAt])
+  @@map("spin_messages")
+}
+
+model TheaterSession {
+  id              String              @id @default(cuid())
+  organizationId  String              @map("organization_id")
+  clientId        String?             @map("client_id")
+  ownerId         String?             @map("owner_id")
+  spinSessionId   String?             @map("spin_session_id")
+  personaType     TheaterPersonaType  @map("persona_type")
+  difficulty      TheaterDifficulty   @default(MEDIUM)
+  tension         Int                 @default(0)
+  status          SessionStatus       @default(ACTIVE)
+  score           Json?
+  metadata        Json?
+  isDemo          Boolean             @default(false) @map("is_demo")
+  createdAt       DateTime            @default(now()) @map("created_at")
+  updatedAt       DateTime            @updatedAt @map("updated_at")
+
+  organization    Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  client          Client?             @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  owner           User?               @relation("TheaterSessionOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  spinSession     SpinSession?        @relation(fields: [spinSessionId], references: [id], onDelete: SetNull)
+  turns           TheaterTurn[]
+  reports         Report[]
+
+  @@index([organizationId, status])
+  @@index([clientId, createdAt])
+  @@index([ownerId])
+  @@map("theater_sessions")
+}
+
+model TheaterTurn {
+  id             String          @id @default(cuid())
+  sessionId      String          @map("session_id")
+  role           TheaterTurnRole
+  content        String          @db.Text
+  tensionDelta   Int?            @map("tension_delta")
+  metadata       Json?
+  createdAt      DateTime        @default(now()) @map("created_at")
+
+  session        TheaterSession  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, createdAt])
+  @@map("theater_turns")
+}
+
+model Report {
+  id               String       @id @default(cuid())
+  organizationId   String       @map("organization_id")
+  clientId         String       @map("client_id")
+  ownerId          String?      @map("owner_id")
+  spinSessionId    String?      @map("spin_session_id")
+  theaterSessionId String?      @map("theater_session_id")
+  visitPlanId      String?      @map("visit_plan_id")
+  title            String
+  status           ReportStatus @default(DRAFT)
+  internalSections Json?        @map("internal_sections")
+  clientSections   Json?        @map("client_sections")
+  version          Int          @default(1)
+  isEdited         Boolean      @default(false) @map("is_edited")
+  isDemo           Boolean      @default(false) @map("is_demo")
+  createdAt        DateTime     @default(now()) @map("created_at")
+  updatedAt        DateTime     @updatedAt @map("updated_at")
+
+  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  client           Client       @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  owner            User?        @relation("ReportOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  spinSession      SpinSession? @relation(fields: [spinSessionId], references: [id], onDelete: SetNull)
+  theaterSession   TheaterSession? @relation(fields: [theaterSessionId], references: [id], onDelete: SetNull)
+  visitPlan        VisitPlan?   @relation(fields: [visitPlanId], references: [id], onDelete: SetNull)
+  shares           ReportShare[]
+
+  @@index([organizationId, status])
+  @@index([clientId, createdAt])
+  @@index([ownerId])
+  @@map("reports")
+}
+
+model ReportShare {
+  id              String       @id @default(cuid())
+  organizationId  String       @map("organization_id")
+  reportId        String       @map("report_id")
+  token           String       @unique @default(cuid())
+  expiresAt       DateTime?    @map("expires_at")
+  accessCount     Int          @default(0) @map("access_count")
+  lastAccessedAt  DateTime?    @map("last_accessed_at")
+  ctaConfig       Json?        @map("cta_config")
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
+
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  report          Report       @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  events          ShareEvent[]
+
+  @@index([organizationId, createdAt])
+  @@index([reportId])
+  @@index([token])
+  @@map("report_shares")
+}
+
+model ShareEvent {
+  id             String         @id @default(cuid())
+  organizationId String         @map("organization_id")
+  shareId        String         @map("share_id")
+  type           ShareEventType
+  payload        Json?
+  userAgent      String?        @db.Text @map("user_agent")
+  ipHash         String?        @map("ip_hash")
+  createdAt      DateTime       @default(now()) @map("created_at")
+
+  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  share          ReportShare    @relation(fields: [shareId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, createdAt])
+  @@index([shareId, createdAt])
+  @@map("share_events")
+}
+
+model InteractionEvent {
+  id             String               @id @default(cuid())
+  organizationId String               @map("organization_id")
+  clientId       String?              @map("client_id")
+  actorId        String?              @map("actor_id")
+  type           InteractionEventType
+  title          String
+  description    String               @db.Text
+  metadata       Json?
+  occurredAt     DateTime             @default(now()) @map("occurred_at")
+  createdAt      DateTime             @default(now()) @map("created_at")
+
+  organization   Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  client         Client?              @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  actor          User?                @relation("EventActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, occurredAt])
+  @@index([clientId, occurredAt])
+  @@index([actorId, occurredAt])
+  @@map("interaction_events")
+}
+
+model AssistantConversation {
+  id             String             @id @default(cuid())
+  organizationId String             @map("organization_id")
+  ownerId        String?            @map("owner_id")
+  clientId       String?            @map("client_id")
+  title          String
+  routeContext   String?            @map("route_context")
+  metadata       Json?
+  createdAt      DateTime           @default(now()) @map("created_at")
+  updatedAt      DateTime           @updatedAt @map("updated_at")
+
+  organization   Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  owner          User?              @relation("AssistantConversationOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  client         Client?            @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  messages       AssistantMessage[]
+
+  @@index([organizationId, updatedAt])
+  @@index([ownerId, updatedAt])
+  @@map("assistant_conversations")
+}
+
+model AssistantMessage {
+  id             String                @id @default(cuid())
+  conversationId String                @map("conversation_id")
+  role           MessageRole
+  content        String                @db.Text
+  metadata       Json?
+  createdAt      DateTime              @default(now()) @map("created_at")
+
+  conversation   AssistantConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+  @@map("assistant_messages")
+}
+
+model AiUsageLog {
+  id             String     @id @default(cuid())
+  organizationId String     @map("organization_id")
+  userId         String?    @map("user_id")
+  clientId       String?    @map("client_id")
+  provider       AiProvider
+  module         AiModule
+  model          String?
+  promptTokens   Int?       @map("prompt_tokens")
+  completionTokens Int?     @map("completion_tokens")
+  totalTokens    Int?       @map("total_tokens")
+  latencyMs      Int?       @map("latency_ms")
+  costUsd        Decimal?   @db.Decimal(10, 6) @map("cost_usd")
+  requestId      String?    @map("request_id")
+  error          String?    @db.Text
+  createdAt      DateTime   @default(now()) @map("created_at")
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
+  client         Client?    @relation(fields: [clientId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, createdAt])
+  @@index([userId, createdAt])
+  @@index([module, createdAt])
+  @@map("ai_usage_logs")
+}
+
+model Issue {
+  id             String        @id @default(uuid()) @db.Uuid
+  organizationId String?       @map("organization_id")
+  title          String
+  description    String        @db.Text
+  category       String
+  status         IssueStatus   @default(OPEN)
+  priority       IssuePriority @default(MEDIUM)
+  images         String[]
+  reporterId     String?       @map("reporter_id")
+  assigneeId     String?       @map("assignee_id")
+  feedback       String?       @db.Text
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  reporter       User?         @relation("IssueReporter", fields: [reporterId], references: [id], onDelete: SetNull)
+  assignee       User?         @relation("IssueAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, status])
+  @@index([reporterId])
+  @@index([assigneeId])
+  @@map("issues")
 }
