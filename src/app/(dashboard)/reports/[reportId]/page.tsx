@@ -4,12 +4,14 @@ import { useState, useSyncExternalStore } from "react";
 import { useReportStore } from "@/domains/report/store";
 import { reportService } from "@/domains/report/service";
 import { clientService } from "@/domains/client/service";
-import { ReportSection } from "@/domains/report/types";
+import { Report, ReportSection } from "@/domains/report/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { 
+  ArrowRight,
   ChevronLeft, 
+  CheckCircle2,
   Save, 
   Share2, 
   Printer, 
@@ -56,6 +58,10 @@ export default function ReportEditorPage() {
 
   const clientSections = reportService.getClientSections(report);
   const displaySections = activeTab === "internal" ? report.sections : clientSections;
+  const isQuickstart =
+    hasMounted &&
+    typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).get("demo") === "quickstart";
 
   const handleStartEdit = (section: ReportSection) => {
     setEditingId(section.id);
@@ -83,6 +89,19 @@ export default function ReportEditorPage() {
       });
     }
   };
+
+  if (isQuickstart) {
+    return (
+      <QuickstartReportView
+        activeTab={activeTab}
+        client={client}
+        displaySections={displaySections}
+        onShare={handleShare}
+        onTabChange={setActiveTab}
+        report={report}
+      />
+    );
+  }
 
   return (
     <div className="flex flex-col h-full animate-in fade-in duration-500 pb-20">
@@ -279,6 +298,151 @@ export default function ReportEditorPage() {
            </Card>
         </div>
       </div>
+    </div>
+  );
+}
+
+function QuickstartReportView({
+  activeTab,
+  client,
+  displaySections,
+  onShare,
+  onTabChange,
+  report,
+}: {
+  activeTab: string;
+  client: ReturnType<typeof clientService.getClientById> | null;
+  displaySections: ReportSection[];
+  onShare: () => void | Promise<void>;
+  onTabChange: (value: string) => void;
+  report: Report;
+}) {
+  const highlights = [
+    {
+      label: "客戶",
+      value: report.clientName,
+      detail: client?.occupation ?? "示範客戶",
+    },
+    {
+      label: "報告版本",
+      value: `V${report.version}.0`,
+      detail: activeTab === "internal" ? "內部視角" : "客戶演示",
+    },
+    {
+      label: "下一步",
+      value: "回到總覽",
+      detail: "完成 quickstart 閉環",
+    },
+  ];
+
+  return (
+    <div className="mx-auto max-w-5xl space-y-5 pb-28">
+      <QuickstartGuide
+        currentStepId="report"
+        compact
+        nextHref="/dashboard?demo=completed"
+        nextLabel="完成 Demo：回到總覽"
+      />
+
+      <section className="rounded-lg border border-[#C7D4DF] bg-white shadow-sm">
+        <div className="border-b border-[#E6EDF3] bg-[#F8FAFC] px-5 py-5 sm:px-6">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="min-w-0">
+              <div className="mb-2 flex flex-wrap items-center gap-2">
+                <Badge variant="blue" className="h-6 rounded-full text-[11px]">
+                  Step 6 / 6
+                </Badge>
+                <span className="text-xs font-bold text-[#78909C]">報告追蹤</span>
+              </div>
+              <h1 className="text-2xl font-bold tracking-tight text-[#0A2342] sm:text-3xl">
+                {report.clientName} 決策報告
+              </h1>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-[#546E7A]">
+                這一頁只看三件事：AI 如何整理需求、如何把風險說清楚、以及業務回到 dashboard 後要追蹤什麼。
+              </p>
+            </div>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Button variant="outline" className="h-10 rounded-lg" onClick={onShare}>
+                <Share2 className="h-4 w-4" />
+                建立分享連結
+              </Button>
+              <Link
+                href="/dashboard?demo=completed"
+                className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-[#1A3A6B] px-4 text-sm font-bold text-white transition-colors hover:bg-[#1565C0]"
+              >
+                完成 Demo
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid gap-3 border-b border-[#E6EDF3] p-5 sm:grid-cols-3 sm:p-6">
+          {highlights.map((item) => (
+            <div key={item.label} className="rounded-lg border border-[#E2EAF1] bg-white p-4">
+              <p className="text-[11px] font-black uppercase tracking-[0.12em] text-[#78909C]">{item.label}</p>
+              <p className="mt-1 text-lg font-bold text-[#0A2342]">{item.value}</p>
+              <p className="mt-1 text-xs font-medium text-[#546E7A]">{item.detail}</p>
+            </div>
+          ))}
+        </div>
+
+        <div className="p-5 sm:p-6">
+          <Tabs value={activeTab} onValueChange={onTabChange} className="w-full">
+            <TabsList className="h-auto w-full rounded-lg bg-[#EEF3F7] p-1 sm:w-fit">
+              <TabsTrigger
+                value="internal"
+                className="flex-1 rounded-md px-4 py-2 text-sm font-bold data-[state=active]:bg-white data-[state=active]:shadow-sm sm:flex-none"
+              >
+                內部摘要
+              </TabsTrigger>
+              <TabsTrigger
+                value="client"
+                className="flex-1 rounded-md px-4 py-2 text-sm font-bold data-[state=active]:bg-white data-[state=active]:shadow-sm sm:flex-none"
+              >
+                客戶版
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+
+          <div className="mt-5 space-y-4">
+            {displaySections.map((section, index) => (
+              <article key={section.id} className="rounded-lg border border-[#E2EAF1] bg-white">
+                <div className="flex items-start gap-3 border-b border-[#EEF3F7] px-4 py-3">
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#EBF3FB] text-xs font-black text-[#1565C0]">
+                    {index + 1}
+                  </span>
+                  <div>
+                    <h2 className="text-base font-bold text-[#0A2342]">{section.title}</h2>
+                    <p className="mt-0.5 text-xs font-semibold uppercase tracking-[0.1em] text-[#78909C]">
+                      {section.type}
+                    </p>
+                  </div>
+                </div>
+                <CardContent className="px-4 py-4 sm:px-5">
+                  <Markdown
+                    content={section.content}
+                    isInternal={activeTab === "internal"}
+                    className="text-sm leading-7"
+                  />
+                </CardContent>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="rounded-lg border border-[#CFE5D7] bg-[#F4FBF6] p-4 sm:p-5">
+        <div className="flex items-start gap-3">
+          <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-[#1B5E20]" />
+          <div>
+            <h2 className="font-bold text-[#0A2342]">Quickstart 收束重點</h2>
+            <p className="mt-1 text-sm leading-6 text-[#546E7A]">
+              這份報告代表一次拜訪的輸出已經完成。接著回到總覽，看 dashboard 如何把後續追蹤、客戶互動與團隊管理接起來。
+            </p>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }
