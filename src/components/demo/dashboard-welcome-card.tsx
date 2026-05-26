@@ -2,34 +2,47 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { ArrowRight, CheckCircle2, PlayCircle, Sparkles } from "lucide-react";
+import { useEffect } from "react";
+import { ArrowRight, CheckCircle2, Sparkles } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
-import { demoQuickstart } from "@/domains/demo/quickstart";
+import {
+  demoQuickstart,
+  getQuickstartStep,
+  quickstartStatusStorageKey,
+} from "@/domains/demo/quickstart";
 
-const defaultSteps = [
-  "建立王大明加保拜訪規劃",
-  "查看 AI 生成的訪前準備包",
-  "進入 SPIN、劇場演練與報告追蹤",
-];
+const overviewStep = getQuickstartStep("overview");
 
-const completedSteps = [
-  "已完成訪前準備",
-  "已串起 SPIN 與劇場演練",
-  "已生成客戶報告並回到總覽",
+const completedOutputs = [
+  { label: "準備包", value: getQuickstartStep("plan").completedOutput },
+  { label: "需求摘要", value: getQuickstartStep("spin").completedOutput },
+  { label: "演練紀錄", value: getQuickstartStep("theater").completedOutput },
+  { label: "決策報告", value: getQuickstartStep("report").completedOutput },
 ];
 
 export function DashboardWelcomeCard() {
   const searchParams = useSearchParams();
   const isCompleted = searchParams.get("demo") === "completed";
-  const steps = isCompleted ? completedSteps : defaultSteps;
+
+  useEffect(() => {
+    window.localStorage.setItem(
+      quickstartStatusStorageKey,
+      isCompleted ? "completed" : "idle"
+    );
+  }, [isCompleted]);
+
+  const title = isCompleted ? "Demo 完成：你剛跑完一次拜訪閉環" : overviewStep.screenTitle;
+  const body = isCompleted
+    ? "你已經從 dashboard 出發，完成訪前準備、SPIN 需求澄清、劇場演練與決策報告。重新體驗時仍然只要一直按下一步。"
+    : overviewStep.bodyCopy;
 
   return (
     <Card className="overflow-hidden border-[#C7D4DF] bg-white shadow-sm">
       <CardContent className="p-0">
         <div className="grid gap-0 lg:grid-cols-[1.1fr_0.9fr]">
           <div className="bg-[#102B52] p-5 text-white sm:p-6">
-            <div className="mb-4 flex flex-wrap items-center gap-2">
+            <div className="mb-4 hidden flex-wrap items-center gap-2 sm:flex">
               <span className="inline-flex h-6 items-center rounded-full bg-white/10 px-2.5 text-[11px] font-bold">
                 Quickstart Demo
               </span>
@@ -38,7 +51,7 @@ export function DashboardWelcomeCard() {
               </span>
             </div>
             <div className="flex items-start gap-3">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/10">
+              <div className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/10 sm:flex">
                 {isCompleted ? (
                   <CheckCircle2 className="h-5 w-5 text-[#A7F3D0]" />
                 ) : (
@@ -47,12 +60,10 @@ export function DashboardWelcomeCard() {
               </div>
               <div className="min-w-0">
                 <h2 className="text-xl font-bold tracking-tight sm:text-2xl">
-                  {isCompleted ? "體驗完成：保險拜訪閉環已跑完" : "歡迎進入誠問 AI 體驗"}
+                  {title}
                 </h2>
                 <p className="mt-2 max-w-2xl text-sm leading-6 text-[#D6E8F8]">
-                  {isCompleted
-                    ? "你剛剛從 dashboard 出發，走完訪前準備、SPIN、劇場演練與報告追蹤。可以重新跑一次，或直接用下方 dashboard 檢查成果。"
-                    : "這次不用找功能。請一路按「下一步」，我們會用王大明的加保回訪，帶你看懂一次完整的保險拜訪工作流。"}
+                  {body}
                 </p>
               </div>
             </div>
@@ -60,18 +71,21 @@ export function DashboardWelcomeCard() {
             <div className="mt-5 flex flex-col gap-2 sm:flex-row">
               <Link
                 href="/pre-visit?demo=quickstart"
+                onClick={() => {
+                  window.localStorage.removeItem(quickstartStatusStorageKey);
+                }}
                 className={buttonVariants({
                   className: "h-11 justify-between rounded-lg bg-white text-[#0A2342] hover:bg-[#EBF3FB] sm:min-w-[220px]",
                 })}
               >
-                {isCompleted ? "重新開始體驗" : "開始體驗"}
+                {isCompleted ? "重新體驗" : overviewStep.primaryCta}
                 <ArrowRight className="h-4 w-4" />
               </Link>
               <Link
                 href="/pilot"
                 className={buttonVariants({
                   variant: "outline",
-                  className: "h-11 rounded-lg border-white/20 bg-white/5 text-white hover:bg-white/10",
+                  className: "hidden h-11 rounded-lg border-white/20 bg-white/5 text-white hover:bg-white/10 sm:inline-flex",
                 })}
               >
                 查看體驗路徑
@@ -79,26 +93,37 @@ export function DashboardWelcomeCard() {
             </div>
           </div>
 
-          <div className="p-5 sm:p-6">
+          <div className="hidden p-5 sm:p-6 lg:block">
             <div className="mb-4 flex items-center justify-between gap-3">
               <div>
                 <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#7B8B9A]">
-                  UI 測試腳本
+                  {isCompleted ? "完成產出" : "UI 測試腳本"}
                 </p>
                 <h3 className="mt-1 text-base font-bold text-[#0A2342]">
-                  {isCompleted ? "完成後檢查" : "請照這條路徑體驗"}
+                  {isCompleted ? "四項內容已串起來" : "請照這條路徑體驗"}
                 </h3>
               </div>
-              <PlayCircle className="h-5 w-5 text-[#1565C0]" />
+              <Sparkles className="h-5 w-5 text-[#1565C0]" />
             </div>
             <ol className="space-y-2">
-              {steps.map((step, index) => (
-                <li key={step} className="flex items-start gap-3 rounded-lg border border-[#E2EAF1] bg-[#FAFCFF] p-3">
+              {(isCompleted
+                ? completedOutputs
+                : demoQuickstart.steps.slice(1).map((step) => ({
+                    label: step.title,
+                    value: step.primaryCta,
+                  }))
+              ).map((step, index) => (
+                <li key={step.label} className="flex items-start gap-3 rounded-lg border border-[#E2EAF1] bg-[#FAFCFF] p-3">
                   <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#EBF3FB] text-[11px] font-black text-[#1565C0]">
                     {index + 1}
                   </span>
-                  <span className="text-sm font-semibold leading-6 text-[#0A2342]">
-                    {step}
+                  <span className="min-w-0">
+                    <span className="block text-sm font-semibold leading-5 text-[#0A2342]">
+                      {step.label}
+                    </span>
+                    <span className="mt-0.5 block text-xs leading-5 text-[#546E7A]">
+                      {step.value}
+                    </span>
                   </span>
                 </li>
               ))}
