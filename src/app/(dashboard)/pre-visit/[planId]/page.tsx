@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, type ReactNode } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -34,6 +34,7 @@ import { useClientStore } from "@/domains/client/store";
 import { useSpinStore } from "@/domains/spin/store";
 import { toast } from "sonner";
 import { VisitPurpose, VisitPlan, VisitObjective, SpinQuestion, ObjectionHandling } from "@/domains/visit/types";
+import type { Client } from "@/domains/client/types";
 import { cn } from "@/lib/utils";
 import {
   Sheet,
@@ -60,6 +61,7 @@ import { FeedbackPanel } from "@/components/visit/feedback-panel";
 import { QuickstartGuide } from "@/components/demo/quickstart-guide";
 import {
   demoQuickstart,
+  getQuickstartStep,
   getQuickstartVisitFixture,
 } from "@/domains/demo/quickstart";
 
@@ -179,6 +181,10 @@ export default function VisitPlanDetailPage() {
       setIsGenerating(false);
     }
   };
+
+  if (isQuickstart) {
+    return <QuickstartPlanView client={client} plan={plan} />;
+  }
 
   const handleImportFromSpin = async () => {
     const sessions = useSpinStore.getState().sessions;
@@ -664,6 +670,109 @@ export default function VisitPlanDetailPage() {
         onSave={(objs) => updatePlan(plan.id, { objections: objs })}
       />
     </div>
+  );
+}
+
+function QuickstartPlanView({ client, plan }: { client: Client; plan: VisitPlan }) {
+  const step = getQuickstartStep("plan");
+  const fixture = getQuickstartVisitFixture();
+  const objectives = plan.objectives.length ? plan.objectives : fixture.objectives;
+  const spinQuestions = plan.spinQuestions.length ? plan.spinQuestions : fixture.spinQuestions;
+  const objections = plan.objections.length ? plan.objections : fixture.objections;
+  const materials = plan.materials.length ? plan.materials : fixture.materials;
+
+  return (
+    <div className="mx-auto max-w-3xl space-y-4 pb-28">
+      <QuickstartGuide
+        currentStepId="plan"
+        compact
+        nextHref={`/spin?clientId=${plan.clientId}&autoCreate=true&demo=quickstart`}
+      />
+
+      <section className="rounded-lg border border-[#D7DFE7] bg-white p-5 shadow-sm">
+        <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#1565C0]">
+          Quickstart Plan
+        </p>
+        <h1 className="mt-2 text-2xl font-bold tracking-tight text-[#0A2342]">
+          {step.screenTitle}
+        </h1>
+        <p className="mt-2 text-sm font-medium leading-6 text-[#546E7A]">
+          {step.bodyCopy}
+        </p>
+      </section>
+
+      <Card className="border-[#E2EAF1] bg-[#F7FAFF] shadow-sm">
+        <CardContent className="grid gap-3 p-4 sm:grid-cols-3">
+          <div>
+            <p className="text-[11px] font-black uppercase tracking-[0.12em] text-[#78909C]">客戶</p>
+            <p className="mt-1 text-base font-bold text-[#0A2342]">{client.name}</p>
+            <p className="mt-1 text-xs font-medium text-[#546E7A]">{client.occupation}</p>
+          </div>
+          <div>
+            <p className="text-[11px] font-black uppercase tracking-[0.12em] text-[#78909C]">目的</p>
+            <p className="mt-1 text-base font-bold text-[#0A2342]">加保</p>
+            <p className="mt-1 text-xs font-medium text-[#546E7A]">補足家庭保障缺口</p>
+          </div>
+          <div>
+            <p className="text-[11px] font-black uppercase tracking-[0.12em] text-[#78909C]">狀態</p>
+            <p className="mt-1 text-base font-bold text-[#0A2342]">準備完成</p>
+            <p className="mt-1 text-xs font-medium text-[#546E7A]">可進入 SPIN 澄清</p>
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="grid gap-3">
+        <QuickstartSummaryBlock
+          icon={<Target className="h-4 w-4" />}
+          title="本次拜訪目標"
+          items={objectives.map((objective) => objective.description)}
+        />
+        <QuickstartSummaryBlock
+          icon={<MessageSquare className="h-4 w-4" />}
+          title="SPIN 提問"
+          items={spinQuestions.slice(0, 4).map((question) => question.question)}
+        />
+        <QuickstartSummaryBlock
+          icon={<ShieldAlert className="h-4 w-4" />}
+          title="可能異議與回應"
+          items={objections.map((objection) => `${objection.expectedObjection}｜${objection.suggestedResponse}`)}
+        />
+        <QuickstartSummaryBlock
+          icon={<ClipboardList className="h-4 w-4" />}
+          title="拜訪材料"
+          items={materials.map((material) => material.name)}
+        />
+      </div>
+    </div>
+  );
+}
+
+function QuickstartSummaryBlock({
+  icon,
+  items,
+  title,
+}: {
+  icon: ReactNode;
+  items: string[];
+  title: string;
+}) {
+  return (
+    <Card className="border-[#E2EAF1] shadow-sm">
+      <CardContent className="p-4">
+        <div className="mb-3 flex items-center gap-2 text-[#1565C0]">
+          {icon}
+          <h2 className="text-sm font-bold text-[#0A2342]">{title}</h2>
+        </div>
+        <ul className="space-y-2">
+          {items.map((item) => (
+            <li key={item} className="flex gap-2 text-sm font-medium leading-6 text-[#546E7A]">
+              <CheckCircle2 className="mt-1 h-4 w-4 shrink-0 text-[#1565C0]" />
+              <span>{item}</span>
+            </li>
+          ))}
+        </ul>
+      </CardContent>
+    </Card>
   );
 }
 

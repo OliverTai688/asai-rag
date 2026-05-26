@@ -31,7 +31,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { FormattedTime } from "@/components/ui/formatted-time";
 import { Markdown } from "@/components/ui/markdown";
 import { QuickstartGuide } from "@/components/demo/quickstart-guide";
-import { demoQuickstart } from "@/domains/demo/quickstart";
+import { demoQuickstart, getQuickstartStep } from "@/domains/demo/quickstart";
 
 export default function ReportEditorPage() {
   const params = useParams();
@@ -330,6 +330,7 @@ function QuickstartReportView({
   onTabChange: (value: string) => void;
   report: Report;
 }) {
+  const step = getQuickstartStep("report");
   const highlights = [
     {
       label: "客戶",
@@ -361,31 +362,21 @@ function QuickstartReportView({
         <div className="border-b border-[#E6EDF3] bg-[#F8FAFC] px-5 py-5 sm:px-6">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="min-w-0">
-              <div className="mb-2 flex flex-wrap items-center gap-2">
-                <Badge variant="blue" className="h-6 rounded-full text-[11px]">
-                  Step 6 / 6
-                </Badge>
-                <span className="text-xs font-bold text-[#78909C]">報告追蹤</span>
-              </div>
+              <p className="mb-2 text-[11px] font-black uppercase tracking-[0.14em] text-[#1565C0]">
+                Quickstart Report
+              </p>
               <h1 className="text-2xl font-bold tracking-tight text-[#0A2342] sm:text-3xl">
-                {report.clientName} 決策報告
+                {step.screenTitle}
               </h1>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-[#546E7A]">
-                這一頁只看三件事：AI 如何整理需求、如何把風險說清楚、以及業務回到 dashboard 後要追蹤什麼。
+                {step.bodyCopy}
               </p>
             </div>
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <Button variant="outline" className="h-10 rounded-lg" onClick={onShare}>
+            <div className="flex flex-col gap-2 sm:flex-row lg:justify-end">
+              <Button variant="outline" className="h-10 rounded-lg border-[#C7D4DF] bg-white" onClick={onShare}>
                 <Share2 className="h-4 w-4" />
                 建立分享連結
               </Button>
-              <Link
-                href="/dashboard?demo=completed"
-                className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-[#1A3A6B] px-4 text-sm font-bold text-white transition-colors hover:bg-[#1565C0]"
-              >
-                完成 Demo
-                <ArrowRight className="h-4 w-4" />
-              </Link>
             </div>
           </div>
         </div>
@@ -401,44 +392,49 @@ function QuickstartReportView({
         </div>
 
         <div className="p-5 sm:p-6">
-          <Tabs value={activeTab} onValueChange={onTabChange} className="w-full">
-            <TabsList className="h-auto w-full rounded-lg bg-[#EEF3F7] p-1 sm:w-fit">
-              <TabsTrigger
-                value="internal"
-                className="flex-1 rounded-md px-4 py-2 text-sm font-bold data-[state=active]:bg-white data-[state=active]:shadow-sm sm:flex-none"
+          <div className="grid w-full grid-cols-2 rounded-lg bg-[#EEF3F7] p-1 sm:inline-grid sm:w-auto">
+            {[
+              { label: "內部摘要", value: "internal" },
+              { label: "客戶版", value: "client" },
+            ].map((tab) => (
+              <button
+                key={tab.value}
+                type="button"
+                onClick={() => onTabChange(tab.value)}
+                className={cn(
+                  "rounded-md px-4 py-2 text-sm font-bold transition-colors",
+                  activeTab === tab.value ? "bg-white text-[#0A2342] shadow-sm" : "text-[#546E7A]"
+                )}
               >
-                內部摘要
-              </TabsTrigger>
-              <TabsTrigger
-                value="client"
-                className="flex-1 rounded-md px-4 py-2 text-sm font-bold data-[state=active]:bg-white data-[state=active]:shadow-sm sm:flex-none"
-              >
-                客戶版
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
+                {tab.label}
+              </button>
+            ))}
+          </div>
 
           <div className="mt-5 space-y-4">
             {displaySections.map((section, index) => (
               <article key={section.id} className="rounded-lg border border-[#E2EAF1] bg-white">
-                <div className="flex items-start gap-3 border-b border-[#EEF3F7] px-4 py-3">
-                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#EBF3FB] text-xs font-black text-[#1565C0]">
-                    {index + 1}
-                  </span>
-                  <div>
-                    <h2 className="text-base font-bold text-[#0A2342]">{section.title}</h2>
-                    <p className="mt-0.5 text-xs font-semibold uppercase tracking-[0.1em] text-[#78909C]">
-                      {section.type}
-                    </p>
+                <details>
+                  <summary className="flex cursor-pointer list-none items-start gap-3 px-4 py-3">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#EBF3FB] text-xs font-black text-[#1565C0]">
+                      {index + 1}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-base font-bold text-[#0A2342]">{section.title}</span>
+                      <span className="mt-0.5 block text-xs font-semibold uppercase tracking-[0.1em] text-[#78909C]">
+                        {section.type}
+                      </span>
+                    </span>
+                    <span className="mt-1 text-xs font-bold text-[#1565C0]">展開</span>
+                  </summary>
+                  <div className="border-t border-[#EEF3F7] px-4 py-4 sm:px-5">
+                    <Markdown
+                      content={section.content}
+                      isInternal={activeTab === "internal"}
+                      className="text-sm leading-7"
+                    />
                   </div>
-                </div>
-                <CardContent className="px-4 py-4 sm:px-5">
-                  <Markdown
-                    content={section.content}
-                    isInternal={activeTab === "internal"}
-                    className="text-sm leading-7"
-                  />
-                </CardContent>
+                </details>
               </article>
             ))}
           </div>

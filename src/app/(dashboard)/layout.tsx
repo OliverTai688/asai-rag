@@ -142,7 +142,8 @@ function getQuickstartSnapshot() {
     return false;
   }
 
-  return new URLSearchParams(window.location.search).get("demo") === "quickstart";
+  const demoMode = new URLSearchParams(window.location.search).get("demo");
+  return demoMode === "quickstart" || demoMode === "completed";
 }
 
 function subscribeToLocationChanges(onStoreChange: () => void) {

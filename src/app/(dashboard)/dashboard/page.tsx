@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useSyncExternalStore } from "react";
 import { Suspense } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -24,14 +24,23 @@ import { ActivityTimeline } from "@/components/dashboard/activity-timeline";
 import { TasksPanel } from "@/components/dashboard/tasks-panel";
 import { DashboardCalendar } from "@/components/dashboard/dashboard-calendar";
 import { useSessionStore } from "@/domains/session/store";
-import CountUp from "react-countup";
-import { motion } from "motion/react";
 import { DashboardWelcomeCard } from "@/components/demo/dashboard-welcome-card";
 
 export default function DashboardPage() {
   const { user } = useSessionStore();
+  const demoMode = useDashboardDemoMode();
   const stats = useMemo(() => clientService.getDashboardStats(), []);
   const latestEvents = useMemo(() => eventService.getLatestEvents(8), []);
+
+  if (demoMode === "completed") {
+    return (
+      <div className="pb-10">
+        <Suspense fallback={<div className="rounded-lg border border-[#C7D4DF] bg-white p-5 text-sm font-semibold text-[#546E7A]">載入體驗入口...</div>}>
+          <DashboardWelcomeCard />
+        </Suspense>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-5 pb-10">
@@ -59,20 +68,12 @@ export default function DashboardPage() {
 
       <ExecutiveBrief />
 
-      <motion.div
-        className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4"
-        initial="hidden"
-        animate="visible"
-        variants={{
-          visible: { transition: { staggerChildren: 0.06 } },
-          hidden: {},
-        }}
-      >
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <KPICard title="本週 SPIN 次數" value={12} unit="次" icon={MessageSquare} trend="+2 從上週" accentColor="#1565C0" />
         <KPICard title="潛在客戶數" value={stats.prospectCount} unit="人" icon={Users} trend="佔總體 40%" accentColor="#1976D2" />
         <KPICard title="今日 Engagement" value={5} unit="次" icon={TrendingUp} trend="報告開啟為主" accentColor="#0A2342" />
         <KPICard title="本月報告產出" value={24} unit="份" icon={FileText} trend="達成率 80%" accentColor="#8B6B10" />
-      </motion.div>
+      </div>
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
         <div className="space-y-5">
@@ -88,6 +89,29 @@ export default function DashboardPage() {
       </div>
     </div>
   );
+}
+
+function useDashboardDemoMode() {
+  return useSyncExternalStore(
+    subscribeToDashboardLocationChanges,
+    getDashboardDemoMode,
+    () => ""
+  );
+}
+
+function getDashboardDemoMode() {
+  if (typeof window === "undefined") return "";
+  return new URLSearchParams(window.location.search).get("demo") ?? "";
+}
+
+function subscribeToDashboardLocationChanges(onStoreChange: () => void) {
+  const urlChangeEvent = "asai-url-change";
+  window.addEventListener("popstate", onStoreChange);
+  window.addEventListener(urlChangeEvent, onStoreChange);
+  return () => {
+    window.removeEventListener("popstate", onStoreChange);
+    window.removeEventListener(urlChangeEvent, onStoreChange);
+  };
 }
 
 function ExecutiveBrief() {
@@ -157,12 +181,7 @@ function KPICard({
   accentColor: string;
 }) {
   return (
-    <motion.div
-      variants={{
-        hidden: { opacity: 0, y: 10 },
-        visible: { opacity: 1, y: 0, transition: { duration: 0.28, ease: [0, 0, 0.2, 1] } },
-      }}
-    >
+    <div>
       <Card>
         <CardContent className="p-5">
           <div className="flex items-center justify-between gap-3">
@@ -178,15 +197,15 @@ function KPICard({
           <div className="mt-5">
             <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.1em] text-[#5F7080]">{title}</p>
             <div className="flex items-end gap-1">
-              <p className="text-[34px] font-semibold leading-none tabular-nums text-[#0A2342]">
-                <CountUp end={value} duration={1.1} useEasing delay={0} />
+            <p className="text-[34px] font-semibold leading-none tabular-nums text-[#0A2342]">
+                {value}
               </p>
               <span className="mb-1 text-sm font-semibold text-[#5F7080]">{unit}</span>
             </div>
           </div>
         </CardContent>
       </Card>
-    </motion.div>
+    </div>
   );
 }
 

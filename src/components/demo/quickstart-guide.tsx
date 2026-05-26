@@ -31,6 +31,13 @@ export function QuickstartGuide({
   const progress = ((activeIndex + 1) / demoQuickstart.steps.length) * 100;
   const resolvedNextHref = nextHref ?? getQuickstartNextHref(currentStep.id);
   const resolvedNextLabel = nextLabel ?? currentStep.primaryCta;
+  const useNativeNavigation = currentStep.id === "report";
+  const desktopCtaClassName = buttonVariants({
+    className: "hidden h-11 w-full justify-between rounded-lg px-4 lg:inline-flex lg:w-fit",
+  });
+  const mobileCtaClassName = buttonVariants({
+    className: "h-11 shrink-0 rounded-lg px-4 text-sm",
+  });
 
   return (
     <>
@@ -62,16 +69,20 @@ export function QuickstartGuide({
             )}
           </div>
 
-          <Link
-            data-testid="quickstart-primary-cta"
-            href={resolvedNextHref}
-            className={buttonVariants({
-              className: "hidden h-11 w-full justify-between rounded-lg px-4 lg:inline-flex lg:w-fit",
-            })}
-          >
-            {resolvedNextLabel}
-            <ArrowRight className="h-4 w-4" />
-          </Link>
+          {useNativeNavigation ? (
+            <form action="/dashboard" method="get" className="contents">
+              <input type="hidden" name="demo" value="completed" />
+              <button data-testid="quickstart-primary-cta" type="submit" className={desktopCtaClassName}>
+                {resolvedNextLabel}
+                <ArrowRight className="h-4 w-4" />
+              </button>
+            </form>
+          ) : (
+            <Link data-testid="quickstart-primary-cta" href={resolvedNextHref} className={desktopCtaClassName}>
+              {resolvedNextLabel}
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          )}
         </div>
 
         <div className="h-1.5 bg-[#E8EEF4] dark:bg-[#0A1929]">
@@ -131,20 +142,24 @@ export function QuickstartGuide({
         <div className="mx-auto flex max-w-3xl items-center gap-3">
           <div className="min-w-0 flex-1">
             <p className="truncate text-[11px] font-black uppercase tracking-wide text-[#1565C0]">
-              Step {activeIndex + 1} / {demoQuickstart.steps.length}
+              Quickstart
             </p>
             <p className="truncate text-sm font-bold text-[#0A2342]">{currentStep.title}</p>
           </div>
-          <Link
-            data-testid="quickstart-mobile-cta"
-            href={resolvedNextHref}
-            className={buttonVariants({
-              className: "h-11 shrink-0 rounded-lg px-4 text-sm",
-            })}
-          >
-            {resolvedNextLabel}
-            <ArrowRight className="h-4 w-4" />
-          </Link>
+          {useNativeNavigation ? (
+            <form action="/dashboard" method="get" className="contents">
+              <input type="hidden" name="demo" value="completed" />
+              <button data-testid="quickstart-mobile-cta" type="submit" className={mobileCtaClassName}>
+                {resolvedNextLabel}
+                <ArrowRight className="h-4 w-4" />
+              </button>
+            </form>
+          ) : (
+            <Link data-testid="quickstart-mobile-cta" href={resolvedNextHref} className={mobileCtaClassName}>
+              {resolvedNextLabel}
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          )}
         </div>
       </div>
     </>

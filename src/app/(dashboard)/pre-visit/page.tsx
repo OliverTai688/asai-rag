@@ -33,7 +33,7 @@ import {
   SelectTrigger,
 } from "@/components/ui/select";
 import { QuickstartGuide } from "@/components/demo/quickstart-guide";
-import { demoQuickstart } from "@/domains/demo/quickstart";
+import { demoQuickstart, getQuickstartStep } from "@/domains/demo/quickstart";
 import { cn } from "@/lib/utils";
 
 const PURPOSE_LABELS: Record<VisitPurpose, string> = {
@@ -115,6 +115,16 @@ function PreVisitListContent() {
       router.replace("/pre-visit");
     }
   };
+
+  if (isQuickstart) {
+    return (
+      <QuickstartPreVisitStart
+        clientName={selectedClient?.name ?? demoQuickstart.clientName}
+        occupation={selectedClient?.occupation ?? "示範客戶"}
+        onStart={handleCreatePlan}
+      />
+    );
+  }
 
   return (
     <div className="space-y-8 pb-10">
@@ -397,6 +407,71 @@ function PreVisitListContent() {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+function QuickstartPreVisitStart({
+  clientName,
+  occupation,
+  onStart,
+}: {
+  clientName: string;
+  occupation: string;
+  onStart: () => void;
+}) {
+  const step = getQuickstartStep("pre-visit");
+
+  return (
+    <div className="mx-auto max-w-3xl space-y-4 pb-28">
+      <section className="rounded-lg border border-[#D7DFE7] bg-white p-5 shadow-sm">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <Badge variant="blue" className="h-6 rounded-full text-[11px]">
+            Step 2 / {demoQuickstart.steps.length}
+          </Badge>
+          <span className="text-xs font-bold text-[#78909C]">Quickstart</span>
+        </div>
+        <h1 className="text-2xl font-bold tracking-tight text-[#0A2342]">
+          {step.screenTitle}
+        </h1>
+        <p className="mt-2 text-sm font-medium leading-6 text-[#546E7A]">
+          {step.bodyCopy}
+        </p>
+      </section>
+
+      <Card className="border-[#E2EAF1] shadow-sm">
+        <CardContent className="space-y-3 p-4">
+          <div className="rounded-lg border border-[#E2EAF1] bg-[#F7FAFF] p-4">
+            <p className="text-[11px] font-black uppercase tracking-[0.12em] text-[#78909C]">
+              客戶
+            </p>
+            <p className="mt-1 text-lg font-bold text-[#0A2342]">{clientName}</p>
+            <p className="mt-1 text-xs font-medium text-[#546E7A]">{occupation}</p>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="rounded-lg border border-[#E2EAF1] bg-white p-4">
+              <p className="text-[11px] font-black uppercase tracking-[0.12em] text-[#78909C]">
+                拜訪目的
+              </p>
+              <p className="mt-1 text-base font-bold text-[#0A2342]">{demoQuickstart.purposeLabel}</p>
+            </div>
+            <div className="rounded-lg border border-[#E2EAF1] bg-white p-4">
+              <p className="text-[11px] font-black uppercase tracking-[0.12em] text-[#78909C]">
+                體驗方式
+              </p>
+              <p className="mt-1 text-base font-bold text-[#0A2342]">一直按下一步</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Button
+        onClick={onStart}
+        className="h-12 w-full rounded-lg bg-[#1A3A6B] text-base font-bold text-white shadow-sm hover:bg-[#1565C0]"
+      >
+        {step.primaryCta}
+        <ChevronRight className="h-4 w-4" />
+      </Button>
     </div>
   );
 }
