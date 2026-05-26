@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -58,6 +58,10 @@ import { FormattedTime } from "@/components/ui/formatted-time";
 import { nanoid } from "nanoid";
 import { FeedbackPanel } from "@/components/visit/feedback-panel";
 import { QuickstartGuide } from "@/components/demo/quickstart-guide";
+import {
+  demoQuickstart,
+  getQuickstartVisitFixture,
+} from "@/domains/demo/quickstart";
 
 const PURPOSE_LABELS: Record<VisitPurpose, string> = {
   FIRST_VISIT: "初訪",
@@ -78,15 +82,74 @@ export default function VisitPlanDetailPage() {
   const [editingObjectives, setEditingObjectives] = useState(false);
   const [editingSpin, setEditingSpin] = useState(false);
   const [editingObjections, setEditingObjections] = useState(false);
+  const [quickstartMode, setQuickstartMode] = useState<boolean | null>(null);
+  const quickstartSeededRef = useRef(false);
 
   const plan = useVisitStore((state) => state.plans.find((p) => p.id === planId));
   const client = useClientStore((state) => state.clients.find((c) => c.id === plan?.clientId));
+  const isQuickstart = quickstartMode === true;
+
+  useEffect(() => {
+    setQuickstartMode(new URLSearchParams(window.location.search).get("demo") === "quickstart");
+  }, []);
+
+  useEffect(() => {
+    if (quickstartMode !== true) return;
+    if (!plan || !client) {
+      router.replace("/pre-visit?demo=quickstart");
+      return;
+    }
+    if (quickstartSeededRef.current) return;
+    if (
+      plan.status === "READY" &&
+      plan.objectives.length > 0 &&
+      plan.spinQuestions.length > 0 &&
+      plan.objections.length > 0
+    ) {
+      quickstartSeededRef.current = true;
+      return;
+    }
+
+    quickstartSeededRef.current = true;
+    const fixture = getQuickstartVisitFixture();
+    updatePlan(plan.id, {
+      purpose: demoQuickstart.purpose as VisitPurpose,
+      objectives: fixture.objectives,
+      spinQuestions: fixture.spinQuestions,
+      objections: fixture.objections,
+      materials: fixture.materials,
+      status: "READY",
+    });
+  }, [client, plan, quickstartMode, router, updatePlan]);
 
   if (!plan || !client) {
-    return <div className="p-10 text-center">載入中或找不到該規劃...</div>;
+    return (
+      <div className="p-10 text-center text-sm font-semibold text-zinc-500">
+        {quickstartMode === true || quickstartMode === null
+          ? "載入 Quickstart 準備包..."
+          : "載入中或找不到該規劃..."}
+      </div>
+    );
   }
 
+  const applyQuickstartFixture = () => {
+    const fixture = getQuickstartVisitFixture();
+    updatePlan(plan.id, {
+      purpose: demoQuickstart.purpose as VisitPurpose,
+      objectives: fixture.objectives,
+      spinQuestions: fixture.spinQuestions,
+      objections: fixture.objections,
+      materials: fixture.materials,
+      status: "READY",
+    });
+  };
+
   const handleGenerateAI = async () => {
+    if (isQuickstart) {
+      applyQuickstartFixture();
+      return;
+    }
+
     setIsGenerating(true);
     
     try {

@@ -25,10 +25,11 @@ import {
 } from "@/components/ui/dialog";
 import { useRouter, useSearchParams } from "next/navigation";
 import { QuickstartGuide } from "@/components/demo/quickstart-guide";
+import { getQuickstartSpinFixture } from "@/domains/demo/quickstart";
 
 function SpinListContent() {
   const router = useRouter();
-  const { sessions, createSession } = useSpinStore();
+  const { sessions, createSession, updateSession, addMessage } = useSpinStore();
   const searchParams = useSearchParams();
   const isQuickstart = searchParams.get("demo") === "quickstart";
   const [search, setSearch] = useState("");
@@ -41,11 +42,32 @@ function SpinListContent() {
     if (autoCreate === "true" && clientId) {
       const client = allClients.find(c => c.id === clientId);
       if (client) {
-        const session = createSession(client.id, client.name);
+        const existingQuickstartSession = isQuickstart
+          ? sessions.find(
+              (session) =>
+                session.clientId === client.id &&
+                session.phase === "COMPLETE" &&
+                session.summary?.keyInsights?.some((insight) => insight.includes("家庭責任"))
+            )
+          : undefined;
+        const session = existingQuickstartSession ?? createSession(client.id, client.name);
+
+        if (isQuickstart && !existingQuickstartSession) {
+          const fixture = getQuickstartSpinFixture(session.id);
+          updateSession(session.id, {
+            phase: fixture.session.phase,
+            mode: fixture.session.mode,
+            outputs: fixture.session.outputs,
+            transitions: fixture.session.transitions,
+            summary: fixture.session.summary,
+          });
+          fixture.messages.forEach((message) => addMessage(session.id, message));
+        }
+
         router.replace(`/spin/${session.id}${isQuickstart ? "?demo=quickstart" : ""}`);
       }
     }
-  }, [searchParams, createSession, router, allClients, isQuickstart]);
+  }, [searchParams, createSession, router, allClients, isQuickstart, sessions, updateSession, addMessage]);
 
   const filteredClients = useMemo(() => {
     return allClients.filter(c => c.name.includes(search));

@@ -30,6 +30,10 @@ import {
   DialogTrigger
 } from "@/components/ui/dialog";
 import { QuickstartGuide } from "@/components/demo/quickstart-guide";
+import {
+  getQuickstartSpinFixture,
+  getQuickstartTheaterFixture,
+} from "@/domains/demo/quickstart";
 
 export default function ReportListPage() {
   const router = useRouter();
@@ -47,9 +51,12 @@ export default function ReportListPage() {
     const clientId = params.get("clientId") ?? "c_wang";
     const spinId = params.get("spinId");
     const theaterId = params.get("theaterId");
+    const spinFixture = getQuickstartSpinFixture(spinId ?? "quickstart-spin").session;
+    const theaterFixture = getQuickstartTheaterFixture(theaterId ?? "quickstart-theater", spinFixture.id).score;
     const spin =
       spinSessions.find((session) => session.id === spinId) ??
-      spinSessions.find((session) => session.clientId === clientId);
+      spinSessions.find((session) => session.clientId === clientId) ??
+      spinFixture;
     const theaterScore = theaterId ? scoresBySession[theaterId] : Object.values(scoresBySession)[0];
     const clientName = spin?.clientName ?? clientService.getClientById(clientId)?.name ?? "王大明";
 
@@ -57,7 +64,7 @@ export default function ReportListPage() {
       clientId,
       clientName,
       spinSession: spin,
-      theaterScore,
+      theaterScore: theaterScore ?? theaterFixture,
     });
 
     addReport(newReport);

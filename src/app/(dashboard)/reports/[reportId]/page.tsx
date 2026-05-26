@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { useReportStore } from "@/domains/report/store";
 import { reportService } from "@/domains/report/service";
 import { clientService } from "@/domains/client/service";
@@ -8,7 +8,7 @@ import { Report, ReportSection } from "@/domains/report/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { 
+import {
   ArrowRight,
   ChevronLeft, 
   CheckCircle2,
@@ -23,7 +23,7 @@ import {
   ArrowUpRight
 } from "lucide-react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -31,9 +31,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { FormattedTime } from "@/components/ui/formatted-time";
 import { Markdown } from "@/components/ui/markdown";
 import { QuickstartGuide } from "@/components/demo/quickstart-guide";
+import { demoQuickstart } from "@/domains/demo/quickstart";
 
 export default function ReportEditorPage() {
   const params = useParams();
+  const router = useRouter();
   const reportId = params.reportId as string;
   
   const { getReportById, updateSection, generateShareToken } = useReportStore();
@@ -49,19 +51,30 @@ export default function ReportEditorPage() {
     () => true,
     () => false
   );
+  const isQuickstart =
+    hasMounted &&
+    typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).get("demo") === "quickstart";
+
+  useEffect(() => {
+    if (!hasMounted || report || !isQuickstart) return;
+    router.replace(`/reports?clientId=${demoQuickstart.clientId}&autoCreate=true&demo=quickstart`);
+  }, [hasMounted, isQuickstart, report, router]);
 
   if (!hasMounted) {
     return <div className="p-20 text-center text-sm font-semibold text-zinc-500">載入報告中...</div>;
   }
 
-  if (!report) return <div className="p-20 text-center">報告不存在</div>;
+  if (!report) {
+    return (
+      <div className="p-20 text-center text-sm font-semibold text-zinc-500">
+        {isQuickstart ? "載入 Quickstart 決策報告..." : "報告不存在"}
+      </div>
+    );
+  }
 
   const clientSections = reportService.getClientSections(report);
   const displaySections = activeTab === "internal" ? report.sections : clientSections;
-  const isQuickstart =
-    hasMounted &&
-    typeof window !== "undefined" &&
-    new URLSearchParams(window.location.search).get("demo") === "quickstart";
 
   const handleStartEdit = (section: ReportSection) => {
     setEditingId(section.id);

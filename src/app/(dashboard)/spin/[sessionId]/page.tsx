@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useSpinStore } from "@/domains/spin/store";
 import { spinService } from "@/domains/spin/service";
-import { SpinMessage, SpinPhase } from "@/domains/spin/types";
+import { SpinMessage, SpinPhase, SpinSession } from "@/domains/spin/types";
 import { eventService } from "@/domains/event/service";
 import { reportService } from "@/domains/report/service";
 import { useReportStore } from "@/domains/report/store";
@@ -47,6 +47,7 @@ import { cn } from "@/lib/utils";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { QuickstartGuide } from "@/components/demo/quickstart-guide";
+import { demoQuickstart, getQuickstartSpinFixture, getQuickstartStep } from "@/domains/demo/quickstart";
 
 // ---- 型別 ----
 interface SpinSuggestion {
@@ -99,6 +100,18 @@ export default function SpinConversationPage() {
 
   // 已儲存的報告 ID（生成大綱時同步儲存）
   const [savedReportId, setSavedReportId] = useState<string | null>(null);
+  const [quickstartMode, setQuickstartMode] = useState<boolean | null>(null);
+  const isQuickstart = quickstartMode === true;
+
+  useEffect(() => {
+    setQuickstartMode(new URLSearchParams(window.location.search).get("demo") === "quickstart");
+  }, []);
+
+  useEffect(() => {
+    if (quickstartMode === true && !session) {
+      router.replace(`/spin?clientId=${demoQuickstart.clientId}&autoCreate=true&demo=quickstart`);
+    }
+  }, [quickstartMode, router, session]);
 
   // 同步 Zustand 訊息
   useEffect(() => {
@@ -163,7 +176,11 @@ export default function SpinConversationPage() {
   }, [messages, isTyping]);
 
   if (!session) {
-    return <div className="p-20 text-center">對話不存在</div>;
+    return (
+      <div className="p-20 text-center text-sm font-semibold text-zinc-500">
+        {quickstartMode === true || quickstartMode === null ? "載入 Quickstart SPIN 摘要..." : "對話不存在"}
+      </div>
+    );
   }
 
   const handleSend = async () => {
@@ -394,6 +411,10 @@ export default function SpinConversationPage() {
     session.phase !== "COMPLETE"
       ? (session.outputs[session.phase as keyof typeof session.outputs] ?? [])
       : [];
+
+  if (isQuickstart) {
+    return <QuickstartSpinView session={session} />;
+  }
 
   return (
     <div className="flex flex-col h-[calc(100vh-140px)] animate-in fade-in duration-500">
@@ -868,6 +889,77 @@ export default function SpinConversationPage() {
           )}
         </SheetContent>
       </Sheet>
+    </div>
+  );
+}
+
+function QuickstartSpinView({ session }: { session: SpinSession }) {
+  const step = getQuickstartStep("spin");
+  const fallback = getQuickstartSpinFixture(session.id).session;
+  const outputs = {
+    SITUATION: session.outputs.SITUATION.length ? session.outputs.SITUATION : fallback.outputs.SITUATION,
+    PROBLEM: session.outputs.PROBLEM.length ? session.outputs.PROBLEM : fallback.outputs.PROBLEM,
+    IMPLICATION: session.outputs.IMPLICATION.length ? session.outputs.IMPLICATION : fallback.outputs.IMPLICATION,
+    NEED_PAYOFF: session.outputs.NEED_PAYOFF.length ? session.outputs.NEED_PAYOFF : fallback.outputs.NEED_PAYOFF,
+  };
+  const summary = session.summary ?? fallback.summary;
+  const rows = [
+    { label: "S 情況", value: outputs.SITUATION[0] },
+    { label: "P 問題", value: outputs.PROBLEM[0] },
+    { label: "I 影響", value: outputs.IMPLICATION[0] },
+    { label: "N 回報", value: outputs.NEED_PAYOFF[0] },
+  ];
+
+  return (
+    <div className="mx-auto max-w-3xl space-y-4 pb-28">
+      <QuickstartGuide
+        currentStepId="spin"
+        compact
+        nextHref={`/theater?clientId=${session.clientId}&spinId=${session.id}&autoCreate=true&demo=quickstart`}
+      />
+
+      <section className="rounded-lg border border-[#D7DFE7] bg-white p-5 shadow-sm">
+        <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#1565C0]">
+          Quickstart SPIN
+        </p>
+        <h1 className="mt-2 text-2xl font-bold tracking-tight text-[#0A2342]">
+          {step.screenTitle}
+        </h1>
+        <p className="mt-2 text-sm font-medium leading-6 text-[#546E7A]">
+          {step.bodyCopy}
+        </p>
+      </section>
+
+      <div className="grid gap-3">
+        {rows.map((row) => (
+          <Card key={row.label} className="border-[#E2EAF1] shadow-sm">
+            <CardContent className="p-4">
+              <p className="text-[11px] font-black uppercase tracking-[0.12em] text-[#1565C0]">
+                {row.label}
+              </p>
+              <p className="mt-2 text-sm font-semibold leading-6 text-[#0A2342]">
+                {row.value}
+              </p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {summary && (
+        <Card className="border-[#E2EAF1] bg-[#F7FAFF] shadow-sm">
+          <CardContent className="space-y-3 p-4">
+            <p className="text-sm font-bold text-[#0A2342]">AI 建議行動</p>
+            <ul className="space-y-2">
+              {summary.suggestedActions.map((action) => (
+                <li key={action} className="flex gap-2 text-sm font-medium leading-6 text-[#546E7A]">
+                  <CheckCircle2 className="mt-1 h-4 w-4 shrink-0 text-[#1565C0]" />
+                  {action}
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

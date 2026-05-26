@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useTheaterStore } from "@/domains/theater/store";
 import { theaterService } from "@/domains/theater/service";
-import { TheaterTurn, TheaterScore, TheaterPersonaType } from "@/domains/theater/types";
+import { TheaterTurn, TheaterScore, TheaterPersonaType, TheaterSession } from "@/domains/theater/types";
 import { useSpinStore } from "@/domains/spin/store";
 import { clientService } from "@/domains/client/service";
 import { Button } from "@/components/ui/button";
@@ -30,6 +30,11 @@ import { cn } from "@/lib/utils";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { QuickstartGuide } from "@/components/demo/quickstart-guide";
+import {
+  demoQuickstart,
+  getQuickstartStep,
+  getQuickstartTheaterFixture,
+} from "@/domains/demo/quickstart";
 
 export default function TheaterSimulationPage() {
   const params = useParams();
@@ -49,9 +54,21 @@ export default function TheaterSimulationPage() {
   const [isTyping, setIsTyping] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
   const [isLoadingScore, setIsLoadingScore] = useState(false);
+  const [quickstartMode, setQuickstartMode] = useState<boolean | null>(null);
+  const isQuickstart = quickstartMode === true;
 
   // 同步 Zustand
   useEffect(() => { setTurns(initialTurns); }, [initialTurns]);
+
+  useEffect(() => {
+    setQuickstartMode(new URLSearchParams(window.location.search).get("demo") === "quickstart");
+  }, []);
+
+  useEffect(() => {
+    if (quickstartMode === true && !session) {
+      router.replace(`/theater?clientId=${demoQuickstart.clientId}&autoCreate=true&demo=quickstart`);
+    }
+  }, [quickstartMode, router, session]);
   
   useEffect(() => {
     if (scrollRef.current) {
@@ -59,10 +76,20 @@ export default function TheaterSimulationPage() {
     }
   }, [turns, isTyping]);
 
-  if (!session) return <div className="p-20 text-center">演練不存在</div>;
+  if (!session) {
+    return (
+      <div className="p-20 text-center text-sm font-semibold text-zinc-500">
+        {quickstartMode === true || quickstartMode === null ? "載入 Quickstart 劇場演練..." : "演練不存在"}
+      </div>
+    );
+  }
 
   const personaInfo = theaterService.getPersonaDetails(session.personaType);
   const isCompleted = session.status === 'COMPLETED';
+
+  if (isQuickstart) {
+    return <QuickstartTheaterView score={score} session={session} turns={turns} />;
+  }
 
   const handleSend = async () => {
     if (!input.trim() || isTyping || isCompleted) return;
@@ -434,6 +461,95 @@ export default function TheaterSimulationPage() {
            </Card>
         </div>
       )}
+    </div>
+  );
+}
+
+function QuickstartTheaterView({
+  score,
+  session,
+  turns,
+}: {
+  score?: TheaterScore;
+  session: TheaterSession;
+  turns: TheaterTurn[];
+}) {
+  const step = getQuickstartStep("theater");
+  const fixture = getQuickstartTheaterFixture(session.id, session.spinSessionId);
+  const displayTurns = turns.length ? turns : fixture.turns;
+  const displayScore = score ?? fixture.score;
+  const personaInfo = theaterService.getPersonaDetails(session.personaType);
+  const clientTurn = displayTurns.find((turn) => turn.role === "client") ?? fixture.turns[0];
+  const agentTurn = displayTurns.find((turn) => turn.role === "agent") ?? fixture.turns[1];
+  const averageScore = Math.round(
+    (displayScore.empathy +
+      displayScore.questioning +
+      displayScore.clarity +
+      displayScore.objectionHandling +
+      displayScore.closing) /
+      5
+  );
+
+  return (
+    <div className="mx-auto max-w-3xl space-y-4 pb-28">
+      <QuickstartGuide
+        currentStepId="theater"
+        compact
+        nextHref={`/reports?clientId=${session.clientId}&spinId=${session.spinSessionId}&theaterId=${session.id}&autoCreate=true&demo=quickstart`}
+      />
+
+      <section className="rounded-lg border border-[#D7DFE7] bg-white p-5 shadow-sm">
+        <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#1565C0]">
+          Quickstart Theater
+        </p>
+        <h1 className="mt-2 text-2xl font-bold tracking-tight text-[#0A2342]">
+          {step.screenTitle}
+        </h1>
+        <p className="mt-2 text-sm font-medium leading-6 text-[#546E7A]">
+          {step.bodyCopy}
+        </p>
+      </section>
+
+      <Card className="border-[#E2EAF1] shadow-sm">
+        <CardContent className="space-y-4 p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-[11px] font-black uppercase tracking-[0.12em] text-[#1565C0]">
+                Persona
+              </p>
+              <p className="mt-1 text-lg font-bold text-[#0A2342]">{personaInfo.label}</p>
+            </div>
+            <Badge className="border-none bg-[#EBF3FB] text-[#1565C0]">
+              平均 {averageScore}
+            </Badge>
+          </div>
+          <p className="text-sm font-medium leading-6 text-[#546E7A]">{personaInfo.style}</p>
+        </CardContent>
+      </Card>
+
+      <div className="grid gap-3">
+        <Card className="border-[#E2EAF1] shadow-sm">
+          <CardContent className="p-4">
+            <p className="text-[11px] font-black uppercase tracking-[0.12em] text-[#1565C0]">
+              客戶疑慮
+            </p>
+            <p className="mt-2 text-sm font-semibold leading-6 text-[#0A2342]">
+              {clientTurn.content}
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-[#E2EAF1] bg-[#F7FAFF] shadow-sm">
+          <CardContent className="p-4">
+            <p className="text-[11px] font-black uppercase tracking-[0.12em] text-[#1565C0]">
+              建議說法
+            </p>
+            <p className="mt-2 text-sm font-semibold leading-6 text-[#0A2342]">
+              {displayScore.improvedPhrasing[0] ?? agentTurn.content}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

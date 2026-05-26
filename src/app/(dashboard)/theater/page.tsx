@@ -21,11 +21,18 @@ import { useState, useMemo, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
 import { FormattedTime } from "@/components/ui/formatted-time";
 import { QuickstartGuide } from "@/components/demo/quickstart-guide";
+import { getQuickstartTheaterFixture } from "@/domains/demo/quickstart";
 
 export default function TheaterListPage() {
   const router = useRouter();
   const { sessions: spinSessions } = useSpinStore();
-  const { sessions: theaterSessions, createSession } = useTheaterStore();
+  const {
+    sessions: theaterSessions,
+    createSession,
+    addTurn,
+    updateTension,
+    completeSession,
+  } = useTheaterStore();
   
   const [selectedSpinId, setSelectedSpinId] = useState<string | null>(null);
   const [difficulty, setDifficulty] = useState<'EASY' | 'MEDIUM' | 'HARD'>('MEDIUM');
@@ -53,7 +60,7 @@ export default function TheaterListPage() {
     if (!client) return;
     quickstartCreatedRef.current = true;
 
-    const personaType = theaterService.derivePersona(client, spinSession);
+    const personaType = "SKEPTICAL";
     const newSession = createSession({
       spinSessionId: spinSession.id,
       clientId: spinSession.clientId,
@@ -62,8 +69,13 @@ export default function TheaterListPage() {
       difficulty: "MEDIUM",
     });
 
+    const fixture = getQuickstartTheaterFixture(newSession.id, spinSession.id);
+    updateTension(newSession.id, fixture.session.tension);
+    fixture.turns.forEach((turn) => addTurn(newSession.id, turn));
+    completeSession(newSession.id, fixture.score);
+
     router.replace(`/theater/${newSession.id}?demo=quickstart`);
-  }, [createSession, router, spinSessions]);
+  }, [addTurn, completeSession, createSession, router, spinSessions, updateTension]);
 
   const handleStartSim = () => {
     if (!selectedSpinId) return;
