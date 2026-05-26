@@ -1,6 +1,11 @@
 import Link from "next/link";
 import { ArrowRight, CheckCircle2 } from "lucide-react";
-import { demoQuickstart, type DemoQuickstartStepId } from "@/domains/demo/quickstart";
+import {
+  demoQuickstart,
+  getQuickstartNextHref,
+  getQuickstartStep,
+  type DemoQuickstartStepId,
+} from "@/domains/demo/quickstart";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -21,15 +26,16 @@ export function QuickstartGuide({
 }: QuickstartGuideProps) {
   const currentIndex = demoQuickstart.steps.findIndex((step) => step.id === currentStepId);
   const activeIndex = currentIndex >= 0 ? currentIndex : 0;
-  const currentStep = demoQuickstart.steps[activeIndex];
+  const currentStep = getQuickstartStep(currentStepId);
   const nextStep = demoQuickstart.steps[activeIndex + 1];
   const progress = ((activeIndex + 1) / demoQuickstart.steps.length) * 100;
-  const resolvedNextHref = nextHref ?? currentStep.nextRoute ?? nextStep?.route ?? "/dashboard?demo=quickstart";
-  const resolvedNextLabel = nextLabel ?? currentStep.nextLabel;
+  const resolvedNextHref = nextHref ?? getQuickstartNextHref(currentStep.id);
+  const resolvedNextLabel = nextLabel ?? currentStep.primaryCta;
 
   return (
     <>
       <section
+        data-testid="quickstart-guide"
         className={cn(
           "overflow-hidden rounded-lg border border-[#D7DFE7] bg-white shadow-sm",
           "dark:border-[rgba(144,202,249,0.16)] dark:bg-[#0F2744]",
@@ -49,12 +55,18 @@ export function QuickstartGuide({
             <p className="max-w-3xl text-sm font-semibold leading-6 text-[#0A2342] dark:text-white">
               {currentStep.focus}
             </p>
+            {compact && (
+              <p className="max-w-3xl text-xs font-medium leading-5 text-[#546E7A] dark:text-[#B7D7F6]">
+                {currentStep.bodyCopy}
+              </p>
+            )}
           </div>
 
           <Link
+            data-testid="quickstart-primary-cta"
             href={resolvedNextHref}
             className={buttonVariants({
-              className: "h-11 w-full justify-between rounded-lg px-4 lg:w-fit",
+              className: "hidden h-11 w-full justify-between rounded-lg px-4 lg:inline-flex lg:w-fit",
             })}
           >
             {resolvedNextLabel}
@@ -68,7 +80,7 @@ export function QuickstartGuide({
 
         <div className="flex flex-col gap-2 border-t border-[#EDF1F5] px-4 py-3 text-xs dark:border-[rgba(144,202,249,0.12)] sm:flex-row sm:items-center sm:justify-between sm:px-5">
           <p className="font-semibold text-[#546E7A] dark:text-[#90CAF9]">
-            產出：{currentStep.output}
+            產出：{currentStep.completedOutput}
           </p>
           <p className="font-medium text-[#78909C]">
             {nextStep ? `下一步前往「${nextStep.title}」` : "完成後回到總覽"}
@@ -92,7 +104,7 @@ export function QuickstartGuide({
                         : "border-[#E3E9EF] bg-white dark:border-[rgba(144,202,249,0.12)] dark:bg-[#0A1929]/30"
                     )}
                   >
-                    <div className="mb-2 flex items-center justify-between gap-2">
+                    <div className="flex items-center justify-between gap-2">
                       <span
                         className={cn(
                           "inline-flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-black",
@@ -115,7 +127,7 @@ export function QuickstartGuide({
         )}
       </section>
 
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-[#D7DFE7] bg-white/95 p-3 shadow-[0_-8px_30px_rgba(10,35,66,0.12)] backdrop-blur lg:hidden">
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-[#D7DFE7] bg-white/95 px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 shadow-[0_-8px_30px_rgba(10,35,66,0.12)] backdrop-blur lg:hidden">
         <div className="mx-auto flex max-w-3xl items-center gap-3">
           <div className="min-w-0 flex-1">
             <p className="truncate text-[11px] font-black uppercase tracking-wide text-[#1565C0]">
@@ -124,6 +136,7 @@ export function QuickstartGuide({
             <p className="truncate text-sm font-bold text-[#0A2342]">{currentStep.title}</p>
           </div>
           <Link
+            data-testid="quickstart-mobile-cta"
             href={resolvedNextHref}
             className={buttonVariants({
               className: "h-11 shrink-0 rounded-lg px-4 text-sm",
