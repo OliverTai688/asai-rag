@@ -32,10 +32,7 @@ export function QuickstartGuide({
   const resolvedNextHref = nextHref ?? getQuickstartNextHref(currentStep.id);
   const resolvedNextLabel = nextLabel ?? currentStep.primaryCta;
   const useNativeNavigation = currentStep.id === "report";
-  const desktopCtaClassName = buttonVariants({
-    className: "hidden h-11 w-full justify-between rounded-lg px-4 lg:inline-flex lg:w-fit",
-  });
-  const mobileCtaClassName = buttonVariants({
+  const ctaClassName = buttonVariants({
     className: "h-11 shrink-0 rounded-lg px-4 text-sm",
   });
 
@@ -69,20 +66,6 @@ export function QuickstartGuide({
             )}
           </div>
 
-          {useNativeNavigation ? (
-            <form action="/dashboard" method="get" className="contents">
-              <input type="hidden" name="demo" value="completed" />
-              <button data-testid="quickstart-primary-cta" type="submit" className={desktopCtaClassName}>
-                {resolvedNextLabel}
-                <ArrowRight className="h-4 w-4" />
-              </button>
-            </form>
-          ) : (
-            <Link data-testid="quickstart-primary-cta" href={resolvedNextHref} className={desktopCtaClassName}>
-              {resolvedNextLabel}
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-          )}
         </div>
 
         <div className="h-1.5 bg-[#E8EEF4] dark:bg-[#0A1929]">
@@ -138,7 +121,7 @@ export function QuickstartGuide({
         )}
       </section>
 
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-[#D7DFE7] bg-white/95 px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 shadow-[0_-8px_30px_rgba(10,35,66,0.12)] backdrop-blur lg:hidden">
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-[#D7DFE7] bg-white/95 px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 shadow-[0_-8px_30px_rgba(10,35,66,0.12)] backdrop-blur lg:static lg:inset-auto lg:border-0 lg:bg-transparent lg:px-0 lg:pb-0 lg:pt-3 lg:shadow-none lg:backdrop-blur-0">
         <div className="mx-auto flex max-w-3xl items-center gap-3">
           <div className="min-w-0 flex-1">
             <p className="truncate text-[11px] font-black uppercase tracking-wide text-[#1565C0]">
@@ -149,13 +132,13 @@ export function QuickstartGuide({
           {useNativeNavigation ? (
             <form action="/dashboard" method="get" className="contents">
               <input type="hidden" name="demo" value="completed" />
-              <button data-testid="quickstart-mobile-cta" type="submit" className={mobileCtaClassName}>
+              <button data-testid="quickstart-primary-cta" type="submit" className={ctaClassName}>
                 {resolvedNextLabel}
                 <ArrowRight className="h-4 w-4" />
               </button>
             </form>
           ) : (
-            <Link data-testid="quickstart-mobile-cta" href={resolvedNextHref} className={mobileCtaClassName}>
+            <Link data-testid="quickstart-primary-cta" href={resolvedNextHref} className={ctaClassName}>
               {resolvedNextLabel}
               <ArrowRight className="h-4 w-4" />
             </Link>
