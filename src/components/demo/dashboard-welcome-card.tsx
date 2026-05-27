@@ -11,6 +11,8 @@ import {
   getQuickstartStep,
   quickstartStatusStorageKey,
 } from "@/domains/demo/quickstart";
+import { SpotlightTour } from "@/components/demo/spotlight-tour";
+import { dashboardTourSteps } from "@/domains/demo/tour-steps";
 
 const overviewStep = getQuickstartStep("overview");
 
@@ -38,7 +40,9 @@ export function DashboardWelcomeCard() {
     : overviewStep.bodyCopy;
 
   return (
-    <Card className="overflow-hidden border-[#C7D4DF] bg-white shadow-sm">
+    <>
+      {!isCompleted && <SpotlightTour steps={dashboardTourSteps} />}
+      <Card className="overflow-hidden border-[#C7D4DF] bg-white shadow-sm">
       <CardContent className="p-0">
         <div className="grid gap-0 lg:grid-cols-[1.1fr_0.9fr]">
           <div className="bg-[#102B52] p-5 text-white sm:p-6">
@@ -58,7 +62,7 @@ export function DashboardWelcomeCard() {
                   <Sparkles className="h-5 w-5 text-[#D6E8F8]" />
                 )}
               </div>
-              <div className="min-w-0">
+              <div data-tour="welcome-intro" className="min-w-0">
                 <h2 className="text-xl font-bold tracking-tight sm:text-2xl">
                   {title}
                 </h2>
@@ -70,6 +74,7 @@ export function DashboardWelcomeCard() {
 
             <div className="mt-5 flex flex-col gap-2 sm:flex-row">
               <Link
+                data-tour="welcome-cta"
                 href="/pre-visit?demo=quickstart"
                 onClick={() => {
                   window.localStorage.removeItem(quickstartStatusStorageKey);
@@ -135,5 +140,6 @@ export function DashboardWelcomeCard() {
         </div>
       </CardContent>
     </Card>
+    </>
   );
 }

@@ -32,6 +32,8 @@ import { FormattedTime } from "@/components/ui/formatted-time";
 import { Markdown } from "@/components/ui/markdown";
 import { QuickstartGuide } from "@/components/demo/quickstart-guide";
 import { demoQuickstart, getQuickstartStep } from "@/domains/demo/quickstart";
+import { SpotlightTour } from "@/components/demo/spotlight-tour";
+import { reportTourSteps } from "@/domains/demo/tour-steps";
 
 export default function ReportEditorPage() {
   const params = useParams();
@@ -351,6 +353,8 @@ function QuickstartReportView({
 
   return (
     <div className="mx-auto max-w-5xl space-y-5 pb-28">
+      <SpotlightTour steps={reportTourSteps} />
+
       <QuickstartGuide
         currentStepId="report"
         compact
@@ -381,7 +385,7 @@ function QuickstartReportView({
           </div>
         </div>
 
-        <div className="grid gap-3 border-b border-[#E6EDF3] p-5 sm:grid-cols-3 sm:p-6">
+        <div data-tour="report-highlights" className="grid gap-3 border-b border-[#E6EDF3] p-5 sm:grid-cols-3 sm:p-6">
           {highlights.map((item) => (
             <div key={item.label} className="rounded-lg border border-[#E2EAF1] bg-white p-4">
               <p className="text-[11px] font-black uppercase tracking-[0.12em] text-[#78909C]">{item.label}</p>
@@ -411,7 +415,7 @@ function QuickstartReportView({
             ))}
           </div>
 
-          <div className="mt-5 space-y-4">
+          <div data-tour="report-sections" className="mt-5 space-y-4">
             {displaySections.map((section, index) => (
               <article key={section.id} className="rounded-lg border border-[#E2EAF1] bg-white">
                 <details>

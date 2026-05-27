@@ -64,6 +64,8 @@ import {
   getQuickstartStep,
   getQuickstartVisitFixture,
 } from "@/domains/demo/quickstart";
+import { SpotlightTour } from "@/components/demo/spotlight-tour";
+import { planTourSteps } from "@/domains/demo/tour-steps";
 
 const PURPOSE_LABELS: Record<VisitPurpose, string> = {
   FIRST_VISIT: "初訪",
@@ -683,6 +685,8 @@ function QuickstartPlanView({ client, plan }: { client: Client; plan: VisitPlan 
 
   return (
     <div className="mx-auto max-w-3xl space-y-4 pb-28">
+      <SpotlightTour steps={planTourSteps} />
+
       <QuickstartGuide
         currentStepId="plan"
         compact
@@ -701,7 +705,7 @@ function QuickstartPlanView({ client, plan }: { client: Client; plan: VisitPlan 
         </p>
       </section>
 
-      <Card className="border-[#E2EAF1] bg-[#F7FAFF] shadow-sm">
+      <Card data-tour="plan-summary" className="border-[#E2EAF1] bg-[#F7FAFF] shadow-sm">
         <CardContent className="grid gap-3 p-4 sm:grid-cols-3">
           <div>
             <p className="text-[11px] font-black uppercase tracking-[0.12em] text-[#78909C]">客戶</p>
@@ -722,21 +726,27 @@ function QuickstartPlanView({ client, plan }: { client: Client; plan: VisitPlan 
       </Card>
 
       <div className="grid gap-3">
-        <QuickstartSummaryBlock
-          icon={<Target className="h-4 w-4" />}
-          title="本次拜訪目標"
-          items={objectives.map((objective) => objective.description)}
-        />
-        <QuickstartSummaryBlock
-          icon={<MessageSquare className="h-4 w-4" />}
-          title="SPIN 提問"
-          items={spinQuestions.slice(0, 4).map((question) => question.question)}
-        />
-        <QuickstartSummaryBlock
-          icon={<ShieldAlert className="h-4 w-4" />}
-          title="可能異議與回應"
-          items={objections.map((objection) => `${objection.expectedObjection}｜${objection.suggestedResponse}`)}
-        />
+        <div data-tour="plan-objectives">
+          <QuickstartSummaryBlock
+            icon={<Target className="h-4 w-4" />}
+            title="本次拜訪目標"
+            items={objectives.map((objective) => objective.description)}
+          />
+        </div>
+        <div data-tour="plan-spin">
+          <QuickstartSummaryBlock
+            icon={<MessageSquare className="h-4 w-4" />}
+            title="SPIN 提問"
+            items={spinQuestions.slice(0, 4).map((question) => question.question)}
+          />
+        </div>
+        <div data-tour="plan-objections">
+          <QuickstartSummaryBlock
+            icon={<ShieldAlert className="h-4 w-4" />}
+            title="可能異議與回應"
+            items={objections.map((objection) => `${objection.expectedObjection}｜${objection.suggestedResponse}`)}
+          />
+        </div>
         <QuickstartSummaryBlock
           icon={<ClipboardList className="h-4 w-4" />}
           title="拜訪材料"

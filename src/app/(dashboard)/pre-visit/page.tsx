@@ -34,6 +34,8 @@ import {
 } from "@/components/ui/select";
 import { QuickstartGuide } from "@/components/demo/quickstart-guide";
 import { demoQuickstart, getQuickstartStep } from "@/domains/demo/quickstart";
+import { SpotlightTour } from "@/components/demo/spotlight-tour";
+import { previsitTourSteps } from "@/domains/demo/tour-steps";
 import { cn } from "@/lib/utils";
 
 const PURPOSE_LABELS: Record<VisitPurpose, string> = {
@@ -424,6 +426,8 @@ function QuickstartPreVisitStart({
 
   return (
     <div className="mx-auto max-w-3xl space-y-4 pb-28">
+      <SpotlightTour steps={previsitTourSteps} />
+
       <section className="rounded-lg border border-[#D7DFE7] bg-white p-5 shadow-sm">
         <div className="mb-3 flex items-center justify-between gap-3">
           <Badge variant="blue" className="h-6 rounded-full text-[11px]">
@@ -441,7 +445,7 @@ function QuickstartPreVisitStart({
 
       <Card className="border-[#E2EAF1] shadow-sm">
         <CardContent className="space-y-3 p-4">
-          <div className="rounded-lg border border-[#E2EAF1] bg-[#F7FAFF] p-4">
+          <div data-tour="client-info" className="rounded-lg border border-[#E2EAF1] bg-[#F7FAFF] p-4">
             <p className="text-[11px] font-black uppercase tracking-[0.12em] text-[#78909C]">
               客戶
             </p>
@@ -466,6 +470,7 @@ function QuickstartPreVisitStart({
       </Card>
 
       <Button
+        data-tour="previsit-cta"
         onClick={onStart}
         className="h-12 w-full rounded-lg bg-[#1A3A6B] text-base font-bold text-white shadow-sm hover:bg-[#1565C0]"
       >

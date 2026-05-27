@@ -151,7 +151,8 @@ function subscribeToLocationChanges(onStoreChange: () => void) {
     window.history
   ) as History["replaceState"];
   const urlChangeEvent = "asai-url-change";
-  const emitUrlChange = () => window.dispatchEvent(new Event(urlChangeEvent));
+  // Defer to next macrotask so the dispatch never fires inside useInsertionEffect
+  const emitUrlChange = () => setTimeout(() => window.dispatchEvent(new Event(urlChangeEvent)));
   const patchedPushState: History["pushState"] = (...args) => {
     const result = originalPushState(...args);
     emitUrlChange();

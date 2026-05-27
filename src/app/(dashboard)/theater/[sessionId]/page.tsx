@@ -35,6 +35,8 @@ import {
   getQuickstartStep,
   getQuickstartTheaterFixture,
 } from "@/domains/demo/quickstart";
+import { SpotlightTour } from "@/components/demo/spotlight-tour";
+import { theaterTourSteps } from "@/domains/demo/tour-steps";
 
 export default function TheaterSimulationPage() {
   const params = useParams();
@@ -492,6 +494,8 @@ function QuickstartTheaterView({
 
   return (
     <div className="mx-auto max-w-3xl space-y-4 pb-28">
+      <SpotlightTour steps={theaterTourSteps} />
+
       <QuickstartGuide
         currentStepId="theater"
         compact
@@ -510,7 +514,7 @@ function QuickstartTheaterView({
         </p>
       </section>
 
-      <Card className="border-[#E2EAF1] shadow-sm">
+      <Card data-tour="theater-persona" className="border-[#E2EAF1] shadow-sm">
         <CardContent className="space-y-4 p-4">
           <div className="flex items-center justify-between gap-3">
             <div>
@@ -528,7 +532,7 @@ function QuickstartTheaterView({
       </Card>
 
       <div className="grid gap-3">
-        <Card className="border-[#E2EAF1] shadow-sm">
+        <Card data-tour="client-objection" className="border-[#E2EAF1] shadow-sm">
           <CardContent className="p-4">
             <p className="text-[11px] font-black uppercase tracking-[0.12em] text-[#1565C0]">
               客戶疑慮
@@ -539,7 +543,7 @@ function QuickstartTheaterView({
           </CardContent>
         </Card>
 
-        <Card className="border-[#E2EAF1] bg-[#F7FAFF] shadow-sm">
+        <Card data-tour="agent-response" className="border-[#E2EAF1] bg-[#F7FAFF] shadow-sm">
           <CardContent className="p-4">
             <p className="text-[11px] font-black uppercase tracking-[0.12em] text-[#1565C0]">
               建議說法

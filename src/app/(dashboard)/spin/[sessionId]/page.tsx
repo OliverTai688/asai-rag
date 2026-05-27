@@ -48,6 +48,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { QuickstartGuide } from "@/components/demo/quickstart-guide";
 import { demoQuickstart, getQuickstartSpinFixture, getQuickstartStep } from "@/domains/demo/quickstart";
+import { SpotlightTour } from "@/components/demo/spotlight-tour";
+import { spinTourSteps } from "@/domains/demo/tour-steps";
 
 // ---- 型別 ----
 interface SpinSuggestion {
@@ -912,6 +914,8 @@ function QuickstartSpinView({ session }: { session: SpinSession }) {
 
   return (
     <div className="mx-auto max-w-3xl space-y-4 pb-28">
+      <SpotlightTour steps={spinTourSteps} />
+
       <QuickstartGuide
         currentStepId="spin"
         compact
@@ -930,7 +934,7 @@ function QuickstartSpinView({ session }: { session: SpinSession }) {
         </p>
       </section>
 
-      <div className="grid gap-3">
+      <div data-tour="spin-rows" className="grid gap-3">
         {rows.map((row) => (
           <Card key={row.label} className="border-[#E2EAF1] shadow-sm">
             <CardContent className="p-4">
@@ -946,7 +950,7 @@ function QuickstartSpinView({ session }: { session: SpinSession }) {
       </div>
 
       {summary && (
-        <Card className="border-[#E2EAF1] bg-[#F7FAFF] shadow-sm">
+        <Card data-tour="spin-actions" className="border-[#E2EAF1] bg-[#F7FAFF] shadow-sm">
           <CardContent className="space-y-3 p-4">
             <p className="text-sm font-bold text-[#0A2342]">AI 建議行動</p>
             <ul className="space-y-2">
