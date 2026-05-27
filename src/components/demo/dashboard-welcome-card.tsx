@@ -75,7 +75,7 @@ export function DashboardWelcomeCard() {
                   window.localStorage.removeItem(quickstartStatusStorageKey);
                 }}
                 className={buttonVariants({
-                  className: "h-11 justify-between rounded-lg bg-white text-[#0A2342] hover:bg-[#EBF3FB] sm:min-w-[220px]",
+                  className: "h-11 justify-between rounded-lg bg-white !text-[#0A2342] hover:bg-[#EBF3FB] hover:!text-[#0A2342] sm:min-w-[220px] [&_svg]:!text-[#0A2342]",
                 })}
               >
                 {isCompleted ? "重新體驗" : overviewStep.primaryCta}

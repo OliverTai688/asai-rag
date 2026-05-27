@@ -19,6 +19,11 @@ export default function DashboardLayout({
   const isQuickstart = useQuickstartMode();
 
   useEffect(() => {
+    if (isQuickstart) {
+      setMobileSidebarOpen(false);
+      return;
+    }
+
     const desktopQuery = window.matchMedia("(min-width: 1024px)");
     const closeMobileSidebar = () => {
       if (desktopQuery.matches) {
@@ -29,67 +34,59 @@ export default function DashboardLayout({
     closeMobileSidebar();
     desktopQuery.addEventListener("change", closeMobileSidebar);
     return () => desktopQuery.removeEventListener("change", closeMobileSidebar);
-  }, []);
+  }, [isQuickstart]);
+
+  if (isQuickstart) {
+    return (
+      <div className="flex h-screen overflow-hidden bg-[#F8FAFC] dark:bg-[#0A1929]">
+        <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
+          <QuickstartTopBar pathname={pathname} />
+          <main className="flex-1 overflow-y-auto px-3 py-4 custom-scrollbar md:px-6 md:py-5">
+            <div className="mx-auto max-w-[1120px] space-y-4 animate-page-enter">
+              {children}
+            </div>
+          </main>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <Sheet
-      open={isQuickstart ? false : mobileSidebarOpen}
-      onOpenChange={(open) => setMobileSidebarOpen(open)}
-    >
+    <Sheet open={mobileSidebarOpen} onOpenChange={setMobileSidebarOpen}>
       <div className="flex h-screen bg-[#F8FAFC] dark:bg-[#0A1929] overflow-hidden relative">
         {/* Sidebar */}
-        {!isQuickstart && (
-          <Sidebar
-            open={desktopSidebarOpen}
-            setOpen={setDesktopSidebarOpen}
-            className="hidden lg:flex"
-          />
-        )}
+        <Sidebar
+          open={desktopSidebarOpen}
+          setOpen={setDesktopSidebarOpen}
+          className="hidden lg:flex"
+        />
 
-        {!isQuickstart && (
-          <SheetContent
-            side="left"
-            showCloseButton={false}
-            className="w-[280px] max-w-[82vw] gap-0 border-[#D8E1EA] bg-white p-0 dark:border-[rgba(144,202,249,0.15)] dark:bg-[#0F2744] lg:hidden"
-          >
-            <SheetTitle className="sr-only">主選單</SheetTitle>
-            <Sidebar
-              open
-              setOpen={setMobileSidebarOpen}
-              mobile
-              onNavigate={() => setMobileSidebarOpen(false)}
-              className="w-full border-r-0"
-            />
-          </SheetContent>
-        )}
+        <SheetContent
+          side="left"
+          showCloseButton={false}
+          className="w-[280px] max-w-[82vw] gap-0 border-[#D8E1EA] bg-white p-0 dark:border-[rgba(144,202,249,0.15)] dark:bg-[#0F2744] lg:hidden"
+        >
+          <SheetTitle className="sr-only">主選單</SheetTitle>
+          <Sidebar
+            open
+            setOpen={setMobileSidebarOpen}
+            mobile
+            onNavigate={() => setMobileSidebarOpen(false)}
+            className="w-full border-r-0"
+          />
+        </SheetContent>
 
         {/* Global Assistant Sidebar Column */}
-        {!isQuickstart && <GlobalAssistant />}
+        <GlobalAssistant />
 
         {/* Main Content */}
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
-          {isQuickstart ? (
-            <QuickstartTopBar pathname={pathname} />
-          ) : (
-            <TopBar
-              mobileMenuOpen={mobileSidebarOpen}
-              onMenuClick={() => setMobileSidebarOpen(true)}
-            />
-          )}
-          <main
-            className={
-              isQuickstart
-                ? "flex-1 overflow-y-auto px-3 py-4 md:px-6 md:py-5 custom-scrollbar"
-                : "flex-1 overflow-y-auto p-5 md:p-6 custom-scrollbar"
-            }
-          >
-            <div
-              className={
-                isQuickstart
-                  ? "mx-auto max-w-[1120px] space-y-4 animate-page-enter"
-                  : "max-w-[1320px] mx-auto space-y-6 animate-page-enter"
-              }
-            >
+          <TopBar
+            mobileMenuOpen={mobileSidebarOpen}
+            onMenuClick={() => setMobileSidebarOpen(true)}
+          />
+          <main className="flex-1 overflow-y-auto p-5 md:p-6 custom-scrollbar">
+            <div className="max-w-[1320px] mx-auto space-y-6 animate-page-enter">
               {children}
             </div>
           </main>
