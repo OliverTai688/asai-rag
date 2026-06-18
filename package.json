@@ -12,6 +12,7 @@
     "demo:seed": "node scripts/seed-demo.mjs",
     "demo:seed:reset": "node scripts/seed-demo.mjs --reset",
     "demo:relogin-qa": "node scripts/demo-relogin-qa.mjs",
+    "demo:member-write-qa": "node scripts/demo-member-write-qa.mjs",
     "demo:runtime-audit": "node scripts/demo-runtime-audit.mjs",
     "prisma:generate": "prisma generate",
     "prisma:validate": "prisma validate"

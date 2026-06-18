@@ -110,6 +110,22 @@
 
 ## Resolved Issues
 
+### IQ-019 - LCH-005 demo member write 與 AI output refresh proof 缺口
+
+- 狀態：Resolved
+- 發現日期：2026-06-19
+- 解決日期：2026-06-19
+- 影響 batch：`LCH-005`
+- 背景：
+  - LCH-005 不只需要讀 seed data，也要證明 demo member 能新增資料、產生 AI output，且刷新/重讀後仍存在。
+- 解法：
+  - 新增 `pnpm demo:member-write-qa`。
+  - API proof：`POST /api/clients` 201，created client `cmqjwzrem0004ai619szx7z9p`。
+  - Refresh proof：`GET /api/clients/[id]` 200，created client survives reread，`kycStatus=MISSING`。
+  - AI output proof：`POST /api/ai/interview/outputs` 200，回傳 known facts、prep questions、issue readiness。
+  - DB proof：created client count `1`；client-linked `InteractionEvent(type=VISIT)` count `1`；`INTERVIEW AiUsageLog 1→2`；`monthlyAiUsed 1→2`。
+  - 剩餘：demo manager aggregate-only、demo client portal、mock API production-like guard、正式 Supabase/Auth.js login。
+
 ### IQ-018 - LCH-005 缺清空 browser storage 後的 demo relogin QA
 
 - 狀態：Resolved

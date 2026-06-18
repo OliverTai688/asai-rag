@@ -1093,3 +1093,64 @@ pnpm build
 
 1. 繼續 `LCH-005`，補 demo member 新增 AI output 後刷新仍存在，並補 AiUsageLog count before/after。
 2. 或做 demo manager aggregate-only proof，確認 manager 不看到 member 客戶明細。
+
+## 2026-06-19 Round 015 - LCH-005 Demo Member Write And AI Output QA Slice
+
+### 本輪戰役
+
+- Workstream：Launch Readiness Implementation。
+- Batch / task：`LCH-005` Demo Account Relogin QA - demo member write + AI output persistence。
+- 選擇原因：清空 storage 後讀取 proof 已完成，下一個 demo 可用性 blocker 是 demo member 能否新增真資料、產生 AI output，並在刷新/重讀後仍存在。
+
+### 本輪完成
+
+- 新增 `scripts/demo-member-write-qa.mjs`。
+- 新增 package script `pnpm demo:member-write-qa`。
+- QA script 透過 BFF `POST /api/clients` 建立 demo test client。
+- QA script 透過 `GET /api/clients/[id]` 重讀 client，驗證 refresh persistence 與 compliance checklist 初始化。
+- QA script 呼叫 `/api/ai/interview/outputs` 建立 AI output，並以 DB 查詢驗證 `AiUsageLog`、`InteractionEvent` 與 org monthly counter。
+- LCH-005 的「demo member 新增 client、建立至少一筆 AI output，刷新後仍存在」已標記完成。
+
+### DB / Prisma 操作
+
+- 是否修改 schema：否。
+- 是否執行 generate：否，本輪無 schema 變更。
+- 是否執行 db push：否。
+- DB target 判斷：`pnpm demo:preflight` 通過，`.env` 指向遠端 Supabase Postgres；本輪新增 demo/test client 與 AI output evidence。
+
+### 驗收
+
+```bash
+pnpm demo:preflight
+pnpm exec tsc --noEmit --pretty false
+ALLOW_DEV_AUTH_HEADER=true pnpm dev
+pnpm demo:member-write-qa
+pnpm run lint:changed
+pnpm build
+```
+
+結果：
+
+- `POST /api/clients`：201，created client `cmqjwzrem0004ai619szx7z9p`。
+- `GET /api/clients/[id]`：200，created client survives reread，`kycStatus=MISSING`。
+- `POST /api/ai/interview/outputs`：200，output includes known facts、prep questions、issue readiness。
+- DB proof：created client count `1`；client-linked `InteractionEvent(type=VISIT)` count `1`；`INTERVIEW AiUsageLog 1→2`；`monthlyAiUsed 1→2`。
+- TypeScript：通過。
+
+### 失敗與風險
+
+- 第一次 `demo:member-write-qa` 因 script 以 camelCase 讀取 Postgres snake_case aliases，導致最後四個 check 誤報 fail；DB JSON 已顯示成功。已修正 script 後重跑通過。
+- QA 過程保留兩位 LCH-005 demo/test clients 作 evidence，不做遠端 delete。
+- Dev server output 出現 `pg@9` deprecation warning；不影響 API/DB proof，後續若擴大 PG direct script 可再收斂 query flow。
+
+### 剩餘上線 blocker
+
+- `LCH-005` 剩餘：Supabase Auth `supabase_auth_id`、demo manager aggregate-only、demo client portal、mock API production-like guard proof。
+- `LCH-006` client portal/share DB-backed token lookup 仍缺。
+- `LCH-007` org aggregate + org settings 尚未完成。
+- Route B 新版 Theater 仍待後續。
+
+### 下一輪建議
+
+1. 繼續 `LCH-005`，做 demo manager aggregate-only proof，確認 manager 不看到 member 客戶明細。
+2. 或補 `/api/mock/*` production-like guard proof，關掉 mock 成功冒充正式驗收的風險。
