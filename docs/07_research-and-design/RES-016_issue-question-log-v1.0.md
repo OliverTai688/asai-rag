@@ -400,6 +400,22 @@
   - AI usage 不回 requestId 或 error 原文；audit logs 只回 metadata keys，不回 raw metadata。
   - QA 以 forbidden field names 與 DB seeded client/policy/report/AI sentinels 掃描 platform responses，結果 0 leak。
 
+### IQ-017 - LCH-008 plan config update 是高風險 admin action
+
+- 狀態：Resolved
+- 發現日期：2026-06-19
+- 解決日期：2026-06-19
+- 影響 batch：`LCH-008`
+- 背景：
+  - `PlanConfig` 控制個人協作者上限、unit 上限、AI quota、share branding、client portal 與 impersonation allowed。
+  - 若沒有高權限 guard、reason/risk acceptance 與 audit，super admin 可以無痕改變租戶能力邊界。
+- 解法：
+  - 新增 `PATCH /api/platform/plan-configs/[plan]`，僅 `SUPER_ADMIN` 可寫；`FINANCE` proof 回 403。
+  - Request 必須包含 `reason` 與 `riskAccepted: true`，且至少一個可更新欄位；缺 reason proof 回 400。
+  - 寫 `AuditLog(action=PLAN_UPDATE,sensitivity=HIGH,resourceType=PLAN_CONFIG)`，metadata 僅保存 safe before/after diff 與 changedFields。
+  - QA 暫時更新 STARTER `monthlyAiQuota 200→201` 並透過同 API 還原 `201→200`；DB 與 audit count 均驗證通過。
+  - Audit log query 仍只回 `metadataKeys`，不回 raw metadata。
+
 ### IQ-014 - LCH-004 interview agent 仍信任前端 scope 且缺 output evidence
 
 - 狀態：Resolved

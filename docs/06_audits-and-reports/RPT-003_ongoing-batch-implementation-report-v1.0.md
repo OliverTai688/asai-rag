@@ -2097,3 +2097,78 @@ pnpm exec eslint src/lib/platform/platform-read-repository.ts src/app/api/platfo
 
 1. 繼續 `LCH-008`，先做 `PATCH /api/platform/plan-configs/[plan]`，要求 reason/riskAccepted，寫 `AuditLog(action=PLAN_UPDATE)`，並補 QA script 驗證 FINANCE/SUPER_ADMIN 權限差異。
 2. 接著做 impersonation start/end/revoke flow；這是 break-glass 之前的必要 audit 骨架。
+
+## 2026-06-19 Round 029 - LCH-008 Platform Plan Config Update Audit
+
+### 本輪戰役
+
+- Workstream：Launch Readiness Implementation。
+- Batch / task：`LCH-008` Super Admin / Audit / Impersonation - plan config update API + audit proof。
+- 選擇原因：上一輪已完成 platform read-only summary；下一個最低未完成高風險 admin action 是 super admin 修改 plan limits。這會直接影響個人協作者上限、unit 上限、AI quota、client portal/branding 能力，因此必須具備高強度 reason/risk acceptance 與 AuditLog。
+
+### 本輪完成
+
+- 新增 `PATCH /api/platform/plan-configs/[plan]`。
+- `PATCH` 僅允許 `SUPER_ADMIN`；`FINANCE` / `SUPPORT` 不可寫。
+- Request body 必填 `reason` 與 `riskAccepted: true`，且至少要提供一個可更新欄位。
+- 支援更新 safe plan fields：display name、max members/collaborators/units、monthly AI quota、share branding、client portal、impersonation allowed、active state。
+- 寫入 `AuditLog(action=PLAN_UPDATE,sensitivity=HIGH,resourceType=PLAN_CONFIG)`，metadata 只保存 safe before/after diff、changedFields、actorRole、riskAccepted。
+- 新增 `pnpm demo:platform-plan-config-qa`：FINANCE 403、SUPER_ADMIN 缺 reason 400、SUPER_ADMIN 更新 STARTER quota、DB 驗證、還原原值、確認兩筆 PLAN_UPDATE audit、audit query 只回 metadataKeys。
+- `AGENTS.md` 與 `PLN-017` 已標記 LCH-008 plan config update 完成。
+
+### 修改檔案
+
+- `src/lib/platform/platform-read-repository.ts`
+- `src/app/api/platform/plan-configs/[plan]/route.ts`
+- `scripts/demo-platform-plan-config-qa.mjs`
+- `package.json`
+- `AGENTS.md`
+- `docs/05_execution-plans/PLN-017_launch-readiness-implementation-batch-tasks-v1.0.md`
+- `docs/06_audits-and-reports/RPT-003_ongoing-batch-implementation-report-v1.0.md`
+- `docs/07_research-and-design/RES-016_issue-question-log-v1.0.md`
+
+### DB / Prisma 操作
+
+- 是否修改 schema：否。
+- 是否執行 generate：`pnpm build` 內執行 `prisma generate`，通過。
+- 是否執行 db push：否。
+- DB target 判斷：`pnpm demo:preflight` 通過，`.env` 指向遠端 Supabase Postgres。
+- DB 寫入摘要：`pnpm demo:platform-plan-config-qa` upsert demo platform users；暫時將 STARTER `monthly_ai_quota` 從 200 改為 201，再透過同 API 還原為 200；新增兩筆 `PLAN_UPDATE` audit 作 evidence。
+
+### 驗收
+
+```bash
+pnpm exec tsc --noEmit --pretty false
+pnpm exec eslint src/lib/platform/platform-read-repository.ts 'src/app/api/platform/plan-configs/[plan]/route.ts' scripts/demo-platform-plan-config-qa.mjs
+pnpm demo:preflight
+pnpm run lint:changed
+ALLOW_DEV_AUTH_HEADER=true pnpm dev
+pnpm demo:platform-plan-config-qa
+pnpm build
+```
+
+結果：
+
+- TypeScript：初次發現 AuditLog metadata JSON type 太寬，已收斂為 Prisma JSON-safe diff 後通過。
+- Targeted ESLint：通過。
+- `pnpm demo:preflight`：通過；Supabase public env placeholder 仍為 warning。
+- `pnpm run lint:changed`：通過。
+- `pnpm demo:platform-plan-config-qa`：通過；FINANCE PATCH 403；SUPER_ADMIN missing reason 400；SUPER_ADMIN update 200；DB row `monthly_ai_quota=201`；restore 200 且 DB row 回 `200`；audit count `0→1→2`；`GET /api/platform/audit-logs?action=PLAN_UPDATE&sensitivity=HIGH` 200 且 response 使用 `metadataKeys` 不回 raw metadata。
+- `pnpm build`：通過；Next route list 包含 `/api/platform/plan-configs/[plan]`。
+
+### 失敗與風險
+
+- 無未修復驗收失敗。
+- 本輪只做 API proof，尚未建立 platform settings UI；operator 仍需正式 platform auth/MFA。
+- Plan config QA 會留下 PLAN_UPDATE audit evidence，這是預期稽核軌跡；方案數值已還原。
+
+### 剩餘上線 blocker
+
+- `LCH-008` 剩餘：impersonation start/end/revoke、impersonated read/write audit、break-glass API、platform settings surface。
+- `LCH-009`：production controls、AI usage route audit、backup/rollback、privacy/terms/disclaimer、ECPay test checklist、full smoke。
+- `LCH-004`：Theater Route B 與三 AI error-path / quota UI proof 仍未收完。
+
+### 下一輪建議
+
+1. 繼續 `LCH-008`，建立 `POST /api/platform/impersonation` start flow，要求 target org/user、reason、scope、expiresAt，寫 `IMPERSONATION_START` audit。
+2. 同輪若可控，補 end/revoke route 與 QA，讓 break-glass 前的 audit session 骨架成形。

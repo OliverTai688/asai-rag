@@ -618,7 +618,7 @@ Context: 將 `RES-012` / `RES-013` 的上線差距與四介面實作研究轉成
 - [x] 完成 platform session guard；`/super-admin/*` 不接受 app session。
 - [x] 建立 platform organizations summary APIs。
 - [x] 建立跨租戶 AI usage aggregate API。
-- [ ] 建立 plan config update API，寫 `AuditLog`。
+- [x] 建立 plan config update API，寫 `AuditLog`。
 - [ ] 建立 impersonation start/end/revoke flow，reason/scope/expiresAt 必填。
 - [ ] Impersonated read/write 寫 `AuditLog` 並帶 `impersonationSessionId`。
 - [ ] 建立 break-glass API：reason、scope、expiry、audit 必填。
@@ -626,7 +626,7 @@ Context: 將 `RES-012` / `RES-013` 的上線差距與四介面實作研究轉成
 - [ ] 建立 platform settings 區塊。
 - [ ] 跑 `pnpm lint:changed`；動 schema 跑 Prisma 驗收。
 
-進行中註記：2026-06-19 新增 `src/lib/platform/platform-read-repository.ts`、`GET /api/platform/organizations`、`GET /api/platform/organizations/[id]`、`GET /api/platform/ai-usage`、`GET /api/platform/audit-logs` 與 `pnpm demo:platform-read-qa`。QA 證明一般 app session 呼叫 `/api/platform/organizations` 回 `403 PLATFORM_REQUIRED`，platform user 可讀 tenant summary/detail、跨租戶 AI usage aggregate 與 audit log list；response 不回 email/phone/policy number/report body/SPIN/Theater transcript/AI requestId/error 原文/provider ids/raw metadata，並以 seeded sentinel 掃描 0 leak。剩餘 LCH-008：plan config update + audit、impersonation start/end/revoke、impersonated read/write audit、break-glass、platform settings。
+進行中註記：2026-06-19 新增 `src/lib/platform/platform-read-repository.ts`、`GET /api/platform/organizations`、`GET /api/platform/organizations/[id]`、`GET /api/platform/ai-usage`、`GET /api/platform/audit-logs` 與 `pnpm demo:platform-read-qa`。QA 證明一般 app session 呼叫 `/api/platform/organizations` 回 `403 PLATFORM_REQUIRED`，platform user 可讀 tenant summary/detail、跨租戶 AI usage aggregate 與 audit log list；response 不回 email/phone/policy number/report body/SPIN/Theater transcript/AI requestId/error 原文/provider ids/raw metadata，並以 seeded sentinel 掃描 0 leak。2026-06-19 續補 `PATCH /api/platform/plan-configs/[plan]` 與 `pnpm demo:platform-plan-config-qa`：FINANCE PATCH 403、SUPER_ADMIN 缺 reason 400、SUPER_ADMIN 暫改 STARTER `monthlyAiQuota 200→201` 後還原 `201→200`，兩次皆寫 `AuditLog(action=PLAN_UPDATE,sensitivity=HIGH,resourceType=PLAN_CONFIG)`；audit query 只回 `metadataKeys` 不回 raw metadata。剩餘 LCH-008：impersonation start/end/revoke、impersonated read/write audit、break-glass、platform settings。
 
 ### Batch LCH-009 — Production Controls And Release QA
 - [ ] 建立 AI quota/cost alert 或明確 blocker。

@@ -1,4 +1,6 @@
-import type { AuditAction, AuditSensitivity, PlatformRole } from "@/generated/prisma/enums";
+import type { AuditAction, AuditSensitivity, OrganizationPlan, PlatformRole } from "@/generated/prisma/enums";
+import { z } from "zod";
+import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 
 type DecimalLike = { toString(): string } | null | undefined;
@@ -17,6 +19,42 @@ export interface PlatformAuditFilters {
 
 const PLATFORM_READ_ROLES = new Set<PlatformRole>(["SUPER_ADMIN", "SUPPORT", "FINANCE"]);
 const PLATFORM_AUDIT_ROLES = new Set<PlatformRole>(["SUPER_ADMIN", "SUPPORT"]);
+const PLATFORM_PLAN_WRITE_ROLES = new Set<PlatformRole>(["SUPER_ADMIN"]);
+
+export const platformPlanConfigPatchSchema = z
+  .object({
+    displayName: z.string().trim().min(1).max(80).optional(),
+    maxMembers: z.number().int().min(1).max(10000).optional(),
+    maxCollaborators: z.number().int().min(0).max(10000).optional(),
+    maxUnits: z.number().int().min(1).max(10000).optional(),
+    monthlyAiQuota: z.number().int().min(1).max(10000000).optional(),
+    shareBrandingEnabled: z.boolean().optional(),
+    clientPortalEnabled: z.boolean().optional(),
+    impersonationAllowed: z.boolean().optional(),
+    isActive: z.boolean().optional(),
+    reason: z.string().trim().min(10).max(500),
+    riskAccepted: z.literal(true),
+  })
+  .refine(
+    (value) =>
+      [
+        "displayName",
+        "maxMembers",
+        "maxCollaborators",
+        "maxUnits",
+        "monthlyAiQuota",
+        "shareBrandingEnabled",
+        "clientPortalEnabled",
+        "impersonationAllowed",
+        "isActive",
+      ].some((key) => key in value),
+    {
+      message: "At least one plan config field is required.",
+      path: ["fields"],
+    },
+  );
+
+export type PlatformPlanConfigPatch = z.infer<typeof platformPlanConfigPatchSchema>;
 
 export function canReadPlatformSummary(session: PlatformReadSession) {
   return PLATFORM_READ_ROLES.has(session.role);
@@ -24,6 +62,10 @@ export function canReadPlatformSummary(session: PlatformReadSession) {
 
 export function canReadPlatformAuditLogs(session: PlatformReadSession) {
   return PLATFORM_AUDIT_ROLES.has(session.role);
+}
+
+export function canUpdatePlatformPlanConfig(session: PlatformReadSession) {
+  return PLATFORM_PLAN_WRITE_ROLES.has(session.role);
 }
 
 function numberOrZero(value: number | null | undefined) {
@@ -60,6 +102,77 @@ function metadataKeys(metadata: unknown) {
 
 function displayActorName(name: string | null | undefined) {
   return name?.trim() || "系統";
+}
+
+function planConfigDto(config: {
+  plan: OrganizationPlan;
+  displayName: string;
+  maxMembers: number;
+  maxCollaborators: number;
+  maxUnits: number;
+  monthlyAiQuota: number;
+  shareBrandingEnabled: boolean;
+  clientPortalEnabled: boolean;
+  impersonationAllowed: boolean;
+  isActive: boolean;
+  updatedAt?: Date;
+}) {
+  return {
+    plan: config.plan,
+    displayName: config.displayName,
+    maxMembers: config.maxMembers,
+    maxCollaborators: config.maxCollaborators,
+    maxUnits: config.maxUnits,
+    monthlyAiQuota: config.monthlyAiQuota,
+    shareBrandingEnabled: config.shareBrandingEnabled,
+    clientPortalEnabled: config.clientPortalEnabled,
+    impersonationAllowed: config.impersonationAllowed,
+    isActive: config.isActive,
+    updatedAt: config.updatedAt?.toISOString() ?? null,
+  };
+}
+
+function planConfigPatchData(patch: PlatformPlanConfigPatch) {
+  return {
+    ...(patch.displayName !== undefined ? { displayName: patch.displayName } : {}),
+    ...(patch.maxMembers !== undefined ? { maxMembers: patch.maxMembers } : {}),
+    ...(patch.maxCollaborators !== undefined ? { maxCollaborators: patch.maxCollaborators } : {}),
+    ...(patch.maxUnits !== undefined ? { maxUnits: patch.maxUnits } : {}),
+    ...(patch.monthlyAiQuota !== undefined ? { monthlyAiQuota: patch.monthlyAiQuota } : {}),
+    ...(patch.shareBrandingEnabled !== undefined ? { shareBrandingEnabled: patch.shareBrandingEnabled } : {}),
+    ...(patch.clientPortalEnabled !== undefined ? { clientPortalEnabled: patch.clientPortalEnabled } : {}),
+    ...(patch.impersonationAllowed !== undefined ? { impersonationAllowed: patch.impersonationAllowed } : {}),
+    ...(patch.isActive !== undefined ? { isActive: patch.isActive } : {}),
+  };
+}
+
+function changedPlanFields(before: ReturnType<typeof planConfigDto>, after: ReturnType<typeof planConfigDto>) {
+  const fields = [
+    "displayName",
+    "maxMembers",
+    "maxCollaborators",
+    "maxUnits",
+    "monthlyAiQuota",
+    "shareBrandingEnabled",
+    "clientPortalEnabled",
+    "impersonationAllowed",
+    "isActive",
+  ] as const;
+
+  return fields.filter((field) => before[field] !== after[field]);
+}
+
+function planConfigDiff(
+  config: ReturnType<typeof planConfigDto>,
+  fields: ReturnType<typeof changedPlanFields>,
+): Prisma.InputJsonObject {
+  const values: Record<string, string | number | boolean | null> = {};
+
+  for (const field of fields) {
+    values[field] = config[field];
+  }
+
+  return values as Prisma.InputJsonObject;
 }
 
 async function organizationHealth(organizationId: string) {
@@ -486,5 +599,93 @@ export async function listPlatformAuditLogs(filters: PlatformAuditFilters) {
       metadataKeys: metadataKeys(log.metadata),
       createdAt: log.createdAt.toISOString(),
     })),
+  };
+}
+
+export async function updatePlatformPlanConfig(
+  session: PlatformReadSession,
+  plan: OrganizationPlan,
+  patch: PlatformPlanConfigPatch,
+) {
+  const data = planConfigPatchData(patch);
+
+  const result = await prisma.$transaction(async (tx) => {
+    const current = await tx.planConfig.findUnique({
+      where: { plan },
+      select: {
+        plan: true,
+        displayName: true,
+        maxMembers: true,
+        maxCollaborators: true,
+        maxUnits: true,
+        monthlyAiQuota: true,
+        shareBrandingEnabled: true,
+        clientPortalEnabled: true,
+        impersonationAllowed: true,
+        isActive: true,
+        updatedAt: true,
+      },
+    });
+
+    if (!current) {
+      return null;
+    }
+
+    const updated = await tx.planConfig.update({
+      where: { plan },
+      data,
+      select: {
+        plan: true,
+        displayName: true,
+        maxMembers: true,
+        maxCollaborators: true,
+        maxUnits: true,
+        monthlyAiQuota: true,
+        shareBrandingEnabled: true,
+        clientPortalEnabled: true,
+        impersonationAllowed: true,
+        isActive: true,
+        updatedAt: true,
+      },
+    });
+
+    const before = planConfigDto(current);
+    const after = planConfigDto(updated);
+    const changedFields = changedPlanFields(before, after);
+
+    await tx.auditLog.create({
+      data: {
+        actorUserId: session.user.id,
+        action: "PLAN_UPDATE",
+        sensitivity: "HIGH",
+        resourceType: "PLAN_CONFIG",
+        resourceId: plan,
+        reason: patch.reason,
+        metadata: {
+          plan,
+          actorRole: session.role,
+          changedFields,
+          before: planConfigDiff(before, changedFields),
+          after: planConfigDiff(after, changedFields),
+          riskAccepted: patch.riskAccepted,
+        },
+      },
+    });
+
+    return { before, after, changedFields };
+  });
+
+  if (!result) {
+    return null;
+  }
+
+  return {
+    planConfig: result.after,
+    audit: {
+      action: "PLAN_UPDATE",
+      sensitivity: "HIGH",
+      changedFields: result.changedFields,
+      reason: patch.reason,
+    },
   };
 }
