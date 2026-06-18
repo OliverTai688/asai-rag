@@ -110,6 +110,25 @@
 
 ## Resolved Issues
 
+### IQ-016 - LCH-004 Theater legacy route 缺 session/quota/usage guard
+
+- 狀態：Resolved
+- 發現日期：2026-06-19
+- 解決日期：2026-06-19
+- 影響 batch：`LCH-004`
+- 背景：
+  - `/api/ai/theater` 與 `/api/ai/theater/score` 原本直接信任前端 payload，沒有 current session、quota check、`AiUsageLog`、interaction evidence 或 production legacy gate。
+  - Theater Route B 尚未完成，不能把 legacy Theater 說成 production-ready 新版劇場。
+- 解法：
+  - 兩條 route 改用 `requireCurrentMember()`，server 注入 current organization/user/unit。
+  - 新增 Zod validation、`canUseAiModule(session, THEATER)`、success/failure `AiUsageLog` 與 success `InteractionEvent(type=THEATER)`。
+  - Success path increment `Organization.monthlyAiUsed`。
+  - 新增 production gate：未設定 `ENABLE_LEGACY_THEATER_DEMO=true` 時回 `503 THEATER_ROUTE_B_REQUIRED`。
+  - API proof：`POST /api/ai/theater` 200、`POST /api/ai/theater/score` 200。
+  - DB proof：`THEATER usage 0→2`、success usage `0→2`、THEATER interaction events `0→2`、monthly counter `3→5`。
+  - Quota proof：character/score 皆回 `429 QUOTA_EXCEEDED`，THEATER usage 維持 `2`，counter 還原 `5`。
+  - 剩餘：Route B 多角色/旁白 NPC/五視角新版劇場、director call、三 AI provider error-path 全覆蓋。
+
 ### IQ-015 - LCH-004 quota guard 需要真實 API proof
 
 - 狀態：Resolved

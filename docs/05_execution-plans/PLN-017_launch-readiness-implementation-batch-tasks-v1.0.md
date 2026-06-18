@@ -113,8 +113,8 @@
 - [x] 建立 `AssistantConversation` / `AssistantMessage` persistence；assistant tool commands 依 surface allowlist。
 - [x] `/api/ai/interview` 與 `/api/ai/interview/outputs` 由 server session 注入 org/user/client scope，並保存 session/material/output draft。
 - [x] `/interview` 頁面按鈕層完成 Browser QA：成功生成、console error 0、無水平 overflow。
-- [ ] Theater 採 Route B 最小版：多角色/旁白 NPC/visibility/五視角回饋，或在 staging 明確加 legacy demo gate，不宣稱新版 Theater production ready。
-- [ ] Theater 每次 director/character/feedback AI call 寫 `AiUsageLog`。
+- [x] Theater 採 Route B 最小版：多角色/旁白 NPC/visibility/五視角回饋，或在 staging 明確加 legacy demo gate，不宣稱新版 Theater production ready。
+- [~] Theater 每次 director/character/feedback AI call 寫 `AiUsageLog`。
 - [~] 建立 `canUseAiModule()` 與 quota check：超限回 429，UI 顯示友善訊息。
 - [ ] 三個 AI 都驗證 success/error path 寫 `AiUsageLog`。
 - [ ] 跑 `pnpm lint:changed`；動 Theater schema 需 `pnpm prisma:validate`、`pnpm prisma:generate` 與 migration/rollback note。
@@ -124,6 +124,8 @@
 進行中註記：2026-06-19 續完成 `/api/ai/interview` 與 `/api/ai/interview/outputs` session-scoped production slice：server session 注入 organization/user/unit，前端不再送 `organizationId`；success path 寫 `AiUsageLog` 與 `InteractionEvent` 作訪談回合/輸出草稿 evidence，並 increment organization `monthlyAiUsed`。驗收：`POST /api/ai/interview` 200；`POST /api/ai/interview/outputs` 200；DB proof `INTERVIEW usage=5`、`success_usage=3`、`interaction_events=2`、latest sources `api/ai/interview/outputs`/`api/ai/interview`；`pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`、`pnpm build` 通過；`/interview` desktop/mobile Browser proof console error 0、無水平 overflow。
 
 進行中註記：2026-06-19 補 quota 429 proof：`pnpm demo:preflight` 通過；demo member default org `demo_org_asai_personal` 原始 `monthly_ai_used=3`、`monthly_ai_quota=200`，測試時暫設為滿額後呼叫 `/api/ai/chat`、`/api/ai/interview`、`/api/ai/interview/outputs`，三者皆回 `429 QUOTA_EXCEEDED` 與友善訊息。DB proof：quota-blocked calls 前後 `AiUsageLog` count 維持 `CHAT=1`、`INTERVIEW=5`，確認超限在 provider call 前阻擋且不增加成本；測試後已還原並二次查詢確認 `monthly_ai_used=3`。此 proof 只覆蓋 chat/interview API guard；Theater Route B、quota UI、三 AI error-path 全覆蓋仍待後續。
+
+進行中註記：2026-06-19 完成 Theater legacy staging gate 與 production-minimum usage：`/api/ai/theater`、`/api/ai/theater/score` 改為 session-scoped，不再信任前端 org/user scope；兩條 route 都加 `canUseAiModule(session, THEATER)`、success/failure `AiUsageLog`、success `InteractionEvent(type=THEATER)` 與 `monthlyAiUsed` increment。production 預設 gate：未設定 `ENABLE_LEGACY_THEATER_DEMO=true` 時回 `503 THEATER_ROUTE_B_REQUIRED`，避免 legacy flow 被誤宣稱為 Route B production ready。API proof：demo member `POST /api/ai/theater` 200、`POST /api/ai/theater/score` 200；DB proof `THEATER usage 0→2`、success usage `0→2`、interaction events `0→2`、monthly counter `3→5`。Quota proof：character/score 皆回 `429 QUOTA_EXCEEDED`，`THEATER usage` 維持 `2`，counter 還原 `5`。仍未完成新版 Route B 多角色/旁白 NPC/五視角回饋，也未完成 provider error-path 全覆蓋。
 
 範圍外：不做 RAG 真檢索；不做 ECPay；不讓 org admin 讀逐字稿。
 

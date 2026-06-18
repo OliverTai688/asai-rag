@@ -145,6 +145,8 @@ function TheaterSimulationContent() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          sessionId,
+          clientId: session.clientId,
           personaType: session.personaType,
           difficulty: session.difficulty,
           tension: newTension,
@@ -153,6 +155,11 @@ function TheaterSimulationContent() {
           history: [...turns, userTurn].slice(-6),
         }),
       });
+
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => null)) as { message?: string; error?: string } | null;
+        throw new Error(payload?.message ?? payload?.error ?? "Theater response failed");
+      }
 
       if (!response.body) {
         throw new Error("No response body");
@@ -206,6 +213,8 @@ function TheaterSimulationContent() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          sessionId,
+          clientId: session.clientId,
           history: turns,
           clientContext: clientService.getClientById(session.clientId),
           personaType: session.personaType,
@@ -213,7 +222,8 @@ function TheaterSimulationContent() {
       });
 
       if (!response.ok) {
-        throw new Error("score failed");
+        const payload = (await response.json().catch(() => null)) as { message?: string; error?: string } | null;
+        throw new Error(payload?.message ?? payload?.error ?? "score failed");
       }
 
       const finalScore = (await response.json()) as TheaterScore;
@@ -221,7 +231,7 @@ function TheaterSimulationContent() {
       toast.success("演練結束，評分報告已生成");
     } catch (error) {
       console.error("Theater score failed", error);
-      toast.error("評分系統暫時無法連線");
+      toast.error(error instanceof Error ? error.message : "評分系統暫時無法連線");
     } finally {
       setIsLoadingScore(false);
     }

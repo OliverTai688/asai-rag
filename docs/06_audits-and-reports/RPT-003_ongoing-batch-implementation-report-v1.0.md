@@ -907,3 +907,68 @@ pnpm run lint:changed
 
 1. 繼續 `LCH-004`，優先進 Theater Route B 最小版或 staging legacy gate，讓第三個 AI 不再是 production blocker。
 2. 補 chat/interview provider error-path `AiUsageLog` proof，並把 quota 429 UI 呈現接到 dashboard/interview。
+
+## 2026-06-19 Round 012 - LCH-004 Theater Legacy Gate And Usage Slice
+
+### 本輪戰役
+
+- Workstream：Launch Readiness Implementation。
+- Batch / task：`LCH-004` Three AI Production Minimum - Theater legacy gate + usage proof。
+- 選擇原因：第三個 AI Theater 原本仍直接信任前端 payload、沒有 session guard、沒有 quota、沒有 `AiUsageLog`，是三 AI 上線最低要求中最大的成本與權限缺口。
+
+### 本輪完成
+
+- `/api/ai/theater` 改為 session-scoped route，使用 `requireCurrentMember()` 推導 current org/user/unit。
+- `/api/ai/theater/score` 同步改為 session-scoped，加入 Zod body validation。
+- 兩條 route 都加入 `canUseAiModule(session, THEATER)`，超限回 `429 QUOTA_EXCEEDED`。
+- success path 寫 `AiUsageLog`、`InteractionEvent(type=THEATER)`，並 increment organization `monthlyAiUsed`。
+- failure path 寫 `AiUsageLog.error`，讓 provider/key/runtime error 可追蹤。
+- 新增 `src/lib/theater/theater-ai-repository.ts`，封裝 Theater usage/event persistence。
+- 新增 production legacy gate：`NODE_ENV=production` 且未設定 `ENABLE_LEGACY_THEATER_DEMO=true` 時回 `503 THEATER_ROUTE_B_REQUIRED`。
+- `/theater/[sessionId]` UI 送出 `sessionId/clientId`，並顯示 API 回傳的 429/503 friendly message。
+- `.env.example` 補 `ENABLE_LEGACY_THEATER_DEMO=false` 說明。
+
+### DB / Prisma 操作
+
+- 是否修改 schema：否。
+- 是否執行 generate：否，本輪無 schema 變更。
+- 是否執行 db push：否。
+- DB target 判斷：`pnpm demo:preflight` 通過，`.env` 指向遠端 Supabase Postgres；本輪寫入 demo Theater usage/event proof。
+
+### 驗收
+
+```bash
+pnpm demo:preflight
+pnpm exec tsc --noEmit --pretty false
+ALLOW_DEV_AUTH_HEADER=true pnpm dev
+node <theater-success-proof-script>
+node <theater-quota-proof-script>
+pnpm run lint:changed
+pnpm build
+```
+
+結果：
+
+- `POST /api/ai/theater`：200，回傳客戶角色回覆。
+- `POST /api/ai/theater/score`：200，回傳評分 JSON keys `empathy/questioning/clarity/objectionHandling/closing/missedOpportunities/improvedPhrasing`。
+- DB proof：`THEATER usage 0→2`、success usage `0→2`、THEATER interaction events `0→2`、monthly counter `3→5`。
+- Quota proof：character/score 皆回 `429 QUOTA_EXCEEDED`，`THEATER usage` 維持 `2`，counter 還原 `5`。
+- TypeScript：通過。
+
+### 失敗與風險
+
+- 本輪沒有做 Route B 真正多角色/旁白 NPC/五視角新版劇場；只完成 legacy staging gate，避免誤宣稱 production ready。
+- Theater 目前只有 character + score/feedback 兩種 provider call；尚無 Route B director call，因此 `Theater director/character/feedback calls` 只能標 `[~]`。
+- Provider error-path 實際壞 key proof 尚未跑；code path 已寫 `AiUsageLog.error`，但三 AI error-path 全覆蓋仍待後續。
+
+### 剩餘上線 blocker
+
+- `LCH-004` 剩餘：Route B 新版 Theater、多角色/旁白 NPC/五視角回饋、三 AI provider error-path proof、quota UI 全頁 proof。
+- `LCH-005` demo relogin full QA 仍缺 visit plans、reports、sessions、AI output 整合。
+- `LCH-006` client portal/share DB-backed token lookup 仍缺。
+- `LCH-007` org aggregate + org settings 尚未完成。
+
+### 下一輪建議
+
+1. 繼續 `LCH-004`，補三 AI provider error-path proof，確認 `AiUsageLog.error` 實際落庫。
+2. 或進 Route B theater migration 設計/實作，補 director/NPC/五視角資料結構與 UI。
