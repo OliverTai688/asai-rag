@@ -110,6 +110,23 @@
 
 ## Resolved Issues
 
+### IQ-015 - LCH-004 quota guard 需要真實 API proof
+
+- 狀態：Resolved
+- 發現日期：2026-06-19
+- 解決日期：2026-06-19
+- 影響 batch：`LCH-004`
+- 背景：
+  - `/api/ai/chat`、`/api/ai/interview`、`/api/ai/interview/outputs` 已接 `canUseAiModule()`，但尚缺實際超限 proof。
+  - 上線前需要確認 quota guard 發生在 provider call 前，避免超限仍產生成本。
+- 解法：
+  - 以 demo member default org `demo_org_asai_personal` 做可還原 proof。
+  - 暫時將 `monthly_ai_used` 設為 `monthly_ai_quota=200` 後呼叫三條 AI route。
+  - API proof：`/api/ai/chat`、`/api/ai/interview`、`/api/ai/interview/outputs` 皆回 `429 QUOTA_EXCEEDED`。
+  - DB proof：quota-blocked calls 前後 `AiUsageLog` count 維持 `CHAT=1`、`INTERVIEW=5`，確認 provider call 前阻擋。
+  - Restore proof：測試後還原 `monthly_ai_used=3` 並二次查詢確認。
+  - 剩餘：Theater Route B、quota UI proof、三 AI provider error-path 全覆蓋仍待後續 LCH-004。
+
 ### IQ-014 - LCH-004 interview agent 仍信任前端 scope 且缺 output evidence
 
 - 狀態：Resolved

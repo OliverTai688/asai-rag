@@ -560,6 +560,8 @@ Context: 將 `RES-012` / `RES-013` 的上線差距與四介面實作研究轉成
 
 進行中註記：2026-06-19 續完成 `/api/ai/interview` 與 `/api/ai/interview/outputs` production slice：兩條 route 以 `requireCurrentMember()` 注入 org/user/unit，不再接受前端 `organizationId/userId`；`clientId` 若有傳入也需 server 確認 current member 可讀，否則不掛 relation。訪談串流成功後寫 `AiUsageLog` 與 `InteractionEvent(metadata.source=api/ai/interview)`；輸出草稿成功後寫 `AiUsageLog` 與 `InteractionEvent(metadata.source=api/ai/interview/outputs)`，並 increment organization `monthlyAiUsed`。API proof：demo member `POST /api/ai/interview` 200、`POST /api/ai/interview/outputs` 200；DB proof `INTERVIEW usage 3→5`、success usage `1→3`、interaction events `0→2`、latest sources `api/ai/interview/outputs` / `api/ai/interview`。Browser proof `/interview` desktop/mobile console error 0、無水平 overflow；截圖：`docs/06_audits-and-reports/screenshots/launch-readiness/lch-004/interview-desktop.png`、`docs/06_audits-and-reports/screenshots/launch-readiness/lch-004/interview-mobile.png`。Theater Route B 與三 AI error-path 全覆蓋仍未完成。
 
+進行中註記：2026-06-19 補 `canUseAiModule()` quota 429 API proof：`pnpm demo:preflight` 通過；以 demo member default org `demo_org_asai_personal` 做可還原測試，將 `monthlyAiUsed` 暫設為 `monthlyAiQuota=200` 後呼叫 `POST /api/ai/chat`、`POST /api/ai/interview`、`POST /api/ai/interview/outputs`，三者皆回 `429 QUOTA_EXCEEDED` 且回傳友善訊息。DB proof：`AiUsageLog` count 在 quota-blocked calls 前後維持 `CHAT=1`、`INTERVIEW=5`，確認 provider call 前即阻擋、不增加成本；測試後已還原 `monthlyAiUsed=3` 並再次查詢確認。Quota UI proof、Theater quota/error path 與三 AI success/error 全覆蓋仍未完成。
+
 ### Batch LCH-005 — Demo Account Relogin QA
 - [ ] `pnpm demo:preflight` 通過。
 - [ ] `pnpm demo:seed:reset` 可重跑且不刪真實資料。

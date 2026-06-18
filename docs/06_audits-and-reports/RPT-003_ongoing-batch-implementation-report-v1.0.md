@@ -847,3 +847,63 @@ curl -H 'x-asai-demo-user-email: demo.member@asai.local' -H 'content-type: appli
 
 1. 繼續 `LCH-004`，進 Theater Route B 最小版或先加 staging legacy gate + usage proof。
 2. 或補三 AI error-path / quota 429 evidence，讓 `AiUsageLog` 覆蓋更完整。
+
+## 2026-06-19 Round 011 - LCH-004 AI Quota Guard Proof Slice
+
+### 本輪戰役
+
+- Workstream：Launch Readiness Implementation。
+- Batch / task：`LCH-004` Three AI Production Minimum - quota guard proof。
+- 選擇原因：chat/interview success path 已完成，下一個最低且最接近上線成本風險的是 AI quota 超限保護；它能驗證超限時 provider call 前阻擋，不會新增 `AiUsageLog` 或成本。
+
+### 本輪完成
+
+- 對 demo member default org 執行可還原 quota proof。
+- 暫時將 `demo_org_asai_personal.monthly_ai_used` 設為 `monthly_ai_quota`，呼叫 `/api/ai/chat`、`/api/ai/interview`、`/api/ai/interview/outputs`。
+- 三條 route 皆回 `429 QUOTA_EXCEEDED`，且 response 帶「AI 使用額度已用完，請聯絡管理員或升級方案。」。
+- 比對 quota-blocked calls 前後 `AiUsageLog` count，確認超限時不進 provider、不增加成本。
+- 測試後還原 `monthly_ai_used=3`，並二次查詢確認。
+
+### DB / Prisma 操作
+
+- 是否修改 schema：否。
+- 是否執行 generate：否，本輪無 schema 或 generated client 變更。
+- 是否執行 db push：否。
+- DB target 判斷：`pnpm demo:preflight` 通過，`.env` 指向遠端 Supabase Postgres；operator 已批准 LCH demo/test 非破壞性寫入 proof。本輪只對 demo org 做可還原 counter update。
+
+### 驗收
+
+```bash
+pnpm demo:preflight
+ALLOW_DEV_AUTH_HEADER=true pnpm dev
+node <quota-proof-script>
+node <restore-verification-query>
+pnpm exec tsc --noEmit --pretty false
+pnpm run lint:changed
+```
+
+結果：
+
+- `pnpm demo:preflight`：通過，Supabase DB DNS/connection/tables 正常；public Supabase env 仍是 placeholder warning。
+- `/api/ai/chat` quota proof：429 `QUOTA_EXCEEDED`。
+- `/api/ai/interview` quota proof：429 `QUOTA_EXCEEDED`。
+- `/api/ai/interview/outputs` quota proof：429 `QUOTA_EXCEEDED`。
+- DB proof：`AiUsageLog` count 前後維持 `CHAT=1`、`INTERVIEW=5`。
+- Restore proof：`demo_org_asai_personal.monthly_ai_used=3`、`monthly_ai_quota=200`。
+
+### 失敗與風險
+
+- 第一次 proof script 使用錯誤表名 `organization_memberships`，失敗於查詢階段，未執行任何 update；已依 Prisma `@@map("organization_members")` 修正後通過。
+- 本輪只驗 chat/interview/output API quota guard，尚未驗 Theater Route B quota、UI 429 顯示與 provider error-path usage log。
+
+### 剩餘上線 blocker
+
+- `LCH-004` 剩餘：Theater Route B、Theater usage log、三 AI success/error `AiUsageLog` 全路徑 proof、quota UI proof。
+- `LCH-005` demo relogin full QA 仍缺 visit plans、reports、sessions、AI output 整合。
+- `LCH-006` client portal/share DB-backed token lookup 仍缺。
+- `LCH-007` org aggregate + org settings 尚未完成。
+
+### 下一輪建議
+
+1. 繼續 `LCH-004`，優先進 Theater Route B 最小版或 staging legacy gate，讓第三個 AI 不再是 production blocker。
+2. 補 chat/interview provider error-path `AiUsageLog` proof，並把 quota 429 UI 呈現接到 dashboard/interview。

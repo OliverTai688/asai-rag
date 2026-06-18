@@ -123,6 +123,8 @@
 
 進行中註記：2026-06-19 續完成 `/api/ai/interview` 與 `/api/ai/interview/outputs` session-scoped production slice：server session 注入 organization/user/unit，前端不再送 `organizationId`；success path 寫 `AiUsageLog` 與 `InteractionEvent` 作訪談回合/輸出草稿 evidence，並 increment organization `monthlyAiUsed`。驗收：`POST /api/ai/interview` 200；`POST /api/ai/interview/outputs` 200；DB proof `INTERVIEW usage=5`、`success_usage=3`、`interaction_events=2`、latest sources `api/ai/interview/outputs`/`api/ai/interview`；`pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`、`pnpm build` 通過；`/interview` desktop/mobile Browser proof console error 0、無水平 overflow。
 
+進行中註記：2026-06-19 補 quota 429 proof：`pnpm demo:preflight` 通過；demo member default org `demo_org_asai_personal` 原始 `monthly_ai_used=3`、`monthly_ai_quota=200`，測試時暫設為滿額後呼叫 `/api/ai/chat`、`/api/ai/interview`、`/api/ai/interview/outputs`，三者皆回 `429 QUOTA_EXCEEDED` 與友善訊息。DB proof：quota-blocked calls 前後 `AiUsageLog` count 維持 `CHAT=1`、`INTERVIEW=5`，確認超限在 provider call 前阻擋且不增加成本；測試後已還原並二次查詢確認 `monthly_ai_used=3`。此 proof 只覆蓋 chat/interview API guard；Theater Route B、quota UI、三 AI error-path 全覆蓋仍待後續。
+
 範圍外：不做 RAG 真檢索；不做 ECPay；不讓 org admin 讀逐字稿。
 
 阻擋：Theater Route B 若開 schema migration，需要先依 `PLN-015` / `ARC-004` 執行；OpenAI quota 必須可用。
