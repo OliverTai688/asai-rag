@@ -9,6 +9,8 @@ import type {
 } from "@/generated/prisma/enums";
 
 const DEV_AUTH_HEADER = "x-asai-demo-user-email";
+export const CLIENT_PORTAL_TOKEN_HEADER = "x-asai-client-token";
+export const CLIENT_PORTAL_TOKEN_COOKIE = "asai_client_share_token";
 
 interface SupabaseUser {
   id: string;
@@ -65,8 +67,12 @@ export interface AppSession {
 
 export interface ClientSession {
   sessionType: "client";
+  shareId: string;
+  shareToken: string;
+  reportId: string;
   clientId: string;
   organizationId: string;
+  unitId: string | null;
   authHealth: AuthHealth;
 }
 
@@ -207,9 +213,54 @@ export async function getPlatformSession(): Promise<PlatformSession | null> {
 }
 
 export async function getClientSession(): Promise<ClientSession | null> {
-  // Client portal identity is intentionally not inferred from app membership.
-  // LCH-006 will replace this with a client-scoped auth/token contract.
-  return null;
+  const headerToken = (await headers()).get(CLIENT_PORTAL_TOKEN_HEADER);
+  const cookieToken = (await cookies()).get(CLIENT_PORTAL_TOKEN_COOKIE)?.value;
+  const token = normalizePortalToken(headerToken ?? cookieToken);
+
+  if (!token) {
+    return null;
+  }
+
+  const share = await prisma.reportShare.findUnique({
+    where: { token },
+    select: {
+      id: true,
+      token: true,
+      organizationId: true,
+      unitId: true,
+      reportId: true,
+      expiresAt: true,
+      report: {
+        select: {
+          clientId: true,
+        },
+      },
+    },
+  });
+
+  if (!share || (share.expiresAt && share.expiresAt.getTime() < Date.now())) {
+    return null;
+  }
+
+  return {
+    sessionType: "client",
+    shareId: share.id,
+    shareToken: share.token,
+    reportId: share.reportId,
+    clientId: share.report.clientId,
+    organizationId: share.organizationId,
+    unitId: share.unitId,
+    authHealth: getAuthHealth(),
+  };
+}
+
+function normalizePortalToken(value: string | null | undefined): string | null {
+  const token = value?.trim();
+  if (!token || token.length > 240) {
+    return null;
+  }
+
+  return token;
 }
 
 export async function getRequestSupabaseUser(): Promise<SupabaseUser | null> {

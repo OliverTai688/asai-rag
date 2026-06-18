@@ -1342,3 +1342,67 @@ pnpm build
 
 1. 繼續 `LCH-006`，補 `GET /api/client-portal/bootstrap` 與 client session/token contract 最小版。
 2. 或補 `GET /api/public/pricing`，讓前台 pricing 也由 DB-backed plan capability/stable server config 驅動。
+
+## 2026-06-19 Round 019 - LCH-006 Client Portal Bootstrap And Response Slice
+
+### 本輪戰役
+
+- Workstream：Launch Readiness Implementation。
+- Batch / task：`LCH-006` Front office / share / client portal - token-scoped client portal bootstrap + client response write。
+- 選擇原因：Round 018 已完成 share token lookup/event tracking；剩餘最接近上線的缺口是 client portal session contract、authorized bootstrap 與客戶回覆能否寫入 DB。
+
+### 本輪完成
+
+- `getClientSession()` 改為從 `x-asai-client-token` header 或 `asai_client_share_token` cookie 驗證 DB `ReportShare`，不從 app membership 推導 client identity。
+- 新增 `GET /api/client-portal/bootstrap`：只回 client session scope、client display name、授權報告 client-safe sections、share branding/portal/CTA。
+- 新增 `POST /api/client-portal/responses`：支援 `SUPPLEMENT`、`QUESTION`、`BOOKING_INTENT`，寫入 `InteractionEvent(type=TASK)`，metadata 只保留 safe keys。
+- 新增 `scripts/client-portal-qa.mjs` 與 package script `pnpm client-portal:qa`。
+- `AGENTS.md` 與 `PLN-017` 已將 client portal bootstrap、responses、client session 不可進 member/org admin 三項標記完成。
+
+### DB / Prisma 操作
+
+- 是否修改 schema：否。
+- 是否執行 generate：待本輪 `pnpm build` 驗收時執行。
+- 是否執行 db push：否。
+- DB target 判斷：`pnpm demo:preflight` 通過，`.env` 指向遠端 Supabase Postgres；本輪 `client-portal:qa` 對 demo client 寫入非破壞性 `InteractionEvent` evidence。
+
+### 驗收
+
+```bash
+pnpm exec tsc --noEmit --pretty false
+pnpm demo:preflight
+pnpm dev
+pnpm client-portal:qa
+```
+
+目前結果：
+
+- TypeScript：通過。
+- `pnpm demo:preflight`：通過；Supabase public env placeholder 仍為 warning。
+- Missing client session：`GET /api/client-portal/bootstrap` 401。
+- Client token boundary：帶 `x-asai-client-token: demo-share-wang` 呼叫 `/api/workspace/bootstrap` 回 401，證明 client session 不會升級成 member/org admin。
+- Authorized bootstrap：`GET /api/client-portal/bootstrap` 200，`session.type=client`，client display name `王大明`，report sections `2`。
+- Client-safe proof：bootstrap response 不含 `internalSections`、`內部摘要`、`演練回饋`、`performance`、policy/private sentinels、member owner/actor sentinels。
+- Client response：`POST /api/client-portal/responses` 201，invalid type 400。
+- DB proof：client-portal `InteractionEvent` count `0→1`，unsafe private payload key count `0`.
+- `pnpm run lint:changed`：通過。
+- Targeted ESLint：`src/lib/auth/session.ts`、`src/app/api/client-portal/bootstrap/route.ts`、`src/app/api/client-portal/responses/route.ts`、`scripts/client-portal-qa.mjs` 通過。
+- `pnpm build`：通過；Prisma Client generated，Next route list 包含 `/api/client-portal/bootstrap` 與 `/api/client-portal/responses`。
+- Git：本輪 commit/push 完成後以 final 回報。
+
+### 失敗與風險
+
+- 目前 client portal session 是 token-scoped 最小 contract，尚未完成 `/client-login` UI 到 cookie handoff、email OTP/Auth.js client-user 長期登入。
+- Expired token proof 尚未跑；repository/session 都會拒絕 expired share，但需要後續 seed/proof。
+- `GET /api/public/pricing` 未做。
+
+### 剩餘上線 blocker
+
+- `LCH-006` 剩餘：public pricing、client login UI/cookie handoff、expired token proof、完整 invalid/expired/authorized/client-login browser QA。
+- `LCH-007` 剩餘：org members/coaching/ai usage/units/invites/settings API 與 UI proof。
+- Route B 新版 Theater 仍待後續。
+
+### 下一輪建議
+
+1. 繼續 `LCH-006`，補 `/client-login` token handoff/cookie proof 或 expired token proof。
+2. 或補 `GET /api/public/pricing`，讓前台 pricing 由 DB-backed plan capability/stable server config 驅動。

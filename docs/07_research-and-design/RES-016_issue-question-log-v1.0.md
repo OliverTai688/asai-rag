@@ -105,16 +105,19 @@
 
 ### IQ-003 - Client portal session contract 尚未設計
 
-- 狀態：Open
+- 狀態：Resolved
 - 發現日期：2026-06-19
+- 解決日期：2026-06-19
 - 影響 batch：`LCH-006`
 - 現況：
-  - 已有 `getClientSession()` 函式，但目前刻意回 `null`，避免把 app membership 誤當 client identity。
+  - 已有 `getClientSession()` 函式，且不能把 app membership 誤當 client identity。
   - Client portal 需要獨立 token/client-scoped session。
-- 待討論：
-  - Client login 是否用 Auth.js client user？
-  - 還是第一版用 signed portal token + email OTP？
-  - Client portal 是否要支援多報告、多顧問授權範圍？
+- 解法：
+  - 第一版採 token-scoped contract：`getClientSession()` 從 `x-asai-client-token` header 或 `asai_client_share_token` cookie 驗證 DB `ReportShare`，取得 `shareId`、`reportId`、`clientId`、`organizationId`、`unitId`。
+  - 新增 `GET /api/client-portal/bootstrap`，只回 client-safe authorized report sections、client display name、branding/portal/CTA/scope。
+  - 新增 `POST /api/client-portal/responses`，支援客戶補資料、提問、預約意向，寫入 `InteractionEvent(type=TASK)` 並只保留 safe metadata。
+  - Proof：`pnpm client-portal:qa` 通過；missing session 401、client token 打 `/api/workspace/bootstrap` 401、bootstrap 200、response 201、invalid type 400、`InteractionEvent` 0→1、unsafe payload key count 0。
+  - 剩餘：長期 client login 是否採 Auth.js client user、email OTP 或 signed portal token + OTP，留給後續 `/client-login` UI/cookie handoff 與 Level 3+ 身分設計。
 
 ### IQ-004 - 是否要安裝 `@supabase/ssr` / `@supabase/supabase-js`
 
