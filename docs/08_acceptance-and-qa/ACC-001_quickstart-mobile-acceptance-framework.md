@@ -195,4 +195,4 @@ Quickstart 可以被視為上線可驗收，必須同時符合：
 - 沒有 raw id / enum / mock key 外露。
 - 沒有水平 overflow、按鈕文字截斷、CTA 遮住內容。
 - `dashboard -> pre-visit -> plan -> spin -> theater -> report -> dashboard completed` 可以在刷新後保持可恢復。
-- 視覺上符合 `docs/誠問設計規格.md` 的清晰、信任、價值三原則，且支援性 chrome 不搶主任務注意力。
+- 視覺上符合 `docs/02_architecture-and-rules/ARC-002_design-spec.md` 的清晰、信任、價值三原則，且支援性 chrome 不搶主任務注意力。

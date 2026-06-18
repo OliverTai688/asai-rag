@@ -42,7 +42,7 @@ export function DashboardWelcomeCard() {
   return (
     <>
       {!isCompleted && <SpotlightTour steps={dashboardTourSteps} />}
-      <Card className="overflow-hidden border-[#C7D4DF] bg-white shadow-sm">
+      <Card className="overflow-hidden border-hairline bg-card shadow-none">
       <CardContent className="p-0">
         <div className="grid gap-0 lg:grid-cols-[1.1fr_0.9fr]">
           <div className="bg-[#102B52] p-5 text-white sm:p-6">
@@ -101,14 +101,14 @@ export function DashboardWelcomeCard() {
           <div className="hidden p-5 sm:p-6 lg:block">
             <div className="mb-4 flex items-center justify-between gap-3">
               <div>
-                <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#7B8B9A]">
+                <p className="text-[11px] font-black uppercase tracking-[0.14em] text-muted-foreground">
                   {isCompleted ? "完成產出" : "UI 測試腳本"}
                 </p>
-                <h3 className="mt-1 text-base font-bold text-[#0A2342]">
+                <h3 className="mt-1 text-base font-bold text-foreground">
                   {isCompleted ? "四項內容已串起來" : "請照這條路徑體驗"}
                 </h3>
               </div>
-              <Sparkles className="h-5 w-5 text-[#1565C0]" />
+              <Sparkles className="h-5 w-5 text-primary" />
             </div>
             <ol className="space-y-2">
               {(isCompleted
@@ -118,22 +118,22 @@ export function DashboardWelcomeCard() {
                     value: step.primaryCta,
                   }))
               ).map((step, index) => (
-                <li key={step.label} className="flex items-start gap-3 rounded-lg border border-[#E2EAF1] bg-[#FAFCFF] p-3">
-                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#EBF3FB] text-[11px] font-black text-[#1565C0]">
+                <li key={step.label} className="flex items-start gap-3 rounded-lg border border-hairline bg-paper-2 p-3">
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-card text-[11px] font-black text-primary">
                     {index + 1}
                   </span>
                   <span className="min-w-0">
-                    <span className="block text-sm font-semibold leading-5 text-[#0A2342]">
+                    <span className="block text-sm font-semibold leading-5 text-foreground">
                       {step.label}
                     </span>
-                    <span className="mt-0.5 block text-xs leading-5 text-[#546E7A]">
+                    <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">
                       {step.value}
                     </span>
                   </span>
                 </li>
               ))}
             </ol>
-            <p className="mt-4 text-xs leading-5 text-[#546E7A]">
+            <p className="mt-4 text-xs leading-5 text-muted-foreground">
               測試時只需要確認每一頁都有「下一步」按鈕，並且下一頁會自動帶入示範資料。
             </p>
           </div>

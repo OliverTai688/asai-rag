@@ -1,5 +1,24 @@
 export type ClientStatus = "PROSPECT" | "ACTIVE" | "CLOSED";
 
+export type ClientComplianceStatus = "MISSING" | "PARTIAL" | "COMPLETE" | "REVIEW_REQUIRED";
+
+export type ClientSensitivityLevel = "NORMAL" | "SENSITIVE" | "HIGHLY_SENSITIVE";
+
+export interface ClientComplianceChecklist {
+  kycStatus: ClientComplianceStatus;
+  suitabilityStatus: ClientComplianceStatus;
+  consentStatus: ClientComplianceStatus;
+  missingItems: string[];
+  reviewedAt?: string;
+}
+
+export const DEFAULT_CLIENT_COMPLIANCE: ClientComplianceChecklist = {
+  kycStatus: "MISSING",
+  suitabilityStatus: "MISSING",
+  consentStatus: "MISSING",
+  missingItems: ["KYC", "適合度評估", "個資同意"],
+};
+
 export type RelationshipType =
   // 祖父母輩
   | "祖父" | "祖母" | "外公" | "外婆"
@@ -72,6 +91,9 @@ export interface Client {
   tags: string[];
   aiTags: string[];
   status: ClientStatus;
+  complianceChecklist: ClientComplianceChecklist;
+  sensitivityLevel: ClientSensitivityLevel;
+  kycStatus: ClientComplianceStatus;
   lastInteraction: string;
   parentMemberId?: string;
 }

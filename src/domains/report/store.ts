@@ -1,10 +1,9 @@
 "use client";
 
 import { create } from "zustand";
-import { persist, createJSONStorage } from "zustand/middleware";
-import { Report, ReportSection, ShareMeta } from "./types";
+import { Report, ShareMeta } from "./types";
 import { nanoid } from "nanoid";
-import { SEED_REPORTS } from "./mocks";
+import { demoSeedReports } from "@/domains/demo/seed-fixtures";
 
 interface ReportState {
   reports: Report[];
@@ -20,73 +19,82 @@ interface ReportState {
   clearAll: () => void;
 }
 
-export const useReportStore = create<ReportState>()(
-  persist(
-    (set, get) => ({
-      reports: SEED_REPORTS,
+export const useReportStore = create<ReportState>()((set, get) => ({
+  reports: demoSeedReports,
 
-      addReport: (report) => {
-        set((state) => ({ reports: [report, ...state.reports] }));
-      },
+  addReport: (report) => {
+    set((state) => ({ reports: [report, ...state.reports] }));
+  },
 
-      updateReport: (id, updates) => {
-        set((state) => ({
-          reports: state.reports.map((r) => 
-            r.id === id ? { ...r, ...updates, updatedAt: new Date().toISOString() } : r
+  updateReport: (id, updates) => {
+    set((state) => ({
+      reports: state.reports.map((r) =>
+        r.id === id ? { ...r, ...updates, updatedAt: new Date().toISOString() } : r
+      ),
+    }));
+  },
+
+  updateSection: (reportId, sectionId, content) => {
+    set((state) => ({
+      reports: state.reports.map((r) => {
+        if (r.id !== reportId) return r;
+        return {
+          ...r,
+          sections: r.sections.map((s) =>
+            s.id === sectionId ? { ...s, content, isEdited: true } : s
           ),
-        }));
-      },
-
-      updateSection: (reportId, sectionId, content) => {
-        set((state) => ({
-          reports: state.reports.map((r) => {
-            if (r.id !== reportId) return r;
-            return {
-              ...r,
-              sections: r.sections.map((s) => 
-                s.id === sectionId ? { ...s, content, isEdited: true } : s
-              ),
-              updatedAt: new Date().toISOString()
-            };
-          }),
-        }));
-      },
-
-      generateShareToken: (reportId) => {
-        const token = nanoid(10);
-        const share: ShareMeta = {
-          token,
-          accessCount: 0,
+          updatedAt: new Date().toISOString(),
         };
-        get().updateReport(reportId, { share });
-        return token;
+      }),
+    }));
+  },
+
+  generateShareToken: (reportId) => {
+    const token = nanoid(10);
+    const share: ShareMeta = {
+      token,
+      accessCount: 0,
+      branding: {
+        organizationName: "誠問 AI Demo 個人工作區",
+        unitName: "Demo 台北通訊處",
+        brandColor: "#1A3A6B",
+        poweredByLabel: "誠問 AI",
       },
-
-      recordAccess: (token) => {
-        set((state) => ({
-          reports: state.reports.map((r) => {
-            if (r.share?.token !== token) return r;
-            return {
-              ...r,
-              share: {
-                ...r.share,
-                accessCount: r.share.accessCount + 1,
-                lastAccessedAt: new Date().toISOString(),
-              }
-            };
-          }),
-        }));
+      portal: {
+        enabled: true,
+        loginHref: "/client-login",
+        visibleScopes: ["授權報告", "預約下一步", "補充資料"],
       },
+      ctaConfig: {
+        primaryLabel: "預約下一步",
+        primaryHref: "#next-step",
+        secondaryLabel: "登入客戶入口",
+        secondaryHref: "/client-login",
+      },
+    };
+    get().updateReport(reportId, { share });
+    return token;
+  },
 
-      getReportById: (id) => get().reports.find((r) => r.id === id),
-      
-      getReportByToken: (token) => get().reports.find((r) => r.share?.token === token),
+  recordAccess: (token) => {
+    set((state) => ({
+      reports: state.reports.map((r) => {
+        if (r.share?.token !== token) return r;
+        return {
+          ...r,
+          share: {
+            ...r.share,
+            accessCount: r.share.accessCount + 1,
+            lastAccessedAt: new Date().toISOString(),
+          },
+        };
+      }),
+    }));
+  },
 
-      clearAll: () => set({ reports: [] })
-    }),
-    {
-      name: "sincerely:v1:reports",
-      storage: createJSONStorage(() => localStorage),
-    }
-  )
-);
+  getReportById: (id) => get().reports.find((r) => r.id === id),
+
+  getReportByToken: (token) => get().reports.find((r) => r.share?.token === token),
+
+  clearAll: () => set({ reports: [] }),
+}));

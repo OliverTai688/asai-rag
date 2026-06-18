@@ -14,16 +14,16 @@
 |------|------|------|
 | 前端 UI | ✅ 完成 | 21 個頁面，含 CRM、SPIN、劇場、報告、儀表板 |
 | AI 功能 | ✅ 運作中 | OpenAI GPT-4o-mini，串流回應 |
-| 資料持久化 | ⚠️ localStorage | Zustand + localStorage，**不跨裝置、不跨瀏覽器** |
+| 資料持久化 | ⚠️ localStorage / mockdata | Zustand + localStorage + `src/domains/*/mocks.ts`，**不跨裝置、不跨瀏覽器，也不是真實資料庫體驗** |
 | 身份驗證 | ❌ 未實作 | 目前硬編碼預設用戶「王小明」 |
 | 多租戶隔離 | ❌ 未實作 | 無 orgId 層級的資料隔離 |
 | Supabase 整合 | ⚠️ 部分 | Prisma 已設定連線，但 schema 只有 Issue 一個 model |
-| 新用戶引導 | ⚠️ 基礎 | Mock clients 自動載入，無正式 onboarding flow |
+| 新用戶引導 | ⚠️ 基礎 | Mock clients 自動載入，無正式 onboarding flow；需改為 DB demo seed |
 | 法律文件 | ❌ 未建立 | 無隱私政策、服務條款 |
 
 ### 核心問題
 
-1. **資料架構**：所有業務資料（客戶、SPIN、劇場、報告）存在 localStorage，無法支撐多用戶
+1. **資料架構**：所有業務資料（客戶、SPIN、劇場、報告）仍可從 localStorage / local mockdata 產生，無法支撐多用戶，也無法驗證真實權限/分享/追蹤
 2. **Auth 缺失**：無法讓外部用戶安全登入、區隔彼此的資料
 3. **AI 成本控制**：無速率限制，開放後可能遭濫用
 
@@ -88,10 +88,10 @@ enum Plan      { FREE STARTER PRO ENTERPRISE }
 - [ ] 在 Supabase 設定 RLS policies（`auth.uid()` → `orgId`）
 - [ ] 撰寫 migration script（目前 schema 只有 Issue，從零建立）
 
-#### 2.3 localStorage → Supabase 遷移
+#### 2.3 localStorage / mockdata → Supabase DB runtime 遷移
 
 ```
-目標：資料存到 Supabase DB，Zustand 作為快取層
+目標：資料存到 Supabase DB，Zustand 只作 cache / UI state；runtime 不再以本地 mockdata 作為業務資料來源
 ```
 
 - [ ] Client（客戶）domain → `clients` table
@@ -102,17 +102,22 @@ enum Plan      { FREE STARTER PRO ENTERPRISE }
 - [ ] Event/Timeline domain → `events` table
 - [ ] 修改 service 層改為 API calls（`/api/clients`、`/api/sessions` 等）
 - [ ] Zustand store 改為 cache-first pattern（樂觀更新 + 背景 sync）
+- [ ] `src/domains/*/mocks.ts` 只保留為 seed fixture 或移入 `prisma/seed`，production UI 不得 import 作為資料來源
+- [ ] `/api/mock/*` 加 dev/test guard，production UI 不得呼叫 mock API 作為資料來源
+- [ ] 清空 browser storage 後，登入 demo account 仍可從 DB 看到完整範例資料
 
-#### 2.4 新用戶 Demo 資料自動載入
+#### 2.4 Demo Account 與範例資料自動載入
 
 ```
-目標：新用戶登入後自動有示範資料，立即可用
+目標：新用戶或體驗帳號登入後看到資料庫中的示範資料，立即可用；示範資料不是本地 mockdata
 ```
 
-- [ ] 建立 `POST /api/onboarding/seed` 端點
-- [ ] 在 Organization 建立後觸發 seed（10 個示範客戶，含家庭、保單、互動紀錄）
+- [ ] 建立 idempotent seed script / `POST /api/onboarding/seed` 端點
+- [ ] 在 Organization 建立後觸發 seed（10 個示範客戶，含家庭、保單、合規、訪前規劃、SPIN、劇場、報告、互動紀錄）
+- [ ] 建立 demo member / manager / client portal / staging super admin accounts
+- [ ] Seed records 必須有 `organizationId` 與 `isDemo` 或 seed scenario metadata
 - [ ] 在 UI 顯示「這是示範資料」的明顯提示（橫幅或 badge）
-- [ ] 提供「清除示範資料」按鈕
+- [ ] 提供「清除示範資料」與「重新載入範例」按鈕；只刪 demo records，不刪真實資料
 
 #### 2.5 AI API 速率限制
 

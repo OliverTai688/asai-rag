@@ -19,8 +19,9 @@ export default function DashboardLayout({
   const isQuickstart = useQuickstartMode();
 
   useEffect(() => {
+    // Quickstart renders a tree without the mobile Sheet, so its open state is
+    // moot here — bail out before any synchronous setState (react-hooks rule).
     if (isQuickstart) {
-      setMobileSidebarOpen(false);
       return;
     }
 
@@ -38,7 +39,7 @@ export default function DashboardLayout({
 
   if (isQuickstart) {
     return (
-      <div className="flex h-screen overflow-hidden bg-[#F8FAFC] dark:bg-[#0A1929]">
+      <div className="flex h-screen overflow-hidden bg-background">
         <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
           <QuickstartTopBar pathname={pathname} />
           <main className="flex-1 overflow-y-auto px-3 py-4 custom-scrollbar md:px-6 md:py-5">
@@ -53,7 +54,7 @@ export default function DashboardLayout({
 
   return (
     <Sheet open={mobileSidebarOpen} onOpenChange={setMobileSidebarOpen}>
-      <div className="flex h-screen bg-[#F8FAFC] dark:bg-[#0A1929] overflow-hidden relative">
+      <div className="flex h-screen bg-background overflow-hidden relative">
         {/* Sidebar */}
         <Sidebar
           open={desktopSidebarOpen}
@@ -64,7 +65,7 @@ export default function DashboardLayout({
         <SheetContent
           side="left"
           showCloseButton={false}
-          className="w-[280px] max-w-[82vw] gap-0 border-[#D8E1EA] bg-white p-0 dark:border-[rgba(144,202,249,0.15)] dark:bg-[#0F2744] lg:hidden"
+          className="w-[280px] max-w-[82vw] gap-0 border-hairline bg-card p-0 lg:hidden"
         >
           <SheetTitle className="sr-only">主選單</SheetTitle>
           <Sidebar
@@ -100,25 +101,25 @@ function QuickstartTopBar({ pathname }: { pathname: string }) {
   const isDashboard = pathname === "/dashboard";
 
   return (
-    <header className="relative z-30 flex h-14 shrink-0 items-center justify-between border-b border-[#D8E1EA] bg-white/95 px-4 backdrop-blur md:px-6 dark:border-[rgba(144,202,249,0.15)] dark:bg-[#0F2744]/95">
+    <header className="relative z-30 flex h-14 shrink-0 items-center justify-between border-b border-hairline bg-paper/90 px-4 backdrop-blur md:px-6">
       <Link
         href="/dashboard"
-        className="flex items-center gap-2 text-sm font-semibold text-[#0A2342] transition-colors hover:text-[#1565C0] dark:text-white"
+        className="flex items-center gap-2 text-sm font-semibold text-ink transition-colors hover:text-[#1A3A6B]"
       >
-        <span className="grid size-8 place-items-center rounded-lg bg-[#173762] text-[12px] font-bold text-white shadow-sm">
+        <span className="grid size-8 place-items-center rounded-lg bg-[#1A3A6B] text-[12px] font-bold text-white">
           A
         </span>
         ASAI Quickstart
       </Link>
 
-      <div className="hidden items-center gap-2 rounded-full border border-[#D8E1EA] bg-[#F8FAFC] px-3 py-1.5 text-xs font-semibold text-[#546E7A] sm:flex dark:border-[rgba(144,202,249,0.15)] dark:bg-[#1A3A6B]/30 dark:text-[#B8D7F5]">
+      <div className="hidden items-center gap-2 rounded-full border border-hairline bg-paper-2 px-3 py-1.5 text-xs font-semibold text-muted-foreground sm:flex">
         <span className="size-2 rounded-full bg-[#2E7D32]" />
         {isDashboard ? "歡迎導覽" : "專注體驗中"}
       </div>
 
       <Link
         href="/dashboard"
-        className="rounded-lg border border-[#D8E1EA] bg-white px-3 py-2 text-xs font-semibold text-[#546E7A] shadow-sm transition-colors hover:border-[#1565C0] hover:text-[#0A2342] dark:border-[rgba(144,202,249,0.15)] dark:bg-[#0F2744] dark:text-[#B8D7F5]"
+        className="rounded-full border border-hairline-2 bg-surface px-3 py-2 text-xs font-semibold text-muted-foreground transition-colors hover:border-ink hover:text-ink"
       >
         離開體驗
       </Link>

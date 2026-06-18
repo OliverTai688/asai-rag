@@ -4,6 +4,7 @@ import { useCalendarStore } from "@/domains/calendar/store";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Calendar as CalendarIcon,
   CheckCircle2,
@@ -39,15 +40,22 @@ export function DashboardCalendar() {
 
   return (
     <Card>
-      <CardHeader className="border-b border-[#E6EDF3] bg-white px-5 py-3.5">
+      <CardHeader className="border-b border-hairline bg-card px-5 py-3.5">
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2 text-[13px]">
-            <CalendarIcon className="h-4 w-4 text-[#1565C0]" strokeWidth={1.5} />
+            <CalendarIcon className="h-4 w-4 text-primary" strokeWidth={1.5} />
             今日安排
           </CardTitle>
-          <Button variant="ghost" size="icon-sm" className="text-[#7B8B9A]">
-            <Plus className="h-3.5 w-3.5" strokeWidth={1.5} />
-          </Button>
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button variant="ghost" size="icon-sm" className="text-muted-foreground" aria-label="新增行程">
+                  <Plus className="h-3.5 w-3.5" strokeWidth={1.5} />
+                </Button>
+              }
+            />
+            <TooltipContent>新增行程</TooltipContent>
+          </Tooltip>
         </div>
       </CardHeader>
       <CardContent className="space-y-4 p-4">
@@ -60,11 +68,12 @@ export function DashboardCalendar() {
               <button
                 key={day.toString()}
                 onClick={() => setSelectedDate(day)}
+                aria-label={`查看 ${format(day, "M 月 d 日 EEEE", { locale: zhTW })} 行程`}
                 className={cn(
                   "relative flex flex-col items-center rounded-md px-1 py-2 transition-colors",
                   isSelected
-                    ? "bg-[#173762] text-white"
-                    : "text-[#5F7080] hover:bg-[#F3F7FB] hover:text-[#0A2342]"
+                    ? "bg-ink text-paper"
+                    : "text-muted-foreground hover:bg-paper-2 hover:text-foreground"
                 )}
               >
                 <span className="mb-1 text-[9px] font-semibold uppercase tracking-wide">
@@ -75,7 +84,7 @@ export function DashboardCalendar() {
                   <span
                     className={cn(
                       "absolute bottom-1 h-1 w-1 rounded-full",
-                      isSelected ? "bg-[#C9A227]" : "bg-[#9AAEC1]"
+                      isSelected ? "bg-paper" : "bg-muted-foreground/45"
                     )}
                   />
                 )}
@@ -85,14 +94,14 @@ export function DashboardCalendar() {
         </div>
 
         {!isGoogleConnected ? (
-          <div className="rounded-md border border-[#E2EAF1] bg-[#FAFCFF] p-3">
+          <div className="rounded-md border border-hairline bg-paper-2/60 p-3">
             <div className="flex items-start gap-3">
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-[#E2EAF1] bg-white">
-                <ExternalLink className="h-3.5 w-3.5 text-[#1565C0]" strokeWidth={1.5} />
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-hairline bg-card">
+                <ExternalLink className="h-3.5 w-3.5 text-primary" strokeWidth={1.5} />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-[12px] font-semibold text-[#0A2342]">串接外部日曆</p>
-                <p className="mt-0.5 text-[11px] leading-4 text-[#5F7080]">
+                <p className="text-[12px] font-semibold text-foreground">串接外部日曆</p>
+                <p className="mt-0.5 text-[11px] leading-4 text-muted-foreground">
                   同步行程後，AI 可協助安排拜訪節奏。
                 </p>
               </div>
@@ -102,19 +111,19 @@ export function DashboardCalendar() {
             </Button>
           </div>
         ) : (
-          <div className="flex items-center gap-2 rounded-md border border-[#D7EAD8] bg-[#F4FAF4] p-3">
-            <CheckCircle2 className="h-4 w-4 text-[#1B5E20]" strokeWidth={1.5} />
-            <p className="text-[12px] font-semibold text-[#1B5E20]">Google Calendar 已同步</p>
+          <div className="flex items-center gap-2 rounded-md border border-hairline bg-paper-2/60 p-3">
+            <CheckCircle2 className="h-4 w-4 text-foreground" strokeWidth={1.5} />
+            <p className="text-[12px] font-semibold text-foreground">Google Calendar 已同步</p>
           </div>
         )}
 
         <div>
           <div className="mb-3 flex items-end justify-between">
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#7B8B9A]">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
                 {format(selectedDate, "yyyy MMM d", { locale: zhTW })}
               </p>
-              <p className="text-sm font-semibold text-[#0A2342]">
+              <p className="text-sm font-semibold text-foreground">
                 {isSameDay(selectedDate, new Date()) ? "今日行程" : "當日行程"}
               </p>
             </div>
@@ -126,25 +135,25 @@ export function DashboardCalendar() {
               todaysEvents.map((event) => (
                 <div
                   key={event.id}
-                  className="group flex items-center gap-3 rounded-md border border-[#E2EAF1] bg-white p-3 transition-colors hover:border-[#B7C8D8]"
+                  className="group flex items-center gap-3 rounded-md border border-hairline bg-card p-3 transition-colors hover:border-hairline-2 hover:bg-paper-2"
                 >
-                  <div className="flex w-12 shrink-0 items-center gap-1 text-[11px] font-semibold text-[#5F7080] tabular-nums">
-                    <Clock className="h-3.5 w-3.5 text-[#9AAEC1]" strokeWidth={1.5} />
+                  <div className="flex w-12 shrink-0 items-center gap-1 text-[11px] font-semibold text-muted-foreground tabular-nums">
+                    <Clock className="h-3.5 w-3.5 text-muted-foreground" strokeWidth={1.5} />
                     {format(parseISO(event.start), "HH:mm")}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <h5 className="truncate text-[13px] font-semibold text-[#0A2342]">{event.title}</h5>
-                    <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-[#7B8B9A]">
+                    <h5 className="truncate text-[13px] font-semibold text-foreground">{event.title}</h5>
+                    <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
                       {event.type}
                     </p>
                   </div>
-                  <ChevronRight className="h-3.5 w-3.5 text-[#C5D2DE] transition-colors group-hover:text-[#1565C0]" strokeWidth={1.5} />
+                  <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/50 transition-colors group-hover:text-primary" strokeWidth={1.5} />
                 </div>
               ))
             ) : (
-              <div className="rounded-md border border-dashed border-[#D8E1EA] px-4 py-8 text-center">
-                <p className="text-[13px] font-semibold text-[#5F7080]">當日沒有安排行程</p>
-                <p className="mt-1 text-[11px] text-[#7B8B9A]">保留一段安靜的整理時間。</p>
+              <div className="rounded-md border border-dashed border-hairline px-4 py-8 text-center">
+                <p className="text-[13px] font-semibold text-muted-foreground">當日沒有安排行程</p>
+                <p className="mt-1 text-[11px] text-muted-foreground">保留一段安靜的整理時間。</p>
               </div>
             )}
           </div>

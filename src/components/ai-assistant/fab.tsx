@@ -13,6 +13,8 @@ export function AssistantFAB() {
       <Tooltip>
         <TooltipTrigger>
           <button
+            type="button"
+            aria-label="開啟誠問 AI 助手"
             className="w-14 h-14 rounded-2xl flex items-center justify-center shadow-xl transition-all duration-200 hover:scale-110 active:scale-95 animate-voice-pulse group"
             style={{
               background: "linear-gradient(135deg, #B8860B 0%, #D4A017 50%, #C9A227 100%)",

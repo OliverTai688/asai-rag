@@ -1,105 +1,171 @@
 "use client";
 
+import Link from "next/link";
 import { useParams } from "next/navigation";
-import { clientService } from "@/domains/client/service";
+import { useClientRecord } from "@/components/crm/use-client-record";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Progress, ProgressTrack, ProgressIndicator } from "@/components/ui/progress";
-import { Sparkles, ShieldCheck, Target, ArrowRight } from "lucide-react";
+import { Progress, ProgressIndicator, ProgressTrack } from "@/components/ui/progress";
 import { formatCurrency } from "@/lib/format";
+import { ArrowRight, CalendarPlus, CheckCircle2, ShieldCheck, Target } from "lucide-react";
+import {
+  CompactMetric,
+  RecordSubpageHeader,
+} from "../_components/record-subpage-ui";
 
 const GAP_CATEGORIES = [
-  { name: "身故保障", current: 5000000, suggested: 12000000, desc: "保障家庭十年內之生活與子女教育開銷" },
-  { name: "重大疾病", current: 1000000, suggested: 3000000, desc: "支應高額自費藥物與三至五年之薪資損失" },
-  { name: "意外身障", current: 2000000, suggested: 8000000, desc: "應對不預期之失能照護成本" },
-  { name: "長照保障", current: 0, suggested: 2000000, desc: "老後失能之安養機構費用" },
+  {
+    name: "身故保障",
+    current: 5000000,
+    suggested: 12000000,
+    desc: "保障家庭十年內之生活與子女教育開銷",
+  },
+  {
+    name: "重大疾病",
+    current: 1000000,
+    suggested: 3000000,
+    desc: "支應高額自費藥物與三至五年之薪資損失",
+  },
+  {
+    name: "意外身障",
+    current: 2000000,
+    suggested: 8000000,
+    desc: "應對不預期之失能照護成本",
+  },
+  {
+    name: "長照保障",
+    current: 0,
+    suggested: 2000000,
+    desc: "老後失能之安養機構費用",
+  },
 ];
 
 export default function GapAnalysisPage() {
   const params = useParams();
   const clientId = params.clientId as string;
-  const client = clientService.getClientById(clientId);
+  const { client } = useClientRecord(clientId);
 
   if (!client) return null;
 
+  const totalCurrent = GAP_CATEGORIES.reduce((sum, item) => sum + item.current, 0);
+  const totalSuggested = GAP_CATEGORIES.reduce((sum, item) => sum + item.suggested, 0);
+  const totalGap = totalSuggested - totalCurrent;
+  const urgentGaps = GAP_CATEGORIES.filter((item) => item.current / item.suggested < 0.6);
+
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
-      <div>
-        <h3 className="text-2xl font-bold flex items-center gap-2 mb-2">
-          保障缺口視覺化分析
-        </h3>
-        <p className="text-zinc-500 font-medium">系統依據客戶目前的年收入、家庭結構與現有保單進行缺口演算。</p>
+    <div className="space-y-5">
+      <RecordSubpageHeader
+        eyebrow="Recommendation view"
+        title="保障缺口分析"
+        description="把缺口視覺化收斂成可排序的建議清單，讓下一次訪談能聚焦在最需要補足的保障。"
+        action={
+          <Link
+            href={`/pre-visit?clientId=${clientId}&autoCreate=true`}
+            className="inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-full bg-ink px-4 text-sm font-medium text-paper transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring sm:w-auto"
+          >
+            <CalendarPlus className="h-4 w-4" strokeWidth={1.5} />
+            轉成拜訪規劃
+          </Link>
+        }
+      />
+
+      <div className="grid gap-3 md:grid-cols-3">
+        <CompactMetric label="總缺口" value={formatCurrency(totalGap)} helper="建議保額減現有保額" />
+        <CompactMetric label="完成率" value={`${Math.round((totalCurrent / totalSuggested) * 100)}%`} helper="四類保障加權概況" />
+        <CompactMetric label="優先項" value={`${urgentGaps.length} 項`} helper="完成率低於 60%" />
       </div>
 
-      <div className="grid grid-cols-1 gap-6">
-        {GAP_CATEGORIES.map((cat) => {
-          const ratio = (cat.current / cat.suggested) * 100;
-          return (
-            <Card key={cat.name} className="rounded-3xl border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden group">
-              <CardContent className="p-6">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                  <div className="flex-1 space-y-2">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-2xl bg-zinc-50 dark:bg-zinc-800 flex items-center justify-center font-bold text-zinc-900 dark:text-zinc-100 group-hover:bg-[#EBF3FB] dark:group-hover:bg-[#1A3A6B]/20 transition-colors">
-                        {cat.name[0]}
-                      </div>
-                      <div>
-                        <h4 className="font-bold text-lg leading-none">{cat.name}</h4>
-                        <p className="text-xs text-zinc-500 font-medium mt-1">{cat.desc}</p>
-                      </div>
-                    </div>
-                  </div>
+      <section className="grid gap-5 xl:grid-cols-[minmax(0,1.25fr)_minmax(320px,0.85fr)]">
+        <Card>
+          <CardHeader className="border-b border-hairline pb-4">
+            <CardTitle>缺口清單</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {GAP_CATEGORIES.map((category) => {
+              const ratio = Math.round((category.current / category.suggested) * 100);
+              const gap = category.suggested - category.current;
 
-                  <div className="flex-1 space-y-3">
-                    <div className="flex items-center justify-between text-xs font-bold mb-1">
-                      <span className="text-zinc-400 font-medium">完成度 {Math.round(ratio)}%</span>
-                      <span className="text-zinc-900 dark:text-zinc-100">
-                        現有 {formatCurrency(cat.current)} / 建議 {formatCurrency(cat.suggested)}
-                      </span>
+              return (
+                <div key={category.name} className="rounded-md border border-hairline bg-card p-4">
+                  <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="font-semibold text-foreground">{category.name}</p>
+                        <Badge variant={ratio < 60 ? "warning" : "outline"} className="h-5 text-[10px]">
+                          完成 {ratio}%
+                        </Badge>
+                      </div>
+                      <p className="mt-1 text-sm leading-6 text-muted-foreground">{category.desc}</p>
+                    </div>
+                    <p className="text-sm font-semibold text-foreground tabular-nums">
+                      缺口 {formatCurrency(gap)}
+                    </p>
+                  </div>
+                  <div className="mt-4 space-y-2">
+                    <div className="flex items-center justify-between text-xs font-semibold text-muted-foreground">
+                      <span>現有 {formatCurrency(category.current)}</span>
+                      <span>建議 {formatCurrency(category.suggested)}</span>
                     </div>
                     <Progress value={ratio}>
-                      <ProgressTrack className="h-2 bg-zinc-100 dark:bg-zinc-800">
-                        <ProgressIndicator className={ratio < 60 ? "bg-orange-500" : "bg-green-500"} />
+                      <ProgressTrack className="h-2">
+                        <ProgressIndicator className={ratio < 60 ? "bg-primary" : "bg-foreground"} />
                       </ProgressTrack>
                     </Progress>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
+              );
+            })}
+          </CardContent>
+        </Card>
 
-      {/* AI Suggestion Card */}
-      <Card className="rounded-3xl border-2 border-[#D6E8F8] dark:border-[rgba(144,202,249,0.15)] bg-[#EBF3FB]/30 dark:bg-[#1A3A6B]/10 p-6">
-        <div className="flex items-start gap-4">
-          <div className="w-10 h-10 rounded-2xl bg-[#1A3A6B] flex items-center justify-center shrink-0">
-            <Sparkles className="w-6 h-6 text-white" />
-          </div>
-          <div className="space-y-4">
-            <div>
-              <h4 className="text-lg font-bold text-[#0A2342] dark:text-[#2196F3]">AI 實質規劃建議</h4>
-              <p className="text-sm font-medium text-[#1565C0]/70 dark:text-[#2196F3]/70">基於缺口分析，建議採取以下行動：</p>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="bg-white dark:bg-zinc-900 p-4 rounded-2xl shadow-sm border border-[#D6E8F8] dark:border-[rgba(144,202,249,0.15)]">
-                <div className="flex items-center gap-2 mb-2">
-                  <ShieldCheck className="w-4 h-4 text-green-500" />
-                  <span className="text-sm font-bold">階段一：補足意外與重疾</span>
-                </div>
-                <p className="text-xs text-zinc-500 leading-relaxed font-medium">優先增加 200 萬重大傷病險與 500 萬意外險，利用定期商品槓桿，月繳預算控制在 3000 元內。</p>
-              </div>
-              <div className="bg-white dark:bg-zinc-900 p-4 rounded-2xl shadow-sm border border-[#D6E8F8] dark:border-[rgba(144,202,249,0.15)]">
-                <div className="flex items-center gap-2 mb-2">
-                  <Target className="w-4 h-4 text-[#1565C0]" />
-                  <span className="text-sm font-bold">階段二：退休與教育金預留</span>
-                </div>
-                <p className="text-xs text-zinc-500 leading-relaxed font-medium">當基礎保障建立後，可考慮美元分紅商品，同步解決退休規劃與子女出國留學金之幣別配置。</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </Card>
+        <Card>
+          <CardHeader className="border-b border-hairline pb-4">
+            <CardTitle className="flex items-center gap-2">
+              <Target className="h-4 w-4 text-primary" strokeWidth={1.5} />
+              建議行動
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <RecommendationItem
+              icon={ShieldCheck}
+              title="先補重大疾病與意外身障"
+              description="用定期型商品降低保費壓力，先處理完成率低於 60% 的風險。"
+            />
+            <RecommendationItem
+              icon={ArrowRight}
+              title="把身故保障轉成家庭責任問題"
+              description="下一次訪談先確認教育金、房貸與家庭生活費責任期間。"
+            />
+            <RecommendationItem
+              icon={CheckCircle2}
+              title="長照保障列為第二階段"
+              description="先建立可承受月繳預算，再討論長照與退休現金流。"
+            />
+          </CardContent>
+        </Card>
+      </section>
+    </div>
+  );
+}
+
+function RecommendationItem({
+  icon: Icon,
+  title,
+  description,
+}: {
+  icon: React.ElementType;
+  title: string;
+  description: string;
+}) {
+  return (
+    <div className="flex gap-3 rounded-md border border-hairline bg-card p-3">
+      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-hairline bg-paper-2">
+        <Icon className="h-4 w-4 text-primary" strokeWidth={1.5} />
+      </div>
+      <div>
+        <p className="text-sm font-semibold text-foreground">{title}</p>
+        <p className="mt-1 text-sm leading-6 text-muted-foreground">{description}</p>
+      </div>
     </div>
   );
 }

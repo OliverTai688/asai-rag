@@ -24,6 +24,12 @@ enum OrganizationStatus {
   ARCHIVED
 }
 
+enum OrganizationUnitType {
+  HEADQUARTERS
+  REGION
+  BRANCH
+}
+
 enum UserStatus {
   ACTIVE
   INVITED
@@ -32,8 +38,11 @@ enum UserStatus {
 
 enum MemberRole {
   OWNER
+  ADMIN
   MANAGER
+  MEMBER
   AGENT
+  COLLABORATOR
 }
 
 enum MembershipStatus {
@@ -181,6 +190,7 @@ enum AiProvider {
 
 enum AiModule {
   CHAT
+  INTERVIEW
   SPIN
   THEATER
   VISIT
@@ -202,6 +212,75 @@ enum IssuePriority {
   URGENT
 }
 
+enum PaymentProvider {
+  ECPAY
+  MANUAL
+  STRIPE_LEGACY
+}
+
+enum SubscriptionOrderStatus {
+  PENDING
+  AWAITING_NOTIFICATION
+  PAID
+  FAILED
+  CANCELLED
+  EXPIRED
+  MANUAL_REVIEW
+}
+
+enum PaymentTransactionStatus {
+  CREATED
+  REDIRECTED
+  NOTIFIED
+  QUERY_CONFIRMED
+  PAID
+  FAILED
+  CANCELLED
+  EXPIRED
+  REFUNDED
+}
+
+enum PaymentTransactionKind {
+  CHECKOUT
+  NOTIFICATION
+  QUERY
+  REFUND
+  MANUAL_ADJUSTMENT
+}
+
+enum PlatformRole {
+  SUPER_ADMIN
+  SUPPORT
+  FINANCE
+}
+
+enum ImpersonationStatus {
+  ACTIVE
+  ENDED
+  EXPIRED
+  REVOKED
+}
+
+enum AuditAction {
+  VIEW_SUMMARY
+  VIEW_SENSITIVE
+  BREAK_GLASS
+  IMPERSONATION_START
+  IMPERSONATION_END
+  IMPERSONATED_READ
+  IMPERSONATED_WRITE
+  BILLING_UPDATE
+  PLAN_UPDATE
+  SUPPORT_NOTE
+}
+
+enum AuditSensitivity {
+  LOW
+  MEDIUM
+  HIGH
+  BREAK_GLASS
+}
+
 model Organization {
   id                     String             @id @default(cuid())
   name                   String
@@ -214,13 +293,24 @@ model Organization {
   seatLimit              Int                @default(3) @map("seat_limit")
   monthlyAiQuota         Int                @default(200) @map("monthly_ai_quota")
   monthlyAiUsed          Int                @default(0) @map("monthly_ai_used")
+  paymentProvider        PaymentProvider?   @map("payment_provider")
+  providerCustomerId     String?            @map("provider_customer_id")
+  providerSubscriptionId String?            @map("provider_subscription_id")
+  // Legacy Stripe columns kept for migration compatibility; new billing code must use provider-neutral fields above.
   stripeCustomerId       String?            @unique @map("stripe_customer_id")
   stripeSubscriptionId   String?            @map("stripe_subscription_id")
+  isDemo                 Boolean            @default(false) @map("is_demo")
+  demoSeedKey            String?            @unique @map("demo_seed_key")
+  demoScenario           String?            @map("demo_scenario")
+  demoSeedVersion        Int?               @map("demo_seed_version")
   demoDataSeededAt       DateTime?          @map("demo_data_seeded_at")
+  trialStartsAt          DateTime?          @map("trial_starts_at")
+  trialEndsAt            DateTime?          @map("trial_ends_at")
   createdAt              DateTime           @default(now()) @map("created_at")
   updatedAt              DateTime           @updatedAt @map("updated_at")
 
   members                OrganizationMember[]
+  units                  OrganizationUnit[]
   clients                Client[]
   visitPlans             VisitPlan[]
   spinSessions           SpinSession[]
@@ -232,9 +322,76 @@ model Organization {
   assistantConversations AssistantConversation[]
   aiUsageLogs            AiUsageLog[]
   issues                 Issue[]
+  subscriptionOrders     SubscriptionOrder[]
+  paymentAccounts        PaymentAccount[]
+  paymentTransactions    PaymentTransaction[]
+  impersonationSessions  ImpersonationSession[]
+  auditLogs              AuditLog[]
 
   @@index([status])
+  @@index([paymentProvider])
   @@map("organizations")
+}
+
+model PlanConfig {
+  id                     String           @id @default(cuid())
+  plan                   OrganizationPlan @unique
+  displayName            String           @map("display_name")
+  maxMembers             Int              @map("max_members")
+  maxCollaborators       Int              @default(0) @map("max_collaborators")
+  maxUnits               Int              @default(1) @map("max_units")
+  monthlyAiQuota         Int              @map("monthly_ai_quota")
+  shareBrandingEnabled   Boolean          @default(false) @map("share_branding_enabled")
+  clientPortalEnabled    Boolean          @default(false) @map("client_portal_enabled")
+  impersonationAllowed   Boolean          @default(true) @map("impersonation_allowed")
+  isActive               Boolean          @default(true) @map("is_active")
+  metadata               Json?
+  createdAt              DateTime         @default(now()) @map("created_at")
+  updatedAt              DateTime         @updatedAt @map("updated_at")
+
+  @@index([isActive])
+  @@map("plan_configs")
+}
+
+model OrganizationUnit {
+  id              String               @id @default(cuid())
+  organizationId  String               @map("organization_id")
+  parentId        String?              @map("parent_id")
+  type            OrganizationUnitType
+  name            String
+  slug            String?
+  logoUrl         String?              @map("logo_url")
+  brandColor      String?              @map("brand_color")
+  settings        Json?
+  isActive        Boolean              @default(true) @map("is_active")
+  isDemo          Boolean              @default(false) @map("is_demo")
+  demoSeedKey     String?              @unique @map("demo_seed_key")
+  demoScenario    String?              @map("demo_scenario")
+  demoSeedVersion Int?                 @map("demo_seed_version")
+  createdAt       DateTime             @default(now()) @map("created_at")
+  updatedAt       DateTime             @updatedAt @map("updated_at")
+
+  organization    Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  parent          OrganizationUnit?     @relation("OrganizationUnitTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children        OrganizationUnit[]    @relation("OrganizationUnitTree")
+  primaryMembers  OrganizationMember[]  @relation("PrimaryOrganizationUnit")
+  managers        OrganizationMember[]  @relation("ManagerUnitScopes")
+  clients         Client[]
+  visitPlans      VisitPlan[]
+  spinSessions    SpinSession[]
+  theaterSessions TheaterSession[]
+  reports         Report[]
+  reportShares    ReportShare[]
+  shareEvents     ShareEvent[]
+  interactionEvents InteractionEvent[]
+  assistantConversations AssistantConversation[]
+  aiUsageLogs     AiUsageLog[]
+
+  @@unique([organizationId, slug])
+  @@index([organizationId, type])
+  @@index([parentId])
+  @@index([isActive])
+  @@map("organization_units")
 }
 
 model User {
@@ -244,6 +401,10 @@ model User {
   name                   String
   avatarUrl              String?    @map("avatar_url")
   status                 UserStatus @default(ACTIVE)
+  isDemo                 Boolean    @default(false) @map("is_demo")
+  demoSeedKey            String?    @unique @map("demo_seed_key")
+  demoScenario           String?    @map("demo_scenario")
+  demoSeedVersion        Int?       @map("demo_seed_version")
   lastLoginAt            DateTime?  @map("last_login_at")
   createdAt              DateTime   @default(now()) @map("created_at")
   updatedAt              DateTime   @updatedAt @map("updated_at")
@@ -259,6 +420,11 @@ model User {
   aiUsageLogs            AiUsageLog[]
   issuesReported         Issue[]    @relation("IssueReporter")
   issuesAssigned         Issue[]    @relation("IssueAssignee")
+  platformUsers          PlatformUser[]
+  impersonationActors    ImpersonationSession[] @relation("ImpersonationActor")
+  impersonationTargets   ImpersonationSession[] @relation("ImpersonationTarget")
+  auditActorLogs         AuditLog[] @relation("AuditActor")
+  auditTargetLogs        AuditLog[] @relation("AuditTarget")
 
   @@index([supabaseAuthId])
   @@index([status])
@@ -269,6 +435,7 @@ model OrganizationMember {
   id             String           @id @default(cuid())
   organizationId String           @map("organization_id")
   userId         String           @map("user_id")
+  primaryUnitId  String?          @map("primary_unit_id")
   role           MemberRole       @default(AGENT)
   status         MembershipStatus @default(ACTIVE)
   region         String?
@@ -281,16 +448,20 @@ model OrganizationMember {
 
   organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  primaryUnit    OrganizationUnit? @relation("PrimaryOrganizationUnit", fields: [primaryUnitId], references: [id], onDelete: SetNull)
+  managedUnitScopes OrganizationUnit[] @relation("ManagerUnitScopes")
 
   @@unique([organizationId, userId])
   @@index([userId])
   @@index([organizationId, role])
+  @@index([organizationId, primaryUnitId])
   @@map("organization_members")
 }
 
 model Client {
   id                  String            @id @default(cuid())
   organizationId      String            @map("organization_id")
+  unitId              String?           @map("unit_id")
   ownerId             String?           @map("owner_id")
   name                String
   email               String?
@@ -306,11 +477,15 @@ model Client {
   notes               String?           @db.Text
   source              String?
   isDemo              Boolean           @default(false) @map("is_demo")
+  demoSeedKey         String?           @unique @map("demo_seed_key")
+  demoScenario        String?           @map("demo_scenario")
+  demoSeedVersion     Int?              @map("demo_seed_version")
   lastInteractionAt   DateTime?         @map("last_interaction_at")
   createdAt           DateTime          @default(now()) @map("created_at")
   updatedAt           DateTime          @updatedAt @map("updated_at")
 
   organization        Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  unit                OrganizationUnit? @relation(fields: [unitId], references: [id], onDelete: SetNull)
   owner               User?             @relation("ClientOwner", fields: [ownerId], references: [id], onDelete: SetNull)
   familyMembers       FamilyMember[]
   policies            Policy[]
@@ -324,6 +499,7 @@ model Client {
   assistantConversations AssistantConversation[]
 
   @@index([organizationId, status])
+  @@index([organizationId, unitId])
   @@index([organizationId, ownerId])
   @@index([organizationId, lastInteractionAt])
   @@index([ownerId])
@@ -395,6 +571,7 @@ model ComplianceChecklist {
 model VisitPlan {
   id                 String          @id @default(cuid())
   organizationId     String          @map("organization_id")
+  unitId             String?         @map("unit_id")
   clientId           String          @map("client_id")
   ownerId            String?         @map("owner_id")
   purpose            VisitPurpose
@@ -408,16 +585,21 @@ model VisitPlan {
   postVisitAnalysis  String?         @db.Text @map("post_visit_analysis")
   feedback           Json?
   isDemo             Boolean         @default(false) @map("is_demo")
+  demoSeedKey        String?         @unique @map("demo_seed_key")
+  demoScenario       String?         @map("demo_scenario")
+  demoSeedVersion    Int?            @map("demo_seed_version")
   createdAt          DateTime        @default(now()) @map("created_at")
   updatedAt          DateTime        @updatedAt @map("updated_at")
 
   organization       Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  unit               OrganizationUnit? @relation(fields: [unitId], references: [id], onDelete: SetNull)
   client             Client          @relation(fields: [clientId], references: [id], onDelete: Cascade)
   owner              User?           @relation("VisitPlanOwner", fields: [ownerId], references: [id], onDelete: SetNull)
   spinSessions       SpinSession[]
   reports            Report[]
 
   @@index([organizationId, status])
+  @@index([organizationId, unitId])
   @@index([clientId, scheduledAt])
   @@index([ownerId])
   @@map("visit_plans")
@@ -426,6 +608,7 @@ model VisitPlan {
 model SpinSession {
   id             String        @id @default(cuid())
   organizationId String        @map("organization_id")
+  unitId         String?       @map("unit_id")
   clientId       String?       @map("client_id")
   ownerId        String?       @map("owner_id")
   visitPlanId    String?       @map("visit_plan_id")
@@ -437,10 +620,14 @@ model SpinSession {
   summary        Json?
   metadata       Json?
   isDemo         Boolean       @default(false) @map("is_demo")
+  demoSeedKey    String?       @unique @map("demo_seed_key")
+  demoScenario   String?       @map("demo_scenario")
+  demoSeedVersion Int?         @map("demo_seed_version")
   createdAt      DateTime      @default(now()) @map("created_at")
   updatedAt      DateTime      @updatedAt @map("updated_at")
 
   organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  unit           OrganizationUnit? @relation(fields: [unitId], references: [id], onDelete: SetNull)
   client         Client?       @relation(fields: [clientId], references: [id], onDelete: SetNull)
   owner          User?         @relation("SpinSessionOwner", fields: [ownerId], references: [id], onDelete: SetNull)
   visitPlan      VisitPlan?    @relation(fields: [visitPlanId], references: [id], onDelete: SetNull)
@@ -449,6 +636,7 @@ model SpinSession {
   reports        Report[]
 
   @@index([organizationId, status])
+  @@index([organizationId, unitId])
   @@index([clientId, createdAt])
   @@index([ownerId])
   @@map("spin_sessions")
@@ -473,6 +661,7 @@ model SpinMessage {
 model TheaterSession {
   id              String              @id @default(cuid())
   organizationId  String              @map("organization_id")
+  unitId          String?             @map("unit_id")
   clientId        String?             @map("client_id")
   ownerId         String?             @map("owner_id")
   spinSessionId   String?             @map("spin_session_id")
@@ -483,10 +672,14 @@ model TheaterSession {
   score           Json?
   metadata        Json?
   isDemo          Boolean             @default(false) @map("is_demo")
+  demoSeedKey     String?             @unique @map("demo_seed_key")
+  demoScenario    String?             @map("demo_scenario")
+  demoSeedVersion Int?                @map("demo_seed_version")
   createdAt       DateTime            @default(now()) @map("created_at")
   updatedAt       DateTime            @updatedAt @map("updated_at")
 
   organization    Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  unit            OrganizationUnit?   @relation(fields: [unitId], references: [id], onDelete: SetNull)
   client          Client?             @relation(fields: [clientId], references: [id], onDelete: SetNull)
   owner           User?               @relation("TheaterSessionOwner", fields: [ownerId], references: [id], onDelete: SetNull)
   spinSession     SpinSession?        @relation(fields: [spinSessionId], references: [id], onDelete: SetNull)
@@ -494,6 +687,7 @@ model TheaterSession {
   reports         Report[]
 
   @@index([organizationId, status])
+  @@index([organizationId, unitId])
   @@index([clientId, createdAt])
   @@index([ownerId])
   @@map("theater_sessions")
@@ -517,6 +711,7 @@ model TheaterTurn {
 model Report {
   id               String       @id @default(cuid())
   organizationId   String       @map("organization_id")
+  unitId           String?      @map("unit_id")
   clientId         String       @map("client_id")
   ownerId          String?      @map("owner_id")
   spinSessionId    String?      @map("spin_session_id")
@@ -529,10 +724,14 @@ model Report {
   version          Int          @default(1)
   isEdited         Boolean      @default(false) @map("is_edited")
   isDemo           Boolean      @default(false) @map("is_demo")
+  demoSeedKey      String?      @unique @map("demo_seed_key")
+  demoScenario     String?      @map("demo_scenario")
+  demoSeedVersion  Int?         @map("demo_seed_version")
   createdAt        DateTime     @default(now()) @map("created_at")
   updatedAt        DateTime     @updatedAt @map("updated_at")
 
   organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  unit             OrganizationUnit? @relation(fields: [unitId], references: [id], onDelete: SetNull)
   client           Client       @relation(fields: [clientId], references: [id], onDelete: Cascade)
   owner            User?        @relation("ReportOwner", fields: [ownerId], references: [id], onDelete: SetNull)
   spinSession      SpinSession? @relation(fields: [spinSessionId], references: [id], onDelete: SetNull)
@@ -541,6 +740,7 @@ model Report {
   shares           ReportShare[]
 
   @@index([organizationId, status])
+  @@index([organizationId, unitId])
   @@index([clientId, createdAt])
   @@index([ownerId])
   @@map("reports")
@@ -549,20 +749,27 @@ model Report {
 model ReportShare {
   id              String       @id @default(cuid())
   organizationId  String       @map("organization_id")
+  unitId          String?      @map("unit_id")
   reportId        String       @map("report_id")
   token           String       @unique @default(cuid())
   expiresAt       DateTime?    @map("expires_at")
   accessCount     Int          @default(0) @map("access_count")
   lastAccessedAt  DateTime?    @map("last_accessed_at")
   ctaConfig       Json?        @map("cta_config")
+  isDemo          Boolean      @default(false) @map("is_demo")
+  demoSeedKey     String?      @unique @map("demo_seed_key")
+  demoScenario    String?      @map("demo_scenario")
+  demoSeedVersion Int?         @map("demo_seed_version")
   createdAt       DateTime     @default(now()) @map("created_at")
   updatedAt       DateTime     @updatedAt @map("updated_at")
 
   organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  unit            OrganizationUnit? @relation(fields: [unitId], references: [id], onDelete: SetNull)
   report          Report       @relation(fields: [reportId], references: [id], onDelete: Cascade)
   events          ShareEvent[]
 
   @@index([organizationId, createdAt])
+  @@index([organizationId, unitId])
   @@index([reportId])
   @@index([token])
   @@map("report_shares")
@@ -571,6 +778,7 @@ model ReportShare {
 model ShareEvent {
   id             String         @id @default(cuid())
   organizationId String         @map("organization_id")
+  unitId         String?        @map("unit_id")
   shareId        String         @map("share_id")
   type           ShareEventType
   payload        Json?
@@ -579,9 +787,11 @@ model ShareEvent {
   createdAt      DateTime       @default(now()) @map("created_at")
 
   organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  unit           OrganizationUnit? @relation(fields: [unitId], references: [id], onDelete: SetNull)
   share          ReportShare    @relation(fields: [shareId], references: [id], onDelete: Cascade)
 
   @@index([organizationId, createdAt])
+  @@index([organizationId, unitId])
   @@index([shareId, createdAt])
   @@map("share_events")
 }
@@ -589,6 +799,7 @@ model ShareEvent {
 model InteractionEvent {
   id             String               @id @default(cuid())
   organizationId String               @map("organization_id")
+  unitId         String?              @map("unit_id")
   clientId       String?              @map("client_id")
   actorId        String?              @map("actor_id")
   type           InteractionEventType
@@ -599,10 +810,12 @@ model InteractionEvent {
   createdAt      DateTime             @default(now()) @map("created_at")
 
   organization   Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  unit           OrganizationUnit?    @relation(fields: [unitId], references: [id], onDelete: SetNull)
   client         Client?              @relation(fields: [clientId], references: [id], onDelete: SetNull)
   actor          User?                @relation("EventActor", fields: [actorId], references: [id], onDelete: SetNull)
 
   @@index([organizationId, occurredAt])
+  @@index([organizationId, unitId])
   @@index([clientId, occurredAt])
   @@index([actorId, occurredAt])
   @@map("interaction_events")
@@ -611,6 +824,7 @@ model InteractionEvent {
 model AssistantConversation {
   id             String             @id @default(cuid())
   organizationId String             @map("organization_id")
+  unitId         String?            @map("unit_id")
   ownerId        String?            @map("owner_id")
   clientId       String?            @map("client_id")
   title          String
@@ -620,11 +834,13 @@ model AssistantConversation {
   updatedAt      DateTime           @updatedAt @map("updated_at")
 
   organization   Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  unit           OrganizationUnit?  @relation(fields: [unitId], references: [id], onDelete: SetNull)
   owner          User?              @relation("AssistantConversationOwner", fields: [ownerId], references: [id], onDelete: SetNull)
   client         Client?            @relation(fields: [clientId], references: [id], onDelete: SetNull)
   messages       AssistantMessage[]
 
   @@index([organizationId, updatedAt])
+  @@index([organizationId, unitId])
   @@index([ownerId, updatedAt])
   @@map("assistant_conversations")
 }
@@ -646,6 +862,7 @@ model AssistantMessage {
 model AiUsageLog {
   id             String     @id @default(cuid())
   organizationId String     @map("organization_id")
+  unitId         String?    @map("unit_id")
   userId         String?    @map("user_id")
   clientId       String?    @map("client_id")
   provider       AiProvider
@@ -661,10 +878,12 @@ model AiUsageLog {
   createdAt      DateTime   @default(now()) @map("created_at")
 
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  unit           OrganizationUnit? @relation(fields: [unitId], references: [id], onDelete: SetNull)
   user           User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
   client         Client?    @relation(fields: [clientId], references: [id], onDelete: SetNull)
 
   @@index([organizationId, createdAt])
+  @@index([organizationId, unitId])
   @@index([userId, createdAt])
   @@index([module, createdAt])
   @@map("ai_usage_logs")
@@ -693,4 +912,165 @@ model Issue {
   @@index([reporterId])
   @@index([assigneeId])
   @@map("issues")
+}
+
+model SystemSettings {
+  id             String   @id @default("default")
+  trialDays      Int      @default(14) @map("trial_days")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  @@map("system_settings")
+}
+
+model SubscriptionOrder {
+  id                String                  @id @default(cuid())
+  organizationId    String                  @map("organization_id")
+  plan              OrganizationPlan?
+  amount            Decimal                 @db.Decimal(15, 2)
+  currency          String                  @default("TWD")
+  status            SubscriptionOrderStatus @default(PENDING)
+  paymentProvider   PaymentProvider?        @map("payment_provider")
+  providerOrderId   String?                 @map("provider_order_id")
+  providerTradeNo   String?                 @map("provider_trade_no")
+  checkoutUrl       String?                 @map("checkout_url")
+  notificationAt    DateTime?               @map("notification_at")
+  confirmedAt       DateTime?               @map("confirmed_at")
+  paidAt            DateTime?               @map("paid_at")
+  failedAt          DateTime?               @map("failed_at")
+  rawProviderStatus String?                 @map("raw_provider_status")
+  provider          String?                 // Legacy provider string, kept for migration compatibility.
+  providerId        String?                 @map("provider_id")
+  metadata          Json?
+  createdAt         DateTime                @default(now()) @map("created_at")
+  updatedAt         DateTime                @updatedAt @map("updated_at")
+
+  organization      Organization            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  transactions      PaymentTransaction[]
+
+  @@index([organizationId])
+  @@index([status])
+  @@index([paymentProvider])
+  @@index([providerOrderId])
+  @@map("subscription_orders")
+}
+
+model PaymentAccount {
+  id                     String          @id @default(cuid())
+  organizationId         String          @map("organization_id")
+  provider               PaymentProvider
+  providerCustomerId     String?         @map("provider_customer_id")
+  providerSubscriptionId String?         @map("provider_subscription_id")
+  isActive               Boolean         @default(true) @map("is_active")
+  metadata               Json?
+  createdAt              DateTime        @default(now()) @map("created_at")
+  updatedAt              DateTime        @updatedAt @map("updated_at")
+
+  organization           Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, provider])
+  @@index([provider])
+  @@map("payment_accounts")
+}
+
+model PaymentTransaction {
+  id                String                   @id @default(cuid())
+  organizationId    String                   @map("organization_id")
+  orderId           String?                  @map("order_id")
+  provider          PaymentProvider
+  kind              PaymentTransactionKind   @default(CHECKOUT)
+  status            PaymentTransactionStatus @default(CREATED)
+  merchantTradeNo   String?                  @map("merchant_trade_no")
+  providerTradeNo   String?                  @map("provider_trade_no")
+  amount            Decimal                  @db.Decimal(15, 2)
+  currency          String                   @default("TWD")
+  rawPayload        Json?                    @map("raw_payload")
+  verifiedAt        DateTime?                @map("verified_at")
+  createdAt         DateTime                 @default(now()) @map("created_at")
+  updatedAt         DateTime                 @updatedAt @map("updated_at")
+
+  organization      Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  order             SubscriptionOrder?       @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, createdAt])
+  @@index([orderId])
+  @@index([provider, merchantTradeNo])
+  @@index([status])
+  @@map("payment_transactions")
+}
+
+model PlatformUser {
+  id             String       @id @default(cuid())
+  userId         String       @map("user_id")
+  role           PlatformRole
+  isActive       Boolean      @default(true) @map("is_active")
+  requireMfa     Boolean      @default(true) @map("require_mfa")
+  lastAccessAt   DateTime?    @map("last_access_at")
+  metadata       Json?
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, role])
+  @@index([role, isActive])
+  @@map("platform_users")
+}
+
+model ImpersonationSession {
+  id             String              @id @default(cuid())
+  actorUserId    String              @map("actor_user_id")
+  targetUserId   String?             @map("target_user_id")
+  targetOrgId    String              @map("target_org_id")
+  reason         String              @db.Text
+  scope          String[]
+  status         ImpersonationStatus @default(ACTIVE)
+  startsAt       DateTime            @default(now()) @map("starts_at")
+  expiresAt      DateTime            @map("expires_at")
+  endedAt        DateTime?           @map("ended_at")
+  endedReason    String?             @map("ended_reason")
+  ipHash         String?             @map("ip_hash")
+  userAgentHash  String?             @map("user_agent_hash")
+  metadata       Json?
+  createdAt      DateTime            @default(now()) @map("created_at")
+  updatedAt      DateTime            @updatedAt @map("updated_at")
+
+  actor          User                @relation("ImpersonationActor", fields: [actorUserId], references: [id], onDelete: Restrict)
+  targetUser     User?               @relation("ImpersonationTarget", fields: [targetUserId], references: [id], onDelete: SetNull)
+  targetOrg      Organization        @relation(fields: [targetOrgId], references: [id], onDelete: Cascade)
+  auditLogs      AuditLog[]
+
+  @@index([actorUserId, status])
+  @@index([targetOrgId, status])
+  @@index([targetUserId])
+  @@index([expiresAt])
+  @@map("impersonation_sessions")
+}
+
+model AuditLog {
+  id                       String                 @id @default(cuid())
+  organizationId           String?                @map("organization_id")
+  actorUserId              String?                @map("actor_user_id")
+  targetUserId             String?                @map("target_user_id")
+  impersonationSessionId   String?                @map("impersonation_session_id")
+  action                   AuditAction
+  sensitivity              AuditSensitivity       @default(MEDIUM)
+  resourceType             String                 @map("resource_type")
+  resourceId               String?                @map("resource_id")
+  reason                   String?                @db.Text
+  metadata                 Json?
+  ipHash                   String?                @map("ip_hash")
+  userAgentHash            String?                @map("user_agent_hash")
+  createdAt                DateTime               @default(now()) @map("created_at")
+
+  organization             Organization?          @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  actor                    User?                  @relation("AuditActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+  target                   User?                  @relation("AuditTarget", fields: [targetUserId], references: [id], onDelete: SetNull)
+  impersonationSession     ImpersonationSession?  @relation(fields: [impersonationSessionId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, createdAt])
+  @@index([actorUserId, createdAt])
+  @@index([targetUserId, createdAt])
+  @@index([impersonationSessionId])
+  @@index([action, createdAt])
+  @@map("audit_logs")
 }

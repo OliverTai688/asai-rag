@@ -1,26 +1,20 @@
 "use client";
 
 import { useMemo } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-  Users2,
-  ChevronRight,
-  Crown,
-  TrendingUp,
-  AlertCircle,
-  Zap,
-  Target,
-  PieChart,
   Activity,
+  AlertCircle,
   ArrowUpRight,
+  Building2,
+  ClipboardCheck,
+  ShieldCheck,
+  Target,
+  UserPlus,
+  Users2,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { useVisitStore } from "@/domains/visit/store";
-import { useClientStore } from "@/domains/client/store";
-import { teamService } from "@/domains/team/service";
-import { motion } from "motion/react";
 
 const MOCK_TEAM_MEMBERS = [
   {
@@ -32,13 +26,12 @@ const MOCK_TEAM_MEMBERS = [
     color: "bg-[#1A3A6B]",
     status: "online",
     tags: ["SPIN 高手", "連戰連捷"],
-    stats: { 
-      clients: 28, 
-      closedThisMonth: 4, 
-      revenue: 284000, 
+    stats: {
+      closedThisMonth: 4,
+      revenue: 284000,
       spinSessions: 12,
       visitPlans: { total: 15, completed: 8, draft: 7 },
-      aiInsightHits: 42
+      aiInsightHits: 42,
     },
   },
   {
@@ -50,13 +43,12 @@ const MOCK_TEAM_MEMBERS = [
     color: "bg-orange-500",
     status: "online",
     tags: ["Top Performer", "儲蓄險王"],
-    stats: { 
-      clients: 42, 
-      closedThisMonth: 7, 
-      revenue: 512000, 
+    stats: {
+      closedThisMonth: 7,
+      revenue: 512000,
       spinSessions: 21,
       visitPlans: { total: 24, completed: 18, draft: 6 },
-      aiInsightHits: 68
+      aiInsightHits: 68,
     },
   },
   {
@@ -68,13 +60,12 @@ const MOCK_TEAM_MEMBERS = [
     color: "bg-emerald-500",
     status: "away",
     tags: ["管理職"],
-    stats: { 
-      clients: 15, 
-      closedThisMonth: 2, 
-      revenue: 198000, 
+    stats: {
+      closedThisMonth: 2,
+      revenue: 198000,
       spinSessions: 8,
       visitPlans: { total: 10, completed: 5, draft: 5 },
-      aiInsightHits: 24
+      aiInsightHits: 24,
     },
   },
   {
@@ -86,287 +77,530 @@ const MOCK_TEAM_MEMBERS = [
     color: "bg-pink-500",
     status: "online",
     tags: ["新人之星"],
-    stats: { 
-      clients: 19, 
-      closedThisMonth: 3, 
-      revenue: 167000, 
+    stats: {
+      closedThisMonth: 3,
+      revenue: 167000,
       spinSessions: 9,
       visitPlans: { total: 12, completed: 4, draft: 8 },
-      aiInsightHits: 31
+      aiInsightHits: 31,
     },
   },
 ];
 
+const unitOptions = [
+  { id: "all", label: "全通訊處", members: 4, risk: "2 人需介入" },
+  { id: "taipei-1", label: "台北一區", members: 1, risk: "節奏穩定" },
+  { id: "taipei-2", label: "台北二區", members: 1, risk: "可萃取範例" },
+  { id: "new-taipei", label: "新北區", members: 1, risk: "草稿偏多" },
+];
+
+const seatSnapshot = {
+  used: 4,
+  limit: 8,
+  pendingInvites: 2,
+  collaboratorLimit: 2,
+};
+
+const aiUsageSnapshot = {
+  used: 642,
+  quota: 1000,
+  coachingPrompts: 38,
+  theaterSessions: 12,
+};
+
+const trainingActions = [
+  {
+    title: "訪前規劃校準",
+    owner: "陳雅婷",
+    timing: "今日 16:00",
+    detail: "草稿量偏高，先協助收斂拜訪準備包。",
+  },
+  {
+    title: "SPIN 節奏演練",
+    owner: "張大壯",
+    timing: "明日早會",
+    detail: "對話量偏低，安排一次情境劇場暖身。",
+  },
+  {
+    title: "最佳做法萃取",
+    owner: "李美玲",
+    timing: "本週五",
+    detail: "將高完成率工作流整理成團隊範本。",
+  },
+];
+
+const getCompletionRate = (completed: number, total: number) => {
+  if (total === 0) return 0;
+  return Math.round((completed / total) * 100);
+};
+
+const getCoachingSignal = (member: (typeof MOCK_TEAM_MEMBERS)[number]) => {
+  const completionRate = getCompletionRate(
+    member.stats.visitPlans.completed,
+    member.stats.visitPlans.total
+  );
+  const draftCount = member.stats.visitPlans.draft;
+  const spinSessions = member.stats.spinSessions;
+  const riskScore =
+    (100 - completionRate) * 0.45 +
+    draftCount * 4 +
+    (spinSessions < 10 ? 14 : 0);
+
+  if (completionRate < 45) {
+    return {
+      completionRate,
+      riskScore: Math.round(riskScore),
+      reason: "訪前規劃完成率偏低",
+      nextAction: "安排 20 分鐘規劃檢查",
+      status: "優先輔導",
+    };
+  }
+
+  if (draftCount >= 7) {
+    return {
+      completionRate,
+      riskScore: Math.round(riskScore),
+      reason: "草稿堆積，需要收斂拜訪準備",
+      nextAction: "一起清理待完成準備包",
+      status: "需要跟進",
+    };
+  }
+
+  if (spinSessions < 10) {
+    return {
+      completionRate,
+      riskScore: Math.round(riskScore),
+      reason: "SPIN 對話量低於團隊節奏",
+      nextAction: "安排一次劇場演練",
+      status: "節奏偏低",
+    };
+  }
+
+  return {
+    completionRate,
+    riskScore: Math.round(riskScore),
+    reason: "表現穩定，可萃取最佳做法",
+    nextAction: "整理成團隊範例",
+    status: "穩定",
+  };
+};
+
 export default function TeamPage() {
-  const { plans } = useVisitStore();
-  const { clients } = useClientStore();
+  const coachingQueue = useMemo(
+    () =>
+      MOCK_TEAM_MEMBERS.map((member) => ({
+        member,
+        signal: getCoachingSignal(member),
+      })).sort((a, b) => b.signal.riskScore - a.signal.riskScore),
+    []
+  );
 
-  const aggregatedStats = useMemo(() => 
-    teamService.aggregateStats(plans, clients), 
-  [plans, clients]);
+  const priority = coachingQueue[0];
+  const teamTotals = useMemo(() => {
+    const totalPlans = MOCK_TEAM_MEMBERS.reduce(
+      (sum, member) => sum + member.stats.visitPlans.total,
+      0
+    );
+    const completedPlans = MOCK_TEAM_MEMBERS.reduce(
+      (sum, member) => sum + member.stats.visitPlans.completed,
+      0
+    );
+    const draftPlans = MOCK_TEAM_MEMBERS.reduce(
+      (sum, member) => sum + member.stats.visitPlans.draft,
+      0
+    );
+    const insights = MOCK_TEAM_MEMBERS.reduce(
+      (sum, member) => sum + member.stats.aiInsightHits,
+      0
+    );
 
-  const sortedMembers = useMemo(() => 
-    [...MOCK_TEAM_MEMBERS].sort((a, b) => b.stats.revenue - a.stats.revenue),
-  []);
+    return {
+      planCoverage: getCompletionRate(completedPlans, totalPlans),
+      draftPlans,
+      insights,
+      membersNeedingCoaching: coachingQueue.filter(
+        (item) => item.signal.status !== "穩定"
+      ).length,
+    };
+  }, [coachingQueue]);
+
+  const metrics = [
+    {
+      label: "需輔導成員",
+      value: teamTotals.membersNeedingCoaching,
+      unit: "人",
+      icon: Users2,
+    },
+    {
+      label: "席次使用",
+      value: seatSnapshot.used,
+      unit: `/${seatSnapshot.limit}`,
+      icon: UserPlus,
+    },
+    {
+      label: "規劃完成率",
+      value: teamTotals.planCoverage,
+      unit: "%",
+      icon: ClipboardCheck,
+    },
+    {
+      label: "草稿待收斂",
+      value: teamTotals.draftPlans,
+      unit: "份",
+      icon: AlertCircle,
+    },
+    {
+      label: "AI 用量",
+      value: aiUsageSnapshot.used,
+      unit: "次",
+      icon: Activity,
+    },
+  ];
 
   return (
-    <div className="space-y-8 pb-10">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <motion.h1 
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="text-3xl font-bold tracking-tight"
-          >
-            團隊指揮中心
-          </motion.h1>
-          <p className="text-zinc-500 font-medium">聚合團隊訪前規劃與客戶洞察，掌握每一份成交機會。</p>
+    <div className="space-y-6 pb-10">
+      <header className="flex flex-col gap-4 border-b border-hairline pb-6 lg:flex-row lg:items-end lg:justify-between">
+        <div className="max-w-2xl space-y-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant="outline" className="w-fit rounded-full border-hairline text-[11px]">
+              Org admin
+            </Badge>
+            <Badge variant="secondary" className="w-fit rounded-full text-[11px]">
+              Aggregate only
+            </Badge>
+          </div>
+          <div className="space-y-1">
+            <h1 className="text-3xl font-semibold tracking-tight text-ink">通訊處輔導台</h1>
+            <p className="text-sm leading-6 text-muted-foreground">
+              主管只看彙總、訓練與健康訊號，不進入 member 的客戶明細。
+            </p>
+          </div>
         </div>
-        <div className="flex items-center gap-3">
-          <Button variant="outline" className="rounded-2xl border-zinc-200">
-            導出月報表
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" className="h-10 w-fit border-hairline gap-2">
+            <UserPlus className="size-4" />
+            邀請成員
           </Button>
-          <Button className="rounded-2xl bg-[#1A3A6B] hover:bg-[#1565C0] shadow-lg shadow-[#1565C0]/20">
-            <Users2 className="w-4 h-4 mr-2" /> 邀請成員
+          <Button variant="outline" className="h-10 w-fit border-hairline">
+            匯出月報
           </Button>
         </div>
-      </div>
+      </header>
 
-      {/* KPI Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {[
-          { label: "進行中規劃", value: aggregatedStats.totalActivePlans, icon: Activity, color: "text-blue-600", bg: "bg-blue-50" },
-          { label: "已完成拜訪", value: aggregatedStats.totalCompletedVisits, icon: Target, color: "text-emerald-600", bg: "bg-emerald-50" },
-          { label: "AI 風險預警", value: aggregatedStats.totalRiskPoints, icon: AlertCircle, color: "text-orange-600", bg: "bg-orange-50" },
-          { label: "潛在成交機會", value: aggregatedStats.totalOpportunities, icon: Zap, color: "text-amber-600", bg: "bg-amber-50" },
-        ].map((kpi, i) => (
-          <motion.div
-            key={kpi.label}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.1 }}
+      <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        {unitOptions.map((unit) => (
+          <button
+            key={unit.id}
+            type="button"
+            className="rounded-lg border border-hairline bg-card p-4 text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            aria-pressed={unit.id === "all"}
           >
-            <Card className="rounded-[2rem] border-none shadow-sm hover:shadow-md transition-all overflow-hidden bg-white group">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-110", kpi.bg)}>
-                    <kpi.icon className={cn("w-6 h-6", kpi.color)} />
+            <div className="flex items-center justify-between gap-3">
+              <Building2 className="size-4 text-muted-foreground" />
+              <span className="font-mono text-xs tabular-nums text-muted-foreground">
+                {unit.members} 人
+              </span>
+            </div>
+            <div className="mt-3 space-y-1">
+              <p className="text-sm font-medium text-ink">{unit.label}</p>
+              <p className="text-xs text-muted-foreground">{unit.risk}</p>
+            </div>
+          </button>
+        ))}
+      </section>
+
+      <section className="grid gap-4 lg:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.55fr)]">
+        <Card className="border-hairline bg-card">
+          <CardContent className="grid min-w-0 gap-6 p-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+            <div className="min-w-0 space-y-5">
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant="secondary" className="rounded-full">
+                  今日優先
+                </Badge>
+                <span className="text-xs text-muted-foreground">
+                  依規劃完成率、草稿量與 SPIN 節奏排序
+                </span>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-[auto_minmax(0,1fr)] sm:items-center">
+                <div className="flex size-14 items-center justify-center rounded-full border border-hairline bg-paper text-lg font-semibold text-ink">
+                  {priority.member.avatar}
+                </div>
+                <div className="min-w-0 space-y-2">
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                    <h2 className="text-2xl font-semibold tracking-tight text-ink">
+                      {priority.member.name}
+                    </h2>
+                    <Badge variant="outline" className="rounded-full border-hairline text-[11px]">
+                      {priority.signal.status}
+                    </Badge>
                   </div>
-                  <Badge variant="secondary" className="bg-zinc-50 text-zinc-400 border-none text-[10px] font-bold">
-                    THIS MONTH
-                  </Badge>
+                  <div className="space-y-1 text-sm leading-6 text-muted-foreground">
+                    <p className="break-words">{priority.signal.reason}</p>
+                    <p className="break-words">下一步：{priority.signal.nextAction}</p>
+                  </div>
+                </div>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-3">
+                <div className="border-l border-hairline pl-3">
+                  <p className="text-xs text-muted-foreground">規劃完成率</p>
+                  <p className="font-mono text-2xl font-semibold tabular-nums text-ink">
+                    {priority.signal.completionRate}%
+                  </p>
+                </div>
+                <div className="border-l border-hairline pl-3">
+                  <p className="text-xs text-muted-foreground">未收斂草稿</p>
+                  <p className="font-mono text-2xl font-semibold tabular-nums text-ink">
+                    {priority.member.stats.visitPlans.draft}
+                  </p>
+                </div>
+                <div className="border-l border-hairline pl-3">
+                  <p className="text-xs text-muted-foreground">輔導訊號</p>
+                  <p className="font-mono text-2xl font-semibold tabular-nums text-ink">
+                    {priority.signal.riskScore}
+                  </p>
+                </div>
+              </div>
+            </div>
+            <Button variant="mono" className="h-11 w-fit min-w-0 max-w-full gap-2">
+              <Target className="size-4" />
+              安排輔導
+            </Button>
+          </CardContent>
+        </Card>
+
+        <div className="grid grid-cols-2 gap-3">
+          {metrics.map((metric) => (
+            <Card key={metric.label} className="border-hairline bg-card">
+              <CardContent className="space-y-3 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <metric.icon className="size-4 text-muted-foreground" />
+                  <span className="text-[11px] text-muted-foreground">30d</span>
                 </div>
                 <div>
-                  <p className="text-sm font-bold text-zinc-400 uppercase tracking-wider">{kpi.label}</p>
-                  <div className="flex items-end gap-2">
-                    <p className="text-3xl font-black">{kpi.value}</p>
-                    <span className="text-xs font-bold text-emerald-500 mb-1.5 flex items-center">
-                      <ArrowUpRight className="w-3 h-3" /> +12%
+                  <p className="text-xs text-muted-foreground">{metric.label}</p>
+                  <p className="font-mono text-2xl font-semibold tabular-nums text-ink">
+                    {metric.value}
+                    <span className="ml-1 font-sans text-xs font-medium tabular-nums text-muted-foreground">
+                      {metric.unit}
                     </span>
-                  </div>
+                  </p>
                 </div>
               </CardContent>
             </Card>
-          </motion.div>
-        ))}
-      </div>
+          ))}
+        </div>
+      </section>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left Column: Team Insights & Heatmap */}
-        <div className="lg:col-span-2 space-y-8">
-          {/* Team Client Needs Heatmap */}
-          <Card className="rounded-[2.5rem] border-none shadow-md overflow-hidden bg-white">
-            <CardHeader className="p-8 pb-4">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-xl font-bold flex items-center gap-2">
-                  <PieChart className="w-5 h-5 text-[#1A3A6B]" /> 團隊客群需求熱點
-                </CardTitle>
-                <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Aggregated from AI Insights</p>
+      <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+        <Card className="border-hairline bg-card">
+          <CardContent className="p-0">
+            <div className="flex flex-col gap-2 border-b border-hairline p-5 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 className="text-base font-semibold text-ink">輔導佇列</h2>
+                <p className="text-sm text-muted-foreground">
+                  以需要介入的下一步排序，排行榜降為參考。
+                </p>
               </div>
-            </CardHeader>
-            <CardContent className="p-8 pt-0">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {aggregatedStats.clientHeatmap.map((item, i) => (
-                  <div 
-                    key={item.tag}
-                    className="flex items-center gap-4 p-4 rounded-3xl bg-zinc-50 border border-zinc-100 hover:border-[#1A3A6B]/20 transition-all group"
-                  >
-                    <div className="w-10 h-10 rounded-2xl bg-white shadow-sm flex items-center justify-center font-black text-[#1A3A6B]">
-                      {i + 1}
+              <Badge variant="outline" className="w-fit rounded-full border-hairline">
+                {coachingQueue.length} 位成員
+              </Badge>
+            </div>
+
+            <div className="divide-y divide-hairline">
+              {coachingQueue.map(({ member, signal }, index) => (
+                <div
+                  key={member.id}
+                  className="grid gap-4 p-5 lg:grid-cols-[minmax(220px,0.85fr)_minmax(0,1.15fr)_220px] lg:items-center"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="flex size-11 shrink-0 items-center justify-center rounded-full border border-hairline bg-paper text-sm font-semibold text-ink">
+                      {member.avatar}
                     </div>
-                    <div className="flex-1">
-                      <p className="font-bold text-sm">{item.tag}</p>
-                      <div className="w-full bg-zinc-200 h-1.5 rounded-full mt-2 overflow-hidden">
-                        <motion.div 
-                          initial={{ width: 0 }}
-                          animate={{ width: `${(item.count / Math.max(clients.length, 1)) * 100}%` }}
-                          className="bg-[#1A3A6B] h-full rounded-full"
-                        />
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="font-medium text-ink">{member.name}</p>
+                        {index === 0 ? (
+                          <Badge variant="secondary" className="rounded-full text-[11px]">
+                            Priority
+                          </Badge>
+                        ) : null}
                       </div>
+                      <p className="text-xs text-muted-foreground">
+                        {member.role}・{member.region}
+                      </p>
                     </div>
-                    <div className="text-right">
-                      <p className="font-black text-lg text-[#1A3A6B]">{item.count}</p>
-                      <p className="text-[10px] font-bold text-zinc-400 uppercase">Clients</p>
+                  </div>
+
+                  <div className="grid gap-3 sm:grid-cols-4">
+                    <div>
+                      <p className="text-[11px] text-muted-foreground">完成率</p>
+                      <p className="font-mono text-sm font-semibold tabular-nums text-ink">
+                        {signal.completionRate}%
+                      </p>
                     </div>
+                    <div>
+                      <p className="text-[11px] text-muted-foreground">草稿</p>
+                      <p className="font-mono text-sm font-semibold tabular-nums text-ink">
+                        {member.stats.visitPlans.draft}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-[11px] text-muted-foreground">SPIN</p>
+                      <p className="font-mono text-sm font-semibold tabular-nums text-ink">
+                        {member.stats.spinSessions}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-[11px] text-muted-foreground">成交</p>
+                      <p className="font-mono text-sm font-semibold tabular-nums text-ink">
+                        {member.stats.closedThisMonth}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between lg:flex-col lg:items-stretch">
+                    <div>
+                      <p className="text-sm font-medium text-ink">{signal.reason}</p>
+                      <p className="text-xs text-muted-foreground">{signal.nextAction}</p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      className="h-10 justify-between border-hairline px-3"
+                      aria-label={`查看 ${member.name} 的輔導紀錄`}
+                    >
+                      查看紀錄
+                      <ArrowUpRight className="size-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        <aside className="space-y-6">
+          <Card className="border-hairline bg-card">
+            <CardContent className="space-y-5 p-5">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-base font-semibold text-ink">席次與邀請</h2>
+                  <p className="text-sm text-muted-foreground">依方案上限管理，不顯示個別客戶。</p>
+                </div>
+                <ShieldCheck className="size-4 text-muted-foreground" />
+              </div>
+              <div className="space-y-4">
+                {[
+                  {
+                    label: "成員席次",
+                    value: seatSnapshot.used,
+                    max: seatSnapshot.limit,
+                  },
+                  {
+                    label: "待接受邀請",
+                    value: seatSnapshot.pendingInvites,
+                    max: seatSnapshot.limit,
+                  },
+                  {
+                    label: "個人版協作者上限",
+                    value: seatSnapshot.collaboratorLimit,
+                    max: seatSnapshot.collaboratorLimit,
+                  },
+                ].map((item) => (
+                  <div key={item.label} className="space-y-2">
+                    <div className="flex items-center justify-between gap-3 text-sm">
+                      <span className="text-muted-foreground">{item.label}</span>
+                      <span className="font-mono tabular-nums text-ink">
+                        {item.value}/{item.max}
+                      </span>
+                    </div>
+                    <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+                      <div
+                        className="h-full rounded-full bg-ink"
+                        style={{ width: `${Math.min(100, (item.value / item.max) * 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                ))}
+                <Button variant="outline" className="h-10 w-full justify-between border-hairline">
+                  管理邀請與席次
+                  <ArrowUpRight className="size-4" />
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-hairline bg-card">
+            <CardContent className="space-y-5 p-5">
+              <div>
+                <h2 className="text-base font-semibold text-ink">訓練動作</h2>
+                <p className="text-sm text-muted-foreground">下一步以輔導行動排序。</p>
+              </div>
+              <div className="space-y-3">
+                {trainingActions.map((action) => (
+                  <div key={action.title} className="rounded-md border border-hairline p-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-ink">{action.title}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {action.owner}・{action.timing}
+                        </p>
+                      </div>
+                      <Target className="size-4 shrink-0 text-muted-foreground" />
+                    </div>
+                    <p className="mt-2 text-xs leading-5 text-muted-foreground">{action.detail}</p>
                   </div>
                 ))}
               </div>
             </CardContent>
           </Card>
 
-          {/* Member List */}
-          <div className="space-y-4">
-            <h3 className="text-xl font-bold px-2">成員表現追蹤</h3>
-            {MOCK_TEAM_MEMBERS.map((member) => (
-              <Card
-                key={member.id}
-                className="rounded-3xl border-none shadow-sm hover:shadow-md transition-all overflow-hidden group bg-white"
-              >
-                <CardContent className="p-6">
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-6">
-                    {/* Member Info */}
-                    <div className="flex items-center gap-4 min-w-[200px]">
-                      <div className="relative">
-                        <div className={cn("w-14 h-14 rounded-2xl flex items-center justify-center text-white font-black text-xl shadow-lg", member.color)}>
-                          {member.avatar}
-                        </div>
-                        <span className={cn(
-                          "absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white",
-                          member.status === "online" ? "bg-green-400" : "bg-zinc-300"
-                        )} />
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <p className="font-bold text-lg">{member.name}</p>
-                          <Badge variant="outline" className="text-[9px] py-0 h-4 border-zinc-200 font-bold text-zinc-400 uppercase">
-                            {member.role}
-                          </Badge>
-                        </div>
-                        <p className="text-xs text-zinc-400 font-medium">{member.region}</p>
-                      </div>
-                    </div>
-
-                    {/* Stats Grid */}
-                    <div className="flex-1 grid grid-cols-2 sm:grid-cols-4 gap-4 py-2">
-                      <div className="text-center sm:text-left">
-                        <p className="text-xs font-bold text-zinc-400 uppercase tracking-tighter">訪前規劃</p>
-                        <p className="text-lg font-black text-zinc-800">
-                          {member.stats.visitPlans.completed} <span className="text-zinc-300 text-sm font-bold">/ {member.stats.visitPlans.total}</span>
-                        </p>
-                      </div>
-                      <div className="text-center sm:text-left">
-                        <p className="text-xs font-bold text-zinc-400 uppercase tracking-tighter">AI 洞察</p>
-                        <p className="text-lg font-black text-[#1A3A6B]">{member.stats.aiInsightHits}</p>
-                      </div>
-                      <div className="text-center sm:text-left">
-                        <p className="text-xs font-bold text-zinc-400 uppercase tracking-tighter">SPIN 對話</p>
-                        <p className="text-lg font-black text-zinc-800">{member.stats.spinSessions}</p>
-                      </div>
-                      <div className="text-center sm:text-left">
-                        <p className="text-xs font-bold text-zinc-400 uppercase tracking-tighter">本月營收</p>
-                        <p className="text-lg font-black text-emerald-600">${(member.stats.revenue / 1000).toFixed(0)}k</p>
-                      </div>
-                    </div>
-
-                    {/* Action */}
-                    <Button variant="ghost" size="icon" className="rounded-2xl hover:bg-zinc-50 shrink-0">
-                      <ChevronRight className="w-5 h-5 text-zinc-300 group-hover:text-[#1A3A6B] transition-colors" />
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-
-        {/* Right Column: Leaderboard & Performance */}
-        <div className="space-y-8">
-          <Card className="rounded-[2.5rem] border-none shadow-md overflow-hidden bg-white">
-            <div className="p-8 border-b border-zinc-50 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Crown className="w-5 h-5 text-yellow-500" />
-                <h3 className="font-black text-sm uppercase tracking-[0.2em] text-zinc-400">本月戰神榜</h3>
+          <Card className="border-hairline bg-card">
+            <CardContent className="space-y-4 p-5">
+              <div>
+                <h2 className="text-base font-semibold text-ink">AI 使用覆蓋</h2>
+                <p className="text-sm text-muted-foreground">
+                  僅顯示彙總用量，供主管調整訓練節奏。
+                </p>
               </div>
-              <TrendingUp className="w-4 h-4 text-emerald-500" />
-            </div>
-            <CardContent className="p-6 space-y-3">
-              {sortedMembers.map((member, i) => (
-                <motion.div
-                  key={member.id}
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: i * 0.1 }}
-                  className={cn(
-                    "flex items-center gap-4 p-4 rounded-[2rem] transition-all",
-                    i === 0 ? "bg-gradient-to-br from-yellow-50 to-orange-50 border border-yellow-100 shadow-sm" : "hover:bg-zinc-50"
-                  )}
-                >
-                  <div className={cn(
-                    "w-8 h-8 rounded-full flex items-center justify-center font-black text-sm shadow-sm",
-                    i === 0 ? "bg-yellow-400 text-yellow-900" :
-                    i === 1 ? "bg-zinc-200 text-zinc-600" :
-                    i === 2 ? "bg-orange-200 text-orange-800" :
-                    "bg-zinc-100 text-zinc-400"
-                  )}>
-                    {i + 1}
+              {[
+                { label: "訪前規劃覆蓋率", value: teamTotals.planCoverage },
+                {
+                  label: "AI quota 使用率",
+                  value: Math.min(
+                    100,
+                    Math.round((aiUsageSnapshot.used / aiUsageSnapshot.quota) * 100)
+                  ),
+                },
+                {
+                  label: "輔導 prompt 覆蓋",
+                  value: Math.min(100, Math.round(aiUsageSnapshot.coachingPrompts * 2.5)),
+                },
+              ].map((item) => (
+                <div key={item.label} className="space-y-2">
+                  <div className="flex items-center justify-between gap-3 text-sm">
+                    <span className="text-muted-foreground">{item.label}</span>
+                    <span className="font-mono tabular-nums text-ink">{item.value}%</span>
                   </div>
-                  <div className="flex-1">
-                    <p className="font-bold text-sm">{member.name}</p>
-                    <p className="text-[10px] font-bold text-zinc-400 uppercase">
-                      {member.stats.closedThisMonth} 件成交 • {member.stats.spinSessions} SPIN
-                    </p>
+                  <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+                    <div
+                      className="h-full rounded-full bg-ink"
+                      style={{ width: `${item.value}%` }}
+                    />
                   </div>
-                  <div className="text-right">
-                    <p className="font-black text-[#1A3A6B] leading-none">
-                      ${(member.stats.revenue / 1000).toFixed(0)}k
-                    </p>
-                  </div>
-                </motion.div>
+                </div>
               ))}
+              <div className="rounded-md border border-hairline p-3">
+                <div className="flex items-center justify-between gap-3 text-sm">
+                  <span className="text-muted-foreground">劇場演練</span>
+                  <span className="font-mono tabular-nums text-ink">
+                    {aiUsageSnapshot.theaterSessions} 場
+                  </span>
+                </div>
+              </div>
             </CardContent>
-            <div className="p-6 bg-zinc-50 text-center">
-              <Button variant="link" className="text-xs font-bold text-zinc-400 uppercase tracking-widest hover:text-[#1A3A6B]">
-                查看完整排名
-              </Button>
-            </div>
           </Card>
-
-          {/* AI Productivity Card */}
-          <Card className="rounded-[2.5rem] border-none shadow-md bg-[#1A3A6B] text-white overflow-hidden p-8 relative">
-            <div className="relative z-10 space-y-6">
-              <div className="flex items-center gap-2">
-                <Zap className="w-5 h-5 text-yellow-400 fill-current" />
-                <h3 className="font-bold text-lg">AI 增效統計</h3>
-              </div>
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <div className="flex justify-between text-xs font-bold opacity-70 uppercase tracking-wider">
-                    <span>訪前規劃覆蓋率</span>
-                    <span>85%</span>
-                  </div>
-                  <div className="w-full bg-white/10 h-1.5 rounded-full overflow-hidden">
-                    <motion.div initial={{ width: 0 }} animate={{ width: "85%" }} className="bg-yellow-400 h-full rounded-full shadow-[0_0_10px_rgba(250,204,21,0.5)]" />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <div className="flex justify-between text-xs font-bold opacity-70 uppercase tracking-wider">
-                    <span>客戶 AI 洞察率</span>
-                    <span>92%</span>
-                  </div>
-                  <div className="w-full bg-white/10 h-1.5 rounded-full overflow-hidden">
-                    <motion.div initial={{ width: 0 }} animate={{ width: "92%" }} className="bg-emerald-400 h-full rounded-full shadow-[0_0_10px_rgba(52,211,153,0.5)]" />
-                  </div>
-                </div>
-              </div>
-              <p className="text-[10px] font-medium opacity-50 italic">
-                * 基於團隊過去 30 天的活動數據與 AI 生成紀錄
-              </p>
-            </div>
-            <Activity className="absolute -bottom-8 -right-8 w-32 h-32 text-white/5 rotate-12" />
-          </Card>
-        </div>
-      </div>
+        </aside>
+      </section>
     </div>
   );
 }

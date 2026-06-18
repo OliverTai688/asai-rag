@@ -13,7 +13,7 @@ import {
   Search
 } from "lucide-react";
 import Link from "next/link";
-import { useState, useMemo, useEffect, Suspense } from "react";
+import { useState, useMemo, useEffect, useSyncExternalStore } from "react";
 import { Input } from "@/components/ui/input";
 import { FormattedTime } from "@/components/ui/formatted-time";
 import { 
@@ -23,22 +23,22 @@ import {
   DialogTitle, 
   DialogTrigger 
 } from "@/components/ui/dialog";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { QuickstartGuide } from "@/components/demo/quickstart-guide";
 import { getQuickstartSpinFixture } from "@/domains/demo/quickstart";
 
 function SpinListContent() {
   const router = useRouter();
   const { sessions, createSession, updateSession, addMessage } = useSpinStore();
-  const searchParams = useSearchParams();
-  const isQuickstart = searchParams.get("demo") === "quickstart";
+  const searchParams = useCurrentSearchParams();
+  const demoParam = searchParams.get("demo");
+  const autoCreate = searchParams.get("autoCreate");
+  const clientId = searchParams.get("clientId");
+  const isQuickstart = demoParam === "quickstart";
   const [search, setSearch] = useState("");
   const allClients = useMemo(() => clientService.getAllClients(), []);
 
   useEffect(() => { 
-    const autoCreate = searchParams.get("autoCreate");
-    const clientId = searchParams.get("clientId");
-    
     if (autoCreate === "true" && clientId) {
       const client = allClients.find(c => c.id === clientId);
       if (client) {
@@ -67,7 +67,7 @@ function SpinListContent() {
         router.replace(`/spin/${session.id}${isQuickstart ? "?demo=quickstart" : ""}`);
       }
     }
-  }, [searchParams, createSession, router, allClients, isQuickstart, sessions, updateSession, addMessage]);
+  }, [addMessage, allClients, autoCreate, clientId, createSession, isQuickstart, router, sessions, updateSession]);
 
   const filteredClients = useMemo(() => {
     return allClients.filter(c => c.name.includes(search));
@@ -82,8 +82,8 @@ function SpinListContent() {
     <div className="space-y-6 pb-10">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold">SPIN 思考輔助</h1>
-          <p className="text-zinc-500 font-medium">利用 SPIN 架構梳理銷售邏輯，設計更有力的提問方式。</p>
+          <h1 className="text-3xl font-bold">AI 顧問陪談</h1>
+          <p className="text-zinc-500 font-medium">用白話陪你釐清客戶狀況，背後以 SPIN 架構整理需求與下一步。</p>
         </div>
         
         <Dialog>
@@ -172,9 +172,52 @@ function SpinListContent() {
 }
 
 export default function SpinListPage() {
-  return (
-    <Suspense fallback={<div className="p-10 text-center">載入中...</div>}>
-      <SpinListContent />
-    </Suspense>
+  return <SpinListContent />;
+}
+
+function useCurrentSearchParams() {
+  const search = useSyncExternalStore(
+    subscribeToLocationChanges,
+    getLocationSearchSnapshot,
+    () => ""
   );
+
+  return useMemo(() => new URLSearchParams(search), [search]);
+}
+
+function getLocationSearchSnapshot() {
+  return typeof window === "undefined" ? "" : window.location.search;
+}
+
+function subscribeToLocationChanges(onStoreChange: () => void) {
+  const originalPushState = window.history.pushState.bind(window.history) as History["pushState"];
+  const originalReplaceState = window.history.replaceState.bind(window.history) as History["replaceState"];
+  const urlChangeEvent = "asai-spin-url-change";
+  const emitUrlChange = () => setTimeout(() => window.dispatchEvent(new Event(urlChangeEvent)));
+  const patchedPushState: History["pushState"] = (...args) => {
+    const result = originalPushState(...args);
+    emitUrlChange();
+    return result;
+  };
+  const patchedReplaceState: History["replaceState"] = (...args) => {
+    const result = originalReplaceState(...args);
+    emitUrlChange();
+    return result;
+  };
+
+  window.history.pushState = patchedPushState;
+  window.history.replaceState = patchedReplaceState;
+  window.addEventListener("popstate", onStoreChange);
+  window.addEventListener(urlChangeEvent, onStoreChange);
+
+  return () => {
+    window.removeEventListener("popstate", onStoreChange);
+    window.removeEventListener(urlChangeEvent, onStoreChange);
+    if (window.history.pushState === patchedPushState) {
+      window.history.pushState = originalPushState;
+    }
+    if (window.history.replaceState === patchedReplaceState) {
+      window.history.replaceState = originalReplaceState;
+    }
+  };
 }

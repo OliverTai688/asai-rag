@@ -1,6 +1,13 @@
-import { Client } from "./types";
+import { Client, ClientComplianceChecklist, DEFAULT_CLIENT_COMPLIANCE } from "./types";
 
-export const SEED_CLIENTS: Client[] = [
+const COMPLETE_CLIENT_COMPLIANCE: ClientComplianceChecklist = {
+  kycStatus: "COMPLETE",
+  suitabilityStatus: "PARTIAL",
+  consentStatus: "COMPLETE",
+  missingItems: ["補齊保障缺口確認"],
+};
+
+const RAW_SEED_CLIENTS: Array<Omit<Client, "complianceChecklist" | "sensitivityLevel" | "kycStatus">> = [
   {
     id: "c_wang",
     name: "王大明",
@@ -182,3 +189,17 @@ export const SEED_CLIENTS: Client[] = [
     lastInteraction: "2026-04-17T11:45:00Z",
   },
 ];
+
+export const SEED_CLIENTS: Client[] = RAW_SEED_CLIENTS.map((client) => {
+  const complianceChecklist =
+    client.existingPolicies.length > 0
+      ? COMPLETE_CLIENT_COMPLIANCE
+      : DEFAULT_CLIENT_COMPLIANCE;
+
+  return {
+    ...client,
+    complianceChecklist,
+    sensitivityLevel: "NORMAL",
+    kycStatus: complianceChecklist.kycStatus,
+  };
+});

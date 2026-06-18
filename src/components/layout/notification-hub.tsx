@@ -3,20 +3,11 @@
 import { useAssistantStore } from "@/domains/assistant/store";
 import { 
   Bell, 
-  CheckCheck, 
   Circle, 
-  ExternalLink, 
   FileText, 
   UserPlus, 
   History
 } from "lucide-react";
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
-  DialogTitle, 
-  DialogTrigger 
-} from "@/components/ui/dialog";
 import { 
   DropdownMenu, 
   DropdownMenuContent, 
@@ -26,7 +17,6 @@ import {
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { FormattedTime } from "@/components/ui/formatted-time";
 
@@ -45,15 +35,21 @@ export function NotificationHub() {
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger>
-        <div className="relative p-2 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors group">
+      <DropdownMenuTrigger
+        render={
+          <button
+            type="button"
+            aria-label={unreadCount > 0 ? `開啟通知中心，${unreadCount} 則未讀` : "開啟通知中心"}
+            className="relative rounded-xl p-2 transition-colors hover:bg-zinc-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring dark:hover:bg-zinc-800 group"
+          />
+        }
+      >
           <Bell className="w-5 h-5 text-zinc-500 group-hover:text-[#1565C0]" />
           {unreadCount > 0 && (
             <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-red-500 rounded-full text-[9px] font-black text-white flex items-center justify-center ring-2 ring-white">
               {unreadCount}
             </span>
           )}
-        </div>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-[300px] rounded-2xl p-2 border-zinc-200 dark:border-zinc-800 shadow-2xl">
         <DropdownMenuLabel className="flex items-center justify-between px-3 py-2">
@@ -76,6 +72,7 @@ export function NotificationHub() {
                <DropdownMenuItem 
                 key={n.id} 
                 onClick={() => markAsRead(n.id)}
+                aria-label={`讀取通知：${n.title}`}
                 className={cn(
                   "p-3 rounded-xl flex items-start gap-3 focus:bg-zinc-50 dark:focus:bg-zinc-800 mb-1 cursor-pointer",
                   !n.isRead && "bg-[#EBF3FB]/30 dark:bg-[#0A2342]/10"

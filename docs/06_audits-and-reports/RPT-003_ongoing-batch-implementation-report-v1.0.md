@@ -1,0 +1,523 @@
+# 誠問 AI Ongoing Batch Implementation Report v1.0
+
+> 建立日期：2026-06-19  
+> 狀態：進行中  
+> 用途：紀錄每一輪依 `AGENTS.md` 執行 batch task 的實作內容、驗收結果與下一步。
+
+---
+
+## 2026-06-19 Round 001 - LCH-001 Session / Workspace Foundation
+
+### 本輪目標
+
+- 先解除 Launch Readiness 的 session/workspace foundation 工程阻擋。
+- 在 Supabase public env 尚未補齊前，先建立 production-safe server helper 與本機可驗收路徑。
+- 更新 `AGENTS.md` / `PLN-017` / report / issue-question。
+
+### 已完成
+
+- 新增 `src/lib/auth/session.ts`
+  - `getAppSession()`
+  - `getClientSession()`
+  - `getPlatformSession()`
+  - `getAuthHealth()`
+  - Supabase bearer/cookie token 驗證雛形：呼叫 Supabase `/auth/v1/user` 後用 DB `User.supabaseAuthId` 或 email 對應正式使用者。
+  - 本機開發 fallback：只有 `NODE_ENV !== "production"` 且 `ALLOW_DEV_AUTH_HEADER=true` 時接受 `x-asai-demo-user-email`。
+
+- 新增 `src/lib/auth/current-workspace.ts`
+  - `requireCurrentMember()`
+  - `requireOrgAdmin()`
+  - `requirePlatformUser()`
+  - `requireClientPortalUser()`
+  - `AuthRequiredError`
+  - `authErrorResponse()`
+
+- 新增 `src/lib/auth/policies.ts`
+  - `canReadClientDetail()`
+  - `canWriteClient()`
+  - `canReadOrgAggregate()`
+  - `canUseAiModule()`
+  - `canBreakGlass()`
+
+- 新增 `GET /api/workspace/bootstrap`
+  - 回傳 user、organization、membership、plan capability、AI quota、auth health。
+
+- 更新 `.env.example`
+  - 新增 `ALLOW_DEV_AUTH_HEADER="false"`，標記為 local-only escape hatch。
+
+- 更新進度文件
+  - `AGENTS.md` 的 `LCH-001` 部分項目改為完成。
+  - `PLN-017` 的 `LCH-001` 狀態改為 `[~]`。
+
+### 驗收
+
+```bash
+pnpm exec eslint src/lib/auth/session.ts src/lib/auth/policies.ts src/lib/auth/current-workspace.ts src/app/api/workspace/bootstrap/route.ts
+pnpm exec tsc --noEmit --pretty false
+pnpm lint:changed
+pnpm prisma:validate
+pnpm demo:preflight
+pnpm demo:runtime-audit
+```
+
+結果：
+
+- Targeted ESLint：通過。
+- TypeScript：通過。
+- `pnpm lint:changed`：通過。
+- `pnpm prisma:validate`：通過。
+- `pnpm demo:preflight`：通過 DB DNS、connection、必要 tables；仍警告 Supabase public env 是 placeholder。
+- `pnpm demo:runtime-audit`：通過。
+
+API smoke：
+
+```bash
+ALLOW_DEV_AUTH_HEADER=true pnpm dev
+curl -i http://localhost:3000/api/workspace/bootstrap
+curl -i -H 'x-asai-demo-user-email: demo.member@asai.local' http://localhost:3000/api/workspace/bootstrap
+```
+
+結果：
+
+- 無 header：`401 UNAUTHENTICATED`。
+- 本機 demo header：`200 OK`，回 `demo_org_asai_personal`、`demo_user_member`、plan capability、AI quota。
+
+### 尚未完成
+
+- Supabase Auth public env / anon key / callback URL 尚未補齊。
+- 尚未安裝或接入正式 Supabase client helper；目前 server verifier 用 fetch 驗 token。
+- Dashboard/member/org/super-admin route guard 尚未接。
+- Client portal session contract 尚未設計完成。
+- `LCH-001` 整卡尚未完成，仍為進行中。
+
+### 下一輪建議
+
+1. 若 operator 已補 Supabase env，接正式 Supabase Auth client/server helper，移除對 dev header 的依賴。
+2. 若 env 仍未補，先做 `LCH-002` 的 DB-backed `/api/clients`，用 `requireCurrentMember()` + dev header 進行本機驗收。
+3. 決定 route guard 採 middleware/proxy 還是 layout/server redirect；若要新增 middleware/proxy，需先讀 Next 16 `proxy` 文件。
+
+---
+
+## 2026-06-19 Round 002 - LCH-001 Auth.js / NextAuth Provider Turn
+
+### 本輪目標
+
+- 依 operator 新方向，把 auth provider 從 Supabase Auth blocker 轉為 Auth.js / NextAuth foundation。
+- 保留上一輪 workspace/policy helper，不重做 route guard。
+- 更新 `AGENTS.md` / `PLN-017` / issue-question。
+
+### 選擇原因
+
+- `LCH-001` 是最低未完成且阻擋後續 `/api/clients`、AI session scope、demo relogin 的 batch。
+- Operator 明確詢問「改成用 next.js auth」，需先避免後續自動輪次繼續補 Supabase Auth env。
+
+### 已完成
+
+- 安裝 `next-auth@beta`。
+- 新增 `src/auth.ts`
+  - 使用 Auth.js / NextAuth v5 pattern。
+  - 使用 JWT session strategy。
+  - 本機 demo Credentials provider 只在 `NODE_ENV !== "production"` 且 `ALLOW_DEV_AUTH_HEADER=true` 時啟用。
+  - Production 要求 `AUTH_SECRET`，非 production 有 deterministic dev fallback 以利本機驗收。
+- 新增 `src/app/api/auth/[...nextauth]/route.ts`
+  - 匯出 Auth.js handlers。
+- 新增 `src/types/next-auth.d.ts`
+  - 擴充 `Session.user.id`。
+- 更新 `src/lib/auth/session.ts`
+  - `getAppSession()` 改為優先讀 Auth.js `auth()`，再從 DB 對應 user/membership。
+  - auth health 改為 `provider: "AUTH_JS"`。
+  - 保留 legacy Supabase token verifier 作相容 helper，但不再是主路徑。
+- 更新 `.env.example`
+  - 新增 `AUTH_SECRET` / `AUTH_TRUST_HOST`。
+
+### DB / Prisma 操作
+
+- 是否修改 schema：否。
+- 是否執行 generate：否。
+- 是否執行 db push：否。
+- DB target 判斷：`.env` 指向 Supabase Postgres；本輪未執行 DB mutation。
+- 結果：無 DB 寫入；只讀 Auth.js demo provider 驗證會查 DB user。
+
+### 驗收
+
+```bash
+pnpm exec tsc --noEmit --pretty false
+pnpm exec eslint src/auth.ts src/types/next-auth.d.ts 'src/app/api/auth/[...nextauth]/route.ts' src/lib/auth/session.ts src/app/api/workspace/bootstrap/route.ts
+pnpm lint:changed
+pnpm prisma:validate
+pnpm build
+pnpm demo:preflight
+pnpm demo:runtime-audit
+```
+
+API proof：
+
+```bash
+ALLOW_DEV_AUTH_HEADER=true pnpm dev
+curl -i http://localhost:3000/api/auth/session
+curl -i http://localhost:3000/api/auth/providers
+curl -i http://localhost:3000/api/workspace/bootstrap
+curl -i -H 'x-asai-demo-user-email: demo.member@asai.local' http://localhost:3000/api/workspace/bootstrap
+```
+
+結果：
+
+- `/api/auth/session`：`200 OK`，未登入回 `null`。
+- `/api/auth/providers`：`200 OK`，本機 demo credentials provider 可見。
+- `/api/workspace/bootstrap` 無 session：`401 UNAUTHENTICATED`。
+- `/api/workspace/bootstrap` + dev header：`200 OK`，回 demo member workspace。
+- `pnpm build`：通過，Auth.js route 進入 production build route list。
+- `pnpm demo:preflight`：通過 DB DNS/connection/tables；仍警告 Supabase public env placeholder，但這已不再阻擋 Auth.js 主登入方向。
+- `pnpm demo:runtime-audit`：通過。
+
+### 尚未完成
+
+- Production `AUTH_SECRET` 尚未由 operator 提供。
+- 正式 provider/email/SSO 尚未決策與接入。
+- Route guards 尚未接。
+- Client portal session contract 尚未設計。
+
+### 下一輪建議
+
+1. 若要繼續 `LCH-001`，先做 dashboard/org/super-admin route guard，建議採 page/layout guard + API policy 為主。
+2. 若 route guard 暫不碰，可開始 `LCH-002`：建立 DB-backed `/api/clients`，用 `requireCurrentMember()` 驗證 server-side organization/user 推導。
+
+---
+
+## 2026-06-19 Round 003 - LCH-002 DB-backed Client CRUD Foundation
+
+### 本輪戰役目標
+
+- 推進 Launch Readiness 的第一條「資料能正常新增」垂直切片。
+- 建立 member-scoped client BFF，讓 `/crm` 不再以 browser storage / seed fixture 作主要 runtime source。
+- 在不確認遠端 DB target 的情況下，完成安全的 read/API/browser proof，避免未知 production mutation。
+
+### 選擇原因
+
+- `LCH-002` 是 `LCH-001` 之後最低未完成且最接近上線阻擋的 batch。
+- 上線至少需要 demo member 清空 browser storage 後能看到 DB seeded clients，且後續要能新增客戶。
+- 現有 CRM list 仍以 Zustand demo seed 作初始資料，無法證明 DB-backed runtime。
+
+### 已完成
+
+- 新增 `src/lib/clients/client-dto.ts`
+  - 將 Prisma `Client` + `ComplianceChecklist` + `FamilyMember` + `Policy` 映射成既有 UI `Client` DTO。
+  - 保留 hard rule 合規欄位：`complianceChecklist`、`sensitivityLevel`、`kycStatus`。
+- 新增 `src/lib/clients/client-repository.ts`
+  - `listClientsForMember(session)`：只回 current member 在 current org 中 own clients。
+  - `createClientForMember(session, input)`：由 server session 推導 `organizationId`、`ownerId`、`unitId`，並建立 `ComplianceChecklist`。
+  - `getClientForMember()` / `updateClientForMember()`：套 `canReadClientDetail()` / `canWriteClient()`。
+- 新增 `GET/POST /api/clients`。
+- 新增 `GET/PATCH /api/clients/[id]`。
+- 更新 `src/domains/client/store.ts`
+  - 新增 `setClients()` 作 API cache hydration。
+- 更新 `src/domains/client/service.ts`
+  - 新增 `fetchClients()`、`fetchClientById()`、`createClientRemote()`。
+- 更新 `/crm`
+  - Client list mount 後呼叫 `/api/clients`。
+  - 新增 loading、error、retry state。
+  - 列表統計與篩選讀 BFF hydrated cache。
+- 更新 `AddClientDialog`
+  - Submit 改走 `POST /api/clients`。
+  - 修掉 `any` status setter 與 number input coercion。
+
+### DB / Prisma 操作
+
+- 是否修改 schema：否。
+- 是否執行 generate：是，透過 `pnpm build` 觸發 `prisma generate`。
+- 是否執行 db push：否。
+- DB target 判斷：`.env` 指向遠端 Supabase Postgres；本輪可連線且 demo seeded data 可讀，但無法由 repo/env 自動確認一定不是 production。
+- 結果：
+  - 未執行 DB mutation、db push、seed/reset。
+  - 已透過 read-only API proof 驗證 DB seeded client 可被 demo member 讀到。
+  - `POST/PATCH` code path 已 build/type/lint 通過，但未對遠端 DB 實際寫入。
+
+### 驗收
+
+```bash
+pnpm exec tsc --noEmit --pretty false
+pnpm exec eslint src/lib/clients/client-dto.ts src/lib/clients/client-repository.ts 'src/app/api/clients/route.ts' 'src/app/api/clients/[id]/route.ts' 'src/app/(dashboard)/crm/page.tsx' src/components/crm/add-client-dialog.tsx src/domains/client/service.ts src/domains/client/store.ts
+pnpm lint:changed
+pnpm prisma:validate
+pnpm demo:runtime-audit
+pnpm build
+pnpm demo:preflight
+```
+
+結果：
+
+- TypeScript：通過。
+- Targeted ESLint：通過。
+- `pnpm lint:changed`：通過。
+- `pnpm prisma:validate`：通過。
+- `pnpm demo:runtime-audit`：通過。
+- `pnpm build`：通過，route list 包含 `/api/clients` 與 `/api/clients/[id]`。
+- `pnpm demo:preflight`：通過 DB DNS/connection/tables；仍警告 Supabase public env placeholder。
+
+API proof：
+
+```bash
+ALLOW_DEV_AUTH_HEADER=true pnpm dev
+curl -i http://localhost:3000/api/clients
+curl -i -H 'x-asai-demo-user-email: demo.member@asai.local' http://localhost:3000/api/clients
+curl -i -H 'x-asai-demo-user-email: demo.member@asai.local' http://localhost:3000/api/clients/c_wang
+curl -i -H 'x-asai-demo-user-email: demo.member@asai.local' -H 'content-type: application/json' -d '{"email":"not-an-email"}' http://localhost:3000/api/clients
+```
+
+結果：
+
+- 無 session `GET /api/clients`：`401 UNAUTHENTICATED`。
+- Demo member `GET /api/clients`：`200 OK`，回 DB seeded client `c_wang` / `王大明`。
+- Demo member `GET /api/clients/c_wang`：`200 OK`，回 client detail、family、policies、compliance checklist。
+- Demo member invalid `POST /api/clients`：`400 INVALID_CLIENT_INPUT`，未寫入 DB。
+
+Browser proof：
+
+- 新 browser context（無既有 localStorage）+ `x-asai-demo-user-email: demo.member@asai.local` 開 `/crm`。
+- 等到畫面顯示 `王大明`。
+- Console error：0。
+- Horizontal overflow：false。
+- 截圖：`docs/06_audits-and-reports/screenshots/launch-readiness/lch-002-crm-db-backed-desktop.png`。
+
+### 失敗與風險
+
+- 未做實際 POST/PATCH DB write proof，原因是 DB target 為遠端 Supabase 且無法從 repo/env 自動判斷一定不是 production。
+- CRM detail overview API 已可讀，但 detail layout 與 subpages 尚未全部改成 API/cache-first；仍有舊 `clientService.getClientById()` / store path。
+- 尚未建立 family/policy write path。
+
+### 剩餘上線 blocker
+
+- 需要 operator 明確確認目前 Supabase DB target 是 development/staging，才能執行新增 client、刷新仍存在的寫入 proof。
+- `LCH-002` 還需要完成 CRM detail/subpages API-backed migration、family/policy write path。
+- `LCH-001` route guards 仍未完成。
+
+### 下一輪建議
+
+1. 若 operator 確認 DB target 是 development/staging：直接補 `POST /api/clients` 實際寫入 proof、refresh proof，必要時加 idempotent cleanup/backfill 策略。
+2. 若 DB target 仍不明：繼續 LCH-002 內安全可推進項，將 CRM detail layout/subpages 改為 `fetchClientById()` API-backed，並補 family/policy endpoints 的 source-level proof。
+3. 接續完成 LCH-001 route guards，減少未登入直接看到 dashboard skeleton 的 UX/security 缺口。
+
+---
+
+## 2026-06-19 Round 004 - LCH-002 CRM Detail API Hydration
+
+### 本輪戰役目標
+
+- 在 DB target 未確認、不能安全寫入遠端 DB 的情況下，繼續推進 `LCH-002` 內安全可驗收項目。
+- 讓 CRM detail layout、overview 與 subpages 可直接從 `/api/clients/[id]` hydrate，不依賴使用者先從 `/crm` list 進入或 browser storage 裡已有 client cache。
+- 補上 browser proof，證明清空 browser context 後 detail pages 仍可讀 DB seeded client。
+
+### 選擇原因
+
+- 上輪已完成 list API/cache-first，但 detail 子頁仍有多處 `clientService.getClientById()` / store direct path，空 browser storage 直接開 `/crm/c_wang` 可能顯示找不到或空畫面。
+- `新增後刷新仍存在` 仍受 DB target 不明阻擋；同一 workstream 內最安全可推進項是 detail/subpage API-backed migration。
+
+### 已完成
+
+- 更新 `src/domains/client/store.ts`
+  - 新增 `setClient()` upsert，讓單筆 detail API 可寫入 cache。
+- 更新 `src/domains/client/service.ts`
+  - `fetchClientById()` 改用 `setClient()`，單筆 client 不存在時也能 hydrate。
+- 新增 `src/components/crm/use-client-record.ts`
+  - 以 `clientService.fetchClientById(clientId)` hydrates detail cache。
+  - 回傳 `client`、`isLoading`、`error` 給 layout/subpages。
+- 更新 CRM detail layout
+  - `src/app/(dashboard)/crm/[clientId]/layout.tsx` 改用 `useClientRecord()`。
+  - 新增 loading state 與 permission/not-found error copy。
+- 更新 CRM detail pages/subpages
+  - `page.tsx`、`policies/page.tsx`、`relationships/page.tsx`、`gap-analysis/page.tsx`、`reports/page.tsx` 改用 `useClientRecord()`。
+  - `timeline/page.tsx` 不依賴 client detail，本輪以 browser proof 覆蓋。
+
+### DB / Prisma 操作
+
+- 是否修改 schema：否。
+- 是否執行 generate：是，透過 `pnpm build` 觸發 `prisma generate`。
+- 是否執行 db push：否。
+- DB target 判斷：`.env` 指向遠端 Supabase Postgres；本輪只做 read-only API/browser proof。
+- 結果：無 DB mutation；直接讀 `GET /api/clients/c_wang` 取得 DB seeded client。
+
+### 驗收
+
+```bash
+pnpm exec tsc --noEmit --pretty false
+pnpm exec eslint src/components/crm/use-client-record.ts src/domains/client/service.ts src/domains/client/store.ts 'src/app/(dashboard)/crm/[clientId]/layout.tsx' 'src/app/(dashboard)/crm/[clientId]/page.tsx' 'src/app/(dashboard)/crm/[clientId]/policies/page.tsx' 'src/app/(dashboard)/crm/[clientId]/relationships/page.tsx' 'src/app/(dashboard)/crm/[clientId]/gap-analysis/page.tsx' 'src/app/(dashboard)/crm/[clientId]/reports/page.tsx'
+pnpm lint:changed
+pnpm demo:runtime-audit
+pnpm prisma:validate
+pnpm build
+```
+
+結果：
+
+- TypeScript：通過。
+- Targeted ESLint：通過。
+- `pnpm lint:changed`：通過。
+- `pnpm demo:runtime-audit`：通過。
+- `pnpm prisma:validate`：通過。
+- `pnpm build`：通過。
+
+API proof：
+
+```bash
+ALLOW_DEV_AUTH_HEADER=true pnpm dev
+curl -i -H 'x-asai-demo-user-email: demo.member@asai.local' http://localhost:3000/api/clients/c_wang
+```
+
+結果：
+
+- `GET /api/clients/c_wang`：`200 OK`，回 client、family、policies、compliance checklist。
+
+Browser proof：
+
+- 新 browser context，設定 `x-asai-demo-user-email: demo.member@asai.local`。
+- 直接開以下路徑，不先進 `/crm`：
+  - `/crm/c_wang`
+  - `/crm/c_wang/relationships`
+  - `/crm/c_wang/policies`
+  - `/crm/c_wang/gap-analysis`
+  - `/crm/c_wang/reports`
+  - `/crm/c_wang/timeline`
+- 結果：
+  - Console error：0。
+  - Horizontal overflow：false。
+- 截圖：
+  - `docs/06_audits-and-reports/screenshots/launch-readiness/lch-002-crm-detail-db-overview.png`
+  - `docs/06_audits-and-reports/screenshots/launch-readiness/lch-002-crm-detail-db-relationships.png`
+  - `docs/06_audits-and-reports/screenshots/launch-readiness/lch-002-crm-detail-db-policies.png`
+  - `docs/06_audits-and-reports/screenshots/launch-readiness/lch-002-crm-detail-db-gap-analysis.png`
+  - `docs/06_audits-and-reports/screenshots/launch-readiness/lch-002-crm-detail-db-reports.png`
+  - `docs/06_audits-and-reports/screenshots/launch-readiness/lch-002-crm-detail-db-timeline.png`
+
+### 失敗與風險
+
+- 未做實際 DB write proof，原因同 Round 003：DB target 是遠端 Supabase 且仍未確認非 production。
+- relationships 的新增/刪除仍是 local store mutation；尚未完成 family/policy write path。
+- reports subpage 仍使用 report store 產生/顯示報告，尚未 DB-backed report CRUD。
+
+### 剩餘上線 blocker
+
+- `LCH-002` 仍缺：
+  - family/policy minimal write endpoint。
+  - 實際新增 client 後刷新仍存在 proof。
+- `LCH-005` demo relogin full QA 仍缺 visit plans、reports、sessions、AI output 等跨模組 DB proof。
+- 需 operator 確認 Supabase DB target 才能進行寫入驗收。
+
+### 下一輪建議
+
+1. 若 DB target 已確認 development/staging：補 client create write proof，新增後刷新仍存在，並記錄 cleanup/idempotent 策略。
+2. 若 DB target 仍不明：繼續 LCH-002 的 safe path，新增 `POST /api/clients/[id]/family-members` 或 `POST /api/clients/[id]/policies` 的 source/build proof，但不做遠端寫入。
+3. 也可切回 LCH-001 route guard，補 dashboard/member/org/super-admin coarse protection。
+
+---
+
+## 2026-06-19 Round 005 - LCH-002 Family / Policy Minimal Write BFF
+
+### 本輪戰役目標
+
+- 在 DB target 未確認前，不對遠端 Supabase 做實際寫入。
+- 補齊 `LCH-002` 的最小 family/policy write path：server route、repository policy check、client service method、relationships dialog API wiring。
+- 以 source/build/API validation/browser proof 證明路徑可被接續驗收。
+
+### 選擇原因
+
+- `LCH-002` 剩兩個主缺口：family/policy minimal write path 與實際新增後刷新 proof。
+- 實際寫入 proof 當輪仍受 IQ-007 阻擋；family/policy endpoint 可安全完成並以 401/400 proof 驗證 auth/schema guard。此阻擋已於 2026-06-19 Operator Approval Update 解除為「允許 LCH demo/test 非破壞性寫入 proof」。
+
+### 已完成
+
+- 更新 `src/lib/clients/client-repository.ts`
+  - 新增 `createFamilyMemberInputSchema`、`createPolicyInputSchema`。
+  - 新增 `createFamilyMemberForClient()`。
+  - 新增 `createPolicyForClient()`。
+  - 新增共用 `getWritableClientScope()`，寫入前確認 current org、非 archived client、`canWriteClient()`。
+- 新增 `POST /api/clients/[id]/family-members`。
+- 新增 `POST /api/clients/[id]/policies`。
+- 更新 `src/domains/client/service.ts`
+  - 新增 `createFamilyMemberRemote()`。
+  - 新增 `createPolicyRemote()`。
+  - 成功時以完整 client DTO `setClient()` 更新 cache。
+- 更新 `src/components/crm/AddRelationshipDialog.tsx`
+  - Child mode 改走 family member BFF。
+  - 新增 submitting state。
+  - 移除既有 `any` setter。
+  - 修復 React 19 `react-hooks/set-state-in-effect`：改用 derived selected parent value，不在 effect 內同步 setState。
+
+### DB / Prisma 操作
+
+- 是否修改 schema：否。
+- 是否執行 generate：是，透過 `pnpm build` 觸發 `prisma generate`。
+- 是否執行 db push：否。
+- DB target 判斷：`.env` 指向遠端 Supabase Postgres；本輪不做 DB mutation。
+- 結果：
+  - 無 schema change、無 db push、無遠端寫入。
+  - 新 endpoints 已進 build route list。
+
+### 驗收
+
+```bash
+pnpm exec tsc --noEmit --pretty false
+pnpm exec eslint src/lib/clients/client-repository.ts 'src/app/api/clients/[id]/family-members/route.ts' 'src/app/api/clients/[id]/policies/route.ts' src/domains/client/service.ts src/components/crm/AddRelationshipDialog.tsx
+pnpm lint:changed
+pnpm demo:runtime-audit
+pnpm prisma:validate
+pnpm build
+```
+
+結果：
+
+- TypeScript：通過。
+- Targeted ESLint：通過。
+- `pnpm lint:changed`：通過。
+- `pnpm demo:runtime-audit`：通過。
+- `pnpm prisma:validate`：通過。
+- `pnpm build`：通過，route list 包含：
+  - `/api/clients/[id]/family-members`
+  - `/api/clients/[id]/policies`
+
+API proof（invalid payload / unauth only，不寫入 DB）：
+
+```bash
+ALLOW_DEV_AUTH_HEADER=true pnpm dev
+curl -i -H 'content-type: application/json' -d '{"name":"測試","relation":"配偶"}' http://localhost:3000/api/clients/c_wang/family-members
+curl -i -H 'x-asai-demo-user-email: demo.member@asai.local' -H 'content-type: application/json' -d '{"relation":"配偶"}' http://localhost:3000/api/clients/c_wang/family-members
+curl -i -H 'content-type: application/json' -d '{"type":"壽險","provider":"測試","amount":100}' http://localhost:3000/api/clients/c_wang/policies
+curl -i -H 'x-asai-demo-user-email: demo.member@asai.local' -H 'content-type: application/json' -d '{"provider":"測試"}' http://localhost:3000/api/clients/c_wang/policies
+```
+
+結果：
+
+- 未登入 family POST：`401 UNAUTHENTICATED`。
+- demo member invalid family POST：`400 INVALID_FAMILY_MEMBER_INPUT`。
+- 未登入 policy POST：`401 UNAUTHENTICATED`。
+- demo member invalid policy POST：`400 INVALID_POLICY_INPUT`。
+
+Browser proof：
+
+- 新 browser context + demo member header 開 `/crm/c_wang/relationships`。
+- 點擊「新增關係人」開啟 dialog。
+- Console error：0。
+- Horizontal overflow：false。
+- 截圖：`docs/06_audits-and-reports/screenshots/launch-readiness/lch-002-family-dialog-api-wired.png`。
+
+### 失敗與風險
+
+- 沒有做 valid POST 寫入 proof，原因仍是 DB target 未確認。
+- Parent mode 的 re-parent flow 仍是 local graph helper；正式 DB re-parent/update family member endpoint 待後續 CRUD 卡。
+- Policy endpoint 已完成 source/build/guard proof，但尚未新增 policy create dialog。
+
+### 剩餘上線 blocker
+
+- `LCH-002` 只剩「新增 client 後刷新仍存在」實際 DB write proof。
+- `LCH-005` 仍需完整 demo relogin QA：clients、visit plans、reports、sessions、AI output。
+- 仍需 operator 確認 Supabase target 是 development/staging，或提供 local DB target。
+
+### 下一輪建議
+
+1. 若 DB target 已確認 development/staging：執行 valid `POST /api/clients` 寫入 proof，刷新重讀確認存在。
+2. 若 DB target 仍不明：切回 `LCH-001` route guards，這是下一個可安全推進且影響上線的缺口。
+
+### 2026-06-19 Operator Approval Update
+
+- Operator 已明確批准目前 `.env` 指向的 Supabase target 可執行 LCH demo/test 非破壞性寫入 proof。
+- 後續輪次可補 `POST /api/clients` valid write、refresh/relogin proof、family/policy valid write proof。
+- 仍禁止 drop/reset、清表、刪除遠端資料、真實金流/email/notification、停用 public-read、刪除 bucket object、儲存 raw secret/token/private payload。

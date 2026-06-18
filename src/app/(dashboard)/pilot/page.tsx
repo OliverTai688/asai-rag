@@ -1,18 +1,13 @@
 import Link from "next/link";
 import {
-  Activity,
-  AlertTriangle,
+  AlertCircle,
   ArrowRight,
-  BarChart3,
   CheckCircle2,
   CircleDashed,
+  ClipboardList,
   Compass,
-  ExternalLink,
-  FileText,
   Flag,
-  MessageSquare,
   ShieldCheck,
-  Sparkles,
   Target,
   Users,
   Users2,
@@ -20,307 +15,221 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { QuickstartGuide } from "@/components/demo/quickstart-guide";
+import { Card, CardContent } from "@/components/ui/card";
 import {
-  benchmarkSites,
-  developmentGaps,
-  experienceSteps,
-  experienceSummary,
-  readinessSignals,
-} from "@/domains/experience/mocks";
+  demoDevelopmentGaps,
+  demoExperienceSteps,
+  demoExperienceSummary,
+  demoReadinessSignals,
+} from "@/domains/demo/seed-fixtures";
 import type { DevelopmentGap, ExperienceStatus } from "@/domains/experience/types";
 import { cn } from "@/lib/utils";
 
-const statusStyle: Record<ExperienceStatus, {
-  label: string;
-  badge: "success" | "warning" | "destructive";
-  icon: typeof CheckCircle2;
-  text: string;
-}> = {
-  ready: {
-    label: "Ready",
-    badge: "success",
-    icon: CheckCircle2,
-    text: "text-[#1B5E20]",
-  },
-  partial: {
-    label: "Partial",
-    badge: "warning",
-    icon: CircleDashed,
-    text: "text-[#E65100]",
-  },
-  missing: {
-    label: "Missing",
-    badge: "destructive",
-    icon: AlertTriangle,
-    text: "text-[#B71C1C]",
-  },
+const statusMeta: Record<
+  ExperienceStatus,
+  {
+    label: string;
+    badge: "success" | "warning" | "destructive";
+    icon: typeof CheckCircle2;
+  }
+> = {
+  ready: { label: "Ready", badge: "success", icon: CheckCircle2 },
+  partial: { label: "Partial", badge: "warning", icon: CircleDashed },
+  missing: { label: "Missing", badge: "destructive", icon: AlertCircle },
 };
 
-const stepIcons = [Users, Target, MessageSquare, Activity, FileText, Users2];
-
-const priorityStyle: Record<DevelopmentGap["priority"], string> = {
-  P0: "bg-[#FFEBEE] text-[#B71C1C] border-[#FFCDD2]",
-  P1: "bg-[#FFF3E0] text-[#E65100] border-[#FFCC80]",
-  P2: "bg-[#EBF3FB] text-[#1565C0] border-[#90CAF9]",
+const priorityMeta: Record<DevelopmentGap["priority"], string> = {
+  P0: "border-ink bg-ink text-paper",
+  P1: "border-hairline bg-muted text-ink",
+  P2: "border-hairline bg-card text-muted-foreground",
 };
+
+const stepIcons = [Users, Target, ClipboardList, Compass, Flag, Users2];
 
 export default function PilotPage() {
+  const nextGap = demoDevelopmentGaps[0];
+
   return (
     <div className="space-y-6 pb-10">
-      <section className="rounded-xl border border-[#CFD8DC] bg-white p-6 shadow-sm dark:border-[rgba(144,202,249,0.15)] dark:bg-[#0F2744]">
-        <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-          <div className="max-w-3xl">
-            <div className="mb-3 flex flex-wrap items-center gap-2">
-              <Badge variant="blue" className="h-auto rounded-full px-3 py-1 text-[11px] font-semibold">
-                <Compass className="h-3.5 w-3.5" />
-                體驗版中樞
-              </Badge>
-              <Badge variant="gold" className="h-auto rounded-full px-3 py-1 text-[11px] font-semibold">
-                {experienceSummary.version}
-              </Badge>
-            </div>
-            <h1 className="text-3xl font-bold tracking-tight text-[#0A2342] dark:text-white">
-              把保險拜訪做成可準備、可演練、可追蹤的閉環
-            </h1>
-            <p className="mt-3 text-sm leading-6 text-[#546E7A] dark:text-[#90CAF9]">
-              {experienceSummary.promise}
+      <header className="grid gap-5 border-b border-hairline pb-6 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-end">
+        <div className="max-w-3xl space-y-3">
+          <Badge variant="outline" className="w-fit rounded-full border-hairline text-[11px]">
+            {demoExperienceSummary.version}
+          </Badge>
+          <div className="space-y-2">
+            <h1 className="text-3xl font-semibold tracking-tight text-ink">體驗版入口</h1>
+            <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
+              直接跑完一條保險顧問工作流：客戶洞察、訪前準備、SPIN、演練、報告與主管追蹤。
             </p>
           </div>
-
-          <div className="grid min-w-[260px] grid-cols-[96px_1fr] items-center gap-4 rounded-lg border border-[#EBF3FB] bg-[#F7FAFF] p-4 dark:border-[rgba(144,202,249,0.12)] dark:bg-[#1A3A6B]/20">
-            <div className="flex h-24 w-24 items-center justify-center rounded-lg bg-white shadow-sm dark:bg-[#0A1929]">
-              <div className="text-center">
-                <div className="text-3xl font-black text-[#1565C0]">{experienceSummary.readiness}%</div>
-                <div className="text-[10px] font-bold uppercase tracking-wide text-[#546E7A]">Ready</div>
-              </div>
-            </div>
-            <div className="space-y-3">
-              <div className="h-2 overflow-hidden rounded-full bg-[#D6E8F8]">
-                <div
-                  className="h-full rounded-full bg-[#1565C0]"
-                  style={{ width: `${experienceSummary.readiness}%` }}
-                />
-              </div>
-              <Link
-                href={experienceSummary.primaryRoute}
-                className={buttonVariants({ className: "w-full justify-between" })}
-              >
-                開始主路徑
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-            </div>
-          </div>
         </div>
-      </section>
 
-      <QuickstartGuide currentStepId="overview" />
-
-      <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {readinessSignals.map((signal) => {
-          const StatusIcon = statusStyle[signal.status].icon;
-          return (
-            <Card key={signal.label} className="rounded-lg">
-              <CardContent className="p-5">
-                <div className="mb-4 flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-[11px] font-bold uppercase tracking-wide text-[#546E7A]">
-                      {signal.label}
-                    </p>
-                    <p className="mt-1 text-2xl font-black text-[#0A2342] dark:text-white">
-                      {signal.value}
-                    </p>
-                  </div>
-                  <StatusIcon className={cn("h-5 w-5", statusStyle[signal.status].text)} />
-                </div>
-                <p className="text-xs leading-5 text-[#546E7A] dark:text-[#90CAF9]">
-                  {signal.detail}
+        <Card className="min-w-0 border-hairline bg-card">
+          <CardContent className="min-w-0 space-y-4 p-4">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="text-xs text-muted-foreground">Demo readiness</p>
+                <p className="font-mono text-3xl font-semibold tabular-nums text-ink">
+                  {demoExperienceSummary.readiness}%
                 </p>
+              </div>
+              <div className="flex size-10 items-center justify-center rounded-full border border-hairline bg-paper">
+                <Compass className="size-4 text-muted-foreground" />
+              </div>
+            </div>
+            <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+              <div
+                className="h-full rounded-full bg-ink"
+                style={{ width: `${demoExperienceSummary.readiness}%` }}
+              />
+            </div>
+            <Link
+              href={demoExperienceSummary.primaryRoute}
+              className={buttonVariants({
+                variant: "mono",
+                className: "h-10 max-w-full justify-center gap-2 sm:w-full sm:justify-between",
+              })}
+            >
+              開始主路徑
+              <ArrowRight className="size-4" />
+            </Link>
+          </CardContent>
+        </Card>
+      </header>
+
+      <section className="grid gap-3 md:grid-cols-4">
+        {demoReadinessSignals.map((signal) => {
+          const StatusIcon = statusMeta[signal.status].icon;
+
+          return (
+            <Card key={signal.label} className="border-hairline bg-card">
+              <CardContent className="space-y-3 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-xs text-muted-foreground">{signal.label}</p>
+                  <StatusIcon className="size-4 text-muted-foreground" />
+                </div>
+                <p className="font-mono text-2xl font-semibold tabular-nums text-ink">
+                  {signal.value}
+                </p>
+                <p className="text-xs leading-5 text-muted-foreground">{signal.detail}</p>
               </CardContent>
             </Card>
           );
         })}
       </section>
 
-      <section className="space-y-4">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <h2 className="text-xl font-bold text-[#0A2342] dark:text-white">六步體驗路徑</h2>
-            <p className="text-sm text-[#546E7A] dark:text-[#90CAF9]">
-              從客戶洞察開始，最後回到追蹤與主管輔導。
-            </p>
-          </div>
-          <Link
-            href="/dashboard"
-            className={buttonVariants({ variant: "outline", className: "w-fit" })}
-          >
-            <BarChart3 className="h-4 w-4" />
-            回到總覽
-          </Link>
-        </div>
+      <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+        <Card className="border-hairline bg-card">
+          <CardContent className="p-0">
+            <div className="flex flex-col gap-2 border-b border-hairline p-5 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 className="text-base font-semibold text-ink">可執行體驗路徑</h2>
+                <p className="text-sm text-muted-foreground">
+                  每一步都能進入對應工作頁，不停在展示說明。
+                </p>
+              </div>
+              <Link
+                href="/dashboard"
+                className={buttonVariants({ variant: "outline", className: "h-10 w-fit" })}
+              >
+                回到總覽
+              </Link>
+            </div>
 
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          {experienceSteps.map((step, index) => {
-            const StepIcon = stepIcons[index] ?? Flag;
-            const StatusIcon = statusStyle[step.status].icon;
-            return (
-              <Card key={step.id} className="rounded-lg">
-                <CardContent className="p-5">
-                  <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
-                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-[#EBF3FB] text-[#1565C0] dark:bg-[#1A3A6B]/40 dark:text-[#90CAF9]">
-                      <StepIcon className="h-5 w-5" />
+            <div className="divide-y divide-hairline">
+              {demoExperienceSteps.map((step, index) => {
+                const StepIcon = stepIcons[index] ?? Flag;
+                const StatusIcon = statusMeta[step.status].icon;
+
+                return (
+                  <div
+                    key={step.id}
+                    className="grid gap-4 p-5 lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:items-center"
+                  >
+                    <div className="flex size-10 items-center justify-center rounded-full border border-hairline bg-paper">
+                      <StepIcon className="size-4 text-muted-foreground" />
                     </div>
-                    <div className="min-w-0 flex-1">
+                    <div className="min-w-0 space-y-2">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-[11px] font-black uppercase tracking-widest text-[#C9A227]">
+                        <span className="font-mono text-xs tabular-nums text-muted-foreground">
                           {step.order}
                         </span>
-                        <Badge variant={statusStyle[step.status].badge} className="h-5 text-[10px]">
-                          <StatusIcon className="h-3 w-3" />
-                          {statusStyle[step.status].label}
+                        <h3 className="font-semibold text-ink">{step.title}</h3>
+                        <Badge variant={statusMeta[step.status].badge} className="rounded-full text-[11px]">
+                          <StatusIcon className="size-3" />
+                          {statusMeta[step.status].label}
                         </Badge>
-                        <Badge variant="ghost" className="h-5 text-[10px]">
+                        <Badge variant="outline" className="rounded-full border-hairline text-[11px]">
                           {step.metric}
                         </Badge>
                       </div>
-                      <h3 className="mt-2 text-lg font-bold text-[#0A2342] dark:text-white">
-                        {step.title}
-                      </h3>
-                      <p className="mt-2 text-sm leading-6 text-[#546E7A] dark:text-[#90CAF9]">
-                        {step.description}
-                      </p>
-                      <p className="mt-3 rounded-lg border border-[#EBF3FB] bg-[#F7FAFF] px-3 py-2 text-xs font-medium text-[#0A2342] dark:border-[rgba(144,202,249,0.12)] dark:bg-[#1A3A6B]/20 dark:text-[#E8F0FE]">
-                        {step.outcome}
-                      </p>
-                      <Link
-                        href={step.route}
-                        className={buttonVariants({
-                          variant: "outline",
-                          size: "sm",
-                          className: "mt-4",
-                        })}
-                      >
-                        {step.routeLabel}
-                        <ArrowRight className="h-3.5 w-3.5" />
-                      </Link>
+                      <p className="text-sm leading-6 text-muted-foreground">{step.outcome}</p>
                     </div>
+                    <Link
+                      href={step.route}
+                      className={buttonVariants({
+                        variant: index === 1 ? "mono" : "outline",
+                        className: "h-10 justify-between lg:w-36",
+                      })}
+                    >
+                      {step.routeLabel}
+                      <ArrowRight className="size-4" />
+                    </Link>
                   </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
-      </section>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
 
-      <section className="grid grid-cols-1 gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-        <Card className="rounded-lg">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <Sparkles className="h-5 w-5 text-[#C9A227]" />
-              Top 3 標竿定位
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {benchmarkSites.map((site) => (
-              <div
-                key={site.name}
-                className="rounded-lg border border-[#EBF3FB] bg-[#F7FAFF] p-4 dark:border-[rgba(144,202,249,0.12)] dark:bg-[#1A3A6B]/20"
-              >
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                  <div>
-                    <h3 className="font-bold text-[#0A2342] dark:text-white">{site.name}</h3>
-                    <p className="mt-1 text-xs font-medium text-[#546E7A] dark:text-[#90CAF9]">
-                      {site.position}
-                    </p>
-                  </div>
-                  <a
-                    href={site.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className={buttonVariants({ variant: "ghost", size: "sm", className: "w-fit" })}
-                  >
-                    來源
-                    <ExternalLink className="h-3.5 w-3.5" />
-                  </a>
+        <aside className="space-y-6">
+          <Card className="border-hairline bg-card">
+            <CardContent className="space-y-5 p-5">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-base font-semibold text-ink">下一個開發阻擋</h2>
+                  <p className="text-sm text-muted-foreground">依 beta 必要性排序。</p>
                 </div>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {site.capabilities.map((capability) => (
-                    <Badge key={capability} variant="secondary" className="h-6 rounded-full">
-                      {capability}
-                    </Badge>
-                  ))}
-                </div>
-                <p className="mt-3 text-sm leading-6 text-[#0A2342] dark:text-[#E8F0FE]">
-                  {site.implication}
-                </p>
+                <Wrench className="size-4 text-muted-foreground" />
               </div>
-            ))}
-          </CardContent>
-        </Card>
-
-        <Card className="rounded-lg">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <Wrench className="h-5 w-5 text-[#1565C0]" />
-              待開發缺口
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {developmentGaps.map((gap) => {
-              const StatusIcon = statusStyle[gap.status].icon;
-              return (
-                <div key={gap.title} className="rounded-lg border border-[#EBF3FB] p-4 dark:border-[rgba(144,202,249,0.12)]">
-                  <div className="mb-2 flex items-start justify-between gap-3">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className={cn("rounded-full border px-2 py-0.5 text-[10px] font-black", priorityStyle[gap.priority])}>
-                        {gap.priority}
-                      </span>
-                      <h3 className="font-bold text-[#0A2342] dark:text-white">{gap.title}</h3>
-                    </div>
-                    <StatusIcon className={cn("h-4 w-4 shrink-0", statusStyle[gap.status].text)} />
+              <div className="space-y-3">
+                <div className="rounded-md border border-hairline p-4">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className={cn("rounded-full border px-2 py-0.5 text-[11px] font-semibold", priorityMeta[nextGap.priority])}>
+                      {nextGap.priority}
+                    </span>
+                    <h3 className="font-medium text-ink">{nextGap.title}</h3>
                   </div>
-                  <p className="text-xs leading-5 text-[#546E7A] dark:text-[#90CAF9]">
-                    {gap.detail}
-                  </p>
-                  <p className="mt-2 text-xs font-semibold leading-5 text-[#0A2342] dark:text-[#E8F0FE]">
-                    {gap.nextAction}
-                  </p>
+                  <p className="mt-3 text-sm leading-6 text-muted-foreground">{nextGap.detail}</p>
+                  <p className="mt-3 text-sm font-medium text-ink">{nextGap.nextAction}</p>
                 </div>
-              );
-            })}
-          </CardContent>
-        </Card>
-      </section>
+                {demoDevelopmentGaps.slice(1, 4).map((gap) => (
+                  <div key={gap.title} className="flex items-start justify-between gap-3 border-t border-hairline pt-3">
+                    <div>
+                      <p className="text-sm font-medium text-ink">{gap.title}</p>
+                      <p className="text-xs text-muted-foreground">{gap.nextAction}</p>
+                    </div>
+                    <span className={cn("rounded-full border px-2 py-0.5 text-[11px] font-semibold", priorityMeta[gap.priority])}>
+                      {gap.priority}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
 
-      <section className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <Card className="rounded-lg">
-          <CardContent className="p-5">
-            <ShieldCheck className="mb-4 h-6 w-6 text-[#1B5E20]" />
-            <h3 className="font-bold text-[#0A2342] dark:text-white">合規邊界</h3>
-            <p className="mt-2 text-sm leading-6 text-[#546E7A] dark:text-[#90CAF9]">
-              體驗版可展示 KYC / 適合度設計方向，但正式 beta 前需補資料權限、稽核軌跡與免責聲明。
-            </p>
-          </CardContent>
-        </Card>
-        <Card className="rounded-lg">
-          <CardContent className="p-5">
-            <Compass className="mb-4 h-6 w-6 text-[#1565C0]" />
-            <h3 className="font-bold text-[#0A2342] dark:text-white">下一個開發點</h3>
-            <p className="mt-2 text-sm leading-6 text-[#546E7A] dark:text-[#90CAF9]">
-              建立固定 demo scenario state，讓同一位客戶在 CRM、訪前規劃、SPIN、報告與追蹤間資料一致。
-            </p>
-          </CardContent>
-        </Card>
-        <Card className="rounded-lg">
-          <CardContent className="p-5">
-            <Flag className="mb-4 h-6 w-6 text-[#C9A227]" />
-            <h3 className="font-bold text-[#0A2342] dark:text-white">文件來源</h3>
-            <p className="mt-2 text-sm leading-6 text-[#546E7A] dark:text-[#90CAF9]">
-              詳細研究與工程拆解已整理在 `docs/audit-report.md` 與 `docs/dev-report.md`。
-            </p>
-          </CardContent>
-        </Card>
+          <Card className="border-hairline bg-card">
+            <CardContent className="space-y-4 p-5">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="size-4 text-muted-foreground" />
+                <h2 className="text-base font-semibold text-ink">體驗邊界</h2>
+              </div>
+              <p className="text-sm leading-6 text-muted-foreground">
+                目前適合展示流程與價值路徑；正式 beta 前仍需登入、組織隔離、核心資料入庫與 AI 狀態治理。
+              </p>
+            </CardContent>
+          </Card>
+        </aside>
       </section>
     </div>
   );

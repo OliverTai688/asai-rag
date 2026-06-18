@@ -1,177 +1,210 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { useTheaterStore } from "@/domains/theater/store";
-import { theaterService } from "@/domains/theater/service";
-import { TheaterTurn, TheaterScore, TheaterPersonaType, TheaterSession } from "@/domains/theater/types";
-import { useSpinStore } from "@/domains/spin/store";
-import { clientService } from "@/domains/client/service";
+import Link from "next/link";
+import { Suspense, useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
+import {
+  ArrowLeft,
+  BrainCircuit,
+  ChevronDown,
+  CircleAlert,
+  Loader2,
+  MessageSquare,
+  Send,
+  Trophy,
+  UserRound,
+} from "lucide-react";
+import { toast } from "sonner";
+
+import { QuickstartGuide } from "@/components/demo/quickstart-guide";
+import { SpotlightTour } from "@/components/demo/spotlight-tour";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Progress, ProgressTrack, ProgressIndicator } from "@/components/ui/progress";
-import { 
-  Send, 
-  ChevronLeft, 
-  User, 
-  BrainCircuit,
-  Trophy,
-  AlertTriangle,
-  Zap,
-  Target,
-  CheckCircle2,
-  MoreVertical,
-  Activity,
-  Loader2
-} from "lucide-react";
-import Link from "next/link";
-import { useRouter, useParams } from "next/navigation";
-import { cn } from "@/lib/utils";
 import { Textarea } from "@/components/ui/textarea";
-import { toast } from "sonner";
-import { QuickstartGuide } from "@/components/demo/quickstart-guide";
+import { clientService } from "@/domains/client/service";
 import {
   demoQuickstart,
   getQuickstartStep,
   getQuickstartTheaterFixture,
 } from "@/domains/demo/quickstart";
-import { SpotlightTour } from "@/components/demo/spotlight-tour";
 import { theaterTourSteps } from "@/domains/demo/tour-steps";
+import { useSpinStore } from "@/domains/spin/store";
+import { theaterService } from "@/domains/theater/service";
+import { useTheaterStore } from "@/domains/theater/store";
+import type { TheaterScore, TheaterSession, TheaterTurn } from "@/domains/theater/types";
+import { cn } from "@/lib/utils";
+
+const SCORE_ITEMS: Array<{ key: keyof Pick<TheaterScore, "empathy" | "questioning" | "clarity" | "objectionHandling" | "closing">; label: string }> = [
+  { key: "empathy", label: "同理心" },
+  { key: "questioning", label: "提問力" },
+  { key: "clarity", label: "清晰度" },
+  { key: "objectionHandling", label: "異議處理" },
+  { key: "closing", label: "締結感" },
+];
+
+const EMPTY_TURNS: TheaterTurn[] = [];
+
+function normalizeParam(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] : value;
+}
 
 export default function TheaterSimulationPage() {
-  const params = useParams();
-  const sessionId = params.sessionId as string;
-  const router = useRouter();
-  const scrollRef = useRef<HTMLDivElement>(null);
-  
-  const { getSessionById, getTurns, addTurn, updateTension, completeSession, getScore } = useTheaterStore();
-  const session = getSessionById(sessionId);
-  const initialTurns = getTurns(sessionId);
-  const score = getScore(sessionId);
+  return (
+    <Suspense fallback={<TheaterSessionLoading />}>
+      <TheaterSimulationContent />
+    </Suspense>
+  );
+}
 
-  const { getSessionById: getSpinSession } = useSpinStore();
-  
-  const [turns, setTurns] = useState<TheaterTurn[]>(initialTurns);
+function TheaterSimulationContent() {
+  const params = useParams();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const sessionId = normalizeParam(params.sessionId);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const session = useTheaterStore((state) => state.sessions.find((item) => item.id === sessionId));
+  const storedTurns = useTheaterStore((state) => (sessionId ? state.turnsBySession[sessionId] ?? EMPTY_TURNS : EMPTY_TURNS));
+  const score = useTheaterStore((state) => (sessionId ? state.scoresBySession[sessionId] : undefined));
+  const addTurn = useTheaterStore((state) => state.addTurn);
+  const updateTension = useTheaterStore((state) => state.updateTension);
+  const completeSession = useTheaterStore((state) => state.completeSession);
+  const spinSessions = useSpinStore((state) => state.sessions);
+  const [liveTurns, setLiveTurns] = useState<TheaterTurn[]>([]);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
-  const [showFeedback, setShowFeedback] = useState(false);
   const [isLoadingScore, setIsLoadingScore] = useState(false);
-  const [quickstartMode, setQuickstartMode] = useState<boolean | null>(null);
-  const isQuickstart = quickstartMode === true;
-
-  // 同步 Zustand
-  useEffect(() => { setTurns(initialTurns); }, [initialTurns]);
+  const isQuickstart = searchParams.get("demo") === "quickstart";
+  const turns = liveTurns.length ? liveTurns : storedTurns;
 
   useEffect(() => {
-    setQuickstartMode(new URLSearchParams(window.location.search).get("demo") === "quickstart");
-  }, []);
-
-  useEffect(() => {
-    if (quickstartMode === true && !session) {
+    if (isQuickstart && !session) {
       router.replace(`/theater?clientId=${demoQuickstart.clientId}&autoCreate=true&demo=quickstart`);
     }
-  }, [quickstartMode, router, session]);
-  
+  }, [isQuickstart, router, session]);
+
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
+    if (!scrollRef.current) return;
+    scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [turns, isTyping]);
 
-  if (!session) {
-    return (
-      <div className="p-20 text-center text-sm font-semibold text-zinc-500">
-        {quickstartMode === true || quickstartMode === null ? "載入 Quickstart 劇場演練..." : "演練不存在"}
-      </div>
-    );
+  const spinSession = useMemo(() => {
+    if (!session) return undefined;
+    return spinSessions.find((item) => item.id === session.spinSessionId);
+  }, [session, spinSessions]);
+
+  if (!session || !sessionId) {
+    return <TheaterSessionMissing isQuickstart={isQuickstart} />;
   }
 
   const personaInfo = theaterService.getPersonaDetails(session.personaType);
-  const isCompleted = session.status === 'COMPLETED';
+  const isCompleted = session.status === "COMPLETED";
 
   if (isQuickstart) {
     return <QuickstartTheaterView score={score} session={session} turns={turns} />;
   }
 
-  const handleSend = async () => {
-    if (!input.trim() || isTyping || isCompleted) return;
+  const appendLiveTurn = (turn: TheaterTurn) => {
+    setLiveTurns((current) => [...(current.length ? current : storedTurns), turn]);
+  };
 
-    const tensionDelta = theaterService.calculateTensionDelta(input);
+  const replaceLastLiveTurn = (content: string) => {
+    setLiveTurns((current) => {
+      const base = current.length ? current : storedTurns;
+      const last = base[base.length - 1];
+      if (!last) return base;
+      return [...base.slice(0, -1), { ...last, content }];
+    });
+  };
+
+  const handleSend = async () => {
+    const trimmed = input.trim();
+    if (!trimmed || isTyping || isCompleted) return;
+
+    const tensionDelta = theaterService.calculateTensionDelta(trimmed);
     const newTension = Math.max(0, Math.min(100, session.tension + tensionDelta));
     updateTension(sessionId, newTension);
 
     const userTurn: TheaterTurn = {
-      id: Date.now().toString(),
+      id: `${Date.now()}`,
       sessionId,
-      role: 'agent',
-      content: input.trim(),
+      role: "agent",
+      content: trimmed,
       tensionDelta,
       createdAt: new Date().toISOString(),
     };
 
     setInput("");
-    setTurns(prev => [...prev, userTurn]);
+    appendLiveTurn(userTurn);
     addTurn(sessionId, userTurn);
-
     setIsTyping(true);
 
     try {
-      const spinSession = getSpinSession(session.spinSessionId);
-      const clientCtx = clientService.getClientById(session.clientId);
-
-      const res = await fetch("/api/ai/theater", {
+      const clientContext = clientService.getClientById(session.clientId);
+      const response = await fetch("/api/ai/theater", {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           personaType: session.personaType,
           difficulty: session.difficulty,
           tension: newTension,
-          clientContext: clientCtx,
+          clientContext,
           spinOutputs: spinSession?.outputs || {},
-          history: [...turns, userTurn].slice(-6), // 只傳最近幾筆
+          history: [...turns, userTurn].slice(-6),
         }),
       });
 
-      if (!res.body) throw new Error("No response body");
+      if (!response.body) {
+        throw new Error("No response body");
+      }
 
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      
       const assistantTurn: TheaterTurn = {
-        id: (Date.now() + 1).toString(),
+        id: `${Date.now() + 1}`,
         sessionId,
-        role: 'client',
+        role: "client",
         content: "",
         createdAt: new Date().toISOString(),
       };
+      appendLiveTurn(assistantTurn);
 
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
       let fullText = "";
-      setTurns(prev => [...prev, { ...assistantTurn, content: "" }]);
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        const chunk = decoder.decode(value);
-        fullText += chunk;
-        setTurns(prev => {
-          const last = prev[prev.length - 1];
-          return [...prev.slice(0, -1), { ...last, content: fullText }];
-        });
+        fullText += decoder.decode(value);
+        replaceLastLiveTurn(fullText);
       }
 
       addTurn(sessionId, { ...assistantTurn, content: fullText });
-
-    } catch (err) {
-      toast.error("模擬故障，請檢查網路");
+    } catch (error) {
+      console.error("Theater response failed", error);
+      toast.error("模擬故障，請檢查 AI key 或網路");
     } finally {
       setIsTyping(false);
+    }
+  };
+
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    void handleSend();
+  };
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      void handleSend();
     }
   };
 
   const handleEndSimulation = async () => {
     setIsLoadingScore(true);
     try {
-      const res = await fetch("/api/ai/theater/score", {
+      const response = await fetch("/api/ai/theater/score", {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           history: turns,
           clientContext: clientService.getClientById(session.clientId),
@@ -179,13 +212,15 @@ export default function TheaterSimulationPage() {
         }),
       });
 
-      if (!res.ok) throw new Error("評分失敗");
-      const finalScore = await res.json();
-      
+      if (!response.ok) {
+        throw new Error("score failed");
+      }
+
+      const finalScore = (await response.json()) as TheaterScore;
       completeSession(sessionId, finalScore);
-      setShowFeedback(true);
       toast.success("演練結束，評分報告已生成");
-    } catch (err) {
+    } catch (error) {
+      console.error("Theater score failed", error);
       toast.error("評分系統暫時無法連線");
     } finally {
       setIsLoadingScore(false);
@@ -193,277 +228,310 @@ export default function TheaterSimulationPage() {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-140px)] animate-in fade-in duration-700">
-      {/* Header HUD */}
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-4 mb-6">
-        <div className="md:col-span-8 flex items-center gap-4">
-           <Link href="/theater" className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full transition-colors">
-              <ChevronLeft className="w-5 h-5 text-zinc-400" />
-           </Link>
-           <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-xl font-bold">{session.clientName}</h2>
-                <Badge className={cn(
-                  "border-none font-bold",
-                  session.difficulty === 'HARD' ? "bg-red-50 text-red-600" : (session.difficulty === 'MEDIUM' ? "bg-orange-50 text-orange-600" : "bg-green-50 text-green-600")
-                )}>
-                  {session.difficulty}
-                </Badge>
-              </div>
-              <div className="flex items-center gap-2 mt-1">
-                 <Badge variant="outline" className="bg-white text-zinc-600 border-zinc-200 font-bold px-2 py-0 text-[10px]">
-                    {personaInfo.label}
-                 </Badge>
-                 <span className="text-[10px] text-zinc-400 font-bold italic tracking-tighter uppercase">{personaInfo.style}</span>
-              </div>
-           </div>
-        </div>
-
-        <div className="md:col-span-4 flex flex-col justify-center space-y-2">
-           <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest">
-              <span className={session.tension > 70 ? "text-red-500 animate-pulse" : "text-zinc-400"}>
-                 TENSION: {session.tension}%
-              </span>
-              <Activity className={cn("w-3 h-3", session.tension > 70 ? "text-red-500" : "text-[#2196F3]")} />
-           </div>
-           <Progress value={session.tension}>
-              <ProgressTrack className="h-2 bg-zinc-100 dark:bg-zinc-800 rounded-full">
-                <ProgressIndicator className={cn(
-                  "transition-all duration-500",
-                  session.tension > 70 ? "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]" : 
-                  (session.tension > 40 ? "bg-orange-400" : "bg-[#EBF3FB]0")
-                )} />
-              </ProgressTrack>
-           </Progress>
-        </div>
-      </div>
-
-      <QuickstartGuide
-        currentStepId="theater"
-        compact
-        className="mb-4"
-        nextHref={`/reports?clientId=${session.clientId}&spinId=${session.spinSessionId}&theaterId=${session.id}&autoCreate=true&demo=quickstart`}
-        nextLabel="下一步：生成報告"
-      />
-
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-4 gap-6 min-h-0">
-        {/* Main Conversation */}
-        <div className="lg:col-span-3 flex flex-col min-h-0">
-          <div 
-            ref={scrollRef}
-            className="flex-1 overflow-y-auto pr-4 space-y-8 custom-scrollbar scroll-smooth"
+    <div className="mx-auto flex h-[calc(100vh-88px)] max-w-7xl flex-col gap-4 px-4 py-4 sm:px-6 lg:px-8">
+      <header className="grid gap-4 border-b border-hairline pb-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+        <div className="flex min-w-0 items-center gap-3">
+          <Link
+            href="/theater"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-hairline text-muted-foreground transition hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            aria-label="回 AI 劇場演練"
           >
-            <div className="pt-4 space-y-8">
-              {turns.length === 0 && (
-                <div className="flex flex-col items-center justify-center py-20 text-center space-y-4 opacity-50">
-                  <div className="p-4 bg-zinc-100 dark:bg-zinc-800 rounded-full">
-                    <Zap className="w-8 h-8 text-zinc-400" />
-                  </div>
-                  <p className="font-bold text-zinc-500 italic">模擬開始，請先向客戶（{personaInfo.label}）打招呼或切入核心問題。</p>
-                </div>
-              )}
+            <ArrowLeft className="h-4 w-4" />
+          </Link>
+          <div className="min-w-0">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+              AI 劇場演練
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="truncate text-xl font-semibold tracking-tight text-ink">{session.clientName}</h1>
+              <Badge variant="outline" className="rounded-full">
+                {session.difficulty}
+              </Badge>
+              <Badge variant={isCompleted ? "default" : "outline"} className="rounded-full">
+                {isCompleted ? "已完成" : "演練中"}
+              </Badge>
+            </div>
+            <p className="mt-1 text-sm text-muted-foreground">{personaInfo.label}・{personaInfo.style}</p>
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+          <TensionPill value={session.tension} />
+          {!isCompleted ? (
+            <Button
+              type="button"
+              variant="outline"
+              className="h-10 rounded-full"
+              onClick={handleEndSimulation}
+              disabled={isLoadingScore || isTyping || turns.length === 0}
+            >
+              {isLoadingScore ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trophy className="mr-2 h-4 w-4" />}
+              結束並評分
+            </Button>
+          ) : null}
+        </div>
+      </header>
+
+      <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <main className="flex min-h-0 flex-col rounded-lg border border-hairline bg-background">
+          <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-6">
+            <div className="mx-auto flex max-w-3xl flex-col gap-4">
+              {turns.length === 0 ? <EmptyConversation personaLabel={personaInfo.label} /> : null}
               {turns.map((turn) => (
-                <div key={turn.id} className={cn("flex flex-col animate-in fade-in slide-in-from-bottom-2", turn.role === 'agent' ? "items-end" : "items-start")}>
-                  <div className={cn(
-                    "flex gap-3 max-w-[85%]",
-                    turn.role === 'agent' ? "flex-row-reverse" : "flex-row"
-                  )}>
-                    <div className={cn(
-                      "w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 shadow-lg border",
-                      turn.role === 'agent' 
-                        ? "bg-zinc-900 border-black text-white" 
-                        : "bg-[#1A3A6B] border-[#1565C0] text-white"
-                    )}>
-                      {turn.role === 'agent' ? <User className="w-6 h-6" /> : <BrainCircuit className="w-6 h-6" />}
-                    </div>
-                    <div className={cn(
-                      "p-5 rounded-3xl text-[15px] leading-relaxed font-bold tracking-tight shadow-sm whitespace-pre-wrap",
-                      turn.role === 'agent' 
-                        ? "bg-[#EBF3FB] dark:bg-[#1A3A6B]/10 text-[#0A2342] dark:text-[#D6E8F8] rounded-tr-sm" 
-                        : "bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 border border-zinc-100 dark:border-zinc-800 rounded-tl-sm ring-1 ring-zinc-50 dark:ring-zinc-800"
-                    )}>
-                      {turn.content}
-                    </div>
-                  </div>
-                  {turn.tensionDelta !== undefined && turn.tensionDelta !== 0 && (
-                    <span className={cn(
-                      "text-[9px] font-black mt-2 mx-12",
-                      turn.tensionDelta > 0 ? "text-red-500" : "text-green-500"
-                    )}>
-                      {turn.tensionDelta > 0 ? "▲" : "▼"} Tension {turn.tensionDelta > 0 ? `+${turn.tensionDelta}` : turn.tensionDelta}%
-                    </span>
-                  )}
-                </div>
+                <ConversationTurn key={turn.id} turn={turn} />
               ))}
-              {isTyping && (
-                <div className="flex items-center gap-3">
-                   <div className="w-10 h-10 rounded-2xl bg-[#1A3A6B] border border-[#1565C0] flex items-center justify-center text-white shrink-0 shadow-lg scale-90">
-                      <BrainCircuit className="w-6 h-6" />
-                   </div>
-                   <div className="p-4 bg-white dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800 rounded-3xl rounded-tl-sm">
-                      <div className="flex gap-1">
-                        <div className="w-1.5 h-1.5 bg-[#2196F3] rounded-full animate-bounce [animation-delay:-0.3s]" />
-                        <div className="w-1.5 h-1.5 bg-[#2196F3] rounded-full animate-bounce [animation-delay:-0.15s]" />
-                        <div className="w-1.5 h-1.5 bg-[#2196F3] rounded-full animate-bounce" />
-                      </div>
-                   </div>
-                </div>
-              )}
+              {isTyping ? <TypingTurn /> : null}
             </div>
           </div>
 
-          {/* Input Interface */}
-          <div className="mt-6">
+          <form onSubmit={handleSubmit} className="border-t border-hairline bg-paper p-3">
             {!isCompleted ? (
-              <div className="bg-white dark:bg-zinc-900 p-2 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-2xl ring-1 ring-zinc-100 dark:ring-zinc-800">
-                <Textarea 
-                  placeholder="輸入回應..."
-                  className="border-none bg-transparent min-h-[60px] max-h-[120px] resize-none focus-visible:ring-0 px-5 pt-4 font-bold text-lg"
+              <div className="mx-auto grid max-w-3xl gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+                <Textarea
                   value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
-                      e.preventDefault();
-                      handleSend();
-                    }
-                  }}
+                  onChange={(event) => setInput(event.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="輸入你的回應；Enter 送出，Shift+Enter 換行"
+                  className="min-h-20 max-h-36 resize-y rounded-lg border-hairline bg-background text-base leading-6 focus-visible:ring-ring"
                   disabled={isTyping}
+                  aria-label="輸入演練回應"
                 />
-                <div className="flex items-center justify-between px-3 pb-3">
-                    <div className="flex items-center gap-2">
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="rounded-xl text-[10px] uppercase font-black text-zinc-400" 
-                        onClick={handleEndSimulation}
-                        disabled={isLoadingScore || isTyping}
-                      >
-                        {isLoadingScore ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : null}
-                        終止模擬
-                      </Button>
-                    </div>
-                   <Button 
-                    className={cn(
-                      "rounded-2xl w-12 h-12 shadow-xl shadow-[#1565C0]/20",
-                      input.trim() ? "bg-[#1A3A6B] hover:bg-[#1565C0]" : "bg-zinc-100 dark:bg-zinc-800 text-zinc-400"
-                    )}
-                    onClick={handleSend}
-                    disabled={!input.trim() || isTyping}
-                   >
-                     <Send className="w-5 h-5" />
-                   </Button>
-                </div>
+                <Button
+                  type="submit"
+                  variant="mono"
+                  size="icon"
+                  className="h-11 w-full rounded-full sm:w-11"
+                  disabled={!input.trim() || isTyping}
+                  aria-label="送出演練回應"
+                >
+                  <Send className="h-4 w-4" />
+                </Button>
               </div>
             ) : (
-              <Button 
-                className="w-full rounded-2xl h-14 bg-[#1A3A6B] hover:bg-[#1565C0] text-lg font-bold shadow-xl animate-in zoom-in-95 duration-500"
-                onClick={() => setShowFeedback(true)}
-              >
-                查看演練評分報告 <Trophy className="w-6 h-6 ml-2" />
-              </Button>
+              <div className="mx-auto max-w-3xl rounded-lg border border-hairline bg-background p-4 text-sm leading-6 text-muted-foreground">
+                這場演練已完成。你可以在右側查看評分摘要，或回到劇場啟動下一場演練。
+              </div>
             )}
-          </div>
+          </form>
+        </main>
+
+        <aside className="min-h-0 space-y-3 overflow-y-auto">
+          <SessionContextPanel session={session} personaInfo={personaInfo} spinSummary={spinSession?.summary?.keyProblems?.[0]} />
+          {score ? <FeedbackPanel score={score} /> : <PendingFeedbackPanel isCompleted={isCompleted} />}
+          <MobileDetailsFallback session={session} personaInfo={personaInfo} score={score} />
+        </aside>
+      </div>
+    </div>
+  );
+}
+
+function TensionPill({ value }: { value: number }) {
+  return (
+    <div className="min-w-40 rounded-full border border-hairline bg-background px-3 py-2">
+      <div className="flex items-center justify-between gap-3 text-xs font-semibold text-muted-foreground">
+        <span>緊張度</span>
+        <span className="tabular-nums text-ink">{value}%</span>
+      </div>
+      <div className="mt-2 h-1.5 rounded-full bg-muted">
+        <div className="h-1.5 rounded-full bg-ink transition-all" style={{ width: `${value}%` }} />
+      </div>
+    </div>
+  );
+}
+
+function EmptyConversation({ personaLabel }: { personaLabel: string }) {
+  return (
+    <div className="rounded-lg border border-dashed border-hairline bg-muted/20 p-8 text-center">
+      <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-full border border-hairline bg-background">
+        <MessageSquare className="h-5 w-5 text-muted-foreground" />
+      </div>
+      <p className="mt-4 text-sm font-semibold text-ink">模擬開始，客戶是{personaLabel}</p>
+      <p className="mt-2 text-sm leading-6 text-muted-foreground">先用一句開場或核心問題切入，觀察緊張度如何變化。</p>
+    </div>
+  );
+}
+
+function ConversationTurn({ turn }: { turn: TheaterTurn }) {
+  const isAgent = turn.role === "agent";
+  return (
+    <div className={cn("flex", isAgent ? "justify-end" : "justify-start")}>
+      <div className={cn("flex max-w-[88%] gap-3", isAgent ? "flex-row-reverse" : "flex-row")}>
+        <div
+          className={cn(
+            "mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-hairline",
+            isAgent ? "bg-ink text-paper" : "bg-background text-muted-foreground",
+          )}
+        >
+          {isAgent ? <UserRound className="h-4 w-4" /> : <BrainCircuit className="h-4 w-4" />}
         </div>
-
-        {/* Sidebar Info */}
-        <div className="hidden lg:block space-y-6">
-           <Card className="rounded-3xl border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900 shadow-sm overflow-hidden sticky top-6">
-              <CardContent className="p-6 space-y-6">
-                 <div>
-                    <h3 className="text-xs font-black text-zinc-400 uppercase tracking-widest mb-4">人格核心特質</h3>
-                    <div className="space-y-3">
-                       {personaInfo.traits.map(t => (
-                         <div key={t} className="flex items-center gap-3 text-sm font-bold text-zinc-700 dark:text-zinc-300">
-                            <Target className="w-4 h-4 text-[#1565C0] shrink-0" /> {t}
-                         </div>
-                       ))}
-                    </div>
-                 </div>
-
-                 <div className="pt-6 border-t border-zinc-100 dark:border-zinc-800">
-                    <h3 className="text-xs font-black text-zinc-400 uppercase tracking-widest mb-4">演練建議</h3>
-                    <div className="p-4 rounded-2xl bg-white dark:bg-zinc-800 border-2 border-dashed border-[#D6E8F8] dark:border-[rgba(144,202,249,0.15)] text-xs font-medium text-zinc-500 leading-relaxed italic">
-                       「注意緊張度的變化。如果緊張度持續攀升到 80% 以上，客戶可能會結束對話或陷入防衛心理。」
-                    </div>
-                 </div>
-              </CardContent>
-           </Card>
+        <div>
+          <div
+            className={cn(
+              "whitespace-pre-wrap rounded-lg border border-hairline px-4 py-3 text-sm leading-6",
+              isAgent ? "bg-ink text-paper" : "bg-card text-ink",
+            )}
+          >
+            {turn.content}
+          </div>
+          {turn.tensionDelta !== undefined && turn.tensionDelta !== 0 ? (
+            <p className="mt-1 text-xs tabular-nums text-muted-foreground">
+              緊張度 {turn.tensionDelta > 0 ? `+${turn.tensionDelta}` : turn.tensionDelta}%
+            </p>
+          ) : null}
         </div>
       </div>
-
-      {/* FEEDBACK MODAL Overlay */}
-      {showFeedback && score && (
-        <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-300">
-           <Card className="w-full max-w-3xl rounded-[40px] border-none shadow-2xl overflow-hidden animate-in zoom-in-95 duration-500">
-              <div className="bg-[#1A3A6B] p-8 text-white relative">
-                 <Trophy className="absolute top-8 right-8 w-20 h-20 text-white/10" />
-                 <h2 className="text-3xl font-black mb-2">演練分析報告</h2>
-                 <p className="text-[#D6E8F8] font-bold opacity-80">客戶：{session.clientName} | 難度：{session.difficulty}</p>
-              </div>
-              <CardContent className="p-8 max-h-[70vh] overflow-y-auto custom-scrollbar">
-                 <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-10">
-                    {[
-                      { label: '同理心', val: score.empathy },
-                      { label: '提問力', val: score.questioning },
-                      { label: '清晰度', val: score.clarity },
-                      { label: '異議處理', val: score.objectionHandling },
-                      { label: '締結感', val: score.closing },
-                    ].map(s => (
-                      <div key={s.label} className="text-center p-3 rounded-2xl bg-zinc-50 dark:bg-zinc-800">
-                         <p className="text-[10px] font-black text-zinc-400 uppercase mb-2">{s.label}</p>
-                         <p className="text-2xl font-black text-[#1565C0]">{s.val}</p>
-                      </div>
-                    ))}
-                 </div>
-
-                 <div className="space-y-8">
-                    <div>
-                       <h3 className="text-lg font-black flex items-center gap-2 mb-4">
-                          <AlertTriangle className="w-5 h-5 text-orange-500" /> 錯失的契機
-                       </h3>
-                       <ul className="space-y-3">
-                          {score.missedOpportunities.map((m, i) => (
-                            <li key={i} className="flex items-start gap-4 p-4 rounded-2xl bg-orange-50/50 text-sm font-bold text-orange-800 border border-orange-100">
-                               <div className="w-2 h-2 rounded-full bg-orange-400 mt-1.5 shrink-0" />
-                               {m}
-                            </li>
-                          ))}
-                       </ul>
-                    </div>
-                    <div>
-                       <h3 className="text-lg font-black flex items-center gap-2 mb-4">
-                          <CheckCircle2 className="w-5 h-5 text-green-500" /> 優化建議與話術
-                       </h3>
-                       <ul className="space-y-3">
-                          {score.improvedPhrasing.map((p, i) => {
-                             const [original, suggested] = p.split(' -> ');
-                             return (
-                               <li key={i} className="p-4 rounded-2xl bg-green-50/30 text-sm font-medium border border-green-100/50">
-                                  <p className="text-zinc-400 font-bold mb-1 line-through">{original}</p>
-                                  <p className="text-green-700 font-bold text-base">{suggested}</p>
-                               </li>
-                             );
-                          })}
-                       </ul>
-                    </div>
-                 </div>
-
-                 <div className="mt-12 flex justify-center">
-                    <Button 
-                      className="rounded-2xl px-12 h-12 bg-zinc-900 hover:bg-black font-bold text-white shadow-xl"
-                      onClick={() => {
-                        setShowFeedback(false);
-                        router.push('/theater');
-                      }}
-                    >
-                      返回演練中心
-                    </Button>
-                 </div>
-              </CardContent>
-           </Card>
-        </div>
-      )}
     </div>
+  );
+}
+
+function TypingTurn() {
+  return (
+    <div className="flex justify-start">
+      <div className="flex gap-3">
+        <div className="mt-1 flex h-8 w-8 items-center justify-center rounded-full border border-hairline bg-background text-muted-foreground">
+          <BrainCircuit className="h-4 w-4" />
+        </div>
+        <div className="rounded-lg border border-hairline bg-card px-4 py-3">
+          <div className="flex gap-1" aria-label="客戶正在回應">
+            <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/60" />
+            <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/60" />
+            <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/60" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SessionContextPanel({
+  personaInfo,
+  session,
+  spinSummary,
+}: {
+  personaInfo: ReturnType<typeof theaterService.getPersonaDetails>;
+  session: TheaterSession;
+  spinSummary?: string;
+}) {
+  return (
+    <Card className="hidden border-hairline shadow-none lg:block">
+      <CardContent className="p-5">
+        <h2 className="text-sm font-semibold text-ink">演練情境</h2>
+        <div className="mt-4 space-y-3">
+          <ContextLine label="Persona" value={personaInfo.label} />
+          <ContextLine label="難度" value={session.difficulty} />
+          <ContextLine label="狀態" value={session.status === "COMPLETED" ? "已完成" : "演練中"} />
+        </div>
+        <div className="mt-4 rounded-lg border border-hairline bg-muted/20 p-3">
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Traits</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {personaInfo.traits.map((trait) => (
+              <span key={trait} className="rounded-full border border-hairline bg-background px-3 py-1 text-xs font-medium text-muted-foreground">
+                {trait}
+              </span>
+            ))}
+          </div>
+        </div>
+        <details className="group mt-3 rounded-lg border border-hairline">
+          <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between px-3 text-sm font-medium text-ink [&::-webkit-details-marker]:hidden">
+            <span>SPIN 摘要・{spinSummary ? "已連結" : "無摘要"}</span>
+            <ChevronDown className="h-4 w-4 text-muted-foreground transition group-open:rotate-180" />
+          </summary>
+          <p className="border-t border-hairline p-3 text-sm leading-6 text-muted-foreground">
+            {spinSummary ?? "這場演練沒有可顯示的 SPIN 摘要。"}
+          </p>
+        </details>
+      </CardContent>
+    </Card>
+  );
+}
+
+function ContextLine({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-start justify-between gap-3 border-b border-hairline pb-3 last:border-b-0 last:pb-0">
+      <span className="text-sm text-muted-foreground">{label}</span>
+      <span className="text-right text-sm font-semibold text-ink">{value}</span>
+    </div>
+  );
+}
+
+function PendingFeedbackPanel({ isCompleted }: { isCompleted: boolean }) {
+  return (
+    <Card className="hidden border-hairline shadow-none lg:block">
+      <CardContent className="p-5">
+        <div className="flex items-center gap-2">
+          <CircleAlert className="h-4 w-4 text-muted-foreground" />
+          <h2 className="text-sm font-semibold text-ink">評分回饋</h2>
+        </div>
+        <p className="mt-3 text-sm leading-6 text-muted-foreground">
+          {isCompleted ? "這場演練尚未取得評分資料。" : "結束演練後會生成摘要分數、錯失契機與建議說法。"}
+        </p>
+      </CardContent>
+    </Card>
+  );
+}
+
+function FeedbackPanel({ score }: { score: TheaterScore }) {
+  const average = Math.round(SCORE_ITEMS.reduce((sum, item) => sum + score[item.key], 0) / SCORE_ITEMS.length);
+  return (
+    <Card className="border-hairline shadow-none">
+      <CardContent className="p-5">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-sm font-semibold text-ink">評分摘要</h2>
+          <span className="text-2xl font-semibold tabular-nums text-ink">{average}</span>
+        </div>
+        <div className="mt-4 grid grid-cols-2 gap-2">
+          {SCORE_ITEMS.map((item) => (
+            <div key={item.key} className="rounded-lg border border-hairline p-3">
+              <p className="text-xs text-muted-foreground">{item.label}</p>
+              <p className="mt-1 text-lg font-semibold tabular-nums text-ink">{score[item.key]}</p>
+            </div>
+          ))}
+        </div>
+        <FeedbackDetails title={`錯失契機・${score.missedOpportunities.length} 項`} items={score.missedOpportunities} />
+        <FeedbackDetails title={`建議說法・${score.improvedPhrasing.length} 項`} items={score.improvedPhrasing} />
+      </CardContent>
+    </Card>
+  );
+}
+
+function FeedbackDetails({ items, title }: { items: string[]; title: string }) {
+  return (
+    <details className="group mt-3 rounded-lg border border-hairline">
+      <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between px-3 text-sm font-medium text-ink [&::-webkit-details-marker]:hidden">
+        <span>{title}</span>
+        <ChevronDown className="h-4 w-4 text-muted-foreground transition group-open:rotate-180" />
+      </summary>
+      <ul className="space-y-2 border-t border-hairline p-3">
+        {items.map((item) => (
+          <li key={item} className="text-sm leading-6 text-muted-foreground">
+            {item}
+          </li>
+        ))}
+      </ul>
+    </details>
+  );
+}
+
+function MobileDetailsFallback({
+  personaInfo,
+  score,
+  session,
+}: {
+  personaInfo: ReturnType<typeof theaterService.getPersonaDetails>;
+  score?: TheaterScore;
+  session: TheaterSession;
+}) {
+  return (
+    <details className="group rounded-lg border border-hairline bg-card lg:hidden">
+      <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between px-3 text-sm font-medium text-ink [&::-webkit-details-marker]:hidden">
+        <span>演練資訊・{personaInfo.label}</span>
+        <ChevronDown className="h-4 w-4 text-muted-foreground transition group-open:rotate-180" />
+      </summary>
+      <div className="space-y-3 border-t border-hairline p-3">
+        <ContextLine label="難度" value={session.difficulty} />
+        <ContextLine label="緊張度" value={`${session.tension}%`} />
+        {score ? <FeedbackPanel score={score} /> : null}
+      </div>
+    </details>
   );
 }
 
@@ -489,11 +557,11 @@ function QuickstartTheaterView({
       displayScore.clarity +
       displayScore.objectionHandling +
       displayScore.closing) /
-      5
+      5,
   );
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4 pb-28">
+    <div className="mx-auto max-w-3xl space-y-4 px-4 py-6 pb-28 sm:px-6 lg:px-8">
       <SpotlightTour steps={theaterTourSteps} />
 
       <QuickstartGuide
@@ -502,53 +570,37 @@ function QuickstartTheaterView({
         nextHref={`/reports?clientId=${session.clientId}&spinId=${session.spinSessionId}&theaterId=${session.id}&autoCreate=true&demo=quickstart`}
       />
 
-      <section className="rounded-lg border border-[#D7DFE7] bg-white p-5 shadow-sm">
-        <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#1565C0]">
-          Quickstart Theater
-        </p>
-        <h1 className="mt-2 text-2xl font-bold tracking-tight text-[#0A2342]">
-          {step.screenTitle}
-        </h1>
-        <p className="mt-2 text-sm font-medium leading-6 text-[#546E7A]">
-          {step.bodyCopy}
-        </p>
+      <section className="rounded-lg border border-hairline bg-card p-5">
+        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">Quickstart Theater</p>
+        <h1 className="mt-2 text-2xl font-semibold tracking-tight text-ink">{step.screenTitle}</h1>
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">{step.bodyCopy}</p>
       </section>
 
-      <Card data-tour="theater-persona" className="border-[#E2EAF1] shadow-sm">
+      <Card data-tour="theater-persona" className="border-hairline shadow-none">
         <CardContent className="space-y-4 p-4">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <p className="text-[11px] font-black uppercase tracking-[0.12em] text-[#1565C0]">
-                Persona
-              </p>
-              <p className="mt-1 text-lg font-bold text-[#0A2342]">{personaInfo.label}</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Persona</p>
+              <p className="mt-1 text-lg font-semibold text-ink">{personaInfo.label}</p>
             </div>
-            <Badge className="border-none bg-[#EBF3FB] text-[#1565C0]">
-              平均 {averageScore}
-            </Badge>
+            <Badge variant="outline" className="rounded-full">平均 {averageScore}</Badge>
           </div>
-          <p className="text-sm font-medium leading-6 text-[#546E7A]">{personaInfo.style}</p>
+          <p className="text-sm leading-6 text-muted-foreground">{personaInfo.style}</p>
         </CardContent>
       </Card>
 
       <div className="grid gap-3">
-        <Card data-tour="client-objection" className="border-[#E2EAF1] shadow-sm">
+        <Card data-tour="client-objection" className="border-hairline shadow-none">
           <CardContent className="p-4">
-            <p className="text-[11px] font-black uppercase tracking-[0.12em] text-[#1565C0]">
-              客戶疑慮
-            </p>
-            <p className="mt-2 text-sm font-semibold leading-6 text-[#0A2342]">
-              {clientTurn.content}
-            </p>
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">客戶疑慮</p>
+            <p className="mt-2 text-sm font-semibold leading-6 text-ink">{clientTurn.content}</p>
           </CardContent>
         </Card>
 
-        <Card data-tour="agent-response" className="border-[#E2EAF1] bg-[#F7FAFF] shadow-sm">
+        <Card data-tour="agent-response" className="border-hairline bg-muted/20 shadow-none">
           <CardContent className="p-4">
-            <p className="text-[11px] font-black uppercase tracking-[0.12em] text-[#1565C0]">
-              建議說法
-            </p>
-            <p className="mt-2 text-sm font-semibold leading-6 text-[#0A2342]">
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">建議說法</p>
+            <p className="mt-2 text-sm font-semibold leading-6 text-ink">
               {displayScore.improvedPhrasing[0] ?? agentTurn.content}
             </p>
           </CardContent>
@@ -556,4 +608,23 @@ function QuickstartTheaterView({
       </div>
     </div>
   );
+}
+
+function TheaterSessionMissing({ isQuickstart }: { isQuickstart: boolean }) {
+  return (
+    <div className="mx-auto flex min-h-[50vh] max-w-md flex-col items-center justify-center px-6 text-center">
+      <div className="flex h-12 w-12 items-center justify-center rounded-full border border-hairline">
+        <BrainCircuit className="h-5 w-5 text-muted-foreground" />
+      </div>
+      <h1 className="mt-5 text-lg font-semibold text-ink">{isQuickstart ? "載入 Quickstart AI 劇場演練..." : "找不到演練"}</h1>
+      <p className="mt-2 text-sm leading-6 text-muted-foreground">請回 AI 劇場演練中心重新建立一場演練。</p>
+      <Button type="button" variant="mono" className="mt-5 rounded-full" onClick={() => window.location.assign("/theater")}>
+        回 AI 劇場演練
+      </Button>
+    </div>
+  );
+}
+
+function TheaterSessionLoading() {
+  return <div className="p-10 text-center text-sm font-medium text-muted-foreground">載入 AI 劇場演練...</div>;
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -13,10 +13,7 @@ import {
   MessageSquare, 
   Plus, 
   Search,
-  Filter,
-  Image as ImageIcon,
   User,
-  ArrowRight,
   MoreVertical,
   Flag
 } from "lucide-react";
@@ -76,6 +73,18 @@ const PRIORITY_MAP = {
   URGENT: { label: "緊急", color: "text-red-600 font-black animate-pulse" },
 };
 
+function formatDate(dateIso: string) {
+  const date = new Date(dateIso);
+  return `${date.getFullYear()}/${date.getMonth() + 1}/${date.getDate()}`;
+}
+
+function formatDateTime(dateIso: string) {
+  const date = new Date(dateIso);
+  const datePart = formatDate(dateIso);
+  const timePart = `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+  return `${datePart} ${timePart}`;
+}
+
 export default function IssuesPage() {
   const [selectedIssue, setSelectedIssue] = useState(MOCK_ISSUES[0]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -109,11 +118,20 @@ export default function IssuesPage() {
             {MOCK_ISSUES.map((issue) => (
               <Card 
                 key={issue.id}
+                role="button"
+                tabIndex={0}
+                aria-label={`查看議題：${issue.title}`}
                 className={cn(
-                  "cursor-pointer transition-all hover:shadow-md border-2",
+                  "cursor-pointer transition-all hover:shadow-md border-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
                   selectedIssue.id === issue.id ? "border-[#1565C0] bg-[#EBF3FB]/30 shadow-sm" : "border-transparent bg-white"
                 )}
                 onClick={() => setSelectedIssue(issue)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    setSelectedIssue(issue);
+                  }
+                }}
               >
                 <CardContent className="p-4 space-y-3">
                   <div className="flex items-start justify-between gap-2">
@@ -121,7 +139,7 @@ export default function IssuesPage() {
                       {STATUS_MAP[issue.status as keyof typeof STATUS_MAP].label}
                     </Badge>
                     <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-tighter">
-                      {new Date(issue.createdAt).toLocaleDateString()}
+                      {formatDate(issue.createdAt)}
                     </span>
                   </div>
                   <div>
@@ -159,7 +177,7 @@ export default function IssuesPage() {
                   </div>
                   <CardTitle className="text-2xl font-black">{selectedIssue.title}</CardTitle>
                 </div>
-                <Button variant="ghost" size="icon" className="rounded-xl">
+                <Button variant="ghost" size="icon" className="rounded-xl" aria-label={`開啟 ${selectedIssue.title} 的更多操作`}>
                   <MoreVertical className="w-5 h-5 text-zinc-400" />
                 </Button>
               </div>
@@ -173,7 +191,7 @@ export default function IssuesPage() {
                    </div>
                    <div>
                       <p className="text-sm font-bold">{selectedIssue.reporterName}</p>
-                      <p className="text-xs text-zinc-400 font-medium">回報於 {new Date(selectedIssue.createdAt).toLocaleString()}</p>
+                      <p className="text-xs text-zinc-400 font-medium">回報於 {formatDateTime(selectedIssue.createdAt)}</p>
                    </div>
                 </div>
                 <div className="p-6 rounded-[24px] bg-zinc-50 font-medium text-zinc-700 leading-relaxed border border-zinc-100">
@@ -184,7 +202,8 @@ export default function IssuesPage() {
                   <div className="grid grid-cols-2 gap-4">
                     {selectedIssue.images.map((img, i) => (
                       <div key={i} className="aspect-video rounded-[24px] overflow-hidden border border-zinc-200 bg-zinc-100 group relative cursor-zoom-in">
-                        <img src={img} alt="Issue Attachment" className="w-full h-full object-cover transition-transform group-hover:scale-105" />
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={img} alt={`${selectedIssue.title} 附件 ${i + 1}`} className="w-full h-full object-cover transition-transform group-hover:scale-105" />
                         <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                           <Search className="w-6 h-6 text-white" />
                         </div>

@@ -48,6 +48,7 @@ export const useCalendarStore = create<CalendarState & CalendarActions>()(
     }),
     {
       name: "sincerely:v1:calendar",
+      partialize: (state) => ({ isGoogleConnected: state.isGoogleConnected }),
     }
   )
 );

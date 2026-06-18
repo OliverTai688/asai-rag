@@ -3,7 +3,7 @@
 | 項目 | 內容 |
 | :--- | :--- |
 | 研究日期 | 2026-05-22 |
-| 依據文件 | `docs/audit-report.md` |
+| 依據文件 | `docs/06_audits-and-reports/AUD-001_experiential-version-audit-report.md` |
 | 本輪開發目標 | 建立可體驗版中樞模組，串起現有 CRM、訪前規劃、SPIN、劇場、報告與追蹤 |
 | 技術基準 | Next.js 16.2.4 App Router、React 19、Zustand persist、Tailwind v4、shadcn / Base UI |
 
@@ -121,4 +121,3 @@ Audit 結論顯示：現有功能已接近可 demo，但缺少「讓使用者知
 ## 8. 本輪開發決策
 
 先實作 `Pilot Hub v1`，因為它能立刻提升可體驗版完整性，且不會破壞既有 mock data 與業務流程。這個模組也會成為後續 demo scenario、合規 checklist 與 tracking 的承載入口。
-

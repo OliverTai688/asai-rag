@@ -1,56 +1,71 @@
 "use client";
 
-import { useReportStore } from "@/domains/report/store";
-import { useSpinStore } from "@/domains/spin/store";
-import { useTheaterStore } from "@/domains/theater/store";
-import { reportService } from "@/domains/report/service";
-import { clientService } from "@/domains/client/service";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import {
+  ArrowUpRight,
+  ChevronRight,
+  FileText,
+  MoreHorizontal,
+  Plus,
+  Search,
+} from "lucide-react";
+import { toast } from "sonner";
+
+import { QuickstartGuide } from "@/components/demo/quickstart-guide";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { 
-  FileText, 
-  ChevronRight, 
-  Clock, 
-  Share2, 
-  Eye,
-  PlusCircle
-} from "lucide-react";
-import Link from "next/link";
-import { useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
-import { toast } from "sonner";
-import { FormattedTime } from "@/components/ui/formatted-time";
-import { buttonVariants } from "@/components/ui/button";
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
-  DialogTitle, 
-  DialogTrigger
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
 } from "@/components/ui/dialog";
-import { QuickstartGuide } from "@/components/demo/quickstart-guide";
+import { FormattedTime } from "@/components/ui/formatted-time";
+import { Input } from "@/components/ui/input";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { clientService } from "@/domains/client/service";
 import {
   getQuickstartSpinFixture,
   getQuickstartTheaterFixture,
 } from "@/domains/demo/quickstart";
+import { reportService } from "@/domains/report/service";
+import { useReportStore } from "@/domains/report/store";
+import type { Report } from "@/domains/report/types";
+import { useSpinStore } from "@/domains/spin/store";
+import { useTheaterStore } from "@/domains/theater/store";
+import type { SpinSession } from "@/domains/spin/types";
 
 export default function ReportListPage() {
+  return (
+    <Suspense fallback={<ReportListLoading />}>
+      <ReportListContent />
+    </Suspense>
+  );
+}
+
+function ReportListContent() {
   const router = useRouter();
-  const { reports, addReport } = useReportStore();
-  const { sessions: spinSessions } = useSpinStore();
-  const { scoresBySession } = useTheaterStore();
+  const searchParams = useSearchParams();
+  const reports = useReportStore((state) => state.reports);
+  const addReport = useReportStore((state) => state.addReport);
+  const spinSessions = useSpinStore((state) => state.sessions);
+  const scoresBySession = useTheaterStore((state) => state.scoresBySession);
+  const [query, setQuery] = useState("");
+  const [sourceOpen, setSourceOpen] = useState(false);
   const quickstartCreatedRef = useRef(false);
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const shouldAutoCreate = params.get("demo") === "quickstart" && params.get("autoCreate") === "true";
+    const shouldAutoCreate = searchParams.get("demo") === "quickstart" && searchParams.get("autoCreate") === "true";
     if (!shouldAutoCreate || quickstartCreatedRef.current) return;
     quickstartCreatedRef.current = true;
 
-    const clientId = params.get("clientId") ?? "c_wang";
-    const spinId = params.get("spinId");
-    const theaterId = params.get("theaterId");
+    const clientId = searchParams.get("clientId") ?? "c_wang";
+    const spinId = searchParams.get("spinId");
+    const theaterId = searchParams.get("theaterId");
     const spinFixture = getQuickstartSpinFixture(spinId ?? "quickstart-spin").session;
     const theaterFixture = getQuickstartTheaterFixture(theaterId ?? "quickstart-theater", spinFixture.id).score;
     const spin =
@@ -58,7 +73,7 @@ export default function ReportListPage() {
       spinSessions.find((session) => session.clientId === clientId) ??
       spinFixture;
     const theaterScore = theaterId ? scoresBySession[theaterId] : Object.values(scoresBySession)[0];
-    const clientName = spin?.clientName ?? clientService.getClientById(clientId)?.name ?? "王大明";
+    const clientName = spin.clientName ?? clientService.getClientById(clientId)?.name ?? "王大明";
 
     const newReport = reportService.generateReport({
       clientId,
@@ -69,13 +84,26 @@ export default function ReportListPage() {
 
     addReport(newReport);
     router.replace(`/reports/${newReport.id}?demo=quickstart`);
-  }, [addReport, router, scoresBySession, spinSessions]);
+  }, [addReport, router, scoresBySession, searchParams, spinSessions]);
 
-  const handleGenerateFromSpin = (spinId: string) => {
-    const spin = spinSessions.find(s => s.id === spinId)!;
-    // 找看看有沒有對應的演練評分
-    const theaterScore = Object.values(scoresBySession)[0]; // 簡化：取第一個評分
+  const filteredReports = useMemo(() => {
+    const term = query.trim().toLowerCase();
+    if (!term) return reports;
+    return reports.filter((report) => report.clientName.toLowerCase().includes(term) || report.id.toLowerCase().includes(term));
+  }, [query, reports]);
 
+  const sortedSpinSessions = useMemo(() => {
+    return spinSessions.slice().sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+  }, [spinSessions]);
+
+  const stats = {
+    total: reports.length,
+    shared: reports.filter((report) => report.share).length,
+    updated: reports[0]?.updatedAt,
+  };
+
+  const handleGenerateFromSpin = (spin: SpinSession) => {
+    const theaterScore = Object.values(scoresBySession)[0];
     const newReport = reportService.generateReport({
       clientId: spin.clientId,
       clientName: spin.clientName,
@@ -84,110 +112,181 @@ export default function ReportListPage() {
     });
 
     addReport(newReport);
-    toast.success(`${spin.clientName} 的報告已成功生成！`);
+    setSourceOpen(false);
+    toast.success(`${spin.clientName} 的報告已生成`);
+    router.push(`/reports/${newReport.id}`);
   };
 
   return (
-    <div className="space-y-6 pb-10">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8">
+      <header className="grid gap-5 border-b border-hairline pb-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
         <div>
-          <h1 className="text-3xl font-bold">決策報告 (Reports)</h1>
-          <p className="text-zinc-500 font-medium">將分析數據轉化為專業提案。支持內部研討與客戶分享。</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">Report library</p>
+          <h1 className="mt-3 text-3xl font-semibold tracking-tight text-ink sm:text-4xl">決策報告</h1>
+          <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
+            管理由 SPIN 與劇場演練產出的客戶報告，快速進入編輯、預覽與分享流程。
+          </p>
         </div>
-        
-        <Dialog>
-          <DialogTrigger>
-            <div className="inline-flex items-center justify-center rounded-full bg-[#1A3A6B] hover:bg-[#1565C0] h-11 px-6 shadow-lg shadow-[#1565C0]/20 text-white font-medium text-sm cursor-pointer transition-colors">
-              <PlusCircle className="w-5 h-5 mr-2" /> 生成報告
-            </div>
+        <Dialog open={sourceOpen} onOpenChange={setSourceOpen}>
+          <DialogTrigger render={<Button type="button" variant="mono" className="h-10 rounded-full" />}>
+            <Plus className="mr-2 h-4 w-4" />
+            生成報告
           </DialogTrigger>
-          <DialogContent className="sm:max-w-md rounded-3xl">
+          <DialogContent className="sm:max-w-lg">
             <DialogHeader>
               <DialogTitle>選擇資料來源</DialogTitle>
             </DialogHeader>
-            <div className="space-y-3 py-4 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
-               {spinSessions.map(spin => (
-                 <button 
-                  key={spin.id}
-                  onClick={() => handleGenerateFromSpin(spin.id)}
-                  className="w-full flex items-center justify-between p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-900 hover:bg-[#EBF3FB] dark:hover:bg-[#0A2342]/10 transition-all text-left"
-                 >
-                    <div className="flex flex-col">
-                       <span className="font-bold">{spin.clientName}</span>
-                       <span className="text-[10px] text-zinc-400 font-bold uppercase"><FormattedTime isoString={spin.createdAt} format="date" /> SPIN SESSION</span>
-                    </div>
-                    <ChevronRight className="w-4 h-4 text-zinc-300" />
-                 </button>
-               ))}
-               {spinSessions.length === 0 && (
-                 <p className="text-center py-10 text-zinc-400 text-sm font-medium italic">請先完成 SPIN 思考後再來生成報告</p>
-               )}
+            <div className="max-h-[420px] space-y-2 overflow-y-auto">
+              {sortedSpinSessions.length ? (
+                sortedSpinSessions.map((spin) => (
+                  <button
+                    key={spin.id}
+                    type="button"
+                    className="grid min-h-16 w-full gap-2 rounded-lg border border-hairline bg-background p-4 text-left transition hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:grid-cols-[1fr_auto] sm:items-center"
+                    onClick={() => handleGenerateFromSpin(spin)}
+                  >
+                    <span>
+                      <span className="block text-sm font-semibold text-ink">{spin.clientName}</span>
+                      <span className="mt-1 block text-xs text-muted-foreground">
+                        <FormattedTime isoString={spin.createdAt} format="date" />・{Object.values(spin.outputs).flat().length} 個 SPIN 線索
+                      </span>
+                    </span>
+                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                  </button>
+                ))
+              ) : (
+                <p className="rounded-lg border border-dashed border-hairline bg-muted/20 p-6 text-center text-sm leading-6 text-muted-foreground">
+                  請先完成一筆 SPIN 澄清，再生成客戶報告。
+                </p>
+              )}
             </div>
           </DialogContent>
         </Dialog>
-      </div>
+      </header>
 
-      <QuickstartGuide currentStepId="report" />
+      {searchParams.get("demo") === "quickstart" ? <QuickstartGuide currentStepId="report" /> : null}
 
-      {reports.length === 0 ? (
-        <div className="text-center py-32 bg-white dark:bg-zinc-900 rounded-[40px] border-2 border-dashed border-zinc-100 dark:border-zinc-800">
-          <div className="w-16 h-16 bg-zinc-50 dark:bg-zinc-900 rounded-full flex items-center justify-center mx-auto mb-4 scale-125">
-            <FileText className="w-8 h-8 text-zinc-300" />
+      <section className="grid gap-3 sm:grid-cols-3">
+        <Metric label="全部報告" value={String(stats.total)} helper="本機工作區" />
+        <Metric label="已分享" value={String(stats.shared)} helper="已建立公開 token" />
+        <Metric label="最近更新" value={stats.updated ? "今日" : "--"} helper={stats.updated ? "依更新時間排序" : "尚無報告"} />
+      </section>
+
+      <Card className="border-hairline shadow-none">
+        <CardContent className="p-0">
+          <div className="grid gap-3 border-b border-hairline p-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+            <div className="relative max-w-md">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="搜尋客戶或報告 ID"
+                className="h-10 rounded-full border-hairline pl-9"
+              />
+            </div>
+            <p className="text-sm text-muted-foreground">{filteredReports.length} 份報告</p>
           </div>
-          <h3 className="text-xl font-black mb-2 tracking-tight">尚無報告記錄</h3>
-          <p className="text-zinc-500 max-w-xs mx-auto mb-8 font-medium">從 CRM 或 SPIN 頁面開始，將 AI 的洞察凝結成一份專業報告。</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-          {reports.map((report) => (
-            <Card key={report.id} className="rounded-[32px] border-zinc-200 dark:border-zinc-800 hover:shadow-xl transition-all group overflow-hidden bg-white dark:bg-zinc-900">
-              <CardContent className="p-0">
-                <Link href={`/reports/${report.id}`}>
-                   <div className="p-6 bg-zinc-50 dark:bg-zinc-800/50 border-b border-zinc-100 dark:border-zinc-800 relative">
-                      <div className="flex items-center gap-3 mb-4">
-                         <div className="w-10 h-10 rounded-2xl bg-white dark:bg-zinc-900 flex items-center justify-center shadow-sm">
-                            <FileText className="w-5 h-5 text-[#1565C0]" />
-                         </div>
-                         <div>
-                            <h4 className="font-bold text-lg leading-none">{report.clientName}</h4>
-                            <p className="text-[10px] text-zinc-400 font-bold uppercase mt-1">決策報告 V{report.version}</p>
-                         </div>
-                      </div>
-                      <div className="flex gap-2">
-                        <Badge variant="outline" className="bg-white dark:bg-zinc-800 border-zinc-200 text-[10px] py-0 px-2 font-black">
-                           {report.sections.length} 個區塊
-                        </Badge>
-                        {report.share && (
-                           <Badge className="bg-green-100 text-green-700 hover:bg-green-100 border-none text-[10px] py-0 px-2 font-black">
-                              已分享 {report.share.accessCount} 次
-                           </Badge>
-                        )}
-                      </div>
-                   </div>
-                </Link>
-                <div className="p-4 flex items-center justify-between">
-                   <div className="flex items-center gap-3">
-                      <div className="flex items-center gap-1 text-[10px] font-bold text-zinc-400">
-                         <Clock className="w-3 h-3" /> <FormattedTime isoString={report.updatedAt} format="date" />
-                      </div>
-                   </div>
-                   <div className="flex items-center gap-1">
-                      <Button variant="ghost" size="icon" className="rounded-xl w-8 h-8 text-zinc-400">
-                         <Share2 className="w-4 h-4" />
-                      </Button>
-                      <Link
-                        href={`/reports/${report.id}`}
-                        className={buttonVariants({ variant: "ghost", size: "icon", className: "rounded-xl w-8 h-8 text-[#1565C0]" })}
-                      >
-                         <Eye className="w-4 h-4" />
-                      </Link>
-                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
+
+          {filteredReports.length ? (
+            <div className="divide-y divide-hairline">
+              {filteredReports.map((report) => (
+                <ReportRow key={report.id} report={report} />
+              ))}
+            </div>
+          ) : (
+            <EmptyReportState hasQuery={Boolean(query.trim())} />
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
+}
+
+function Metric({ helper, label, value }: { helper: string; label: string; value: string }) {
+  return (
+    <Card className="border-hairline shadow-none">
+      <CardContent className="p-4">
+        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">{label}</p>
+        <p className="mt-2 text-2xl font-semibold tabular-nums text-ink">{value}</p>
+        <p className="mt-1 text-xs text-muted-foreground">{helper}</p>
+      </CardContent>
+    </Card>
+  );
+}
+
+function ReportRow({ report }: { report: Report }) {
+  return (
+    <div className="grid gap-3 p-4 transition hover:bg-muted/20 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+      <Link href={`/reports/${report.id}`} className="grid min-w-0 gap-3 sm:grid-cols-[auto_minmax(0,1fr)] sm:items-center">
+        <span className="flex h-10 w-10 items-center justify-center rounded-full border border-hairline bg-background text-muted-foreground">
+          <FileText className="h-4 w-4" />
+        </span>
+        <span className="min-w-0">
+          <span className="block truncate text-sm font-semibold text-ink">{report.clientName} 決策報告</span>
+          <span className="mt-1 flex flex-wrap gap-2 text-xs text-muted-foreground">
+            <span>V{report.version}.0</span>
+            <span>{report.sections.length} 區塊</span>
+            <span>更新 <FormattedTime isoString={report.updatedAt} format="date" /></span>
+          </span>
+        </span>
+      </Link>
+      <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+        {report.share ? (
+          <Badge variant="outline" className="rounded-full">
+            分享 {report.share.accessCount} 次
+          </Badge>
+        ) : (
+          <Badge variant="outline" className="rounded-full text-muted-foreground">
+            未分享
+          </Badge>
+        )}
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Link
+                href={`/reports/${report.id}`}
+                className="flex h-10 w-10 items-center justify-center rounded-full border border-hairline text-muted-foreground transition hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                aria-label={`開啟 ${report.clientName} 報告`}
+              />
+            }
+          >
+            <ArrowUpRight className="h-4 w-4" />
+          </TooltipTrigger>
+          <TooltipContent>開啟報告</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <button
+                type="button"
+                className="flex h-10 w-10 items-center justify-center rounded-full border border-hairline text-muted-foreground transition hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                aria-label={`${report.clientName} 更多操作`}
+              />
+            }
+          >
+            <MoreHorizontal className="h-4 w-4" />
+          </TooltipTrigger>
+          <TooltipContent>更多操作</TooltipContent>
+        </Tooltip>
+      </div>
+    </div>
+  );
+}
+
+function EmptyReportState({ hasQuery }: { hasQuery: boolean }) {
+  return (
+    <div className="p-10 text-center">
+      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-hairline">
+        <FileText className="h-5 w-5 text-muted-foreground" />
+      </div>
+      <h2 className="mt-4 text-base font-semibold text-ink">{hasQuery ? "沒有符合條件的報告" : "尚無報告記錄"}</h2>
+      <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-muted-foreground">
+        {hasQuery ? "調整搜尋條件後再試一次。" : "完成 SPIN 澄清後，可以從資料來源生成第一份決策報告。"}
+      </p>
+    </div>
+  );
+}
+
+function ReportListLoading() {
+  return <div className="p-10 text-center text-sm font-medium text-muted-foreground">載入報告庫...</div>;
 }

@@ -2,23 +2,28 @@
 
 import { useState } from "react";
 import { useParams } from "next/navigation";
-import { clientService } from "@/domains/client/service";
-import { RelationshipMap } from "@/components/crm/RelationshipMap";
 import { AddRelationshipDialog } from "@/components/crm/AddRelationshipDialog";
+import { RelationshipMap } from "@/components/crm/RelationshipMap";
+import { useClientRecord } from "@/components/crm/use-client-record";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, Info, UserPlus } from "lucide-react";
-import { useClientStore } from "@/domains/client/store";
+import { clientService } from "@/domains/client/service";
+import { Info, Trash2, UserPlus, Users } from "lucide-react";
+import {
+  CompactMetric,
+  EmptyRelatedState,
+  IconAction,
+  RecordSubpageHeader,
+} from "../_components/record-subpage-ui";
 
 export default function ClientRelationshipsPage() {
   const params = useParams();
   const clientId = params.clientId as string;
-
-  const client = useClientStore((state) => state.getClientById(clientId));
+  const { client } = useClientRecord(clientId);
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogMode, setDialogMode] = useState<"child" | "parent">("child");
-  // null = connect to root, string = connect to that member id
   const [targetNodeId, setTargetNodeId] = useState<string | null>(null);
 
   function openDialogForRoot() {
@@ -41,20 +46,26 @@ export default function ClientRelationshipsPage() {
 
   if (!client) return null;
 
+  const directConnections = client.family.filter((member) => !member.parentMemberId).length;
+  const withPhone = client.family.filter((member) => member.phone).length;
+
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">關係人管理</h1>
-          <p className="text-sm text-zinc-500 font-medium mt-1">管理客戶的家屬、親戚及相關社會關係</p>
-        </div>
-        <Button
-          onClick={openDialogForRoot}
-          className="bg-[#1A3A6B] hover:bg-[#1565C0] text-white rounded-2xl font-bold gap-2"
-        >
-          <UserPlus className="w-4 h-4" /> 新增關係人
-        </Button>
-      </div>
+    <div className="space-y-5">
+      <RecordSubpageHeader
+        eyebrow="Relationship graph"
+        title="關係人管理"
+        description="先看家庭與社會關係的覆蓋狀況，再補上真正會影響保障責任的關係人。"
+        action={
+          <Button
+            variant="mono"
+            className="w-full rounded-full sm:w-auto"
+            onClick={openDialogForRoot}
+          >
+            <UserPlus className="h-4 w-4" strokeWidth={1.5} />
+            新增關係人
+          </Button>
+        }
+      />
 
       <AddRelationshipDialog
         clientId={clientId}
@@ -66,70 +77,87 @@ export default function ClientRelationshipsPage() {
         mode={dialogMode}
       />
 
-      <div className="grid grid-cols-1 gap-6">
-        <RelationshipMap
-          client={client}
-          onAddChild={openDialogForNodeAsChild}
-          onAddParent={openDialogForNodeAsParent}
-        />
+      <div className="grid gap-3 md:grid-cols-3">
+        <CompactMetric label="關係人" value={`${client.family.length} 位`} helper="已建立節點" />
+        <CompactMetric label="直接連結" value={`${directConnections} 位`} helper="連到主客戶" />
+        <CompactMetric label="可聯絡" value={`${withPhone} 位`} helper="已留電話" />
+      </div>
 
-        <Card className="rounded-3xl border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden">
-          <CardHeader className="bg-zinc-50/50 dark:bg-zinc-900/50 border-b border-zinc-100 dark:border-zinc-800">
-            <CardTitle className="text-lg font-bold flex items-center gap-2">
-              <Users className="w-5 h-5 text-[#1565C0]" /> 關係人清單 ({client.family.length})
+      <RelationshipMap
+        client={client}
+        onAddChild={openDialogForNodeAsChild}
+        onAddParent={openDialogForNodeAsParent}
+      />
+
+      {client.family.length === 0 ? (
+        <EmptyRelatedState
+          icon={Info}
+          title="尚無關係人資料"
+          description="新增配偶、子女或其他關鍵關係人後，系統會用同一份資料更新關係圖與後續訪談線索。"
+        />
+      ) : (
+        <Card>
+          <CardHeader className="border-b border-hairline pb-4">
+            <CardTitle className="flex items-center gap-2">
+              <Users className="h-4 w-4 text-primary" strokeWidth={1.5} />
+              關係人清單
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
-            <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
-              {client.family.map((member) => (
-                <div
-                  key={member.id}
-                  className="p-4 flex items-center justify-between hover:bg-zinc-50/50 dark:hover:bg-zinc-900/50 transition-colors"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-2xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center font-bold text-zinc-500">
-                      {member.name.charAt(0)}
+            <div className="divide-y divide-hairline">
+              {client.family.map((member) => {
+                const parentName =
+                  member.parentMemberId
+                    ? client.family.find((candidate) => candidate.id === member.parentMemberId)?.name ??
+                      "主客戶"
+                    : "主客戶";
+
+                return (
+                  <div
+                    key={member.id}
+                    className="grid gap-3 px-5 py-4 transition-colors hover:bg-paper-2/60 md:grid-cols-[minmax(0,1fr)_160px_120px_48px]"
+                  >
+                    <div className="flex min-w-0 items-center gap-3">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-hairline bg-paper-2 text-sm font-semibold text-foreground">
+                        {member.name.charAt(0)}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-foreground">
+                          {member.name}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {member.age ? `${member.age} 歲・` : ""}
+                          連結至 {parentName}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-bold text-zinc-900 dark:text-zinc-100">{member.name}</p>
-                      <p className="text-xs text-zinc-400 font-medium">
+                    <div className="flex items-center">
+                      <Badge variant="secondary" className="h-6 text-[11px]">
                         {member.relation}
-                        {member.age ? ` • ${member.age} 歲` : ""}
-                        {member.parentMemberId
-                          ? ` • 連結至 ${client.family.find((m) => m.id === member.parentMemberId)?.name ?? "主客戶"}`
-                          : ""}
-                      </p>
+                      </Badge>
+                    </div>
+                    <p className="flex items-center text-sm font-medium text-muted-foreground">
+                      {member.phone ?? "未留電話"}
+                    </p>
+                    <div className="flex items-center justify-start md:justify-end">
+                      <IconAction
+                        label={`刪除 ${member.name}`}
+                        icon={Trash2}
+                        variant="ghost"
+                        onClick={() => {
+                          if (confirm("確定要刪除此關係人嗎？")) {
+                            clientService.deleteFamilyMember(clientId, member.id);
+                          }
+                        }}
+                      />
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    {member.phone && (
-                      <span className="text-xs font-bold text-zinc-500 bg-zinc-100 dark:bg-zinc-800 px-3 py-1 rounded-full">
-                        {member.phone}
-                      </span>
-                    )}
-                    <button
-                      onClick={() => {
-                        if (confirm("確定要刪除此關係人嗎？")) {
-                          clientService.deleteFamilyMember(clientId, member.id);
-                        }
-                      }}
-                      className="p-2 text-zinc-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 rounded-xl transition-colors"
-                    >
-                      刪除
-                    </button>
-                  </div>
-                </div>
-              ))}
-              {client.family.length === 0 && (
-                <div className="py-12 flex flex-col items-center justify-center text-zinc-400">
-                  <Info className="w-8 h-8 mb-2 opacity-20" />
-                  <p className="font-medium">尚無關係人資料</p>
-                </div>
-              )}
+                );
+              })}
             </div>
           </CardContent>
         </Card>
-      </div>
+      )}
     </div>
   );
 }

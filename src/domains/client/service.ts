@@ -1,6 +1,32 @@
 import { useClientStore } from "./store";
-import { Client, FamilyMember } from "./types";
+import { Client, DEFAULT_CLIENT_COMPLIANCE, FamilyMember, Policy } from "./types";
 import { nanoid } from "nanoid";
+
+type CreateClientInput = Pick<
+  Client,
+  "name" | "email" | "phone" | "birthDate" | "occupation" | "annualIncome" | "status"
+>;
+
+type ClientListResponse = {
+  clients: Client[];
+};
+
+type ClientResponse = {
+  client: Client;
+};
+
+type CreateFamilyMemberInput = Omit<FamilyMember, "id">;
+type CreatePolicyInput = Omit<Policy, "id">;
+
+async function parseApiError(response: Response): Promise<Error> {
+  const body = await response.json().catch(() => null);
+  const message =
+    body && typeof body === "object" && "error" in body && typeof body.error === "string"
+      ? body.error
+      : `Request failed with status ${response.status}`;
+
+  return new Error(message);
+}
 
 /**
  * Client Domain Service
@@ -23,9 +49,52 @@ export const clientService = {
   },
 
   /**
+   * 從 BFF 載入目前 workspace 的客戶並更新本地 cache。
+   */
+  fetchClients: async () => {
+    const response = await fetch("/api/clients", { cache: "no-store" });
+
+    if (!response.ok) {
+      throw await parseApiError(response);
+    }
+
+    const body = await response.json() as ClientListResponse;
+    useClientStore.getState().setClients(body.clients);
+    return body.clients;
+  },
+
+  /**
+   * 從 BFF 載入單一客戶並更新本地 cache。
+   */
+  fetchClientById: async (id: string) => {
+    const response = await fetch(`/api/clients/${id}`, { cache: "no-store" });
+
+    if (!response.ok) {
+      throw await parseApiError(response);
+    }
+
+    const body = await response.json() as ClientResponse;
+    useClientStore.getState().setClient(body.client);
+    return body.client;
+  },
+
+  /**
    * 新增客戶
    */
-  createClient: (data: Omit<Client, "id" | "lastInteraction" | "tags" | "aiTags" | "family" | "existingPolicies">) => {
+  createClient: (
+    data: Omit<
+      Client,
+      | "id"
+      | "lastInteraction"
+      | "tags"
+      | "aiTags"
+      | "family"
+      | "existingPolicies"
+      | "complianceChecklist"
+      | "sensitivityLevel"
+      | "kycStatus"
+    >,
+  ) => {
     const newClient: Client = {
       ...data,
       id: `c_${nanoid(8)}`,
@@ -34,9 +103,75 @@ export const clientService = {
       aiTags: [],
       family: [],
       existingPolicies: [],
+      complianceChecklist: DEFAULT_CLIENT_COMPLIANCE,
+      sensitivityLevel: "NORMAL",
+      kycStatus: DEFAULT_CLIENT_COMPLIANCE.kycStatus,
     };
     useClientStore.getState().addClient(newClient);
     return newClient;
+  },
+
+  /**
+   * 透過 BFF 新增客戶；server 會自行推導 organizationId / ownerId / unitId。
+   */
+  createClientRemote: async (data: CreateClientInput) => {
+    const response = await fetch("/api/clients", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      throw await parseApiError(response);
+    }
+
+    const body = await response.json() as ClientResponse;
+    useClientStore.getState().addClient(body.client);
+    return body.client;
+  },
+
+  /**
+   * 透過 BFF 新增關係人；server 會驗證 current member 是否可寫此客戶。
+   */
+  createFamilyMemberRemote: async (clientId: string, member: CreateFamilyMemberInput) => {
+    const response = await fetch(`/api/clients/${clientId}/family-members`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify(member),
+    });
+
+    if (!response.ok) {
+      throw await parseApiError(response);
+    }
+
+    const body = await response.json() as ClientResponse;
+    useClientStore.getState().setClient(body.client);
+    return body.client;
+  },
+
+  /**
+   * 透過 BFF 新增保單；server 會驗證 current member 是否可寫此客戶。
+   */
+  createPolicyRemote: async (clientId: string, policy: CreatePolicyInput) => {
+    const response = await fetch(`/api/clients/${clientId}/policies`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify(policy),
+    });
+
+    if (!response.ok) {
+      throw await parseApiError(response);
+    }
+
+    const body = await response.json() as ClientResponse;
+    useClientStore.getState().setClient(body.client);
+    return body.client;
   },
 
   /**
