@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { use, useEffect, useMemo, useRef, useSyncExternalStore } from "react";
+import { use, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowDown,
   Calendar,
@@ -16,9 +16,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { FormattedTime } from "@/components/ui/formatted-time";
 import { Markdown } from "@/components/ui/markdown";
-import { reportService } from "@/domains/report/service";
-import { useReportStore } from "@/domains/report/store";
-import type { ReportSection, ShareBranding, ShareCtaConfig, SharePortalConfig } from "@/domains/report/types";
+import type { Report, ReportSection, ShareBranding, ShareCtaConfig, SharePortalConfig } from "@/domains/report/types";
 
 const fallbackBranding: ShareBranding = {
   organizationName: "誠問 AI",
@@ -41,20 +39,47 @@ const fallbackCta: ShareCtaConfig = {
 
 export default function ShareReportPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = use(params);
-  const isClientReady = useClientReady();
-  const getReportByToken = useReportStore((state) => state.getReportByToken);
-  const recordAccess = useReportStore((state) => state.recordAccess);
-  const report = isClientReady ? getReportByToken(token) : undefined;
+  const [report, setReport] = useState<Report | null>(null);
+  const [status, setStatus] = useState<"loading" | "ready" | "missing">("loading");
   const trackedRef = useRef(false);
 
   useEffect(() => {
-    if (!report || trackedRef.current) return;
-    trackedRef.current = true;
-    recordAccess(token);
-    fetch(`/api/mock/track/${token}`, { method: "POST" }).catch(() => undefined);
-  }, [recordAccess, report, token]);
+    let isMounted = true;
 
-  const clientSections = useMemo(() => (report ? reportService.getClientSections(report) : []), [report]);
+    fetch(`/api/share/${token}`)
+      .then(async (response) => {
+        if (!response.ok) return null;
+        return (await response.json()) as { report: Report };
+      })
+      .then((body) => {
+        if (!isMounted) return;
+        if (!body?.report) {
+          setStatus("missing");
+          return;
+        }
+        setReport(body.report);
+        setStatus("ready");
+      })
+      .catch(() => {
+        if (isMounted) setStatus("missing");
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [token]);
+
+  useEffect(() => {
+    if (status !== "ready" || trackedRef.current) return;
+    trackedRef.current = true;
+    fetch(`/api/share/${token}/events`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ type: "OPEN", payload: { source: "share-page" } }),
+    }).catch(() => undefined);
+  }, [status, token]);
+
+  const clientSections = useMemo(() => report?.sections ?? [], [report]);
   const recommendation = clientSections.find((section) => section.type === "recommendation");
   const share = report?.share;
   const branding = share?.branding ?? fallbackBranding;
@@ -62,7 +87,7 @@ export default function ShareReportPage({ params }: { params: Promise<{ token: s
   const cta = share?.ctaConfig ?? fallbackCta;
   const accent = sanitizeAccentColor(branding.brandColor);
 
-  if (!isClientReady) {
+  if (status === "loading") {
     return <ShareReportLoading />;
   }
 
@@ -253,14 +278,6 @@ function ClientPortalScope({ portal }: { portal: SharePortalConfig }) {
 function sanitizeAccentColor(color?: string) {
   if (!color) return "#1A3A6B";
   return /^#[0-9A-Fa-f]{6}$/.test(color) ? color : "#1A3A6B";
-}
-
-function useClientReady() {
-  return useSyncExternalStore(
-    () => () => undefined,
-    () => true,
-    () => false,
-  );
 }
 
 function ReportNavigation({ sections }: { sections: ReportSection[] }) {

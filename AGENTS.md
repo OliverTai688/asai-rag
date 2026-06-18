@@ -588,14 +588,16 @@ Context: 將 `RES-012` / `RES-013` 的上線差距與四介面實作研究轉成
 
 ### Batch LCH-006 — Front Office / Share / Client Portal
 - [ ] 建立 `GET /api/public/pricing`。
-- [ ] 建立 `GET /api/share/[token]`，只回 client-safe report sections、branding、CTA、合規免責。
-- [ ] 建立 `POST /api/share/[token]/events`，寫 safe `ShareEvent`。
-- [ ] `/share/[token]` 改 DB-backed token lookup。
+- [x] 建立 `GET /api/share/[token]`，只回 client-safe report sections、branding、CTA、合規免責。
+- [x] 建立 `POST /api/share/[token]/events`，寫 safe `ShareEvent`。
+- [x] `/share/[token]` 改 DB-backed token lookup。
 - [ ] 建立 `GET /api/client-portal/bootstrap`。
 - [ ] 建立 `POST /api/client-portal/responses` 最小 contract。
 - [ ] Client session 不可進 member/org admin。
 - [ ] Share/client portal desktop/mobile QA：invalid、expired、authorized token、client login。
 - [ ] 跑 `pnpm lint:changed`。
+
+進行中註記：2026-06-19 新增 `GET /api/share/[token]`、`POST /api/share/[token]/events`、`src/lib/share/share-repository.ts` 與 `pnpm share:token-qa`。`/share/[token]` 已改由 BFF 讀 DB token，不再從 report store/local seed 取報告，也不再呼叫 `/api/mock/track`。驗收通過：`demo-share-wang` GET 200，回傳 token、王大明 display name、2 個 client sections、organization/unit branding；response 不含 internal/performance/client-private sentinels；POST OPEN event 200，`ReportShare.accessCount 0→1`、`ShareEvent 0→1`，unsafe payload key 未寫入 DB；invalid token 404。Browser smoke：`/share/demo-share-wang` 顯示授權報告，console error 0，無水平 overflow。剩餘：public pricing、client portal bootstrap/responses、client login/session 與完整 invalid/expired/authorized/client-login browser QA。
 
 ### Batch LCH-007 — Org Admin Aggregate And Org Settings APIs
 - [x] 建立 `GET /api/org/overview`。

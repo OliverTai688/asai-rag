@@ -169,14 +169,16 @@
 目標：讓前台不只是頁面，而是 token/client-scoped 的客戶安全入口。
 
 - [ ] 建立 `GET /api/public/pricing`，讀 DB-backed plan capability 或 stable server config。
-- [ ] 建立 `GET /api/share/[token]`，只回 client-safe report sections、org/unit branding、CTA、合規免責。
-- [ ] 建立 `POST /api/share/[token]/events`，寫 `ShareEvent`，IP/user-agent 只存 hash 或 safe metadata。
-- [ ] `/share/[token]` 改用 DB-backed token lookup，不再依賴 local store。
+- [x] 建立 `GET /api/share/[token]`，只回 client-safe report sections、org/unit branding、CTA、合規免責。
+- [x] 建立 `POST /api/share/[token]/events`，寫 `ShareEvent`，IP/user-agent 只存 hash 或 safe metadata。
+- [x] `/share/[token]` 改用 DB-backed token lookup，不再依賴 local store。
 - [ ] 建立 `GET /api/client-portal/bootstrap`，client session 只看授權資料。
 - [ ] 建立 `POST /api/client-portal/responses`，支援客戶補資料/回覆/預約意向的最小 contract。
 - [ ] client session 不可進 member/org admin。
 - [ ] share/client portal desktop/mobile QA：invalid token、expired token、authorized token、client login。
 - [ ] 跑 `pnpm lint:changed`。
+
+進行中註記：2026-06-19 新增 DB-backed share token vertical slice：`GET /api/share/[token]` 只回 client-safe report sections、org/unit branding、CTA、portal scope；`POST /api/share/[token]/events` 寫 safe `ShareEvent`，IP 僅 hash、payload 只允許 section/href/scrollDepth/label/source。`/share/[token]` 改用 BFF fetch，不再依賴 local report store 或 `/api/mock/track`。驗收：`pnpm share:token-qa` 通過，`demo-share-wang` GET 200、invalid token 404、`ReportShare.access_count 0→1`、`ShareEvent 0→1`、private payload key count `0`；Browser smoke `/share/demo-share-wang` console error 0、無水平 overflow。
 
 範圍外：不做完整客戶自助保單管理；不讓 client 看內部 AI prompt/coaching note。
 

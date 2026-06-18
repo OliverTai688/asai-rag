@@ -16,6 +16,7 @@
     "demo:manager-aggregate-qa": "node scripts/demo-manager-aggregate-qa.mjs",
     "demo:runtime-audit": "node scripts/demo-runtime-audit.mjs",
     "mock:production-guard-qa": "node scripts/mock-production-guard-qa.mjs",
+    "share:token-qa": "node scripts/share-token-qa.mjs",
     "prisma:generate": "prisma generate",
     "prisma:validate": "prisma validate"
   },

@@ -1273,3 +1273,72 @@ pnpm mock:production-guard-qa
 
 1. 進 `LCH-006`，做 `GET /api/share/[token]` DB-backed token lookup 與 client-safe report sections，替換 `/share/[token]` 對本地 store/mock tracking 的依賴。
 2. 或補 `POST /api/share/[token]/events`，讓 share tracking 從 `/api/mock/track` 正式轉到 DB-backed `ShareEvent`。
+
+## 2026-06-19 Round 018 - LCH-006 DB-backed Share Token And Event Slice
+
+### 本輪戰役
+
+- Workstream：Launch Readiness Implementation。
+- Batch / task：`LCH-006` Front office / share / client portal - DB-backed share token lookup + share event tracking。
+- 選擇原因：上一輪已確認 `/api/mock/*` production-like runtime 預設不可用；`/share/[token]` 仍需要正式 DB-backed token lookup 與 tracking event 替代 mock/local store flow。
+
+### 本輪完成
+
+- 新增 `src/lib/share/share-repository.ts`。
+- 新增 `GET /api/share/[token]`，只回 client-safe report sections、share branding、portal scope 與 CTA。
+- 新增 `POST /api/share/[token]/events`，寫 safe `ShareEvent`，IP 只存 hash，payload 只保留允許欄位。
+- `/share/[token]` 改用 BFF fetch，不再使用 local report store token lookup，也不再呼叫 `/api/mock/track`。
+- 新增 `scripts/share-token-qa.mjs` 與 package script `pnpm share:token-qa`。
+- LCH-006 的 share token GET、share events POST、DB-backed share page 三項已標記完成。
+
+### DB / Prisma 操作
+
+- 是否修改 schema：否。
+- 是否執行 generate：是，`pnpm build` 已執行 Prisma generate。
+- 是否執行 db push：否。
+- DB target 判斷：`pnpm demo:preflight` 通過，`.env` 指向遠端 Supabase Postgres；本輪 `share:token-qa` 對 demo share 寫入非破壞性 `ShareEvent` evidence。
+
+### 驗收
+
+```bash
+pnpm exec tsc --noEmit --pretty false
+pnpm demo:preflight
+pnpm dev
+pnpm share:token-qa
+Browser smoke /share/demo-share-wang
+pnpm run lint:changed
+pnpm exec eslint 'src/app/(public)/share/[token]/page.tsx' 'src/app/api/share/[token]/route.ts' 'src/app/api/share/[token]/events/route.ts' src/lib/share/share-repository.ts scripts/share-token-qa.mjs
+pnpm build
+```
+
+目前結果：
+
+- TypeScript：通過。
+- `pnpm demo:preflight`：通過；Supabase public env placeholder 仍為 warning。
+- `GET /api/share/demo-share-wang`：200，回傳 matching token、client display name `王大明`、2 個 client sections、organization/unit branding。
+- Client-safe proof：response 不含 `內部摘要`、`演練回饋`、`performance`、`internalSections`、`policy_number`、`insured_amount`、`annualIncome`、`phone`、`email`。
+- `POST /api/share/demo-share-wang/events`：200。
+- DB proof：`ReportShare.access_count 0→1`、`ShareEvent 0→1`、unsafe private payload key count `0`。
+- Invalid token proof：`GET /api/share/not-a-real-share-token` 404。
+- Browser smoke：`/share/demo-share-wang` 顯示 `王大明` 授權報告，console error 0，水平 overflow 0。
+- `pnpm run lint:changed`：通過。
+- 本輪新增/修改 share 檔案專項 ESLint：通過。
+- `pnpm build`：通過，route list 包含 `/api/share/[token]` 與 `/api/share/[token]/events`。
+
+### 失敗與風險
+
+- 本輪尚未完成 client portal login/session；`/client-login` 仍是入口 skeleton。
+- 尚未完成 expired token browser/API proof；目前 API repository 已在 expired share 回 404，但需要後續 seed/proof。
+- `GET /api/public/pricing` 未做。
+
+### 剩餘上線 blocker
+
+- `LCH-005` 剩餘：正式 Auth.js provider / demo users `supabase_auth_id`、demo client portal proof。
+- `LCH-006` 剩餘：public pricing、client portal bootstrap/responses、client session 不能進 member/org admin、完整 invalid/expired/authorized/client-login browser QA。
+- `LCH-007` 剩餘：org members/coaching/ai usage/units/invites/settings API 與 UI proof。
+- Route B 新版 Theater 仍待後續。
+
+### 下一輪建議
+
+1. 繼續 `LCH-006`，補 `GET /api/client-portal/bootstrap` 與 client session/token contract 最小版。
+2. 或補 `GET /api/public/pricing`，讓前台 pricing 也由 DB-backed plan capability/stable server config 驅動。

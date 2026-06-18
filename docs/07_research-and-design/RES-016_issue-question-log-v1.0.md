@@ -8,6 +8,23 @@
 
 ## Open Issues
 
+### IQ-019 - Share page 需要 DB-backed token lookup 與正式 tracking
+
+- 狀態：Resolved
+- 發現日期：2026-06-19
+- 解決日期：2026-06-19
+- 影響 batch：`LCH-006`
+- 背景：
+  - `/share/[token]` 原本從 client-side report store/local seed 查 token，並 fire-and-forget 呼叫 `/api/mock/track/[token]`。
+  - 上一輪已證明 `/api/mock/*` 在 production-like runtime 會被 404 guard 擋住，因此 share tracking 需要正式 DB-backed route。
+- 解法：
+  - 新增 `GET /api/share/[token]`，只回 client-safe report sections、org/unit branding、CTA、portal scope；不回 internal sections、performance feedback、client PII、policy details。
+  - 新增 `POST /api/share/[token]/events`，寫 `ShareEvent`，IP 只存 hash，payload 只保留 section/href/scrollDepth/label/source。
+  - `/share/[token]` 改用 BFF fetch，不再依賴 local report store 或 `/api/mock/track`。
+  - Proof：`pnpm share:token-qa` 對 `demo-share-wang` 通過；GET 200、invalid token 404、`ReportShare.access_count 0→1`、`ShareEvent 0→1`、unsafe private payload key count `0`。
+  - Browser smoke：`/share/demo-share-wang` 顯示授權報告，console error 0，無水平 overflow。
+  - 剩餘：client portal login/session、expired token proof、public pricing API 仍待 `LCH-006` 後續。
+
 ### IQ-018 - Production-like runtime 不得依賴 `/api/mock/*`
 
 - 狀態：Resolved
