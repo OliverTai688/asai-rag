@@ -8,6 +8,21 @@
 
 ## Open Issues
 
+### IQ-018 - Production-like runtime 不得依賴 `/api/mock/*`
+
+- 狀態：Resolved
+- 發現日期：2026-06-19
+- 解決日期：2026-06-19
+- 影響 batch：`LCH-005`、`LCH-009`
+- 背景：
+  - `LCH-005` 需要確認 demo/runtime 不會用 mock API 成功冒充正式驗收。
+  - `LCH-009` 需要 production-like env 預設關閉 `/api/mock/*`，只保留 dev/test guard。
+- 解法：
+  - 新增 `pnpm mock:production-guard-qa`，在 production-like server 上實打所有現有 mock route。
+  - Proof runtime：`ALLOW_MOCK_API=false pnpm start`。
+  - Proof 結果：`/api/mock/ai/assistant`、`/api/mock/ai/spin-outline`、`/api/mock/ai/theater`、`/api/mock/ai/visit`、`/api/mock/track/demo-token` 全部回 `404 mock_api_disabled`。
+  - 剩餘：`/share/[token]` 的 fire-and-forget mock tracking 需要在 `LCH-006` 以 `POST /api/share/[token]/events` 取代。
+
 ### IQ-017 - Demo manager aggregate-only 權限邊界需要實證
 
 - 狀態：Resolved

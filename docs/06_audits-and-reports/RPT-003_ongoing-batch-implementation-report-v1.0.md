@@ -1217,3 +1217,59 @@ pnpm build
 
 1. 繼續 `LCH-005`，補 `/api/mock/*` production-like guard proof，避免 production UI 仍能依賴 mock API。
 2. 或進 `LCH-006`，做 DB-backed share token/client portal authorized content proof，解除 demo client blocker。
+
+## 2026-06-19 Round 017 - LCH-005 Mock API Production-like Guard Proof
+
+### 本輪戰役
+
+- Workstream：Launch Readiness Implementation。
+- Batch / task：`LCH-005` Demo Account Relogin QA - `/api/mock/*` production-like guard proof；同步解除 `LCH-009` production controls 的 mock route 關閉項目。
+- 選擇原因：demo member/manager proof 已完成，下一個可由系統安全推進的 LCH-005 blocker 是確認 production-like runtime 不會把 mock API 當正式驗收或資料來源。
+
+### 本輪完成
+
+- 新增 `scripts/mock-production-guard-qa.mjs`。
+- 新增 package script `pnpm mock:production-guard-qa`。
+- QA script 實打五條 mock route：`/api/mock/ai/assistant`、`/api/mock/ai/spin-outline`、`/api/mock/ai/theater`、`/api/mock/ai/visit`、`/api/mock/track/demo-token`。
+- 使用 `ALLOW_MOCK_API=false pnpm start` 啟動 production-like Next runtime。
+- LCH-005 的「`/api/mock/*` 在 production-like env 預設不可用」已標記完成；LCH-009 的 production mock guard 項目同步標記完成。
+
+### DB / Prisma 操作
+
+- 是否修改 schema：否。
+- 是否執行 generate：是，`pnpm build` 會執行 Prisma generate。
+- 是否執行 db push：否。
+- DB target 判斷：本輪不需要 DB mutation；未執行 seed/backfill/write。
+
+### 驗收
+
+```bash
+pnpm exec tsc --noEmit --pretty false
+pnpm build
+ALLOW_MOCK_API=false pnpm start
+pnpm mock:production-guard-qa
+```
+
+結果：
+
+- TypeScript：通過。
+- Build：通過，mock routes 仍存在於 build route list，但 runtime guard 生效。
+- Production-like guard proof：五條 `/api/mock/*` route 全部回 `404`，response body 包含 `mock_api_disabled`。
+- `pnpm start` 以 Ctrl-C 停機，exit code `130` 是手動停機，不列為驗收失敗。
+
+### 失敗與風險
+
+- `/share/[token]` 目前仍有 client-side `/api/mock/track/[token]` fire-and-forget；production-like guard 會讓它 404 並被 catch。正式 share tracking 應由 `LCH-006` 的 `POST /api/share/[token]/events` 取代。
+- 本輪只證明 mock routes 在 production-like runtime 預設不可用；尚未完成 client portal 或正式 Auth provider。
+
+### 剩餘上線 blocker
+
+- `LCH-005` 剩餘：Supabase Auth `supabase_auth_id` / 正式 Auth.js provider、demo client portal proof。
+- `LCH-006` client portal/share DB-backed token lookup 與 tracking API 仍缺。
+- `LCH-007` 剩餘：org members/coaching/ai usage/units/invites/settings API 與 UI proof。
+- Route B 新版 Theater 仍待後續。
+
+### 下一輪建議
+
+1. 進 `LCH-006`，做 `GET /api/share/[token]` DB-backed token lookup 與 client-safe report sections，替換 `/share/[token]` 對本地 store/mock tracking 的依賴。
+2. 或補 `POST /api/share/[token]/events`，讓 share tracking 從 `/api/mock/track` 正式轉到 DB-backed `ShareEvent`。

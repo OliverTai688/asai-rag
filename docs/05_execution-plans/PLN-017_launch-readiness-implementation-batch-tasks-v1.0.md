@@ -146,7 +146,7 @@
 - [x] demo member 新增 client、建立至少一筆 AI output，刷新後仍存在。
 - [x] demo manager 登入，只看到 aggregate/coaching/unit/member health，不看到客戶明細。
 - [ ] demo client 登入，只看到 authorized share/client portal content。
-- [ ] 確認 `/api/mock/*` 在 production-like env 預設不可用。
+- [x] 確認 `/api/mock/*` 在 production-like env 預設不可用。
 - [x] 保存 QA evidence：commands、必要 screenshots、AiUsageLog count before/after。
 - [x] 跑 `pnpm lint:changed`。
 
@@ -155,6 +155,8 @@
 進行中註記：2026-06-19 新增 `pnpm demo:member-write-qa`，以 demo member 走 BFF 建立測試 client，接著呼叫 `/api/ai/interview/outputs` 產生 DB-backed AI output，再重讀 API/DB。驗收通過：created client `cmqjwzrem0004ai619szx7z9p` 可重讀且合規 checklist 初始化 `MISSING`；AI output 200 且回傳 known facts、prep questions、issue readiness；DB proof `INTERVIEW AiUsageLog 1→2`、`monthlyAiUsed 1→2`、created client count `1`、client-linked `InteractionEvent(type=VISIT)` count `1`。
 
 進行中註記：2026-06-19 新增 `GET /api/org/overview` 與 `pnpm demo:manager-aggregate-qa`，以 demo manager session 驗證只能讀 aggregate/coaching/unit/member health。驗收通過：overview 回傳 `totals`、`coaching`、`unitHealth`、`memberHealth`，並以 DB demo clients/policies 產生 7 個 forbidden sentinels 驗證不含 client name/email/phone/occupation/notes/policy/product/report body/transcript/detail field names；同時確認 `/api/clients` 在 manager session 下不洩漏其他 member seeded client details。
+
+進行中註記：2026-06-19 新增 `pnpm mock:production-guard-qa`，在 `ALLOW_MOCK_API=false pnpm start` production-like runtime 實打所有 `/api/mock/*` route。驗收通過：assistant、spin-outline、theater、visit、track mock routes 均回 `404 mock_api_disabled`，確認 production-like env 預設不可用。
 
 範圍外：不開放 public self-serve signup；不給外部 super admin demo。
 
@@ -227,7 +229,7 @@
 
 - [ ] 建立 AI quota/cost alert：至少 DB counter + UI quota warning；若導入 Redis rate limit 需文件化。
 - [ ] 對所有 OpenAI/Anthropic routes 做 audit，列出 module、provider、success/error `AiUsageLog` evidence。
-- [ ] 關閉 production-like env 的 `/api/mock/*`，保留 dev/test guard。
+- [x] 關閉 production-like env 的 `/api/mock/*`，保留 dev/test guard。
 - [ ] 建立 Sentry 或等價錯誤監控方案；若暫不接，寫入 release blocker。
 - [ ] 建立 DB backup/restore 與 migration rollback note。
 - [ ] 建立 privacy / terms / AI disclaimer 最小頁面或 release blocker。
