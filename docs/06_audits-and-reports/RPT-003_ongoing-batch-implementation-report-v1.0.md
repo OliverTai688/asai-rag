@@ -521,3 +521,72 @@ Browser proof：
 - Operator 已明確批准目前 `.env` 指向的 Supabase target 可執行 LCH demo/test 非破壞性寫入 proof。
 - 後續輪次可補 `POST /api/clients` valid write、refresh/relogin proof、family/policy valid write proof。
 - 仍禁止 drop/reset、清表、刪除遠端資料、真實金流/email/notification、停用 public-read、刪除 bucket object、儲存 raw secret/token/private payload。
+
+## 2026-06-19 Round 006 - LCH-001 Route Guard Closure
+
+### 本輪戰役
+
+- Workstream：Launch Readiness Implementation。
+- Batch / task：`LCH-001` Session / Workspace Foundation route guards。
+- 選擇原因：`LCH-001` 是最低未完成卡；route guard 直接影響 member/org/super-admin 的上線安全邊界，且不需要 DB mutation。
+
+### 本輪完成
+
+- 將原 `(dashboard)/layout.tsx` client shell 移到 `src/components/layout/dashboard-shell.tsx`。
+- 新增 server `(dashboard)/layout.tsx`，未登入 member routes 直接 `redirect("/login")`。
+- 將 `/team` 改為 server wrapper，套 `requireOrgAdminRoute()`，owner/admin/manager 才能進入 org admin surface。
+- `/super-admin` page 套 `requirePlatformRoute()`，一般 app session 或無 platform role 會導 `/super-admin/login`。
+- 新增 `src/lib/auth/route-guards.ts`，集中 route-level redirect helper，API policy 仍保留在 `current-workspace.ts` / `policies.ts`。
+- 更新 `AGENTS.md`、`PLN-017`、`RES-016`。
+
+### DB / Prisma 操作
+
+- 是否修改 schema：否。
+- 是否執行 generate：是，透過 `pnpm build` 觸發 `prisma generate`。
+- 是否執行 db push：否。
+- DB target 判斷：`.env` 指向遠端 Supabase Postgres；本輪不做 DB mutation。
+- 結果：無 schema change、無 db push、無遠端寫入。
+
+### 驗收
+
+```bash
+pnpm exec tsc --noEmit --pretty false
+pnpm lint:changed
+pnpm demo:runtime-audit
+pnpm build
+ALLOW_DEV_AUTH_HEADER=true pnpm dev
+curl -s -o /dev/null -D - http://localhost:3000/dashboard
+curl -s -o /tmp/asai-dashboard.html -w '%{http_code}\n' -H 'x-asai-demo-user-email: demo.member@asai.local' http://localhost:3000/dashboard
+curl -s -o /tmp/asai-team.html -w '%{http_code}\n' -H 'x-asai-demo-user-email: demo.manager@asai.local' http://localhost:3000/team
+curl -s -o /dev/null -D - -H 'x-asai-demo-user-email: demo.member@asai.local' http://localhost:3000/super-admin
+```
+
+結果：
+
+- TypeScript：通過。
+- `pnpm lint:changed`：通過。
+- `pnpm demo:runtime-audit`：通過。
+- `pnpm build`：通過；dashboard/member routes 轉為 dynamic。
+- 無 session `/dashboard`：`307`，location `/login`。
+- 本機 dev header + demo member `/dashboard`：`200`。
+- 本機 dev header + demo manager `/team`：`200`。
+- 本機 dev header + demo member `/super-admin`：`307`，location `/super-admin/login`。
+
+### 失敗與風險
+
+- 本輪未做 Browser screenshot，因改動是 server guard；以 HTTP proof + build 驗證。
+- Dev header proof 必須顯式用 `ALLOW_DEV_AUTH_HEADER=true` 啟動，production 仍禁止 dev header。
+- Production `AUTH_SECRET` 與正式 provider/email/SSO 尚未接入，仍是 release blocker。
+- Client portal session contract 仍未設計，留給 `LCH-006`。
+
+### 剩餘上線 blocker
+
+- `LCH-002` 仍缺「新增 client 後刷新仍存在」實際 DB write proof。
+- `LCH-004` 三個 AI 尚未完成 session-scoped persistence / `AiUsageLog` 全路徑 proof。
+- `LCH-005` demo relogin full QA 仍缺。
+- `LCH-006` client portal session/share DB-backed token lookup 仍缺。
+
+### 下一輪建議
+
+1. 補 `LCH-002` valid `POST /api/clients` 寫入 proof，刷新重讀確認存在。
+2. 或開始 `LCH-003` member settings BFF，讓 `/settings` 從 mock surface 轉為 member-scoped contract。

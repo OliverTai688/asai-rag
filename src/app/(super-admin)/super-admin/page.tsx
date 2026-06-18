@@ -16,6 +16,7 @@ import {
   PLATFORM_SESSION_BOUNDARY,
   evaluateImpersonationRequest,
 } from "@/domains/platform/impersonation";
+import { requirePlatformRoute } from "@/lib/auth/route-guards";
 
 const now = new Date("2026-06-18T10:00:00+08:00");
 const sampleDecision = evaluateImpersonationRequest({
@@ -60,7 +61,9 @@ const auditRows = [
   },
 ];
 
-export default function SuperAdminPage() {
+export default async function SuperAdminPage() {
+  await requirePlatformRoute();
+
   return (
     <main className="min-h-screen bg-paper text-ink">
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-5 py-6 sm:px-8 lg:px-10">

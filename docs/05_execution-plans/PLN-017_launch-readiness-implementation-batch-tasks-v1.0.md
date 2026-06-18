@@ -30,7 +30,7 @@
 
 | 卡片 | 主題 | 狀態 | 依賴 |
 | --- | --- | --- | --- |
-| LCH-001 | Session / workspace foundation | [~] | Auth.js provider/env |
+| LCH-001 | Session / workspace foundation | [x] | Auth.js provider/env |
 | LCH-002 | DB-backed client CRUD | [ ] | LCH-001 |
 | LCH-003 | Member settings and workspace preferences | [ ] | LCH-001 |
 | LCH-004 | Three AI production minimum | [ ] | LCH-001、LCH-002、ITA Route B decision |
@@ -51,13 +51,13 @@
 - [x] 建立 `src/lib/auth/current-workspace.ts`：`requireCurrentMember()`、`requireOrgAdmin()`、`requirePlatformUser()`、`requireClientPortalUser()`。
 - [x] 建立 `src/lib/auth/policies.ts`：`canReadClientDetail()`、`canWriteClient()`、`canReadOrgAggregate()`、`canUseAiModule()`、`canBreakGlass()`。
 - [x] 建立 `/api/workspace/bootstrap`，回傳 current user、default organization、membership role、unit scope、plan capability、AI quota summary。
-- [ ] 加上 dashboard/member routes 的 guard：未登入導 `/login`。
-- [ ] 加上 org admin routes guard：`/team` 與未來 `/org/*` 需 owner/admin/manager；manager 只能 aggregate/scoped。
-- [ ] 加上 `/super-admin/*` platform-only guard，不接受一般 app session。
+- [x] 加上 dashboard/member routes 的 guard：未登入導 `/login`。
+- [x] 加上 org admin routes guard：`/team` 與未來 `/org/*` 需 owner/admin/manager；manager 只能 aggregate/scoped。
+- [x] 加上 `/super-admin/*` platform-only guard，不接受一般 app session。
 - [x] 若新增或改動 `middleware.ts` / route group / cookies，先讀 `node_modules/next/dist/docs/` 相關 Next.js 16 文件。
 - [x] 跑 `pnpm lint:changed`；若動 Prisma schema 跑 `pnpm prisma:validate` 與 `pnpm prisma:generate`。
 
-進行中註記：2026-06-19 已完成 server session/policy/bootstrap foundation，並以 `ALLOW_DEV_AUTH_HEADER=true` + `x-asai-demo-user-email: demo.member@asai.local` 驗證 `/api/workspace/bootstrap` 200；無 header 401。同日依 operator 新方向改採 Auth.js / NextAuth：新增 `src/auth.ts`、`/api/auth/[...nextauth]` 與 Session type augmentation；`/api/auth/session` 200、`/api/auth/providers` 200。production `AUTH_SECRET`、正式 provider/email/SSO、route guards、client portal session contract 仍未完成。
+完成註記：2026-06-19 已完成 server session/policy/bootstrap foundation，並以 `ALLOW_DEV_AUTH_HEADER=true` + `x-asai-demo-user-email: demo.member@asai.local` 驗證 `/api/workspace/bootstrap` 200；無 header 401。同日依 operator 新方向改採 Auth.js / NextAuth：新增 `src/auth.ts`、`/api/auth/[...nextauth]` 與 Session type augmentation；`/api/auth/session` 200、`/api/auth/providers` 200。2026-06-19 補 route guard：dashboard/member routes 由 `(dashboard)/layout.tsx` server guard 未登入導 `/login`；`/team` server wrapper 套 owner/admin/manager guard；`/super-admin` platform-only guard，不接受一般 app session。Production `AUTH_SECRET`、正式 provider/email/SSO 與 client portal session contract 仍列為後續 release blocker / LCH-006。
 
 範圍外：不做完整 CRUD；不接 ECPay；不改 AI prompt；不改 Theater schema。
 

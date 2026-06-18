@@ -39,17 +39,19 @@
 
 ### IQ-002 - Route guard 策略尚未定案
 
-- 狀態：Open
+- 狀態：Resolved
 - 發現日期：2026-06-19
+- 解決日期：2026-06-19
 - 影響 batch：`LCH-001`
 - 背景：
   - `LCH-001` 需要 dashboard/member 未登入導 `/login`、org admin 套 owner/admin/manager guard、super admin platform-only。
   - Next 16 文件中 middleware 相關慣例已改為 `proxy` 文件路徑，若要新增全域攔截需先讀 `node_modules/next/dist/docs/01-app/01-getting-started/16-proxy.md` 與 file convention。
-- 待決策：
-  - A. 先以 layout/server component redirect 做 route guard。
-  - B. 使用 Next proxy/middleware 做 centralized guard。
-  - C. 混合：page/layout guard + API policy 為主，proxy 只做 coarse protection。
-- 初步建議：C。API authorization 才是資料安全主邊界，route guard 作 UX 與粗粒度保護。
+- 解法：
+  - 採 C：page/layout guard + API policy 為主，proxy 暫不導入。
+  - `(dashboard)/layout.tsx` 改為 server component，呼叫 `requireMemberRoute()`；現有互動 shell 移至 `src/components/layout/dashboard-shell.tsx`。
+  - `/team` 改為 server wrapper 呼叫 `requireOrgAdminRoute()`，client UI 移至 `team-page-client.tsx`。
+  - `/super-admin` 呼叫 `requirePlatformRoute()`，一般 app session 會導 `/super-admin/login`。
+  - HTTP proof：無 session `/dashboard` 307 `/login`；`ALLOW_DEV_AUTH_HEADER=true` + demo member `/dashboard` 200；demo manager `/team` 200；demo member `/super-admin` 307 `/super-admin/login`。
 
 ### IQ-003 - Client portal session contract 尚未設計
 
