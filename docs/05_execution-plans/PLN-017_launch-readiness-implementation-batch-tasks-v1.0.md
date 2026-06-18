@@ -168,7 +168,7 @@
 
 目標：讓前台不只是頁面，而是 token/client-scoped 的客戶安全入口。
 
-- [ ] 建立 `GET /api/public/pricing`，讀 DB-backed plan capability 或 stable server config。
+- [x] 建立 `GET /api/public/pricing`，讀 DB-backed plan capability 或 stable server config。
 - [x] 建立 `GET /api/share/[token]`，只回 client-safe report sections、org/unit branding、CTA、合規免責。
 - [x] 建立 `POST /api/share/[token]/events`，寫 `ShareEvent`，IP/user-agent 只存 hash 或 safe metadata。
 - [x] `/share/[token]` 改用 DB-backed token lookup，不再依賴 local store。
@@ -178,7 +178,7 @@
 - [ ] share/client portal desktop/mobile QA：invalid token、expired token、authorized token、client login。
 - [ ] 跑 `pnpm lint:changed`。
 
-進行中註記：2026-06-19 新增 DB-backed share token vertical slice：`GET /api/share/[token]` 只回 client-safe report sections、org/unit branding、CTA、portal scope；`POST /api/share/[token]/events` 寫 safe `ShareEvent`，IP 僅 hash、payload 只允許 section/href/scrollDepth/label/source。`/share/[token]` 改用 BFF fetch，不再依賴 local report store 或 `/api/mock/track`。驗收：`pnpm share:token-qa` 通過，`demo-share-wang` GET 200、invalid token 404、`ReportShare.access_count 0→1`、`ShareEvent 0→1`、private payload key count `0`；Browser smoke `/share/demo-share-wang` console error 0、無水平 overflow。2026-06-19 續補 client portal token-scoped session：`getClientSession()` 從 `x-asai-client-token` header 或 `asai_client_share_token` cookie 驗證 DB `ReportShare`，不從 member app session 推導 client identity；`GET /api/client-portal/bootstrap` 只回 authorized report/client-safe sections/branding/CTA；`POST /api/client-portal/responses` 寫 `InteractionEvent(type=TASK)`，metadata 只保留 source/responseType/shareId/reportId/preferredTime/contactMethod/topic。驗收：`pnpm client-portal:qa` 通過，missing client session 401、client token 打 `/api/workspace/bootstrap` 401、bootstrap 200、response 201、invalid type 400、`InteractionEvent` 0→1、unsafe payload key count 0。
+進行中註記：2026-06-19 新增 DB-backed share token vertical slice：`GET /api/share/[token]` 只回 client-safe report sections、org/unit branding、CTA、portal scope；`POST /api/share/[token]/events` 寫 safe `ShareEvent`，IP 僅 hash、payload 只允許 section/href/scrollDepth/label/source。`/share/[token]` 改用 BFF fetch，不再依賴 local report store 或 `/api/mock/track`。驗收：`pnpm share:token-qa` 通過，`demo-share-wang` GET 200、invalid token 404、`ReportShare.access_count 0→1`、`ShareEvent 0→1`、private payload key count `0`；Browser smoke `/share/demo-share-wang` console error 0、無水平 overflow。2026-06-19 續補 client portal token-scoped session：`getClientSession()` 從 `x-asai-client-token` header 或 `asai_client_share_token` cookie 驗證 DB `ReportShare`，不從 member app session 推導 client identity；`GET /api/client-portal/bootstrap` 只回 authorized report/client-safe sections/branding/CTA；`POST /api/client-portal/responses` 寫 `InteractionEvent(type=TASK)`，metadata 只保留 source/responseType/shareId/reportId/preferredTime/contactMethod/topic。驗收：`pnpm client-portal:qa` 通過，missing client session 401、client token 打 `/api/workspace/bootstrap` 401、bootstrap 200、response 201、invalid type 400、`InteractionEvent` 0→1、unsafe payload key count 0。2026-06-19 續補 public pricing：`GET /api/public/pricing` 由 DB `PlanConfig` 產生 public-safe DTO，含四個方案、能力上限、CTA、ECPay provider 狀態；`checkoutEnabled=false`，正式 checkout 仍需 server notification/query proof。驗收：`pnpm public:pricing-qa` 通過，API 200、source=database、四方案能力上限與 DB 一致、private billing/env sentinels 0。
 
 範圍外：不做完整客戶自助保單管理；不讓 client 看內部 AI prompt/coaching note。
 

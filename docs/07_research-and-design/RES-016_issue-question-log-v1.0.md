@@ -8,6 +8,21 @@
 
 ## Open Issues
 
+### IQ-020 - Public pricing 需要 DB-backed plan capability 且不得誤啟用付款
+
+- 狀態：Resolved
+- 發現日期：2026-06-19
+- 解決日期：2026-06-19
+- 影響 batch：`LCH-006`
+- 背景：
+  - 前台 pricing 需要能讀 super admin / DB controlled plan capability，例如 `maxCollaborators`、`maxUnits`、`monthlyAiQuota`。
+  - ECPay 尚未完成正式 checkout notification/query proof，不能讓前台 API 暗示可正式收款。
+- 解法：
+  - 新增 `GET /api/public/pricing`，由 DB `PlanConfig` 產生 public-safe pricing DTO。
+  - Response 只包含 plan display、feature、CTA 與 public capabilities；不回 private billing/env/provider payload。
+  - `billing.provider=ECPAY` 且 `checkoutEnabled=false`，正式 checkout 仍需後續 ECPay server notification/query proof。
+  - Proof：`pnpm public:pricing-qa` 通過；API 200、source=database、四方案能力上限與 DB 一致、private billing/env sentinels 0。
+
 ### IQ-019 - Share page 需要 DB-backed token lookup 與正式 tracking
 
 - 狀態：Resolved

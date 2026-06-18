@@ -18,6 +18,7 @@
     "mock:production-guard-qa": "node scripts/mock-production-guard-qa.mjs",
     "share:token-qa": "node scripts/share-token-qa.mjs",
     "client-portal:qa": "node scripts/client-portal-qa.mjs",
+    "public:pricing-qa": "node scripts/public-pricing-qa.mjs",
     "prisma:generate": "prisma generate",
     "prisma:validate": "prisma validate"
   },

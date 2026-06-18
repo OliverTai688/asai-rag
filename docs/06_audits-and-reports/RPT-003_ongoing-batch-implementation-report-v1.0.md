@@ -1406,3 +1406,66 @@ pnpm client-portal:qa
 
 1. 繼續 `LCH-006`，補 `/client-login` token handoff/cookie proof 或 expired token proof。
 2. 或補 `GET /api/public/pricing`，讓前台 pricing 由 DB-backed plan capability/stable server config 驅動。
+
+## 2026-06-19 Round 020 - LCH-006 Public Pricing API Slice
+
+### 本輪戰役
+
+- Workstream：Launch Readiness Implementation。
+- Batch / task：`LCH-006` Front office / share / client portal - DB-backed public pricing API。
+- 選擇原因：LCH-006 剩餘 public pricing API 會影響前台一頁式介紹與方案購買入口；需要先能公開讀取方案能力，但不能誤啟用未完成的正式綠界付款。
+
+### 本輪完成
+
+- 新增 `src/lib/public/pricing-repository.ts`，由 DB `PlanConfig` 組成 public-safe pricing DTO，若 DB 無資料才 fallback 到 server stable defaults。
+- 新增 `GET /api/public/pricing`。
+- 新增 `scripts/public-pricing-qa.mjs` 與 package script `pnpm public:pricing-qa`。
+- DTO 只輸出公開方案資料、能力上限、CTA、ECPay provider 狀態；不輸出 private billing/env 欄位。
+- `billing.checkoutEnabled=false`，避免未完成 ECPay 正式收款被前台誤啟用。
+- `AGENTS.md` 與 `PLN-017` 已將 `GET /api/public/pricing` 標記完成。
+
+### DB / Prisma 操作
+
+- 是否修改 schema：否。
+- 是否執行 generate：待本輪 `pnpm build` 驗收時執行。
+- 是否執行 db push：否。
+- DB target 判斷：`pnpm demo:preflight` 通過，`.env` 指向遠端 Supabase Postgres；本輪僅讀取 `plan_configs`，沒有 DB write。
+
+### 驗收
+
+```bash
+pnpm exec tsc --noEmit --pretty false
+pnpm demo:preflight
+pnpm dev
+pnpm public:pricing-qa
+```
+
+目前結果：
+
+- TypeScript：第一次發現 DB select 型別缺 `impersonationAllowed`，已改為 public capability type；第二次通過。
+- `pnpm demo:preflight`：通過；Supabase public env placeholder 仍為 warning。
+- `GET /api/public/pricing`：200。
+- API proof：`source=database`，回傳 `FREE`、`STARTER`、`PRO`、`ENTERPRISE` 四個方案。
+- DB proof：四個方案的 `maxMembers`、`maxCollaborators`、`maxUnits`、`monthlyAiQuota` 均與 DB `plan_configs` 一致。
+- Billing safety proof：`billing.provider=ECPAY` 且 `checkoutEnabled=false`。
+- Private field proof：response 不含 `stripeCustomerId`、`stripeSubscriptionId`、provider ids、`rawPayload`、DB/env secret sentinels。
+- `pnpm run lint:changed`：通過。
+- Targeted ESLint：`src/lib/public/pricing-repository.ts`、`src/app/api/public/pricing/route.ts`、`scripts/public-pricing-qa.mjs` 通過。
+- `pnpm build`：通過；Prisma Client generated，Next route list 包含 `/api/public/pricing`。
+- Git：本輪 commit/push 完成後以 final 回報。
+
+### 失敗與風險
+
+- 本輪只建立 public pricing API，尚未把 `/pricing` UI 改成 runtime fetch。
+- ECPay checkout 仍未完成；API 已刻意回 `checkoutEnabled=false`。
+
+### 剩餘上線 blocker
+
+- `LCH-006` 剩餘：client login UI/cookie handoff、expired token proof、完整 invalid/expired/authorized/client-login browser QA。
+- `LCH-007` 剩餘：org members/coaching/ai usage/units/invites/settings API 與 UI proof。
+- Route B 新版 Theater 仍待後續。
+
+### 下一輪建議
+
+1. 繼續 `LCH-006`，補 `/client-login` token handoff/cookie proof，讓 demo client 可登入看到 authorized content。
+2. 或補 expired token seed/proof 與 share/client portal browser QA，收斂 LCH-006 的 QA 欄位。
