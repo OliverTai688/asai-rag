@@ -8,6 +8,23 @@
 
 ## Open Issues
 
+### IQ-024 - Org coaching/AI usage API 只能回 aggregate，不得暴露 AI 原文或 request internals
+
+- 狀態：Resolved
+- 發現日期：2026-06-19
+- 解決日期：2026-06-19
+- 影響 batch：`LCH-007`
+- 背景：
+  - Org admin 需要 coaching 與 AI usage surface，回答「誰需要輔導、卡在哪、AI 用量是否異常」。
+  - Manager/org admin 不得因此取得 member 客戶明細、report body、SPIN/Theater transcript、AI requestId 或 error 原文。
+- 解法：
+  - 新增 `GET /api/org/coaching`，只回 completion rate、stuck stage aggregate、theater persona load、member coaching aggregate 與 recommendation focus。
+  - 新增 `GET /api/org/ai-usage`，只回 current-month module/provider/member/unit aggregate requests、tokens、estimated cost、average latency 與 module error count。
+  - 兩個 route 都使用 `requireOrgAdmin()` 與 `canReadOrgAggregate()`；MANAGER 若有 managed unit scope，會套用 unit scope。
+  - Proof：`pnpm demo:org-coaching-ai-usage-qa` 通過；demo manager 兩 API 皆 200、scope role `MANAGER`、aggregate structures 存在、forbidden client/private field names 0、DB seeded client/policy/report/message/AI sentinels 0。
+  - Regression proof：`pnpm demo:org-members-qa` 通過，上一輪 org members aggregate contract 未回歸。
+  - 注意：dev QA 必須用 `ALLOW_DEV_AUTH_HEADER=true pnpm dev`，未開時 401 是預期 guard。
+
 ### IQ-023 - Org members API 需要 member metadata 但不得回客戶明細
 
 - 狀態：Resolved

@@ -1699,3 +1699,82 @@ pnpm demo:manager-aggregate-qa
 
 1. 繼續 `LCH-007`，補 `GET /api/org/coaching` 與 `GET /api/org/ai-usage`，延續 aggregate-only proof。
 2. 或補 `GET/POST /api/org/units`，套 plan `maxUnits`，為 org settings surface 打底。
+
+## 2026-06-19 Round 024 - LCH-007 Org Coaching And AI Usage Aggregate APIs
+
+### 本輪戰役
+
+- Workstream：Launch Readiness Implementation。
+- Batch / task：`LCH-007` Org Admin Aggregate And Org Settings APIs - `GET /api/org/coaching`、`GET /api/org/ai-usage`。
+- 選擇原因：上一輪已完成 org members aggregate API；下一個最低未完成上線缺口是 org manager 的 coaching/usage 彙總，且必須證明 manager 不會取得客戶明細、AI transcript、report body、requestId 或 error 原文。
+
+### 本輪完成
+
+- 新增 `GET /api/org/coaching`。
+- 新增 `GET /api/org/ai-usage`。
+- 新增 `pnpm demo:org-coaching-ai-usage-qa`。
+- `AGENTS.md` 與 `PLN-017` 已將 `GET /api/org/coaching`、`GET /api/org/ai-usage` 標記完成。
+- Route 皆使用 `requireOrgAdmin()` 與 `canReadOrgAggregate()`；MANAGER 若有 managed unit scope，會套用 unit scope。
+- Coaching response 只回 completion rate、stuck stage aggregate、theater persona load、member coaching aggregate 與 recommendation focus。
+- AI usage response 只回 current-month module/provider/member/unit aggregate requests、tokens、estimated cost、average latency 與 module error count；不回 `requestId` 或 `error` 原文。
+
+### 修改檔案
+
+- `src/app/api/org/coaching/route.ts`
+- `src/app/api/org/ai-usage/route.ts`
+- `scripts/demo-org-coaching-ai-usage-qa.mjs`
+- `package.json`
+- `AGENTS.md`
+- `docs/05_execution-plans/PLN-017_launch-readiness-implementation-batch-tasks-v1.0.md`
+- `docs/06_audits-and-reports/RPT-003_ongoing-batch-implementation-report-v1.0.md`
+- `docs/07_research-and-design/RES-016_issue-question-log-v1.0.md`
+
+### DB / Prisma 操作
+
+- 是否修改 schema：否。
+- 是否執行 generate：`pnpm build` 內執行 `prisma generate`，通過。
+- 是否執行 db push：否。
+- DB target 判斷：`pnpm demo:preflight` 通過，`.env` 指向遠端 Supabase Postgres；本輪只讀 DB proof，不寫 DB。
+- DB 寫入摘要：無。
+
+### 驗收
+
+```bash
+pnpm exec tsc --noEmit --pretty false
+pnpm demo:preflight
+ALLOW_DEV_AUTH_HEADER=true pnpm dev
+pnpm demo:org-coaching-ai-usage-qa
+pnpm demo:org-members-qa
+pnpm run lint:changed
+pnpm exec eslint src/app/api/org/coaching/route.ts src/app/api/org/ai-usage/route.ts scripts/demo-org-coaching-ai-usage-qa.mjs
+pnpm build
+```
+
+結果：
+
+- TypeScript：通過。
+- `pnpm demo:preflight`：通過；Supabase public env placeholder 仍為 warning。
+- `pnpm demo:org-coaching-ai-usage-qa`：通過；demo manager 呼叫 `/api/org/coaching` 與 `/api/org/ai-usage` 皆 200，scope role `MANAGER`。
+- Privacy proof：client/private forbidden field names 0；DB seeded client/policy/report/message/AI sentinels 0；`requestId` 與 `error` field name 未出現在 response。
+- Regression proof：`pnpm demo:org-members-qa` 通過，上一輪 `/api/org/members` aggregate-only contract 未回歸。
+- `pnpm run lint:changed`：通過。
+- Targeted ESLint：兩個新 route 與新 QA script 通過。
+- `pnpm build`：通過；Prisma Client generated，Next route list 包含 `/api/org/coaching` 與 `/api/org/ai-usage`。
+
+### 失敗與風險
+
+- 無本輪驗收失敗。
+- `LCH-007` 尚未完成 org units、invites、org settings API/UI 與 `/team` browser QA。
+- AI usage current-month period 以 server runtime timezone 建立 Date；API response 使用 ISO，前端顯示時需以 org timezone 格式化。
+
+### 剩餘上線 blocker
+
+- `LCH-007` 剩餘：`GET/POST /api/org/units`、`POST /api/org/invites`、org settings API/UI、browser QA。
+- `LCH-008`：super admin audit / impersonation / platform controls。
+- ECPay 正式 checkout notification/query proof 仍待後續。
+- Route B 新版 Theater 仍待後續。
+
+### 下一輪建議
+
+1. 繼續 `LCH-007`，補 `GET/POST /api/org/units`，套 `PlanConfig.maxUnits`，為 org settings surface 打底。
+2. 接著補 `POST /api/org/invites`，套 `PlanConfig.maxCollaborators` / seat limit，並保留 partial-success/operation log 設計入口。
