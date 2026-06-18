@@ -659,3 +659,69 @@ curl -H 'x-asai-demo-user-email: demo.member@asai.local' http://localhost:3000/a
 
 1. 做 `LCH-003` member settings BFF，讓 `/settings` 從 mock surface 轉成 member-scoped contract。
 2. 或開始 `LCH-004` 的 `/api/ai/interview` session-scope / `AiUsageLog` 最小閉環。
+
+## 2026-06-19 Round 008 - LCH-003 Member Settings DB-backed Slice
+
+### 本輪戰役
+
+- Workstream：Launch Readiness Implementation。
+- Batch / task：`LCH-003` Member settings and workspace preferences。
+- 選擇原因：`LCH-003` 是最低未完成且直接阻擋 member admin / org admin settings 分層的上線卡；原 `/settings` 仍是本機假資料與「系統設定」命名。
+
+### 本輪完成
+
+- 新增 `OrganizationMember.settings` nullable JSON，作為 member-scoped preferences contract。
+- 新增 `src/lib/member-settings/member-settings-repository.ts`，由 server session 推導 current membership，只讀寫個人偏好。
+- 新增 `GET/PATCH /api/member/settings`，支援 profile、notifications、AI preferences、personal integrations、default workspace。
+- 重作 `/settings` 為「個人設定」頁，移除本機 business data reset，明確排除 org branding、billing、unit policy、client portal、org AI quota、compliance defaults。
+- sidebar 將 `/settings` 命名由「系統設定」改為「個人設定」。
+- 保存 `/settings` desktop/mobile 截圖。
+
+### DB / Prisma 操作
+
+- 是否修改 schema：是，新增 `OrganizationMember.settings Json?`。
+- 是否執行 generate：是，`pnpm prisma:generate` 與 `pnpm build` 內的 generate 均通過。
+- 是否執行 db push：是，`pnpm prisma db push` 通過。
+- DB target 判斷：`pnpm demo:preflight` 通過，`.env` 指向遠端 Supabase Postgres `db.wwocdcicvpmbdmqvskzi.supabase.co`；本輪為 nullable column add 與 demo member settings JSON 寫入 proof。
+
+### 驗收
+
+```bash
+pnpm prisma:validate
+pnpm prisma:generate
+pnpm demo:preflight
+pnpm prisma db push
+pnpm exec tsc --noEmit --pretty false
+pnpm run lint:changed
+pnpm build
+ALLOW_DEV_AUTH_HEADER=true pnpm dev
+curl -H 'x-asai-demo-user-email: demo.member@asai.local' http://localhost:3000/api/member/settings
+curl -X PATCH -H 'x-asai-demo-user-email: demo.member@asai.local' -H 'content-type: application/json' http://localhost:3000/api/member/settings
+```
+
+結果：
+
+- Prisma validate/generate/db push：通過。
+- TypeScript：通過。
+- `pnpm lint:changed`：通過。
+- `pnpm build`：通過，`/api/member/settings` 列入 route manifest。
+- API proof：`GET /api/member/settings` 200；`PATCH /api/member/settings` 200；重讀 `GET` 200 且 `displayName=Demo Member LCH-003`、`landingPath=/crm` persisted true。
+- Browser proof：`/settings` desktop 1440x1000、mobile 390x844 heading `個人設定`，console error 0、無水平 overflow。
+
+### 失敗與風險
+
+- `pnpm demo:preflight` 仍警告 Supabase public env placeholder；不阻擋 server-side DB proof，但會阻擋未來 client-side Supabase features。
+- 本輪只完成 member settings；org settings 仍待 `LCH-007`。
+- Personal collaborator 入口尚未實作真正 invite flow，僅顯示 server policy entry，符合本卡範圍。
+
+### 剩餘上線 blocker
+
+- `LCH-004` 三個 AI 尚未完成 session-scoped persistence / `AiUsageLog` 全路徑 proof。
+- `LCH-005` demo relogin full QA 仍缺 visit plans、reports、sessions、AI output。
+- `LCH-006` client portal/share DB-backed token lookup 仍缺。
+- `LCH-007` org aggregate + org settings 尚未完成。
+
+### 下一輪建議
+
+1. 進入 `LCH-004`，先完成 `/api/ai/chat` 或 `/api/ai/interview` session-scoped persistence + `AiUsageLog` proof。
+2. 或做 `LCH-007` org aggregate/org settings，因 `LCH-003` 已解除設定分層依賴。

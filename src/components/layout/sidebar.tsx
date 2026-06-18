@@ -92,7 +92,7 @@ const navSections: Array<{ label: string; items: NavItem[] }> = [
     items: [
       { name: "團隊管理", href: "/team", icon: Users2 },
       { name: "體驗版", href: "/pilot", icon: Compass },
-      { name: "系統設定", href: "/settings", icon: Settings },
+      { name: "個人設定", href: "/settings", icon: Settings },
     ],
   },
 ];

@@ -535,13 +535,15 @@ Context: 將 `RES-012` / `RES-013` 的上線差距與四介面實作研究轉成
 完成註記：2026-06-19 新增 DB-backed member client BFF：`GET/POST /api/clients`、`GET/PATCH /api/clients/[id]`、server-side DTO/repository mapper。API 不信任前端 `organizationId`/`ownerId`/`unitId`，由 `requireCurrentMember()` 注入；新增 client 時會建立 `ComplianceChecklist`（KYC/suitability/consent 全為 MISSING 並列 missingItems）。`/crm` list 與新增對話框改為 BFF/cache-first；新 browser context + demo member header 可從 DB 看到 seeded client `王大明`，console error 0、無水平 overflow。後續同輪補上 `useClientRecord()` API hydration，`/crm/c_wang`、relationships、policies、gap-analysis、reports、timeline 可在乾淨 browser context 直接從 `/api/clients/[id]` hydrate；desktop Browser QA 皆 console error 0、無水平 overflow。再補 `POST /api/clients/[id]/family-members`、`POST /api/clients/[id]/policies` 與 service methods；relationships dialog child mode 已接 family member BFF，API 401/400 proof 與 dialog open Browser proof 通過。Operator 於 2026-06-19 已批准目前 Supabase target 可做 LCH demo/test 非破壞性寫入 proof；同日以 `ALLOW_DEV_AUTH_HEADER=true` 建立 demo/test client `cmqjsnwbf00005061en7zsevh`（`LCH-002 測試客戶 20260619014910`），`POST /api/clients` 回 201，後續 `GET /api/clients` 與 `GET /api/clients/cmqjsnwbf00005061en7zsevh` 回 200，list/detail 均可重讀且 `kycStatus=MISSING`。
 
 ### Batch LCH-003 — Member Settings And Workspace Preferences
-- [ ] 將 `/settings` 定義為 member settings：profile、notification、AI preferences、personal integrations、default workspace。
-- [ ] 建立 `GET/PATCH /api/member/settings`。
-- [ ] `/settings` 不得修改 org branding、billing、unit policy、client portal、org AI quota、compliance defaults。
-- [ ] Personal plan owner 的 collaborator 入口仍需 server-side plan policy。
-- [ ] AI 個人偏好不得超過 org policy 上限。
-- [ ] 更新 sidebar/route naming，避免與 org settings 混淆。
-- [ ] 跑 `pnpm lint:changed`；必要時保存 desktop/mobile 截圖。
+- [x] 將 `/settings` 定義為 member settings：profile、notification、AI preferences、personal integrations、default workspace。
+- [x] 建立 `GET/PATCH /api/member/settings`。
+- [x] `/settings` 不得修改 org branding、billing、unit policy、client portal、org AI quota、compliance defaults。
+- [x] Personal plan owner 的 collaborator 入口仍需 server-side plan policy。
+- [x] AI 個人偏好不得超過 org policy 上限。
+- [x] 更新 sidebar/route naming，避免與 org settings 混淆。
+- [x] 跑 `pnpm lint:changed`；必要時保存 desktop/mobile 截圖。
+
+完成註記：2026-06-19 新增 `OrganizationMember.settings` nullable JSON 作為 member-scoped preferences contract；建立 `src/lib/member-settings/member-settings-repository.ts` 與 `GET/PATCH /api/member/settings`，只由 `requireCurrentMember()` 推導 current membership，不接受前端傳入 org/user scope。`/settings` 已改為「個人設定」，覆蓋 profile、notifications、AI preferences、personal integrations、default workspace、personal collaborator entry 與 security boundary；sidebar route naming 由「系統設定」改為「個人設定」。API proof：`GET /api/member/settings` 200，`PATCH /api/member/settings` 200，重讀 persisted true；`pnpm prisma:validate`、`pnpm prisma:generate`、`pnpm prisma db push`、`pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`、`pnpm build` 通過。Browser proof `/settings` desktop/mobile console error 0、無水平 overflow；截圖：`docs/06_audits-and-reports/screenshots/launch-readiness/lch-003/settings-desktop.png`、`docs/06_audits-and-reports/screenshots/launch-readiness/lch-003/settings-mobile.png`。
 
 ### Batch LCH-004 — Three AI Production Minimum
 - [ ] `/api/ai/chat` 改 session-scoped，保存 conversation/message，寫 `AiUsageLog`。

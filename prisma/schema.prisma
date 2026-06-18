@@ -440,6 +440,7 @@ model OrganizationMember {
   status         MembershipStatus @default(ACTIVE)
   region         String?
   title          String?
+  settings       Json?
   isDefault      Boolean          @default(false) @map("is_default")
   invitedAt      DateTime?        @map("invited_at")
   acceptedAt     DateTime?        @map("accepted_at")

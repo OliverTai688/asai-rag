@@ -32,7 +32,7 @@
 | --- | --- | --- | --- |
 | LCH-001 | Session / workspace foundation | [x] | Auth.js provider/env |
 | LCH-002 | DB-backed client CRUD | [x] | LCH-001 |
-| LCH-003 | Member settings and workspace preferences | [ ] | LCH-001 |
+| LCH-003 | Member settings and workspace preferences | [x] | LCH-001 |
 | LCH-004 | Three AI production minimum | [ ] | LCH-001、LCH-002、ITA Route B decision |
 | LCH-005 | Demo account relogin QA | [ ] | LCH-001、LCH-002、LCH-004 |
 | LCH-006 | Front office / share / client portal | [ ] | LCH-001、LCH-002 |
@@ -90,14 +90,16 @@
 
 目標：把現有 `/settings` 定義並落地為 member settings，不混入 org-wide policy。
 
-- [ ] 建立 `/settings` 的 page design/implementation brief：個人資料、通知、AI 偏好、個人整合、預設 workspace、個人版 collaborator 入口。
-- [ ] 建立 `GET/PATCH /api/member/settings`，只讀寫 current user/member-scoped settings。
-- [ ] 若需要 schema，新增 member settings 或使用 `User.metadata` / membership metadata 的明確 contract；動 schema 跑 Prisma 驗收。
-- [ ] `/settings` 不得修改 organization branding、billing、unit policy、client portal、org AI quota、compliance defaults。
-- [ ] Personal plan owner 可看到 collaborator 入口，但 invite/limit 必須呼叫 server-side plan policy。
-- [ ] AI 偏好只作個人預設；若與 org policy 衝突，以 org policy 為上限。
-- [ ] 更新 sidebar/route naming，確保 member settings 與 org settings 不混淆。
-- [ ] 跑 `pnpm lint:changed`；必要時保存 desktop/mobile 截圖。
+- [x] 建立 `/settings` 的 page design/implementation brief：個人資料、通知、AI 偏好、個人整合、預設 workspace、個人版 collaborator 入口。
+- [x] 建立 `GET/PATCH /api/member/settings`，只讀寫 current user/member-scoped settings。
+- [x] 若需要 schema，新增 member settings 或使用 `User.metadata` / membership metadata 的明確 contract；動 schema 跑 Prisma 驗收。
+- [x] `/settings` 不得修改 organization branding、billing、unit policy、client portal、org AI quota、compliance defaults。
+- [x] Personal plan owner 可看到 collaborator 入口，但 invite/limit 必須呼叫 server-side plan policy。
+- [x] AI 偏好只作個人預設；若與 org policy 衝突，以 org policy 為上限。
+- [x] 更新 sidebar/route naming，確保 member settings 與 org settings 不混淆。
+- [x] 跑 `pnpm lint:changed`；必要時保存 desktop/mobile 截圖。
+
+完成註記：2026-06-19 新增 `OrganizationMember.settings` nullable JSON contract；`GET/PATCH /api/member/settings` 只讀寫 current membership settings。`/settings` UI 已改為 member-scoped 個人設定，不含 org branding/billing/unit/client portal/quota/compliance policy 寫入；個人協作者入口只顯示 server-side plan policy 結果，未直接邀請；AI daily insight 上限由 `PlanConfig.monthlyAiQuota` 推導。驗收：Prisma validate/generate/db push、TypeScript、lint:changed、build、API GET/PATCH/GET persistence proof、desktop/mobile browser proof 通過。
 
 範圍外：不做 org settings；不做 billing；不做 super admin settings。
 

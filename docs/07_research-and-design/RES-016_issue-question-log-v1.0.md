@@ -110,6 +110,22 @@
 
 ## Resolved Issues
 
+### IQ-012 - LCH-003 member settings 與 org settings 分層落地
+
+- 狀態：Resolved
+- 發現日期：2026-06-19
+- 解決日期：2026-06-19
+- 影響 batch：`LCH-003`、`LCH-007`
+- 背景：
+  - 既有 `/settings` 命名為「系統設定」，且以 client-only 本機 state 呈現，容易和 org settings 混用。
+  - 上線前必須確保 member admin 的私人偏好不修改 org-wide branding、billing、unit、client portal、quota 或 compliance policy。
+- 解法：
+  - 新增 `OrganizationMember.settings Json?`，明確把 member preferences 綁在 current membership。
+  - 新增 `GET/PATCH /api/member/settings`，只透過 `requireCurrentMember()` 取得 session，不接受前端指定 org/user。
+  - `/settings` 改為「個人設定」：profile、notifications、AI preferences、personal integrations、default workspace、personal collaborator policy entry。
+  - sidebar `/settings` 改名「個人設定」，org settings 留待 `LCH-007` 的 `/org/settings` 或 `/team/settings`。
+  - 驗收：Prisma validate/generate/db push、TypeScript、lint:changed、build、API persistence proof、desktop/mobile browser proof 均通過。
+
 ### IQ-011 - LCH-002 valid client write proof
 
 - 狀態：Resolved
