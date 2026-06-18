@@ -416,6 +416,23 @@
   - QA 暫時更新 STARTER `monthlyAiQuota 200→201` 並透過同 API 還原 `201→200`；DB 與 audit count 均驗證通過。
   - Audit log query 仍只回 `metadataKeys`，不回 raw metadata。
 
+### IQ-018 - LCH-008 impersonation 必須限時限 scope 且可撤銷
+
+- 狀態：Resolved
+- 發現日期：2026-06-19
+- 解決日期：2026-06-19
+- 影響 batch：`LCH-008`
+- 背景：
+  - Super admin/support impersonation 若沒有 reason、scope、expiry、end/revoke 與 audit，會成為無痕萬能後門。
+  - `FINANCE` 角色不應擁有 impersonation 權限。
+- 解法：
+  - 新增 `POST /api/platform/impersonation`，必填 target org、reason、scope、expiresAt；target user 若提供必須是該 org active member。
+  - 沿用 domain policy：FINANCE 禁止，expiry 最長 60 分鐘。
+  - 新增 `PATCH /api/platform/impersonation/[id]`，支援 `END` 與 `REVOKE`，只能作用於 ACTIVE session。
+  - Start 寫 `IMPERSONATION_START` BREAK_GLASS audit；end/revoke 寫 `IMPERSONATION_END` BREAK_GLASS audit。
+  - QA 證明 FINANCE 403、missing reason 400、expiry too long 403、SUPER_ADMIN start/end/revoke 成功，DB 狀態與 audit count 均通過。
+  - 尚未完成 impersonated read/write route context；已保留為 LCH-008 下一個未完成項。
+
 ### IQ-014 - LCH-004 interview agent 仍信任前端 scope 且缺 output evidence
 
 - 狀態：Resolved

@@ -2172,3 +2172,79 @@ pnpm build
 
 1. 繼續 `LCH-008`，建立 `POST /api/platform/impersonation` start flow，要求 target org/user、reason、scope、expiresAt，寫 `IMPERSONATION_START` audit。
 2. 同輪若可控，補 end/revoke route 與 QA，讓 break-glass 前的 audit session 骨架成形。
+
+## 2026-06-19 Round 030 - LCH-008 Platform Impersonation Start End Revoke
+
+### 本輪戰役
+
+- Workstream：Launch Readiness Implementation。
+- Batch / task：`LCH-008` Super Admin / Audit / Impersonation - impersonation start/end/revoke API 與 BREAK_GLASS audit proof。
+- 選擇原因：plan config update 已具備 audit；下一個高風險上線缺口是 super admin/support 的 impersonation 必須被限時、限 scope、可結束/撤銷且全程 audit，否則會形成無痕後門。
+
+### 本輪完成
+
+- 新增 `src/lib/platform/platform-impersonation-repository.ts`。
+- 新增 `POST /api/platform/impersonation`：必填 `targetOrgId`、`reason`、`scope`、`expiresAt`；`targetUserId` 可選但若提供必須是該 org active member。
+- 新增 `PATCH /api/platform/impersonation/[id]`：支援 `END` 與 `REVOKE`，必填 reason，只允許 active session。
+- 沿用既有 platform domain policy：`FINANCE` 不可 impersonate，expiry 上限 60 分鐘。
+- Start 寫 `AuditLog(action=IMPERSONATION_START,sensitivity=BREAK_GLASS)`；end/revoke 寫 `AuditLog(action=IMPERSONATION_END,sensitivity=BREAK_GLASS)`。
+- 新增 `pnpm demo:platform-impersonation-qa`，驗證 FINANCE 403、missing reason 400、expiry too long 403、SUPER_ADMIN start/end/revoke、DB status 與 audit counts。
+- `AGENTS.md` 與 `PLN-017` 已將 impersonation start/end/revoke 標記完成；impersonated read/write audit 另拆成未完成項。
+
+### 修改檔案
+
+- `src/lib/platform/platform-impersonation-repository.ts`
+- `src/app/api/platform/impersonation/route.ts`
+- `src/app/api/platform/impersonation/[id]/route.ts`
+- `scripts/demo-platform-impersonation-qa.mjs`
+- `package.json`
+- `AGENTS.md`
+- `docs/05_execution-plans/PLN-017_launch-readiness-implementation-batch-tasks-v1.0.md`
+- `docs/06_audits-and-reports/RPT-003_ongoing-batch-implementation-report-v1.0.md`
+- `docs/07_research-and-design/RES-016_issue-question-log-v1.0.md`
+
+### DB / Prisma 操作
+
+- 是否修改 schema：否。
+- 是否執行 generate：`pnpm build` 內執行 `prisma generate`，通過。
+- 是否執行 db push：否。
+- DB target 判斷：`pnpm demo:preflight` 通過，`.env` 指向遠端 Supabase Postgres。
+- DB 寫入摘要：`pnpm demo:platform-impersonation-qa` 建立兩筆 demo impersonation sessions：一筆 ACTIVE→ENDED、一筆 ACTIVE→REVOKED；並寫入 `IMPERSONATION_START` / `IMPERSONATION_END` BREAK_GLASS audit evidence。
+
+### 驗收
+
+```bash
+pnpm exec tsc --noEmit --pretty false
+pnpm exec eslint src/lib/platform/platform-impersonation-repository.ts src/app/api/platform/impersonation/route.ts 'src/app/api/platform/impersonation/[id]/route.ts' scripts/demo-platform-impersonation-qa.mjs
+pnpm demo:preflight
+pnpm run lint:changed
+ALLOW_DEV_AUTH_HEADER=true pnpm dev
+pnpm demo:platform-impersonation-qa
+pnpm build
+```
+
+結果：
+
+- TypeScript：通過。
+- Targeted ESLint：通過。
+- `pnpm demo:preflight`：通過；Supabase public env placeholder 仍為 warning。
+- `pnpm run lint:changed`：通過。
+- `pnpm demo:platform-impersonation-qa`：通過；FINANCE start 403；missing reason 400；expiry > 60 分鐘 403；SUPER_ADMIN start 201 且 DB ACTIVE；end 200 且 DB ENDED；second start 201；revoke 200 且 DB REVOKED；audit count `START 0→1`、`END 0→1→2`；audit query filter `BREAK_GLASS` 200 且只回 `metadataKeys`。
+- `pnpm build`：通過；Next route list 包含 `/api/platform/impersonation` 與 `/api/platform/impersonation/[id]`。
+
+### 失敗與風險
+
+- 無未修復驗收失敗。
+- QA 過程 dev server 顯示 `pg@9` deprecation warning：`Calling client.query() when the client is already executing a query is deprecated`。QA 仍通過，非本輪阻擋；若升級 pg 或大量並行 QA，可把 seed helper 改成單一排程或獨立 connection。
+- 尚未把 impersonation session 接到實際 read/write route context，因此「impersonated read/write 寫 AuditLog 並帶 impersonationSessionId」仍未完成。
+
+### 剩餘上線 blocker
+
+- `LCH-008` 剩餘：impersonated read/write audit、break-glass API、platform settings surface。
+- `LCH-009`：production controls、AI usage route audit、backup/rollback、privacy/terms/disclaimer、ECPay test checklist、full smoke。
+- `LCH-004`：Theater Route B 與三 AI error-path / quota UI proof 仍未收完。
+
+### 下一輪建議
+
+1. 繼續 `LCH-008`，先做 impersonated read/write audit context：以 header 或 server-side context 接收 active impersonation session，對 platform-safe read route 產生 `IMPERSONATED_READ` audit，避免直接進敏感 read。
+2. 接著做 `POST /api/platform/break-glass`，把 sensitive scope、reason、expiry 與 audit 串到同一套 session guard。
