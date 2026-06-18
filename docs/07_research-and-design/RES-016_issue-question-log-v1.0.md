@@ -8,6 +8,24 @@
 
 ## Open Issues
 
+### IQ-017 - Demo manager aggregate-only 權限邊界需要實證
+
+- 狀態：Resolved
+- 發現日期：2026-06-19
+- 解決日期：2026-06-19
+- 影響 batch：`LCH-005`、`LCH-007`
+- 背景：
+  - 使用者已決策：org manager 只能看彙總與輔導指標，不看所有 member 的客戶明細。
+  - `LCH-005` 需要 demo manager 實際登入/呼叫 API 後，只看到 aggregate/coaching/unit/member health。
+  - `LCH-007` 尚缺 org aggregate API 起點。
+- 解法：
+  - 新增 `GET /api/org/overview`，使用 `requireOrgAdmin()` 與 `canReadOrgAggregate()`，由 server session 推導 org/role/unit scope。
+  - Response 只包含 organization summary、scope、totals、coaching、unitHealth、memberHealth。
+  - 新增 `pnpm demo:manager-aggregate-qa`，以 `demo.manager@asai.local` 呼叫 BFF，再以 DB demo clients/policies 產生 7 個 forbidden sentinels 檢查 response。
+  - Proof 通過：overview 200，回傳 aggregate counts；未洩漏 client name/email/phone/occupation/notes/policy/product，且不含 `email`、`phone`、`annualIncome`、`notes`、`policies`、`familyMembers`、`clientSections`、`internalSections` 等 detail field names。
+  - 同步確認 `/api/clients` 在 manager session 下不洩漏其他 member seeded client details。
+  - 剩餘：`/api/org/members`、`/api/org/coaching`、`/api/org/ai-usage`、org settings 與 UI proof 仍待 `LCH-007`。
+
 ### IQ-001 - Auth provider 從 Supabase Auth 改為 Auth.js / NextAuth
 
 - 狀態：Resolved

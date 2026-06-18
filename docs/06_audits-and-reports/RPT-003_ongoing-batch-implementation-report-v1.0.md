@@ -1154,3 +1154,66 @@ pnpm build
 
 1. 繼續 `LCH-005`，做 demo manager aggregate-only proof，確認 manager 不看到 member 客戶明細。
 2. 或補 `/api/mock/*` production-like guard proof，關掉 mock 成功冒充正式驗收的風險。
+
+## 2026-06-19 Round 016 - LCH-005 Demo Manager Aggregate-Only QA Slice
+
+### 本輪戰役
+
+- Workstream：Launch Readiness Implementation。
+- Batch / task：`LCH-005` Demo Account Relogin QA - demo manager aggregate-only proof；同步解除 `LCH-007` 的 `GET /api/org/overview` 第一張 API 缺口。
+- 選擇原因：上一輪已證明 demo member 可新增 client 與 AI output；下一個上線 blocker 是 org manager 權限邊界，必須證明 manager 只看到彙總與輔導指標，不會看到 member 客戶明細。
+
+### 本輪完成
+
+- 新增 `GET /api/org/overview`。
+- Route 使用 `requireOrgAdmin()` 與 `canReadOrgAggregate()`，由 server session 推導 organization、role、unit scope。
+- Overview 只回傳 organization summary、scope、totals、coaching、unitHealth、memberHealth；不回 client list、client PII、policy、report body、SPIN/Theater transcript。
+- 新增 `scripts/demo-manager-aggregate-qa.mjs`。
+- 新增 package script `pnpm demo:manager-aggregate-qa`。
+- QA script 以 demo manager session 呼叫 `/api/org/overview`，並用 DB demo clients/policies 產生 forbidden sentinels 檢查 API response。
+- LCH-005 的「demo manager 只看到 aggregate/coaching/unit/member health」已標記完成；LCH-007 的 `GET /api/org/overview` 已標記完成。
+
+### DB / Prisma 操作
+
+- 是否修改 schema：否。
+- 是否執行 generate：否，本輪無 schema 變更。
+- 是否執行 db push：否。
+- DB target 判斷：`pnpm demo:preflight` 通過，`.env` 指向遠端 Supabase Postgres；本輪只做 aggregate read proof，未新增/刪除資料。
+
+### 驗收
+
+```bash
+pnpm demo:preflight
+pnpm exec tsc --noEmit --pretty false
+ALLOW_DEV_AUTH_HEADER=true pnpm dev
+pnpm demo:manager-aggregate-qa
+pnpm run lint:changed
+pnpm build
+```
+
+結果：
+
+- `pnpm demo:preflight`：通過；Supabase public env placeholder 仍為 warning。
+- TypeScript：通過。
+- `GET /api/org/overview`：demo manager 回 200。
+- Aggregate proof：members `3`、activeMembers `3`、units `2`、clients `3`、visitPlans `1`、reports `1`、aiUsageThisMonth `2`、membersNeedingCoaching `2`。
+- Leak proof：DB demo clients/policies 產生 7 個 forbidden sentinels；overview response 未包含 client name/email/phone/occupation/notes/policy/product，且不含 `email`、`phone`、`annualIncome`、`notes`、`policies`、`familyMembers`、`clientSections`、`internalSections` detail field names。
+- `/api/clients` manager session proof：200，但不洩漏其他 member seeded client details。
+
+### 失敗與風險
+
+- 本輪 proof 使用 dev auth header，不等同正式 Supabase/Auth.js login flow；正式 demo users `supabase_auth_id` 綁定仍未完成。
+- `/api/org/overview` 是最小 aggregate API；`/api/org/members`、`/api/org/coaching`、`/api/org/ai-usage`、org settings 與 `/team` UI 串接仍待 `LCH-007`。
+- Manager 目前若沒有 scoped unit，policy 允許看全 org aggregate；符合現有 policy，但正式企業級 scope 仍需 operator 確認 seed/role 配置。
+
+### 剩餘上線 blocker
+
+- `LCH-005` 剩餘：Supabase Auth `supabase_auth_id`、demo client portal、mock API production-like guard proof。
+- `LCH-006` client portal/share DB-backed token lookup 仍缺。
+- `LCH-007` 剩餘：org members/coaching/ai usage/units/invites/settings API 與 UI proof。
+- Route B 新版 Theater 仍待後續。
+
+### 下一輪建議
+
+1. 繼續 `LCH-005`，補 `/api/mock/*` production-like guard proof，避免 production UI 仍能依賴 mock API。
+2. 或進 `LCH-006`，做 DB-backed share token/client portal authorized content proof，解除 demo client blocker。

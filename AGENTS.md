@@ -572,15 +572,17 @@ Context: 將 `RES-012` / `RES-013` 的上線差距與四介面實作研究轉成
 - [ ] Demo users 連到 Supabase Auth `supabase_auth_id`。
 - [x] 清空 browser storage 後 demo member 登入，仍看到 DB seeded clients、visit plans、reports、sessions。
 - [x] Demo member 新增 client、建立至少一筆 AI output，刷新後仍存在。
-- [ ] Demo manager 只看到 aggregate/coaching/unit/member health。
+- [x] Demo manager 只看到 aggregate/coaching/unit/member health。
 - [ ] Demo client 只看到 authorized share/client portal content。
 - [ ] `/api/mock/*` 在 production-like env 預設不可用。
 - [x] 保存 QA evidence：commands、screenshots、AiUsageLog count before/after。
-- [ ] 跑 `pnpm lint:changed`。
+- [x] 跑 `pnpm lint:changed`。
 
-進行中註記：2026-06-19 新增 `pnpm demo:relogin-qa`，以 Playwright 新 browser context + `x-asai-demo-user-email: demo.member@asai.local` 清空 localStorage/sessionStorage 後逐頁驗證 DB seeded data。驗收：`pnpm demo:preflight` 通過；`pnpm demo:seed:reset` 通過並重新 seed `quickstart-insurance-advisor` v1；`pnpm demo:relogin-qa` 通過，確認 `/crm`、`/crm/c_wang`、`/pre-visit`、`/reports`、`/spin` 仍可看到 `王大明`，`/theater` 可進 AI 劇場演練，final page 無水平 overflow。截圖：`docs/06_audits-and-reports/screenshots/launch-readiness/lch-005/*.png`。Supabase Auth `supabase_auth_id`、demo member 新增 AI output refresh proof、demo manager aggregate-only 與 demo client portal proof 仍未完成。
+進行中註記：2026-06-19 新增 `pnpm demo:relogin-qa`，以 Playwright 新 browser context + `x-asai-demo-user-email: demo.member@asai.local` 清空 localStorage/sessionStorage 後逐頁驗證 DB seeded data。驗收：`pnpm demo:preflight` 通過；`pnpm demo:seed:reset` 通過並重新 seed `quickstart-insurance-advisor` v1；`pnpm demo:relogin-qa` 通過，確認 `/crm`、`/crm/c_wang`、`/pre-visit`、`/reports`、`/spin` 仍可看到 `王大明`，`/theater` 可進 AI 劇場演練，final page 無水平 overflow。截圖：`docs/06_audits-and-reports/screenshots/launch-readiness/lch-005/*.png`。Supabase Auth `supabase_auth_id`、demo member 新增 AI output refresh proof 與 demo client portal proof 當時仍未完成。
 
-進行中註記：2026-06-19 新增 `pnpm demo:member-write-qa`，以 demo member 透過 BFF 新增測試客戶並呼叫 `/api/ai/interview/outputs` 產生 AI output，再重讀 API/DB 驗證 refresh persistence。驗收通過：created client `cmqjwzrem0004ai619szx7z9p` 可 `GET /api/clients/[id]` 200 重讀，`kycStatus=MISSING` 初始化；AI output 200 且含 known facts / prep questions / issue readiness；DB proof `INTERVIEW AiUsageLog 1→2`、`monthlyAiUsed 1→2`、created client count `1`、client-linked `InteractionEvent(type=VISIT)` count `1`。第一次腳本因 snake_case alias 判讀 bug 誤報 fail，但 DB JSON 已顯示成功；已修正後重跑通過。Supabase/Auth 正式登入、demo manager aggregate-only、demo client portal 與 mock API production-like guard proof 仍未完成。
+進行中註記：2026-06-19 新增 `pnpm demo:member-write-qa`，以 demo member 透過 BFF 新增測試客戶並呼叫 `/api/ai/interview/outputs` 產生 AI output，再重讀 API/DB 驗證 refresh persistence。驗收通過：created client `cmqjwzrem0004ai619szx7z9p` 可 `GET /api/clients/[id]` 200 重讀，`kycStatus=MISSING` 初始化；AI output 200 且含 known facts / prep questions / issue readiness；DB proof `INTERVIEW AiUsageLog 1→2`、`monthlyAiUsed 1→2`、created client count `1`、client-linked `InteractionEvent(type=VISIT)` count `1`。第一次腳本因 snake_case alias 判讀 bug 誤報 fail，但 DB JSON 已顯示成功；已修正後重跑通過。Supabase/Auth 正式登入、demo client portal 與 mock API production-like guard proof 仍未完成。
+
+進行中註記：2026-06-19 新增 `GET /api/org/overview` 與 `pnpm demo:manager-aggregate-qa`，以 `demo.manager@asai.local` 驗證 manager 只取得 organization totals、coaching summary、unitHealth、memberHealth。驗收通過：`/api/org/overview` 200，回傳 members `3`、units `2`、clients `3`、visitPlans `1`、reports `1`、aiUsageThisMonth `2`、membersNeedingCoaching `2`；QA script 以 DB demo clients/policies 產生 7 個 forbidden sentinels，確認 overview 與 `/api/clients` manager session 都沒有洩漏 client name/email/phone/occupation/notes/policy/product/report section/transcript/detail field names。Supabase/Auth 正式登入、demo client portal 與 mock API production-like guard proof 仍未完成。
 
 ### Batch LCH-006 — Front Office / Share / Client Portal
 - [ ] 建立 `GET /api/public/pricing`。
@@ -594,7 +596,7 @@ Context: 將 `RES-012` / `RES-013` 的上線差距與四介面實作研究轉成
 - [ ] 跑 `pnpm lint:changed`。
 
 ### Batch LCH-007 — Org Admin Aggregate And Org Settings APIs
-- [ ] 建立 `GET /api/org/overview`。
+- [x] 建立 `GET /api/org/overview`。
 - [ ] 建立 `GET /api/org/members`，不得回客戶明細。
 - [ ] 建立 `GET /api/org/coaching`。
 - [ ] 建立 `GET /api/org/ai-usage`。
