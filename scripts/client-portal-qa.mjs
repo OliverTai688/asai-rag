@@ -6,6 +6,7 @@ loadEnvFile(".env");
 
 const baseUrl = process.env.CLIENT_PORTAL_QA_BASE_URL ?? process.env.DEMO_QA_BASE_URL ?? process.argv[2] ?? "http://localhost:3000";
 const token = process.env.CLIENT_PORTAL_QA_TOKEN ?? "demo-share-wang";
+const expiredToken = process.env.CLIENT_PORTAL_QA_EXPIRED_TOKEN ?? "demo-share-wang-expired";
 const dbUrl = process.env.DIRECT_URL ?? process.env.DATABASE_URL;
 const checks = [];
 
@@ -18,6 +19,8 @@ const db = new Client({ connectionString: dbUrl });
 await db.connect();
 
 try {
+  await ensureExpiredShare(token, expiredToken);
+
   const before = await getResponseCounts(token);
   const unauthorized = await get("/api/client-portal/bootstrap");
   push(unauthorized.status === 401, "Client portal bootstrap rejects missing client session", `status=${unauthorized.status}`);
@@ -72,6 +75,15 @@ try {
   const invalidSession = await post("/api/client-portal/session", { token: "not-a-real-share-token" });
   push(invalidSession.status === 404, "Invalid client portal session token is rejected", `status=${invalidSession.status}`);
 
+  const expiredSession = await post("/api/client-portal/session", { token: expiredToken });
+  push(expiredSession.status === 404, "Expired client portal session token is rejected", `status=${expiredSession.status}`);
+
+  const expiredBootstrap = await get("/api/client-portal/bootstrap", { "x-asai-client-token": expiredToken });
+  push(expiredBootstrap.status === 401, "Expired client token cannot read portal bootstrap", `status=${expiredBootstrap.status}`);
+
+  const expiredWorkspace = await get("/api/workspace/bootstrap", { "x-asai-client-token": expiredToken });
+  push(expiredWorkspace.status === 401, "Expired client token cannot enter member/org workspace", `status=${expiredWorkspace.status}`);
+
   const response = await post(
     "/api/client-portal/responses",
     {
@@ -104,6 +116,7 @@ try {
     JSON.stringify(
       {
         token,
+        expiredToken,
         before,
         after,
         bootstrap: {
@@ -164,6 +177,59 @@ async function getResponseCounts(shareToken) {
   }
 
   return row;
+}
+
+async function ensureExpiredShare(validToken, targetToken) {
+  const result = await db.query(
+    `INSERT INTO report_shares (
+       id,
+       organization_id,
+       unit_id,
+       report_id,
+       token,
+       expires_at,
+       access_count,
+       cta_config,
+       is_demo,
+       demo_seed_key,
+       demo_scenario,
+       demo_seed_version,
+       created_at,
+       updated_at
+     )
+     SELECT
+       'demo_expired_share_wang',
+       organization_id,
+       unit_id,
+       report_id,
+       $2,
+       now() - interval '1 day',
+       0,
+       cta_config,
+       true,
+       'quickstart-insurance-advisor:share:wang:expired:v1',
+       'quickstart-insurance-advisor',
+       1,
+       now(),
+       now()
+     FROM report_shares
+     WHERE token = $1
+     LIMIT 1
+     ON CONFLICT (demo_seed_key) DO UPDATE SET
+       token = EXCLUDED.token,
+       report_id = EXCLUDED.report_id,
+       unit_id = EXCLUDED.unit_id,
+       expires_at = EXCLUDED.expires_at,
+       cta_config = EXCLUDED.cta_config,
+       is_demo = true,
+       updated_at = now()
+     RETURNING token`,
+    [validToken, targetToken],
+  );
+
+  if (!result.rows[0]) {
+    throw new Error(`Valid share token not found: ${validToken}. Run pnpm demo:seed:reset first.`);
+  }
 }
 
 async function get(path, headers = {}) {

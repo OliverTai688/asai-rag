@@ -8,6 +8,23 @@
 
 ## Open Issues
 
+### IQ-022 - LCH-006 expired token 與完整 browser QA matrix
+
+- 狀態：Resolved
+- 發現日期：2026-06-19
+- 解決日期：2026-06-19
+- 影響 batch：`LCH-006`
+- 背景：
+  - LCH-006 已完成 share lookup、client portal session、public pricing、client-login cookie handoff，但仍缺 expired token proof 與 desktop/mobile browser matrix。
+  - 上線前必須證明 invalid/expired token 不會讀取報告、不會寫事件、不會建立 client session，也不能進 member workspace。
+- 解法：
+  - `pnpm share:token-qa` 與 `pnpm client-portal:qa` 會 idempotent upsert `demo-share-wang-expired`，固定 `is_demo=true`、`demo_seed_key=quickstart-insurance-advisor:share:wang:expired:v1`。
+  - Share proof：expired GET 404、event POST 404、access count 不增加、ShareEvent 不增加。
+  - Client portal proof：expired session POST 404、bootstrap 401、workspace 401。
+  - Browser proof：desktop 1440x1000 與 mobile 390x844 覆蓋 authorized share、invalid share、expired share、client login；全部 console error 0、無水平 overflow。
+  - `AGENTS.md` / `PLN-017` 已將 LCH-006 QA 與 lint checkbox 標記完成。
+  - 剩餘：正式 client-user email/OTP/Auth.js、專用 client portal UI route、ECPay checkout 屬後續 Level 3+ 或 billing workstream，不再阻擋 LCH-006 最小閉環。
+
 ### IQ-021 - Client login 需要 token-to-cookie handoff 且不得進 member workspace
 
 - 狀態：Resolved
@@ -23,7 +40,8 @@
   - `/client-login?token=demo-share-wang` 可預填 token，送出後建立 client session。
   - Proof：`pnpm client-portal:qa` 通過；session POST 200、Set-Cookie 含 HttpOnly/SameSite=Lax、cookie bootstrap 200、cookie 打 `/api/workspace/bootstrap` 401、invalid session token 404、unsafe payload count 0。
   - Browser smoke：`/client-login?token=demo-share-wang` token 預填、主要 CTA 存在、console error 0、無水平 overflow。
-  - 剩餘：expired token proof、完整 invalid/expired/authorized/client-login desktop/mobile QA、正式 client-user email/OTP/Auth.js 長期登入。
+  - 2026-06-19 追加完成 expired token proof 與完整 browser QA matrix。
+  - 剩餘：正式 client-user email/OTP/Auth.js 長期登入。
 
 ### IQ-020 - Public pricing 需要 DB-backed plan capability 且不得誤啟用付款
 
@@ -55,7 +73,7 @@
   - `/share/[token]` 改用 BFF fetch，不再依賴 local report store 或 `/api/mock/track`。
   - Proof：`pnpm share:token-qa` 對 `demo-share-wang` 通過；GET 200、invalid token 404、`ReportShare.access_count 0→1`、`ShareEvent 0→1`、unsafe private payload key count `0`。
   - Browser smoke：`/share/demo-share-wang` 顯示授權報告，console error 0，無水平 overflow。
-  - 剩餘：expired token proof 與完整 share/client portal browser QA 仍待 `LCH-006` 後續。
+  - 2026-06-19 追加完成 expired token proof 與完整 share/client portal browser QA。
 
 ### IQ-018 - Production-like runtime 不得依賴 `/api/mock/*`
 

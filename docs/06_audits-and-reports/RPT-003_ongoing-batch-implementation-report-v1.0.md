@@ -1548,3 +1548,79 @@ Browser smoke /client-login?token=demo-share-wang
 
 1. 繼續 `LCH-006`，補 expired token seed/proof 與完整 share/client portal browser QA matrix。
 2. 或進 `LCH-007`，開始 org admin aggregate/settings API，解除通訊處上線缺口。
+
+## 2026-06-19 Round 022 - LCH-006 Expired Token And Browser QA Closure
+
+### 本輪戰役
+
+- Workstream：Launch Readiness Implementation。
+- Batch / task：`LCH-006` Front office / share / client portal - expired token proof + desktop/mobile browser QA matrix。
+- 選擇原因：LCH-006 剩餘唯一未完成欄位是 invalid/expired/authorized/client-login 的完整 QA；這會直接影響 front office 與 demo client 是否可被視為上線前最小閉環。
+
+### 本輪完成
+
+- 擴充 `scripts/share-token-qa.mjs`，在 QA 開始時 idempotent upsert `demo-share-wang-expired`。
+- 擴充 share proof：expired share `GET /api/share/[token]` 404、`POST /api/share/[token]/events` 404，且 access count / ShareEvent 不增加。
+- 擴充 `scripts/client-portal-qa.mjs`，同樣 idempotent upsert expired demo share。
+- 擴充 client portal proof：expired token `POST /api/client-portal/session` 404、`GET /api/client-portal/bootstrap` 401、`GET /api/workspace/bootstrap` 401。
+- Browser matrix 覆蓋 desktop 1440x1000 與 mobile 390x844：authorized share、invalid share、expired share、client login 全部 console error 0、無水平 overflow。
+- `AGENTS.md` 與 `PLN-017` 已將 LCH-006 QA 與 lint checkbox 標記完成。
+
+### 修改檔案
+
+- `scripts/share-token-qa.mjs`
+- `scripts/client-portal-qa.mjs`
+- `AGENTS.md`
+- `docs/05_execution-plans/PLN-017_launch-readiness-implementation-batch-tasks-v1.0.md`
+- `docs/06_audits-and-reports/RPT-003_ongoing-batch-implementation-report-v1.0.md`
+- `docs/07_research-and-design/RES-016_issue-question-log-v1.0.md`
+
+### DB / Prisma 操作
+
+- 是否修改 schema：否。
+- 是否執行 generate：`pnpm build` 時執行。
+- 是否執行 db push：否。
+- DB target 判斷：`pnpm demo:preflight` 通過，`.env` 指向遠端 Supabase Postgres。
+- DB 寫入摘要：QA 以 `ON CONFLICT (demo_seed_key)` idempotent upsert `ReportShare(token=demo-share-wang-expired, is_demo=true, expires_at=now()-1 day)`；另因 client response proof 新增 1 筆非破壞性 demo `InteractionEvent(type=TASK)`。
+
+### 驗收
+
+```bash
+pnpm exec tsc --noEmit --pretty false
+pnpm demo:preflight
+pnpm dev
+pnpm share:token-qa
+pnpm client-portal:qa
+Browser matrix: desktop/mobile authorized + invalid + expired + client-login
+pnpm run lint:changed
+pnpm exec eslint scripts/share-token-qa.mjs scripts/client-portal-qa.mjs
+pnpm build
+```
+
+結果：
+
+- TypeScript：通過。
+- `pnpm demo:preflight`：通過；Supabase public env placeholder 仍為 warning。
+- `pnpm share:token-qa`：通過；valid share 200/event 200/private payload 0；invalid 404；expired GET 404/event POST 404；expired access/share events `0->0`。
+- `pnpm client-portal:qa`：通過；missing session 401、authorized bootstrap 200、session cookie 200、client cookie workspace 401、invalid session 404、expired session 404、expired bootstrap 401、expired workspace 401、response write 201、unsafe payload 0。
+- Browser matrix：desktop/mobile authorized share 顯示 `王大明 的決策建議報告`；invalid/expired share 顯示 `報告不存在或已過期`；client login token 預填 `demo-share-wang`；全部 console error 0、無水平 overflow。
+- `pnpm run lint:changed`：通過。
+- Targeted ESLint：`scripts/share-token-qa.mjs`、`scripts/client-portal-qa.mjs` 通過。
+- `pnpm build`：通過；Prisma Client generated。
+
+### 失敗與風險
+
+- Browser matrix 起初因 share 頁 async loading 停在 `載入安全報告...` 而誤判；改以短暫 settled wait 後通過。這是測試等待策略問題，不是產品錯誤。
+- LCH-006 已完成 token/client-scoped 最小閉環，但正式 client-user email/OTP/Auth.js、專用 client portal UI route、ECPay checkout 仍屬後續上線等級。
+
+### 剩餘上線 blocker
+
+- `LCH-007`：org members/coaching/ai usage/units/invites/settings API 與 UI proof。
+- `LCH-008`：super admin audit / impersonation / platform controls。
+- ECPay 正式 checkout notification/query proof 仍待後續；public pricing API 目前刻意 `checkoutEnabled=false`。
+- Route B 新版 Theater 仍待後續。
+
+### 下一輪建議
+
+1. 進 `LCH-007`，建立 `GET /api/org/members`、coaching summary、AI usage/unit/invite/settings API，保持 manager aggregate-only。
+2. 或先做 `LCH-009` release QA 聚合，確認目前 Level 1 staging demo 的可展示路徑。

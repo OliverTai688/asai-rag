@@ -6,6 +6,7 @@ loadEnvFile(".env");
 
 const baseUrl = process.env.SHARE_QA_BASE_URL ?? process.env.DEMO_QA_BASE_URL ?? process.argv[2] ?? "http://localhost:3000";
 const token = process.env.SHARE_QA_TOKEN ?? "demo-share-wang";
+const expiredToken = process.env.SHARE_QA_EXPIRED_TOKEN ?? "demo-share-wang-expired";
 const dbUrl = process.env.DIRECT_URL ?? process.env.DATABASE_URL;
 const checks = [];
 
@@ -18,6 +19,8 @@ const db = new Client({ connectionString: dbUrl });
 await db.connect();
 
 try {
+  await ensureExpiredShare(token, expiredToken);
+
   const before = await getShareCounts(token);
   const shared = await get(`/api/share/${token}`);
   const sharedText = JSON.stringify(shared.body);
@@ -59,17 +62,43 @@ try {
   const invalid = await get("/api/share/not-a-real-share-token");
   push(invalid.status === 404, "Invalid share token returns 404", `status=${invalid.status}`);
 
+  const expiredBefore = await getShareCounts(expiredToken);
+  const expired = await get(`/api/share/${expiredToken}`);
+  push(expired.status === 404, "Expired share token returns 404", `status=${expired.status}`);
+
+  const expiredEvent = await post(`/api/share/${expiredToken}/events`, {
+    type: "OPEN",
+    payload: { source: "share-token-qa-expired" },
+  });
+  push(expiredEvent.status === 404, "Expired share token cannot record events", `status=${expiredEvent.status}`);
+
   const after = await getShareCounts(token);
+  const expiredAfter = await getShareCounts(expiredToken);
   push(after.access_count > before.access_count, "ReportShare access_count increments on OPEN", `${before.access_count}->${after.access_count}`);
   push(after.share_events > before.share_events, "ShareEvent count increments on OPEN", `${before.share_events}->${after.share_events}`);
   push(after.private_payload_events === 0, "ShareEvent payload does not persist unsafe private keys", `count=${after.private_payload_events}`);
+  push(
+    expiredAfter.access_count === expiredBefore.access_count,
+    "Expired share access_count does not increment",
+    `${expiredBefore.access_count}->${expiredAfter.access_count}`,
+  );
+  push(
+    expiredAfter.share_events === expiredBefore.share_events,
+    "Expired share does not create ShareEvent",
+    `${expiredBefore.share_events}->${expiredAfter.share_events}`,
+  );
 
   console.log(
     JSON.stringify(
       {
         token,
+        expiredToken,
         before,
         after,
+        expired: {
+          before: expiredBefore,
+          after: expiredAfter,
+        },
         report: {
           id: shared.body?.report?.id,
           sections: shared.body?.report?.sections?.length ?? 0,
@@ -117,6 +146,59 @@ async function getShareCounts(shareToken) {
   }
 
   return row;
+}
+
+async function ensureExpiredShare(validToken, targetToken) {
+  const result = await db.query(
+    `INSERT INTO report_shares (
+       id,
+       organization_id,
+       unit_id,
+       report_id,
+       token,
+       expires_at,
+       access_count,
+       cta_config,
+       is_demo,
+       demo_seed_key,
+       demo_scenario,
+       demo_seed_version,
+       created_at,
+       updated_at
+     )
+     SELECT
+       'demo_expired_share_wang',
+       organization_id,
+       unit_id,
+       report_id,
+       $2,
+       now() - interval '1 day',
+       0,
+       cta_config,
+       true,
+       'quickstart-insurance-advisor:share:wang:expired:v1',
+       'quickstart-insurance-advisor',
+       1,
+       now(),
+       now()
+     FROM report_shares
+     WHERE token = $1
+     LIMIT 1
+     ON CONFLICT (demo_seed_key) DO UPDATE SET
+       token = EXCLUDED.token,
+       report_id = EXCLUDED.report_id,
+       unit_id = EXCLUDED.unit_id,
+       expires_at = EXCLUDED.expires_at,
+       cta_config = EXCLUDED.cta_config,
+       is_demo = true,
+       updated_at = now()
+     RETURNING token`,
+    [validToken, targetToken],
+  );
+
+  if (!result.rows[0]) {
+    throw new Error(`Valid share token not found: ${validToken}. Run pnpm demo:seed:reset first.`);
+  }
 }
 
 async function get(path) {
