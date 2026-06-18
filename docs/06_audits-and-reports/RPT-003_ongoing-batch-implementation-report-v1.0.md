@@ -1469,3 +1469,82 @@ pnpm public:pricing-qa
 
 1. 繼續 `LCH-006`，補 `/client-login` token handoff/cookie proof，讓 demo client 可登入看到 authorized content。
 2. 或補 expired token seed/proof 與 share/client portal browser QA，收斂 LCH-006 的 QA 欄位。
+
+## 2026-06-19 Round 021 - LCH-006 Client Login Cookie Handoff Slice
+
+### 本輪戰役
+
+- Workstream：Launch Readiness Implementation。
+- Batch / task：`LCH-006` Front office / share / client portal - client-login token handoff to httpOnly cookie session。
+- 選擇原因：LCH-006 已有 share token lookup、client portal bootstrap/response 與 public pricing API；剩餘最直接阻擋 demo client 體驗的是 `/client-login` 還不能把 token 轉成可重用的 client session。
+
+### 本輪完成
+
+- 新增 `POST /api/client-portal/session`：驗證 share token 後寫入 httpOnly `asai_client_share_token` cookie，回傳最小 client/report/session DTO。
+- 新增 `DELETE /api/client-portal/session`：清除 client portal cookie。
+- 新增 `/client-login` client form，支援 `?token=demo-share-wang` 預填、送出後建立 cookie session。
+- 擴充 `pnpm client-portal:qa`：覆蓋 session POST、Set-Cookie 屬性、cookie bootstrap、cookie 不可進 workspace bootstrap、invalid token 404。
+- `AGENTS.md` 與 `PLN-017` 已補上本輪進行中註記；完整 desktop/mobile matrix 與 expired token proof 仍保留未完成。
+
+### 修改檔案
+
+- `src/app/api/client-portal/session/route.ts`
+- `src/app/(client-auth)/client-login/page.tsx`
+- `src/app/(client-auth)/client-login/_components/client-login-form.tsx`
+- `scripts/client-portal-qa.mjs`
+- `AGENTS.md`
+- `docs/05_execution-plans/PLN-017_launch-readiness-implementation-batch-tasks-v1.0.md`
+- `docs/06_audits-and-reports/RPT-003_ongoing-batch-implementation-report-v1.0.md`
+- `docs/07_research-and-design/RES-016_issue-question-log-v1.0.md`
+
+### DB / Prisma 操作
+
+- 是否修改 schema：否。
+- 是否執行 generate：待本輪 `pnpm build` 驗收時執行。
+- 是否執行 db push：否。
+- DB target 判斷：`pnpm demo:preflight` 通過，`.env` 指向遠端 Supabase Postgres；本輪 API proof 只新增一筆非破壞性 demo `InteractionEvent(type=TASK)` 作 response write proof，不做 schema mutation、不清資料。
+
+### 驗收
+
+```bash
+pnpm exec tsc --noEmit --pretty false
+pnpm demo:preflight
+pnpm dev
+pnpm client-portal:qa
+Browser smoke /client-login?token=demo-share-wang
+```
+
+目前結果：
+
+- TypeScript：通過。
+- `pnpm demo:preflight`：通過；Supabase public env placeholder 仍為 warning。
+- `pnpm client-portal:qa`：通過；missing bootstrap 401、header bootstrap 200、response 201、invalid response type 400。
+- Cookie proof：`POST /api/client-portal/session` 200，`Set-Cookie` 含 HttpOnly 與 SameSite=Lax。
+- Cookie authorization proof：使用 cookie 呼叫 `/api/client-portal/bootstrap` 200，scope 為 `c_wang`。
+- Cross-surface guard proof：使用 client cookie 呼叫 `/api/workspace/bootstrap` 401。
+- Invalid proof：invalid session token 404。
+- DB write proof：`InteractionEvent` count `1->2`，unsafe payload count 0。
+- Browser smoke：`/client-login?token=demo-share-wang` token 預填、主要 CTA 存在、console error 0、無水平 overflow。
+- Dev-only note：以 `127.0.0.1` 開 dev server 時 Next HMR 顯示 `allowedDevOrigins` 提示；頁面與 API proof 不受影響。
+- `pnpm run lint:changed`：通過。
+- Targeted ESLint：`src/app/api/client-portal/session/route.ts`、`src/app/(client-auth)/client-login/page.tsx`、`src/app/(client-auth)/client-login/_components/client-login-form.tsx`、`scripts/client-portal-qa.mjs` 通過。
+- `pnpm build`：通過；Prisma Client generated，Next route list 包含 `/api/client-portal/session` 與 `/client-login`。
+
+### 失敗與風險
+
+- 本輪完成 token-to-cookie 最小 handoff，尚未做 email OTP/Auth.js client-user 長期登入。
+- `/client-login` 成功後目前提供 bootstrap JSON 入口，尚未導到正式 client portal UI route。
+- Expired token proof 尚未跑；repository/session 應拒絕 expired share，但仍需 seed/proof。
+- 完整 desktop/mobile matrix 尚未完成，仍需 invalid、expired、authorized token、client login 一起跑。
+
+### 剩餘上線 blocker
+
+- `LCH-006` 剩餘：expired token proof、完整 invalid/expired/authorized/client-login desktop/mobile QA、正式 client portal page UX。
+- `LCH-007` 剩餘：org members/coaching/ai usage/units/invites/settings API 與 UI proof。
+- ECPay 正式 checkout notification/query proof 仍待後續；public pricing API 目前刻意 `checkoutEnabled=false`。
+- Route B 新版 Theater 仍待後續。
+
+### 下一輪建議
+
+1. 繼續 `LCH-006`，補 expired token seed/proof 與完整 share/client portal browser QA matrix。
+2. 或進 `LCH-007`，開始 org admin aggregate/settings API，解除通訊處上線缺口。

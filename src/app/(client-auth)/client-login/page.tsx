@@ -1,12 +1,19 @@
 import {
-  AuthFormCard,
   AuthLinkRow,
   AuthSurfaceShell,
   SurfaceRuleCard,
   TextLink,
 } from "../../(auth)/_components/auth-surface";
+import { ClientLoginForm } from "./_components/client-login-form";
 
-export default function ClientLoginPage() {
+export default async function ClientLoginPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ token?: string }>;
+}) {
+  const params = await searchParams;
+  const initialToken = params?.token ?? "";
+
   return (
     <AuthSurfaceShell
       eyebrow="Client session"
@@ -26,20 +33,11 @@ export default function ClientLoginPage() {
         />
       }
     >
-      <AuthFormCard
-        title="登入客戶頁"
-        description="正式版本會用 client role 與授權關係查詢可見報告。"
-        fields={[
-          { id: "email", label: "Email", type: "email", placeholder: "client@example.com" },
-          { id: "code", label: "驗證碼", placeholder: "輸入一次性驗證碼" },
-        ]}
-        primaryLabel="進入客戶頁"
-        helper="Client session 與 member app session 分離，不能互相升級權限。"
-      />
+      <ClientLoginForm initialToken={initialToken} />
 
       <AuthLinkRow>
         <span>收到分享連結？</span>
-        <TextLink href="/share/demo-share-wang">使用分享連結查看</TextLink>
+        <TextLink href="/client-login?token=demo-share-wang">使用分享授權登入</TextLink>
         <span>顧問請走</span>
         <TextLink href="/login">工作台登入</TextLink>
       </AuthLinkRow>

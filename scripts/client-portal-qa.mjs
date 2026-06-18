@@ -53,6 +53,25 @@ try {
     leaked.length === 0 ? `${forbidden.length} sentinels checked` : `leaked=${leaked.join(", ")}`,
   );
 
+  const session = await post("/api/client-portal/session", { token });
+  const setCookie = session.headers.get("set-cookie") ?? "";
+  const cookieHeader = toCookieHeader(setCookie);
+  push(session.status === 200, "POST /api/client-portal/session sets client session", `status=${session.status}`);
+  push(session.body?.session?.type === "client", "Client portal session endpoint returns client session type", session.body?.session?.type ?? "missing");
+  push(setCookie.includes("HttpOnly"), "Client portal cookie is HttpOnly");
+  push(setCookie.toLowerCase().includes("samesite=lax"), "Client portal cookie uses SameSite=Lax");
+  push(Boolean(cookieHeader), "Client portal Set-Cookie can be replayed for browser-style proof");
+
+  const cookieBootstrap = await get("/api/client-portal/bootstrap", { Cookie: cookieHeader });
+  push(cookieBootstrap.status === 200, "Cookie client session can read portal bootstrap", `status=${cookieBootstrap.status}`);
+  push(cookieBootstrap.body?.client?.id === bootstrap.body?.client?.id, "Cookie bootstrap stays in same client scope", cookieBootstrap.body?.client?.id ?? "missing");
+
+  const cookieWorkspace = await get("/api/workspace/bootstrap", { Cookie: cookieHeader });
+  push(cookieWorkspace.status === 401, "Cookie client session cannot enter member/org workspace", `status=${cookieWorkspace.status}`);
+
+  const invalidSession = await post("/api/client-portal/session", { token: "not-a-real-share-token" });
+  push(invalidSession.status === 404, "Invalid client portal session token is rejected", `status=${invalidSession.status}`);
+
   const response = await post(
     "/api/client-portal/responses",
     {
@@ -171,11 +190,16 @@ async function parseResponse(response) {
     body = text;
   }
 
-  return { status: response.status, body };
+  return { status: response.status, body, headers: response.headers };
 }
 
 function push(condition, label, detail = "") {
   checks.push({ status: condition ? "pass" : "fail", label, detail });
+}
+
+function toCookieHeader(setCookie) {
+  const [pair] = setCookie.split(";");
+  return pair ?? "";
 }
 
 function loadEnvFile(path) {

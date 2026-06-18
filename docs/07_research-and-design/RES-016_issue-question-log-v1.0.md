@@ -8,6 +8,23 @@
 
 ## Open Issues
 
+### IQ-021 - Client login 需要 token-to-cookie handoff 且不得進 member workspace
+
+- 狀態：Resolved
+- 發現日期：2026-06-19
+- 解決日期：2026-06-19
+- 影響 batch：`LCH-006`
+- 背景：
+  - `/client-login` 原本只有入口 skeleton，demo client 無法把 share token 轉成可重用的 client portal session。
+  - Client session 必須與 member/org workspace session 隔離，不能因 cookie 存在就進入 `/api/workspace/bootstrap`。
+- 解法：
+  - 新增 `POST /api/client-portal/session`，驗證 DB `ReportShare` token 後寫入 httpOnly `asai_client_share_token` cookie。
+  - 新增 `DELETE /api/client-portal/session` 清除 cookie。
+  - `/client-login?token=demo-share-wang` 可預填 token，送出後建立 client session。
+  - Proof：`pnpm client-portal:qa` 通過；session POST 200、Set-Cookie 含 HttpOnly/SameSite=Lax、cookie bootstrap 200、cookie 打 `/api/workspace/bootstrap` 401、invalid session token 404、unsafe payload count 0。
+  - Browser smoke：`/client-login?token=demo-share-wang` token 預填、主要 CTA 存在、console error 0、無水平 overflow。
+  - 剩餘：expired token proof、完整 invalid/expired/authorized/client-login desktop/mobile QA、正式 client-user email/OTP/Auth.js 長期登入。
+
 ### IQ-020 - Public pricing 需要 DB-backed plan capability 且不得誤啟用付款
 
 - 狀態：Resolved
@@ -38,7 +55,7 @@
   - `/share/[token]` 改用 BFF fetch，不再依賴 local report store 或 `/api/mock/track`。
   - Proof：`pnpm share:token-qa` 對 `demo-share-wang` 通過；GET 200、invalid token 404、`ReportShare.access_count 0→1`、`ShareEvent 0→1`、unsafe private payload key count `0`。
   - Browser smoke：`/share/demo-share-wang` 顯示授權報告，console error 0，無水平 overflow。
-  - 剩餘：client portal login/session、expired token proof、public pricing API 仍待 `LCH-006` 後續。
+  - 剩餘：expired token proof 與完整 share/client portal browser QA 仍待 `LCH-006` 後續。
 
 ### IQ-018 - Production-like runtime 不得依賴 `/api/mock/*`
 
@@ -132,7 +149,8 @@
   - 新增 `GET /api/client-portal/bootstrap`，只回 client-safe authorized report sections、client display name、branding/portal/CTA/scope。
   - 新增 `POST /api/client-portal/responses`，支援客戶補資料、提問、預約意向，寫入 `InteractionEvent(type=TASK)` 並只保留 safe metadata。
   - Proof：`pnpm client-portal:qa` 通過；missing session 401、client token 打 `/api/workspace/bootstrap` 401、bootstrap 200、response 201、invalid type 400、`InteractionEvent` 0→1、unsafe payload key count 0。
-  - 剩餘：長期 client login 是否採 Auth.js client user、email OTP 或 signed portal token + OTP，留給後續 `/client-login` UI/cookie handoff 與 Level 3+ 身分設計。
+  - 2026-06-19 追加完成 `/client-login` UI/cookie handoff：`POST /api/client-portal/session` 寫 httpOnly cookie，cookie bootstrap 200，cookie 打 member workspace 401。
+  - 剩餘：長期 client login 是否採 Auth.js client user、email OTP 或 signed portal token + OTP，留給 Level 3+ 身分設計。
 
 ### IQ-004 - 是否要安裝 `@supabase/ssr` / `@supabase/supabase-js`
 
