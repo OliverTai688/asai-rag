@@ -20,6 +20,7 @@
     "demo:org-invites-qa": "node scripts/demo-org-invites-qa.mjs",
     "demo:org-settings-qa": "node scripts/demo-org-settings-qa.mjs",
     "demo:org-settings-browser-qa": "node scripts/demo-org-settings-browser-qa.mjs",
+    "demo:platform-read-qa": "node scripts/demo-platform-read-qa.mjs",
     "demo:runtime-audit": "node scripts/demo-runtime-audit.mjs",
     "mock:production-guard-qa": "node scripts/mock-production-guard-qa.mjs",
     "share:token-qa": "node scripts/share-token-qa.mjs",

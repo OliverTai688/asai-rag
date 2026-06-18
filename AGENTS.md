@@ -615,16 +615,18 @@ Context: 將 `RES-012` / `RES-013` 的上線差距與四介面實作研究轉成
 完成註記：2026-06-19 續補 `GET /api/org/members`，使用 `requireOrgAdmin()` 與 `canReadOrgAggregate()`，manager 若有 managed unit scope 則只看 scope 內 primary unit 成員。Response 只回 member metadata、role/status、seat timestamps、primary/managed units 與 client/visit/report/SPIN/Theater/AI usage aggregate counts；不回 user email、member private settings、client name/phone/email、policy number/product、report body、SPIN/Theater transcript。新增 `pnpm demo:org-members-qa`：以 demo manager 呼叫 `/api/org/members`，驗證 200、role=MANAGER、members/units/totals 存在，並用 DB seeded client/policy/report sentinels 掃 response，private/client detail field names 與 sentinels 皆 0。2026-06-19 續補 `GET /api/org/coaching` 與 `GET /api/org/ai-usage`：coaching 回 completion rate、stuck stage、persona load、member coaching aggregate 與 recommendation focus；AI usage 回 current-month module/provider/member/unit aggregate tokens/cost/latency/error counts，不回 requestId/error 原文。新增 `pnpm demo:org-coaching-ai-usage-qa`：demo manager 兩 API 皆 200，forbidden client/private field names 0，DB seeded client/policy/report/message/AI sentinels 0。2026-06-19 續補 `GET/POST /api/org/units`：GET 回 active unit tree、planUsage、permissions 與 unit aggregate counts；POST 僅 OWNER/ADMIN 可用，驗證 parent hierarchy、slug conflict 與 `PlanConfig.maxUnits`。新增 `pnpm demo:org-units-qa`：idempotent 建立 demo owner QA 帳號；demo manager GET 200、manager POST 403、demo owner POST 因 STARTER `maxUnits=1` 且 activeUnits=2 回 `MAX_UNITS_REACHED`，unit count 2→2，client/private sentinels 0。2026-06-19 續補 `POST /api/org/invites`：OWNER/ADMIN 才能邀請，需 reason/riskAccepted，建立 pending `OrganizationMember(status=INVITED)`，套 `PlanConfig.maxCollaborators` / `maxMembers`，不寄真 email，response 只回 masked email，AuditLog 記 email hash/masked/limit decision。新增 `pnpm demo:org-invites-qa`：demo manager POST 403、demo owner 建立 collaborator invite 201、AuditLog count > 0、第二個 collaborator 因 maxCollaborators 403 且 membership count 不變，response 不回 raw invited email。2026-06-19 續補 `GET/PATCH /api/org/settings`、`src/lib/org-settings/org-settings-repository.ts` 與 `/team/settings`；manager 可讀但 `PATCH` 403，OWNER/ADMIN 可寫 organization profile、branding、client portal、compliance defaults、billing visibility 與 AI warning threshold，並寫 `AuditLog(resourceType=ORG_SETTINGS)`。`pnpm demo:org-settings-qa` 通過：manager GET 200/read-only、manager PATCH 403、owner PATCH 200、AuditLog 0→1、private/client forbidden field names 0、DB seeded sentinels 0。`pnpm demo:org-settings-browser-qa` 通過：`/team/settings` desktop 1440×1000 / mobile 390×844 皆顯示 org settings、privacy badge、client portal section、manager read-only notice、save disabled，console error 0、無水平 overflow。截圖：`docs/06_audits-and-reports/screenshots/launch-readiness/lch-007/org-settings-desktop.png`、`docs/06_audits-and-reports/screenshots/launch-readiness/lch-007/org-settings-mobile.png`。驗收需以 `ALLOW_DEV_AUTH_HEADER=true pnpm dev` 啟 server；未開 dev auth 時 org QA 會 401，屬預期 guard。
 
 ### Batch LCH-008 — Super Admin / Audit / Impersonation
-- [ ] 完成 platform session guard；`/super-admin/*` 不接受 app session。
-- [ ] 建立 platform organizations summary APIs。
-- [ ] 建立跨租戶 AI usage aggregate API。
+- [x] 完成 platform session guard；`/super-admin/*` 不接受 app session。
+- [x] 建立 platform organizations summary APIs。
+- [x] 建立跨租戶 AI usage aggregate API。
 - [ ] 建立 plan config update API，寫 `AuditLog`。
 - [ ] 建立 impersonation start/end/revoke flow，reason/scope/expiresAt 必填。
 - [ ] Impersonated read/write 寫 `AuditLog` 並帶 `impersonationSessionId`。
 - [ ] 建立 break-glass API：reason、scope、expiry、audit 必填。
-- [ ] 建立 audit log query API。
+- [x] 建立 audit log query API。
 - [ ] 建立 platform settings 區塊。
 - [ ] 跑 `pnpm lint:changed`；動 schema 跑 Prisma 驗收。
+
+進行中註記：2026-06-19 新增 `src/lib/platform/platform-read-repository.ts`、`GET /api/platform/organizations`、`GET /api/platform/organizations/[id]`、`GET /api/platform/ai-usage`、`GET /api/platform/audit-logs` 與 `pnpm demo:platform-read-qa`。QA 證明一般 app session 呼叫 `/api/platform/organizations` 回 `403 PLATFORM_REQUIRED`，platform user 可讀 tenant summary/detail、跨租戶 AI usage aggregate 與 audit log list；response 不回 email/phone/policy number/report body/SPIN/Theater transcript/AI requestId/error 原文/provider ids/raw metadata，並以 seeded sentinel 掃描 0 leak。剩餘 LCH-008：plan config update + audit、impersonation start/end/revoke、impersonated read/write audit、break-glass、platform settings。
 
 ### Batch LCH-009 — Production Controls And Release QA
 - [ ] 建立 AI quota/cost alert 或明確 blocker。

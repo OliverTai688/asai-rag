@@ -384,6 +384,22 @@
   - Restore proof：測試後還原 `monthly_ai_used=3` 並二次查詢確認。
   - 剩餘：Theater Route B、quota UI proof、三 AI provider error-path 全覆蓋仍待後續 LCH-004。
 
+### IQ-016 - LCH-008 platform read APIs 必須 summary-only 且 platform-only
+
+- 狀態：Resolved
+- 發現日期：2026-06-19
+- 解決日期：2026-06-19
+- 影響 batch：`LCH-008`
+- 背景：
+  - Super admin 需要跨租戶營運健康、AI 成本與 audit evidence，但不能變成可無痕讀取客戶明細、保單、報告 body、AI transcript 或 raw metadata 的後門。
+  - `/super-admin/*` 與 `/api/platform/*` 必須和一般 app session 分離；一般 member 即使已登入 app，也不能呼叫 platform APIs。
+- 解法：
+  - 新增 platform read repository 與四條 platform APIs：organizations summary/detail、AI usage aggregate、audit log query。
+  - APIs 全部使用 `requirePlatformUser()`；`demo:platform-read-qa` 證明 `demo.member@asai.local` 呼叫 platform summary 回 `403 PLATFORM_REQUIRED`，`demo.platform@asai.local` 才能讀。
+  - Organizations/detail 只回 tenant health、unit summary、plan config safe fields、AI/audit aggregate。
+  - AI usage 不回 requestId 或 error 原文；audit logs 只回 metadata keys，不回 raw metadata。
+  - QA 以 forbidden field names 與 DB seeded client/policy/report/AI sentinels 掃描 platform responses，結果 0 leak。
+
 ### IQ-014 - LCH-004 interview agent 仍信任前端 scope 且缺 output evidence
 
 - 狀態：Resolved

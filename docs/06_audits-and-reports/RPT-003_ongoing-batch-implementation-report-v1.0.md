@@ -2021,3 +2021,79 @@ pnpm build
 
 1. 進入 `LCH-008`，先做 platform organizations summary API 與 platform audit query API，延續本輪 AuditLog groundwork。
 2. 或回補 `LCH-004` Theater/AI usage log audit，降低「至少三個 AI 能正常運作」的核心上線風險。
+
+## 2026-06-19 Round 028 - LCH-008 Platform Read-only Summary APIs
+
+### 本輪戰役
+
+- Workstream：Launch Readiness Implementation。
+- Batch / task：`LCH-008` Super Admin / Audit / Impersonation - platform guard、tenant summary、AI usage aggregate、audit log query。
+- 選擇原因：LCH-007 已完成 org admin settings；下一個最低未完成上線阻擋是 super admin 能否在不碰敏感明細的情況下檢視跨租戶營運健康、AI 成本與 audit evidence。
+
+### 本輪完成
+
+- 新增 `src/lib/platform/platform-read-repository.ts`，集中處理 platform-only read DTO 與 private-field redaction policy。
+- 新增 `GET /api/platform/organizations`，回 tenant summary、health、usage 與 platform totals。
+- 新增 `GET /api/platform/organizations/[id]`，回單一 tenant health、unit summary、plan config safe fields、30-day audit summary 與 current-month AI module aggregate。
+- 新增 `GET /api/platform/ai-usage`，回跨租戶 current-month cost/token/request/error aggregate；不回 requestId 或 error 原文。
+- 新增 `GET /api/platform/audit-logs`，支援 `organizationId/action/sensitivity` filter；只回 actor/target display name、status、resource metadata keys，不回 raw metadata。
+- 新增 `pnpm demo:platform-read-qa`，idempotent 建立 `demo.platform@asai.local` platform user 並驗證 app session 403、platform session 200、private sentinel 0 leak。
+- `AGENTS.md` 與 `PLN-017` 已標記 LCH-008 已完成的 read-only 項目。
+
+### 修改檔案
+
+- `src/lib/platform/platform-read-repository.ts`
+- `src/app/api/platform/organizations/route.ts`
+- `src/app/api/platform/organizations/[id]/route.ts`
+- `src/app/api/platform/ai-usage/route.ts`
+- `src/app/api/platform/audit-logs/route.ts`
+- `scripts/demo-platform-read-qa.mjs`
+- `package.json`
+- `AGENTS.md`
+- `docs/05_execution-plans/PLN-017_launch-readiness-implementation-batch-tasks-v1.0.md`
+- `docs/06_audits-and-reports/RPT-003_ongoing-batch-implementation-report-v1.0.md`
+- `docs/07_research-and-design/RES-016_issue-question-log-v1.0.md`
+
+### DB / Prisma 操作
+
+- 是否修改 schema：否。
+- 是否執行 generate：否。
+- 是否執行 db push：否。
+- DB target 判斷：`pnpm demo:preflight` 通過，`.env` 指向遠端 Supabase Postgres；本輪只有 idempotent demo QA upsert platform user 與 read-only API proof，無 schema mutation。
+- DB 寫入摘要：`pnpm demo:platform-read-qa` upsert `demo.platform@asai.local`、其 demo membership anchor 與 `PlatformUser(role=SUPER_ADMIN)`，作為 platform session proof。
+
+### 驗收
+
+```bash
+pnpm exec tsc --noEmit --pretty false
+pnpm demo:preflight
+pnpm run lint:changed
+ALLOW_DEV_AUTH_HEADER=true pnpm dev
+pnpm demo:platform-read-qa
+pnpm exec eslint src/lib/platform/platform-read-repository.ts src/app/api/platform/organizations/route.ts 'src/app/api/platform/organizations/[id]/route.ts' src/app/api/platform/ai-usage/route.ts src/app/api/platform/audit-logs/route.ts scripts/demo-platform-read-qa.mjs
+```
+
+結果：
+
+- TypeScript：通過。
+- `pnpm demo:preflight`：通過；Supabase public env placeholder 仍為 warning。
+- `pnpm run lint:changed`：通過。
+- Targeted ESLint：platform repository/routes/QA script 通過。
+- `pnpm demo:platform-read-qa`：通過；regular app session `GET /api/platform/organizations` 回 `403 PLATFORM_REQUIRED`；platform user 對 organizations summary/detail、AI usage、audit logs 皆 200；forbidden private field names 0 leak；DB seeded client/policy/report/AI sentinels 0 leak。
+
+### 失敗與風險
+
+- 無未修復驗收失敗。
+- 本輪尚未建立 plan config update、impersonation、break-glass 或 platform settings UI；因此 LCH-008 尚未完成。
+- `demo.platform@asai.local` 目前使用 demo org membership 作為 Auth.js/dev-header app-session anchor，再由 `PlatformUser` 升級為 platform session；production 仍需正式 platform auth/MFA/staging access。
+
+### 剩餘上線 blocker
+
+- `LCH-008` 剩餘：`PATCH /api/platform/plan-configs/[plan]` + AuditLog、impersonation start/end/revoke、impersonated read/write audit、break-glass API、platform settings surface。
+- `LCH-009`：production controls、AI usage route audit、backup/rollback、privacy/terms/disclaimer、ECPay test checklist、full smoke。
+- `LCH-004`：Theater Route B 與三 AI error-path / quota UI proof 仍未收完。
+
+### 下一輪建議
+
+1. 繼續 `LCH-008`，先做 `PATCH /api/platform/plan-configs/[plan]`，要求 reason/riskAccepted，寫 `AuditLog(action=PLAN_UPDATE)`，並補 QA script 驗證 FINANCE/SUPER_ADMIN 權限差異。
+2. 接著做 impersonation start/end/revoke flow；這是 break-glass 之前的必要 audit 骨架。
