@@ -11,8 +11,6 @@ import { useInterviewStore } from "@/domains/interview/store";
 import { getSegmentProgress } from "@/domains/interview/service";
 import { InterviewOutputDraft } from "@/domains/interview/types";
 
-const demoOrganizationId = "demo_org_asai_personal";
-
 type ChatMessage = {
   role: "user" | "assistant";
   content: string;
@@ -99,7 +97,6 @@ export default function InterviewPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          organizationId: demoOrganizationId,
           sessionId: activeSession.id,
           currentSegmentId: currentSegment.id,
           messages: nextMessages,
@@ -158,7 +155,6 @@ export default function InterviewPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          organizationId: demoOrganizationId,
           sessionId: activeSession.id,
           messages,
           materials: knownMaterials,

@@ -110,6 +110,23 @@
 
 ## Resolved Issues
 
+### IQ-014 - LCH-004 interview agent 仍信任前端 scope 且缺 output evidence
+
+- 狀態：Resolved
+- 發現日期：2026-06-19
+- 解決日期：2026-06-19
+- 影響 batch：`LCH-004`
+- 背景：
+  - `/api/ai/interview` 與 `/api/ai/interview/outputs` 原本要求前端傳 `organizationId`，也可傳 `userId/unitId/clientId`，不符合 server session 為唯一 scope 真相源的上線規則。
+  - 訪談回合與輸出草稿沒有 DB-backed evidence，demo relogin 與後續 org/super admin audit 無法追蹤。
+- 解法：
+  - 兩條 route 改用 `requireCurrentMember()` 注入 organization/user/unit，不再讀前端 `organizationId/userId`。
+  - 新增 `src/lib/interview/interview-ai-repository.ts`，success path 寫 `InteractionEvent` 保存訪談回合與輸出草稿 metadata。
+  - Success path 寫 `AiUsageLog` 並 increment organization `monthlyAiUsed`。
+  - API proof：`POST /api/ai/interview` 200；`POST /api/ai/interview/outputs` 200。
+  - DB proof：`INTERVIEW usage 3→5`、success usage `1→3`、interaction events `0→2`。
+  - 剩餘：Theater Route B、三 AI error-path 全覆蓋與 quota 429 UI proof。
+
 ### IQ-013 - LCH-004 assistant chat 缺 usage/persistence
 
 - 狀態：Resolved

@@ -785,3 +785,65 @@ curl -H 'x-asai-demo-user-email: demo.member@asai.local' -H 'content-type: appli
 
 1. 繼續 `LCH-004`，處理 `/api/ai/interview` 與 `/api/ai/interview/outputs` session injection + persistence proof。
 2. 或先補 `LCH-004` chat error-path proof 與 quota 429 proof，再進 interview。
+
+## 2026-06-19 Round 010 - LCH-004 Interview Agent Usage And Output Persistence Slice
+
+### 本輪戰役
+
+- Workstream：Launch Readiness Implementation。
+- Batch / task：`LCH-004` Three AI Production Minimum - interview agent slice。
+- 選擇原因：`/api/ai/chat` 已完成，下一個最低未完成且最接近上線阻擋的是 AI 顧問陪談；它原本仍信任前端 `organizationId/userId`，且沒有 DB-backed session/material/output evidence。
+
+### 本輪完成
+
+- `/api/ai/interview` 改為 session-scoped route：使用 `requireCurrentMember()` 推導 organization/user/unit，不再讀前端 `organizationId/userId`。
+- `/api/ai/interview/outputs` 同步改為 session-scoped，輸出草稿由 server session 注入 scope。
+- 新增 `src/lib/interview/interview-ai-repository.ts`，以 `InteractionEvent` 保存訪談回合與輸出草稿 evidence。
+- `clientId` 若由前端傳入，server 會確認 current member 可讀該 client，否則不掛 relation。
+- 兩條 route 都加入 `canUseAiModule(session, INTERVIEW)` quota check；超限回 429。
+- 成功 provider call 後寫 `AiUsageLog`，並 increment organization `monthlyAiUsed`。
+- `/interview` 前端不再送 demo organization id。
+
+### DB / Prisma 操作
+
+- 是否修改 schema：否，沿用既有 `InteractionEvent`、`AiUsageLog`。
+- 是否執行 generate：是，`pnpm build` 內執行 Prisma generate 成功。
+- 是否執行 db push：否，本輪無 schema 變更。
+- DB target 判斷：`pnpm demo:preflight` 在前一輪與本輪相關 DB proof 均指向遠端 Supabase Postgres；本輪寫入 demo member interview proof。
+
+### 驗收
+
+```bash
+pnpm exec tsc --noEmit --pretty false
+pnpm run lint:changed
+pnpm build
+ALLOW_DEV_AUTH_HEADER=true pnpm dev
+curl -H 'x-asai-demo-user-email: demo.member@asai.local' -H 'content-type: application/json' -X POST http://localhost:3000/api/ai/interview
+curl -H 'x-asai-demo-user-email: demo.member@asai.local' -H 'content-type: application/json' -X POST http://localhost:3000/api/ai/interview/outputs
+```
+
+結果：
+
+- `POST /api/ai/interview`：200，回傳串流訪談追問。
+- `POST /api/ai/interview/outputs`：200，回傳結構化草稿；`knownFacts=2`、`unknowns=1`、`prepQuestions=3`、`issueReadiness=2`。
+- DB proof：`INTERVIEW usage 3→5`、success usage `1→3`、interaction events `0→2`；latest sources：`api/ai/interview/outputs`、`api/ai/interview`；latest model `gpt-4o-mini`。
+- Browser proof：`/interview` desktop 1440x1000、mobile 390x844，heading `AI 顧問陪談`，console error 0、無水平 overflow。
+- TypeScript、lint:changed、build：通過。
+
+### 失敗與風險
+
+- 本輪未新增正式 `InterviewSession` Prisma model；使用 `InteractionEvent` 作最小 evidence，後續若要完整 relogin editable interview workspace，仍需專用資料模型或把 store migration 納入 LCH/ITA。
+- Theater Route B 尚未完成，LCH-004 不可標整卡完成。
+- 三 AI error-path 全覆蓋尚未完成；本輪 proof 是 success path。
+
+### 剩餘上線 blocker
+
+- `LCH-004` 剩餘：Theater Route B、Theater usage log、三 AI success/error `AiUsageLog` 全路徑 proof、quota 429 UI proof。
+- `LCH-005` demo relogin full QA 仍缺 visit plans、reports、sessions、AI output 整合。
+- `LCH-006` client portal/share DB-backed token lookup 仍缺。
+- `LCH-007` org aggregate + org settings 尚未完成。
+
+### 下一輪建議
+
+1. 繼續 `LCH-004`，進 Theater Route B 最小版或先加 staging legacy gate + usage proof。
+2. 或補三 AI error-path / quota 429 evidence，讓 `AiUsageLog` 覆蓋更完整。

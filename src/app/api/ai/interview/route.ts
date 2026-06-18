@@ -1,26 +1,33 @@
 import OpenAI from "openai";
-import { AiModule, AiProvider } from "@/generated/prisma/enums";
+import { z } from "zod";
+import { AiModule } from "@/generated/prisma/enums";
 import { advisorCompanionOutline } from "@/domains/interview/outlines";
-import { writeAiUsageLogSafely } from "@/lib/ai/usage-log";
+import { canUseAiModule } from "@/lib/auth/policies";
+import { authErrorResponse, requireCurrentMember } from "@/lib/auth/current-workspace";
+import {
+  persistInterviewFailure,
+  persistInterviewTurnSuccess,
+  type InterviewAiMessage,
+} from "@/lib/interview/interview-ai-repository";
 
 const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const MODEL = "gpt-4o-mini";
 
-interface InterviewMessageInput {
-  role: "user" | "assistant";
-  content: string;
-}
-
-interface InterviewRequestBody {
-  organizationId: string;
-  unitId?: string;
-  userId?: string;
-  clientId?: string;
-  sessionId?: string;
-  currentSegmentId?: string;
-  messages?: InterviewMessageInput[];
-  knownMaterials?: string[];
-}
+const interviewRequestSchema = z.object({
+  clientId: z.string().trim().max(80).optional(),
+  sessionId: z.string().trim().max(120).optional(),
+  currentSegmentId: z.string().trim().max(120).optional(),
+  messages: z
+    .array(
+      z.object({
+        role: z.enum(["user", "assistant"]),
+        content: z.string().trim().min(1).max(4000),
+      }),
+    )
+    .max(24)
+    .default([]),
+  knownMaterials: z.array(z.string().trim().max(1200)).max(40).default([]),
+});
 
 const SYSTEM_PROMPT = `你是「誠問 AI 訪談 Agent」，任務是用顧問陪談訪綱訪談保險業務員。
 
@@ -35,8 +42,9 @@ const SYSTEM_PROMPT = `你是「誠問 AI 訪談 Agent」，任務是用顧問�
 8. 訪談後續會由系統整理成客戶輪廓表與對話準備卡，你現在只需要推進訪談。`;
 
 function buildOutlineContext(currentSegmentId?: string): string {
-  const currentSegment = advisorCompanionOutline.segments.find((segment) => segment.id === currentSegmentId)
-    ?? advisorCompanionOutline.segments[0];
+  const currentSegment =
+    advisorCompanionOutline.segments.find((segment) => segment.id === currentSegmentId) ??
+    advisorCompanionOutline.segments[0];
 
   return [
     `訪綱：${advisorCompanionOutline.name}`,
@@ -46,11 +54,13 @@ function buildOutlineContext(currentSegmentId?: string): string {
     `核心題：${currentSegment.coreQuestions.map((question) => question.text).join(" / ")}`,
     `可用追問：${currentSegment.followUps.map((question) => question.text).join(" / ")}`,
     currentSegment.guideNote ? `引導重點：${currentSegment.guideNote}` : "",
-  ].filter(Boolean).join("\n");
+  ]
+    .filter(Boolean)
+    .join("\n");
 }
 
-function normalizeMessages(messages: InterviewMessageInput[] | undefined): OpenAI.Chat.ChatCompletionMessageParam[] {
-  return (messages ?? []).map((message) => ({
+function normalizeMessages(messages: InterviewAiMessage[]): OpenAI.Chat.ChatCompletionMessageParam[] {
+  return messages.map((message) => ({
     role: message.role,
     content: message.content,
   }));
@@ -58,48 +68,62 @@ function normalizeMessages(messages: InterviewMessageInput[] | undefined): OpenA
 
 export async function POST(req: Request) {
   const startedAt = Date.now();
-  let body: InterviewRequestBody;
 
   try {
-    body = await req.json();
-  } catch {
-    return Response.json({ error: "Invalid JSON body" }, { status: 400 });
-  }
+    const session = await requireCurrentMember();
+    const parsedBody = interviewRequestSchema.safeParse(await req.json().catch(() => null));
 
-  if (!body.organizationId) {
-    return Response.json({ error: "organizationId is required for AiUsageLog" }, { status: 400 });
-  }
+    if (!parsedBody.success) {
+      return Response.json(
+        {
+          error: "INVALID_INTERVIEW_INPUT",
+          issues: parsedBody.error.flatten().fieldErrors,
+        },
+        { status: 400 },
+      );
+    }
 
-  if (!process.env.OPENAI_API_KEY) {
-    await writeAiUsageLogSafely({
-      organizationId: body.organizationId,
-      unitId: body.unitId,
-      userId: body.userId,
-      clientId: body.clientId,
-      provider: AiProvider.OPENAI,
-      module: AiModule.INTERVIEW,
-      model: MODEL,
-      latencyMs: Date.now() - startedAt,
-      error: "OPENAI_API_KEY is not configured",
-    });
+    const body = parsedBody.data;
+    const quota = canUseAiModule(session, AiModule.INTERVIEW);
 
-    return Response.json({ error: "OPENAI_API_KEY is not configured" }, { status: 500 });
-  }
+    if (!quota.allowed) {
+      return Response.json(
+        {
+          error: quota.code,
+          remaining: quota.remaining,
+          message: "AI 使用額度已用完，請聯絡管理員或升級方案。",
+        },
+        { status: 429 },
+      );
+    }
 
-  const promptContext = [
-    buildOutlineContext(body.currentSegmentId),
-    body.knownMaterials?.length ? `目前已整理素材：\n${body.knownMaterials.map((item) => `- ${item}`).join("\n")}` : "",
-  ].filter(Boolean).join("\n\n");
+    if (!process.env.OPENAI_API_KEY) {
+      await persistInterviewFailure({
+        session,
+        body,
+        model: MODEL,
+        latencyMs: Date.now() - startedAt,
+        error: "OPENAI_API_KEY is not configured",
+      });
 
-  const openaiMessages: OpenAI.Chat.ChatCompletionMessageParam[] = [
-    { role: "system", content: `${SYSTEM_PROMPT}\n\n${promptContext}` },
-    ...normalizeMessages(body.messages),
-  ];
+      return Response.json({ error: "OPENAI_API_KEY is not configured" }, { status: 500 });
+    }
 
-  try {
+    const promptContext = [
+      buildOutlineContext(body.currentSegmentId),
+      body.knownMaterials.length
+        ? `目前已整理素材：\n${body.knownMaterials.map((item) => `- ${item}`).join("\n")}`
+        : "",
+    ]
+      .filter(Boolean)
+      .join("\n\n");
+
     const stream = await client.chat.completions.create({
       model: MODEL,
-      messages: openaiMessages,
+      messages: [
+        { role: "system", content: `${SYSTEM_PROMPT}\n\n${promptContext}` },
+        ...normalizeMessages(body.messages),
+      ],
       stream: true,
       stream_options: { include_usage: true },
       max_tokens: 500,
@@ -111,6 +135,7 @@ export async function POST(req: Request) {
     let promptTokens: number | undefined;
     let completionTokens: number | undefined;
     let totalTokens: number | undefined;
+    let assistantContent = "";
 
     const readable = new ReadableStream({
       async start(controller) {
@@ -125,39 +150,35 @@ export async function POST(req: Request) {
 
             const delta = chunk.choices[0]?.delta?.content ?? "";
             if (delta) {
+              assistantContent += delta;
               controller.enqueue(encoder.encode(delta));
             }
           }
         } catch (error) {
-          await writeAiUsageLogSafely({
-            organizationId: body.organizationId,
-            unitId: body.unitId,
-            userId: body.userId,
-            clientId: body.clientId,
-            provider: AiProvider.OPENAI,
-            module: AiModule.INTERVIEW,
+          await persistInterviewFailure({
+            session,
+            body,
             model: MODEL,
-            latencyMs: Date.now() - startedAt,
             requestId,
+            latencyMs: Date.now() - startedAt,
             error: error instanceof Error ? error.message : "Interview stream failed",
           });
           controller.error(error);
           return;
         }
 
-        await writeAiUsageLogSafely({
-          organizationId: body.organizationId,
-          unitId: body.unitId,
-          userId: body.userId,
-          clientId: body.clientId,
-          provider: AiProvider.OPENAI,
-          module: AiModule.INTERVIEW,
-          model: MODEL,
-          promptTokens,
-          completionTokens,
-          totalTokens,
-          latencyMs: Date.now() - startedAt,
-          requestId,
+        await persistInterviewTurnSuccess({
+          session,
+          body,
+          assistantContent,
+          usage: {
+            model: MODEL,
+            requestId,
+            promptTokens,
+            completionTokens,
+            totalTokens,
+            latencyMs: Date.now() - startedAt,
+          },
         });
         controller.close();
       },
@@ -167,21 +188,6 @@ export async function POST(req: Request) {
       headers: { "Content-Type": "text/plain; charset=utf-8" },
     });
   } catch (error) {
-    await writeAiUsageLogSafely({
-      organizationId: body.organizationId,
-      unitId: body.unitId,
-      userId: body.userId,
-      clientId: body.clientId,
-      provider: AiProvider.OPENAI,
-      module: AiModule.INTERVIEW,
-      model: MODEL,
-      latencyMs: Date.now() - startedAt,
-      error: error instanceof Error ? error.message : "Interview request failed",
-    });
-
-    return Response.json(
-      { error: error instanceof Error ? error.message : "Interview request failed" },
-      { status: 500 }
-    );
+    return authErrorResponse(error);
   }
 }
