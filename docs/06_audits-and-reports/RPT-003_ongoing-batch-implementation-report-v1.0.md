@@ -1857,3 +1857,82 @@ pnpm build
 
 1. 繼續 `LCH-007`，補 `POST /api/org/invites`，套 `PlanConfig.maxCollaborators` / seat limit。
 2. 或先補 `GET/PATCH /api/org/settings`，把 organization profile、branding、client portal、quota/compliance defaults 的權限邊界落地。
+
+## 2026-06-19 Round 026 - LCH-007 Org Invites Plan Limit Guard
+
+### 本輪戰役
+
+- Workstream：Launch Readiness Implementation。
+- Batch / task：`LCH-007` Org Admin Aggregate And Org Settings APIs - `POST /api/org/invites`。
+- 選擇原因：org units 已完成；下一個最低未完成上線阻擋是邀請協作者/成員，且使用者先前決策是個人版可邀請協作者但上限由 super admin `PlanConfig.maxCollaborators` 控制。
+
+### 本輪完成
+
+- 新增 `POST /api/org/invites`。
+- 新增 `pnpm demo:org-invites-qa`。
+- Route 使用 `requireOrgAdmin()`；只有 OWNER/ADMIN 可寫，MANAGER 只能被 403 擋下。
+- Invite input 必填 `reason` 與 `riskAccepted=true`。
+- 新邀請會建立或重送 pending `OrganizationMember(status=INVITED)`；不寄真 email，response 只回 masked email。
+- Server-side 套 `PlanConfig.maxCollaborators` / `maxMembers`；pending invite 也計入 seat usage，避免超邀。
+- Invite 寫 `AuditLog(resourceType=ORG_INVITE)`，metadata 只含 email hash、masked email、role、unit、limit decision，不存 raw payload。
+- `AGENTS.md` 與 `PLN-017` 已將 `POST /api/org/invites` 標記完成。
+
+### 修改檔案
+
+- `src/app/api/org/invites/route.ts`
+- `scripts/demo-org-invites-qa.mjs`
+- `package.json`
+- `AGENTS.md`
+- `docs/05_execution-plans/PLN-017_launch-readiness-implementation-batch-tasks-v1.0.md`
+- `docs/06_audits-and-reports/RPT-003_ongoing-batch-implementation-report-v1.0.md`
+- `docs/07_research-and-design/RES-016_issue-question-log-v1.0.md`
+
+### DB / Prisma 操作
+
+- 是否修改 schema：否。
+- 是否執行 generate：`pnpm build` 內執行 `prisma generate`，通過。
+- 是否執行 db push：否。
+- DB target 判斷：`pnpm demo:preflight` 通過，`.env` 指向遠端 Supabase Postgres。
+- DB 寫入摘要：`pnpm demo:org-invites-qa` 寫入/重送 demo pending invite `demo.invited-collab@asai.local`、`OrganizationMember(status=INVITED, role=COLLABORATOR)` 與 invite `AuditLog`。第二個 overflow collaborator 被 `MAX_COLLABORATORS_REACHED` 擋下，membership count 不增加。沒有真實 email send。
+
+### 驗收
+
+```bash
+pnpm exec tsc --noEmit --pretty false
+pnpm demo:preflight
+ALLOW_DEV_AUTH_HEADER=true pnpm dev
+pnpm demo:org-invites-qa
+pnpm demo:org-units-qa
+pnpm demo:org-members-qa
+pnpm run lint:changed
+pnpm exec eslint src/app/api/org/invites/route.ts scripts/demo-org-invites-qa.mjs
+pnpm build
+```
+
+結果：
+
+- TypeScript：初次發現 Prisma JSON metadata type error，已將 `PlanLimitDecision` 攤平成純 JSON 後通過。
+- `pnpm demo:preflight`：通過；Supabase public env placeholder 仍為 warning。
+- `pnpm demo:org-invites-qa`：通過；demo manager POST 403 `ORG_INVITES_WRITE_FORBIDDEN`；demo owner collaborator invite 201；invite status `INVITED`；delivery `not_sent`；response 不含 raw invited email；AuditLog count > 0；collaborator usage 1→2/2；overflow invite 403 `MAX_COLLABORATORS_REACHED`；membership count 5→5。
+- Regression proof：`pnpm demo:org-units-qa` 與 `pnpm demo:org-members-qa` 通過。因新增 pending invite，member totals 從 4 變 5 屬預期；private sentinel proof 仍為 0 leak。
+- `pnpm run lint:changed`：通過。
+- Targeted ESLint：invite route 與 invite QA script 通過。
+- `pnpm build`：通過；Prisma Client generated，Next route list 包含 `/api/org/invites`。
+
+### 失敗與風險
+
+- 無未修復驗收失敗。
+- Invite 目前只建立 pending membership 與 audit，不寄真 email；正式 email provider / tokenized invite acceptance 仍屬後續。
+- AuditLog action 暫用 `SUPPORT_NOTE`，resourceType 區分為 `ORG_INVITE`；若後續新增專用 AuditAction，需要 migration/enum 更新。
+
+### 剩餘上線 blocker
+
+- `LCH-007` 剩餘：org settings API/UI、browser QA。
+- `LCH-008`：super admin audit / impersonation / platform controls。
+- ECPay 正式 checkout notification/query proof 仍待後續。
+- Route B 新版 Theater 仍待後續。
+
+### 下一輪建議
+
+1. 繼續 `LCH-007`，補 `GET/PATCH /api/org/settings`，把 organization profile、branding、client portal、quota/compliance defaults 的權限邊界落地。
+2. 接著做 `/team/settings` 或 `/org/settings` UI surface + browser QA，收掉 LCH-007 剩餘項。

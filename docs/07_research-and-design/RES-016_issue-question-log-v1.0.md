@@ -8,6 +8,23 @@
 
 ## Open Issues
 
+### IQ-026 - Org invites 必須套 collaborator/seat limit 且不得寄真 email
+
+- 狀態：Resolved
+- 發現日期：2026-06-19
+- 解決日期：2026-06-19
+- 影響 batch：`LCH-007`
+- 背景：
+  - 個人版允許邀請協作者，但上限由 super admin `PlanConfig.maxCollaborators` 控制。
+  - 邀請流程若只靠前端限制，會被繞過；若在 demo/proof 階段寄真 email，會造成外部副作用。
+- 解法：
+  - 新增 `POST /api/org/invites`，只有 OWNER/ADMIN 可寫，MANAGER 403。
+  - Invite input 必填 `reason` 與 `riskAccepted=true`；建立或重送 pending `OrganizationMember(status=INVITED)`。
+  - Server-side 套 `PlanConfig.maxCollaborators` / `maxMembers`；pending invite 也計入 usage。
+  - Response 只回 masked email，delivery 固定 `not_sent`；本輪不寄真 email。
+  - 寫 `AuditLog(resourceType=ORG_INVITE)`，metadata 只含 email hash、masked email、role、unit、limit decision。
+  - Proof：`pnpm demo:org-invites-qa` 通過；manager POST 403、owner collaborator invite 201、AuditLog > 0、overflow collaborator 403 `MAX_COLLABORATORS_REACHED`、membership count 不變、response 不回 raw invited email。
+
 ### IQ-025 - Org units API 需要支援多層級但必須套 PlanConfig.maxUnits
 
 - 狀態：Resolved
