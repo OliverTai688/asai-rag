@@ -192,7 +192,7 @@
 - [x] 建立 `GET /api/org/members`：member metadata、role、seat、unit、last active；不得回客戶明細。
 - [x] 建立 `GET /api/org/coaching`：完成率、卡關階段、常見異議、訓練建議。
 - [x] 建立 `GET /api/org/ai-usage`：module/member/unit aggregate usage。
-- [ ] 建立 `GET/POST /api/org/units`：HQ/region/branch tree，套 plan `maxUnits`。
+- [x] 建立 `GET/POST /api/org/units`：HQ/region/branch tree，套 plan `maxUnits`。
 - [ ] 建立 `POST /api/org/invites`：server-side plan limit check，個人協作者上限由 `PlanConfig.maxCollaborators` 控制。
 - [ ] 建立 `/org/settings` 或 `/team/settings` surface；管理 organization profile、branding、client portal、compliance defaults、billing visibility、AI quota。
 - [ ] 建立 `GET/PATCH /api/org/settings`；owner/admin 可寫，manager 只能 scoped read-only/limited write。
@@ -200,7 +200,7 @@
 - [ ] Browser QA `/team` + org settings desktop/mobile；console error 0、無水平 overflow。
 - [ ] 跑 `pnpm lint:changed`；動 schema 才跑 Prisma 驗收。
 
-進行中註記：2026-06-19 新增 `GET /api/org/members`，回傳 organization scope、units、members 與 totals；member item 只含 membership id、user id、display name、avatar、user/member status、role、title、region、seat timestamps、primary/managed units 與 aggregate counts。`pnpm demo:org-members-qa` 通過：demo manager 200、scope role `MANAGER`、members/units/totals 存在、client/private forbidden field names 0、DB seeded client/policy/report sentinels 0。2026-06-19 續補 `GET /api/org/coaching` 與 `GET /api/org/ai-usage`；coaching 只回完成率、卡關階段、persona load、member coaching aggregate 與 training recommendation focus；AI usage 只回 module/provider/member/unit current-month aggregate usage，不回 requestId/error 原文。`pnpm demo:org-coaching-ai-usage-qa` 通過：兩 API 皆 200、role `MANAGER`、aggregate structures 存在、client/private forbidden field names 0、DB seeded client/policy/report/message/AI sentinels 0。驗收 server 需以 `ALLOW_DEV_AUTH_HEADER=true pnpm dev` 啟動；未開 dev auth header 時會 401，屬 guard 正常。
+進行中註記：2026-06-19 新增 `GET /api/org/members`，回傳 organization scope、units、members 與 totals；member item 只含 membership id、user id、display name、avatar、user/member status、role、title、region、seat timestamps、primary/managed units 與 aggregate counts。`pnpm demo:org-members-qa` 通過：demo manager 200、scope role `MANAGER`、members/units/totals 存在、client/private forbidden field names 0、DB seeded client/policy/report sentinels 0。2026-06-19 續補 `GET /api/org/coaching` 與 `GET /api/org/ai-usage`；coaching 只回完成率、卡關階段、persona load、member coaching aggregate 與 training recommendation focus；AI usage 只回 module/provider/member/unit current-month aggregate usage，不回 requestId/error 原文。`pnpm demo:org-coaching-ai-usage-qa` 通過：兩 API 皆 200、role `MANAGER`、aggregate structures 存在、client/private forbidden field names 0、DB seeded client/policy/report/message/AI sentinels 0。2026-06-19 續補 `GET/POST /api/org/units`；GET 回 active HQ/region/branch tree、planUsage、permissions 與 unit aggregate counts；POST 僅 OWNER/ADMIN 可用，驗證 parent hierarchy、slug conflict 與 `PlanConfig.maxUnits`。`pnpm demo:org-units-qa` 通過：demo manager GET 200、manager POST 403、idempotent demo owner POST 因 STARTER `maxUnits=1` 且 activeUnits=2 回 `MAX_UNITS_REACHED`、unit count 2→2、client/private sentinels 0。驗收 server 需以 `ALLOW_DEV_AUTH_HEADER=true pnpm dev` 啟動；未開 dev auth header 時會 401，屬 guard 正常。
 
 範圍外：不做 super admin break-glass；不做 member detail API。
 

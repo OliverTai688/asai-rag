@@ -16,6 +16,7 @@
     "demo:manager-aggregate-qa": "node scripts/demo-manager-aggregate-qa.mjs",
     "demo:org-members-qa": "node scripts/demo-org-members-qa.mjs",
     "demo:org-coaching-ai-usage-qa": "node scripts/demo-org-coaching-ai-usage-qa.mjs",
+    "demo:org-units-qa": "node scripts/demo-org-units-qa.mjs",
     "demo:runtime-audit": "node scripts/demo-runtime-audit.mjs",
     "mock:production-guard-qa": "node scripts/mock-production-guard-qa.mjs",
     "share:token-qa": "node scripts/share-token-qa.mjs",

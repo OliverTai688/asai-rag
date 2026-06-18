@@ -1778,3 +1778,82 @@ pnpm build
 
 1. 繼續 `LCH-007`，補 `GET/POST /api/org/units`，套 `PlanConfig.maxUnits`，為 org settings surface 打底。
 2. 接著補 `POST /api/org/invites`，套 `PlanConfig.maxCollaborators` / seat limit，並保留 partial-success/operation log 設計入口。
+
+## 2026-06-19 Round 025 - LCH-007 Org Units API And Plan Limit Guard
+
+### 本輪戰役
+
+- Workstream：Launch Readiness Implementation。
+- Batch / task：`LCH-007` Org Admin Aggregate And Org Settings APIs - `GET/POST /api/org/units`。
+- 選擇原因：LCH-007 的 org overview/members/coaching/AI usage 已完成；下一個最低未完成上線阻擋是 org unit tree 與 plan `maxUnits` server-side guard，這會支撐後續 org settings surface 與企業多層級管理。
+
+### 本輪完成
+
+- 新增 `GET /api/org/units`。
+- 新增 `POST /api/org/units`。
+- 新增 `pnpm demo:org-units-qa`。
+- Route 使用 `requireOrgAdmin()` 與 `canReadOrgAggregate()`；MANAGER 可讀 scoped units，但不可寫。
+- GET 回 organization、scope、planUsage、permissions、active units 與 unit aggregate counts。
+- POST 僅 OWNER/ADMIN 可用，並驗證：input schema、parent hierarchy、single HQ rule、slug conflict、`PlanConfig.maxUnits`。
+- `AGENTS.md` 與 `PLN-017` 已將 `GET/POST /api/org/units` 標記完成。
+
+### 修改檔案
+
+- `src/app/api/org/units/route.ts`
+- `scripts/demo-org-units-qa.mjs`
+- `package.json`
+- `AGENTS.md`
+- `docs/05_execution-plans/PLN-017_launch-readiness-implementation-batch-tasks-v1.0.md`
+- `docs/06_audits-and-reports/RPT-003_ongoing-batch-implementation-report-v1.0.md`
+- `docs/07_research-and-design/RES-016_issue-question-log-v1.0.md`
+
+### DB / Prisma 操作
+
+- 是否修改 schema：否。
+- 是否執行 generate：`pnpm build` 內執行 `prisma generate`，通過。
+- 是否執行 db push：否。
+- DB target 判斷：`pnpm demo:preflight` 通過，`.env` 指向遠端 Supabase Postgres。
+- DB 寫入摘要：`pnpm demo:org-units-qa` idempotent upsert `demo.owner@asai.local` 與 OWNER membership 作為 demo/test proof account；未新增 organization unit。Owner POST 被 `MAX_UNITS_REACHED` 擋下，unit count 2→2。
+
+### 驗收
+
+```bash
+pnpm exec tsc --noEmit --pretty false
+pnpm demo:preflight
+ALLOW_DEV_AUTH_HEADER=true pnpm dev
+pnpm demo:org-units-qa
+pnpm demo:org-coaching-ai-usage-qa
+pnpm demo:org-members-qa
+pnpm run lint:changed
+pnpm exec eslint src/app/api/org/units/route.ts scripts/demo-org-units-qa.mjs
+pnpm build
+```
+
+結果：
+
+- TypeScript：通過。
+- `pnpm demo:preflight`：通過；Supabase public env placeholder 仍為 warning。
+- `pnpm demo:org-units-qa`：通過；demo manager GET 200，scope role `MANAGER`；activeUnits=2、maxUnits=1 與 DB `PlanConfig` 一致；manager `POST` 403 `ORG_UNITS_WRITE_FORBIDDEN`；demo owner `POST` 403 `MAX_UNITS_REACHED`；unit count 2→2。
+- Privacy proof：units response forbidden client/private field names 0；DB seeded client/policy/report sentinels 0。
+- Regression proof：`pnpm demo:org-coaching-ai-usage-qa` 與 `pnpm demo:org-members-qa` 通過。因新增 demo owner QA account，member/coaching totals 從 3 變 4 屬預期；private sentinel proof 仍為 0 leak。
+- `pnpm run lint:changed`：通過。
+- Targeted ESLint：units route 與 units QA script 通過。
+- `pnpm build`：通過；Prisma Client generated，Next route list 包含 `/api/org/units`。
+
+### 失敗與風險
+
+- 無本輪驗收失敗。
+- Demo org 目前 STARTER maxUnits=1、activeUnits=2；這代表 POST success path 仍待未來以 ENTERPRISE/staging org 或調整 PlanConfig 測試。當前 proof 已證明 server-side maxUnits guard 生效且不新增 unit。
+- `POST /api/org/units` 已有 `reason` 欄位，但尚未寫 operation log；可在 LCH-008 audit 或 org settings admin action workstream 補上。
+
+### 剩餘上線 blocker
+
+- `LCH-007` 剩餘：`POST /api/org/invites`、org settings API/UI、browser QA。
+- `LCH-008`：super admin audit / impersonation / platform controls。
+- ECPay 正式 checkout notification/query proof 仍待後續。
+- Route B 新版 Theater 仍待後續。
+
+### 下一輪建議
+
+1. 繼續 `LCH-007`，補 `POST /api/org/invites`，套 `PlanConfig.maxCollaborators` / seat limit。
+2. 或先補 `GET/PATCH /api/org/settings`，把 organization profile、branding、client portal、quota/compliance defaults 的權限邊界落地。

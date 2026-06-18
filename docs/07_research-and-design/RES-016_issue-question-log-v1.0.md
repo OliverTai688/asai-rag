@@ -8,6 +8,22 @@
 
 ## Open Issues
 
+### IQ-025 - Org units API 需要支援多層級但必須套 PlanConfig.maxUnits
+
+- 狀態：Resolved
+- 發現日期：2026-06-19
+- 解決日期：2026-06-19
+- 影響 batch：`LCH-007`
+- 背景：
+  - 企業方案需要 HQ/region/branch 多層級；org admin surface 需要讀取 unit tree 並建立新單位。
+  - 但 unit 建立不得只靠前端限制，必須在 server 端套 `PlanConfig.maxUnits`，且 manager 只能讀 aggregate，不可管理 unit。
+- 解法：
+  - 新增 `GET /api/org/units`，回 active units、planUsage、permissions 與 unit aggregate counts。
+  - 新增 `POST /api/org/units`，僅 OWNER/ADMIN 可用，並驗證 input、parent hierarchy、single HQ rule、slug conflict、`PlanConfig.maxUnits`。
+  - Proof：`pnpm demo:org-units-qa` 通過；demo manager GET 200、manager POST 403 `ORG_UNITS_WRITE_FORBIDDEN`；idempotent demo owner POST 因 STARTER `maxUnits=1` 且 activeUnits=2 回 `MAX_UNITS_REACHED`，unit count 2→2。
+  - Privacy proof：units response forbidden client/private field names 0、DB seeded client/policy/report sentinels 0。
+  - 注意：QA 會 idempotent upsert `demo.owner@asai.local` 與 OWNER membership 作為 demo/test proof account；這是非破壞性 demo seed。
+
 ### IQ-024 - Org coaching/AI usage API 只能回 aggregate，不得暴露 AI 原文或 request internals
 
 - 狀態：Resolved
