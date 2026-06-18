@@ -1624,3 +1624,78 @@ pnpm build
 
 1. 進 `LCH-007`，建立 `GET /api/org/members`、coaching summary、AI usage/unit/invite/settings API，保持 manager aggregate-only。
 2. 或先做 `LCH-009` release QA 聚合，確認目前 Level 1 staging demo 的可展示路徑。
+
+## 2026-06-19 Round 023 - LCH-007 Org Members Aggregate API
+
+### 本輪戰役
+
+- Workstream：Launch Readiness Implementation。
+- Batch / task：`LCH-007` Org Admin Aggregate And Org Settings APIs - `GET /api/org/members`。
+- 選擇原因：LCH-006 已完成 front office/client portal 最小閉環；下一個最低未完成上線阻擋是 org admin 成員管理 API，而且必須證明 manager 只能看 aggregate/member metadata，不看 member 客戶明細。
+
+### 本輪完成
+
+- 新增 `GET /api/org/members`。
+- Route 使用 `requireOrgAdmin()` 與 `canReadOrgAggregate()`；OWNER/ADMIN 可看 org scope，MANAGER 若有 managed unit scope 則只看 scope 內 primary unit 成員。
+- Response 只回 organization scope、units、members、totals。
+- Member item 只含 membership id、user id、display name、avatar、user/member status、role、title、region、seat timestamps、primary/managed units 與 aggregate counts。
+- 不回 user email、member private settings、client names、client phone/email、policy number/product、report body、SPIN/Theater transcript。
+- 新增 `pnpm demo:org-members-qa`。
+- `AGENTS.md` 與 `PLN-017` 已將 `GET /api/org/members` 標記完成；LCH-007 其他 API/UI 仍未完成。
+
+### 修改檔案
+
+- `src/app/api/org/members/route.ts`
+- `scripts/demo-org-members-qa.mjs`
+- `package.json`
+- `AGENTS.md`
+- `docs/05_execution-plans/PLN-017_launch-readiness-implementation-batch-tasks-v1.0.md`
+- `docs/06_audits-and-reports/RPT-003_ongoing-batch-implementation-report-v1.0.md`
+- `docs/07_research-and-design/RES-016_issue-question-log-v1.0.md`
+
+### DB / Prisma 操作
+
+- 是否修改 schema：否。
+- 是否執行 generate：待本輪 `pnpm build` 驗收時執行。
+- 是否執行 db push：否。
+- DB target 判斷：`pnpm demo:preflight` 通過，`.env` 指向遠端 Supabase Postgres。
+- DB 寫入摘要：無。本輪只讀 demo org/member/client/report/policy sentinel 供 proof。
+
+### 驗收
+
+```bash
+pnpm exec tsc --noEmit --pretty false
+pnpm demo:preflight
+ALLOW_DEV_AUTH_HEADER=true pnpm dev
+pnpm demo:org-members-qa
+pnpm demo:manager-aggregate-qa
+```
+
+目前結果：
+
+- TypeScript：通過。
+- `pnpm demo:preflight`：通過；Supabase public env placeholder 仍為 warning。
+- `pnpm demo:org-members-qa`：通過；demo manager `GET /api/org/members` 200、scope role `MANAGER`、members/units/totals 存在、member metadata/seat/aggregates 存在。
+- Privacy proof：client/private forbidden field names 0；DB seeded client/policy/report sentinels 0。
+- Regression proof：`pnpm demo:manager-aggregate-qa` 通過，既有 `/api/org/overview` aggregate-only 與 `/api/clients` manager ownership guard 未回歸。
+- Guard note：第一次以普通 `pnpm dev` 跑 org QA 時得到 401；改以 `ALLOW_DEV_AUTH_HEADER=true pnpm dev` 後通過，符合 dev demo auth guard 設計。
+- `pnpm run lint:changed`：通過。
+- Targeted ESLint：`src/app/api/org/members/route.ts`、`scripts/demo-org-members-qa.mjs` 通過。
+- `pnpm build`：通過；Prisma Client generated，Next route list 包含 `/api/org/members`。
+
+### 失敗與風險
+
+- 本輪只完成 org members aggregate API，尚未做 `/team` UI 串接或 `/org/settings` surface。
+- `member displayName` 屬成員 metadata；client/customer names 仍被 QA sentinel 禁止。
+
+### 剩餘上線 blocker
+
+- `LCH-007` 剩餘：`GET /api/org/coaching`、`GET /api/org/ai-usage`、`GET/POST /api/org/units`、`POST /api/org/invites`、org settings API/UI、browser QA。
+- `LCH-008`：super admin audit / impersonation / platform controls。
+- ECPay 正式 checkout notification/query proof 仍待後續。
+- Route B 新版 Theater 仍待後續。
+
+### 下一輪建議
+
+1. 繼續 `LCH-007`，補 `GET /api/org/coaching` 與 `GET /api/org/ai-usage`，延續 aggregate-only proof。
+2. 或補 `GET/POST /api/org/units`，套 plan `maxUnits`，為 org settings surface 打底。

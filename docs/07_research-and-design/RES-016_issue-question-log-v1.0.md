@@ -8,6 +8,23 @@
 
 ## Open Issues
 
+### IQ-023 - Org members API 需要 member metadata 但不得回客戶明細
+
+- 狀態：Resolved
+- 發現日期：2026-06-19
+- 解決日期：2026-06-19
+- 影響 batch：`LCH-007`
+- 背景：
+  - Org admin 需要成員管理 API，提供 member role、seat、unit、last active 與 aggregate metrics。
+  - Manager/org admin 不得因此取得 member 的客戶姓名、phone/email、policy number、report body、SPIN/Theater transcript，也不得讀 member private settings。
+- 解法：
+  - 新增 `GET /api/org/members`，使用 `requireOrgAdmin()` 與 `canReadOrgAggregate()`。
+  - Response 只回 member metadata、seat timestamps、primary/managed units 與 aggregate counts。
+  - 不回 user email、member settings、client rows、policy/report/SPIN/Theater 明細。
+  - Proof：`pnpm demo:org-members-qa` 通過；demo manager 200、scope role `MANAGER`、members/units/totals 存在、forbidden client/private field names 0、DB seeded client/policy/report sentinels 0。
+  - Regression proof：`pnpm demo:manager-aggregate-qa` 通過，`/api/org/overview` 與 manager-owned `/api/clients` 未回歸。
+  - 注意：dev QA 必須用 `ALLOW_DEV_AUTH_HEADER=true pnpm dev`，未開時 401 是預期 guard。
+
 ### IQ-022 - LCH-006 expired token 與完整 browser QA matrix
 
 - 狀態：Resolved

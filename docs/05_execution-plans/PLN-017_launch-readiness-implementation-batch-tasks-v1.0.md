@@ -189,7 +189,7 @@
 目標：完成 org admin 可用的 aggregate/coaching surface 與 org settings，並保持 manager 不看明細。
 
 - [x] 建立 `GET /api/org/overview`：unit/member health、今日輔導隊列、usage summary。
-- [ ] 建立 `GET /api/org/members`：member metadata、role、seat、unit、last active；不得回客戶明細。
+- [x] 建立 `GET /api/org/members`：member metadata、role、seat、unit、last active；不得回客戶明細。
 - [ ] 建立 `GET /api/org/coaching`：完成率、卡關階段、常見異議、訓練建議。
 - [ ] 建立 `GET /api/org/ai-usage`：module/member/unit aggregate usage。
 - [ ] 建立 `GET/POST /api/org/units`：HQ/region/branch tree，套 plan `maxUnits`。
@@ -199,6 +199,8 @@
 - [ ] Org settings 不得讀 member private settings；org admin API 不得回 client name、phone/email、policy number、report body、SPIN/Theater transcript。
 - [ ] Browser QA `/team` + org settings desktop/mobile；console error 0、無水平 overflow。
 - [ ] 跑 `pnpm lint:changed`；動 schema 才跑 Prisma 驗收。
+
+進行中註記：2026-06-19 新增 `GET /api/org/members`，回傳 organization scope、units、members 與 totals；member item 只含 membership id、user id、display name、avatar、user/member status、role、title、region、seat timestamps、primary/managed units 與 aggregate counts。`pnpm demo:org-members-qa` 通過：demo manager 200、scope role `MANAGER`、members/units/totals 存在、client/private forbidden field names 0、DB seeded client/policy/report sentinels 0。驗收 server 需以 `ALLOW_DEV_AUTH_HEADER=true pnpm dev` 啟動；未開 dev auth header 時會 401，屬 guard 正常。
 
 範圍外：不做 super admin break-glass；不做 member detail API。
 

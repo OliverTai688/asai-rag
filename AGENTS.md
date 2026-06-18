@@ -601,7 +601,7 @@ Context: 將 `RES-012` / `RES-013` 的上線差距與四介面實作研究轉成
 
 ### Batch LCH-007 — Org Admin Aggregate And Org Settings APIs
 - [x] 建立 `GET /api/org/overview`。
-- [ ] 建立 `GET /api/org/members`，不得回客戶明細。
+- [x] 建立 `GET /api/org/members`，不得回客戶明細。
 - [ ] 建立 `GET /api/org/coaching`。
 - [ ] 建立 `GET /api/org/ai-usage`。
 - [ ] 建立 `GET/POST /api/org/units`，套 plan `maxUnits`。
@@ -611,6 +611,8 @@ Context: 將 `RES-012` / `RES-013` 的上線差距與四介面實作研究轉成
 - [ ] Org settings 不讀 member private settings；org admin API 不回 client name、phone/email、policy number、report body、SPIN/Theater transcript。
 - [ ] Browser QA `/team` + org settings desktop/mobile；console error 0、無水平 overflow。
 - [ ] 跑 `pnpm lint:changed`。
+
+進行中註記：2026-06-19 續補 `GET /api/org/members`，使用 `requireOrgAdmin()` 與 `canReadOrgAggregate()`，manager 若有 managed unit scope 則只看 scope 內 primary unit 成員。Response 只回 member metadata、role/status、seat timestamps、primary/managed units 與 client/visit/report/SPIN/Theater/AI usage aggregate counts；不回 user email、member private settings、client name/phone/email、policy number/product、report body、SPIN/Theater transcript。新增 `pnpm demo:org-members-qa`：以 demo manager 呼叫 `/api/org/members`，驗證 200、role=MANAGER、members/units/totals 存在，並用 DB seeded client/policy/report sentinels 掃 response，private/client detail field names 與 sentinels 皆 0。驗收需以 `ALLOW_DEV_AUTH_HEADER=true pnpm dev` 啟 server；未開 dev auth 時 org QA 會 401，屬預期 guard。剩餘：coaching、AI usage、units、invites、org settings API/UI、browser QA 與 lint checkbox。
 
 ### Batch LCH-008 — Super Admin / Audit / Impersonation
 - [ ] 完成 platform session guard；`/super-admin/*` 不接受 app session。
