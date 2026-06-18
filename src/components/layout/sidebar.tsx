@@ -91,6 +91,7 @@ const navSections: Array<{ label: string; items: NavItem[] }> = [
     label: "團隊與系統",
     items: [
       { name: "團隊管理", href: "/team", icon: Users2 },
+      { name: "通訊處設定", href: "/team/settings", icon: Settings },
       { name: "體驗版", href: "/pilot", icon: Compass },
       { name: "個人設定", href: "/settings", icon: Settings },
     ],
@@ -114,6 +115,11 @@ export function Sidebar({
 }: SidebarProps) {
   const pathname = usePathname();
   const { isPanelOpen, togglePanel } = useAssistantStore();
+  const isNavItemActive = (href: string) => {
+    if (pathname === href) return true;
+    if (href === "/team" && pathname?.startsWith("/team/settings")) return false;
+    return pathname?.startsWith(`${href}/`) ?? false;
+  };
 
   return (
     <div
@@ -186,7 +192,7 @@ export function Sidebar({
                 <SidebarNavLink
                   key={item.href}
                   item={item}
-                  active={pathname === item.href || pathname?.startsWith(`${item.href}/`)}
+                  active={isNavItemActive(item.href)}
                   open={open}
                   onNavigate={onNavigate}
                 />

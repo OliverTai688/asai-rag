@@ -8,6 +8,24 @@
 
 ## Open Issues
 
+### IQ-027 - Org settings 必須和 member settings 分離，且 manager 只能 read-only
+
+- 狀態：Resolved
+- 發現日期：2026-06-19
+- 解決日期：2026-06-19
+- 影響 batch：`LCH-007`
+- 背景：
+  - `LCH-003` 已把 `/settings` 收斂為 member private preferences。
+  - `LCH-007` 仍缺 org-wide settings；若沿用 member settings 或直接回 organization/member 原始資料，會讓 org admin surface 混入私人偏好、客戶明細、provider id 或 report/transcript 內容。
+  - Manager 需要檢視通訊處政策與輔導相關設定，但不應能修改 organization-wide policy。
+- 解法：
+  - 新增 `src/lib/org-settings/org-settings-repository.ts`，使用 `Organization.settings Json?` 建立 safe org settings contract，不動 Prisma schema。
+  - 新增 `GET/PATCH /api/org/settings`；GET 允許 OWNER/ADMIN/MANAGER 讀取 safe DTO，PATCH 只允許 OWNER/ADMIN。
+  - PATCH 必填 `reason`，寫 `AuditLog(resourceType=ORG_SETTINGS)`；response 不回 provider customer/subscription id。
+  - 新增 `/team/settings` surface；manager browser QA 顯示 read-only notice 且 save button disabled。
+  - Proof：`pnpm demo:org-settings-qa` 通過；manager GET 200/read-only、manager PATCH 403、owner PATCH 200、AuditLog 0→1、private/client forbidden field names 0、DB seeded client/policy/report sentinels 0。
+  - Browser proof：`pnpm demo:org-settings-browser-qa` 通過；desktop/mobile console error 0、無水平 overflow，截圖保存於 `docs/06_audits-and-reports/screenshots/launch-readiness/lch-007/`。
+
 ### IQ-026 - Org invites 必須套 collaborator/seat limit 且不得寄真 email
 
 - 狀態：Resolved

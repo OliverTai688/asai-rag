@@ -1936,3 +1936,88 @@ pnpm build
 
 1. 繼續 `LCH-007`，補 `GET/PATCH /api/org/settings`，把 organization profile、branding、client portal、quota/compliance defaults 的權限邊界落地。
 2. 接著做 `/team/settings` 或 `/org/settings` UI surface + browser QA，收掉 LCH-007 剩餘項。
+
+## 2026-06-19 Round 027 - LCH-007 Org Settings API And Surface
+
+### 本輪戰役
+
+- Workstream：Launch Readiness Implementation。
+- Batch / task：`LCH-007` Org Admin Aggregate And Org Settings APIs - org settings API/UI/browser QA。
+- 選擇原因：`POST /api/org/invites` 已完成；LCH-007 剩餘最低未完成項是 org-wide settings surface 與 `GET/PATCH /api/org/settings`，會直接影響 org admin 是否能獨立管理通訊處品牌、client portal、合規預設與 AI 用量提醒。
+
+### 本輪完成
+
+- 新增 `src/lib/org-settings/org-settings-repository.ts`。
+- 新增 `GET/PATCH /api/org/settings`。
+- 新增 `/team/settings` surface。
+- Sidebar 新增「通訊處設定」入口，並修正 `/team/settings` 不會同時讓 `/team` active。
+- 新增 `pnpm demo:org-settings-qa`。
+- 新增 `pnpm demo:org-settings-browser-qa`，保存 desktop/mobile screenshots。
+- `AGENTS.md` 與 `PLN-017` 已將 LCH-007 settings/API/browser/lint checkbox 標記完成；`PLN-017` LCH-007 table 狀態改為 `[x]`。
+
+### 修改檔案
+
+- `src/lib/org-settings/org-settings-repository.ts`
+- `src/app/api/org/settings/route.ts`
+- `src/app/(dashboard)/team/settings/page.tsx`
+- `src/app/(dashboard)/team/settings/settings-client.tsx`
+- `src/components/layout/sidebar.tsx`
+- `scripts/demo-org-settings-qa.mjs`
+- `scripts/demo-org-settings-browser-qa.mjs`
+- `package.json`
+- `AGENTS.md`
+- `docs/05_execution-plans/PLN-017_launch-readiness-implementation-batch-tasks-v1.0.md`
+- `docs/06_audits-and-reports/RPT-003_ongoing-batch-implementation-report-v1.0.md`
+- `docs/07_research-and-design/RES-016_issue-question-log-v1.0.md`
+- `docs/06_audits-and-reports/screenshots/launch-readiness/lch-007/org-settings-desktop.png`
+- `docs/06_audits-and-reports/screenshots/launch-readiness/lch-007/org-settings-mobile.png`
+
+### DB / Prisma 操作
+
+- 是否修改 schema：否，沿用 `Organization.settings Json?`、`logoUrl`、`brandColor`、`monthlyAiQuota/monthlyAiUsed`。
+- 是否執行 generate：`pnpm build` 內執行 `prisma generate`，通過。
+- 是否執行 db push：否。
+- DB target 判斷：`pnpm demo:preflight` 通過，`.env` 指向遠端 Supabase Postgres。
+- DB 寫入摘要：`pnpm demo:org-settings-qa` 以 demo owner `PATCH /api/org/settings` 寫入 organization settings safe patch，並新增 `AuditLog(resourceType=ORG_SETTINGS)`；manager `PATCH` 被 403 擋下。
+
+### 驗收
+
+```bash
+pnpm exec tsc --noEmit --pretty false
+pnpm demo:preflight
+ALLOW_DEV_AUTH_HEADER=true pnpm dev
+pnpm demo:org-settings-qa
+pnpm demo:org-settings-browser-qa
+pnpm run lint:changed
+pnpm exec eslint src/app/api/org/settings/route.ts 'src/app/(dashboard)/team/settings/page.tsx' 'src/app/(dashboard)/team/settings/settings-client.tsx' src/lib/org-settings/org-settings-repository.ts scripts/demo-org-settings-qa.mjs scripts/demo-org-settings-browser-qa.mjs src/components/layout/sidebar.tsx
+pnpm build
+```
+
+結果：
+
+- TypeScript：初次發現 `PaymentProvider` 型別過窄，已改引用 generated enum 後通過。
+- `pnpm demo:preflight`：通過；Supabase public env placeholder 仍為 warning。
+- `pnpm demo:org-settings-qa`：通過；demo manager GET 200 且 `canWrite=false`；manager PATCH 403 `ORG_SETTINGS_WRITE_FORBIDDEN`；demo owner PATCH 200 且 `canWrite=true`；`AuditLog` 0→1；private/client forbidden field names 0；DB seeded client/policy/report sentinels 0。
+- `pnpm demo:org-settings-browser-qa`：通過；desktop 1440×1000 / mobile 390×844 皆顯示 org settings title、privacy badge、client portal section、manager read-only notice；manager save button disabled；console error 0；無水平 overflow。截圖已保存。
+- `pnpm run lint:changed`：通過。
+- Targeted ESLint：org settings route/page/repository/QA scripts/sidebar 通過。
+- `pnpm build`：通過；Prisma Client generated，Next route list 包含 `/api/org/settings` 與 `/team/settings`。
+
+### 失敗與風險
+
+- 無未修復驗收失敗。
+- `/team/settings` 目前以 manager read-only browser QA 覆蓋，owner write flow 以 API proof 覆蓋；若要測完整 owner UI edit，需要可登入 owner 的 browser/session proof。
+- Org settings PATCH 目前使用 `AuditLog.action=SUPPORT_NOTE` + `resourceType=ORG_SETTINGS`；若後續需要專用 enum action，要在 LCH-008/production migration 中新增。
+- In-app Browser 無法替初始 server-render request 加 demo auth header；本輪以 repo 既有 Playwright Edge + `x-asai-demo-user-email` header 的 headless browser QA 補足。
+
+### 剩餘上線 blocker
+
+- `LCH-008`：super admin audit / impersonation / platform controls。
+- `LCH-009`：production controls、AI usage audit、backup/rollback、privacy/terms/disclaimer、ECPay test checklist、full smoke。
+- `LCH-004`：Theater Route B 與三 AI error-path / quota UI proof 仍未收完。
+- `LCH-005`：Supabase Auth 正式 demo user mapping / client portal login proof 仍待後續。
+
+### 下一輪建議
+
+1. 進入 `LCH-008`，先做 platform organizations summary API 與 platform audit query API，延續本輪 AuditLog groundwork。
+2. 或回補 `LCH-004` Theater/AI usage log audit，降低「至少三個 AI 能正常運作」的核心上線風險。
