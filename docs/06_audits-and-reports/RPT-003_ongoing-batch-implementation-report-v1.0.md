@@ -590,3 +590,72 @@ curl -s -o /dev/null -D - -H 'x-asai-demo-user-email: demo.member@asai.local' ht
 
 1. 補 `LCH-002` valid `POST /api/clients` 寫入 proof，刷新重讀確認存在。
 2. 或開始 `LCH-003` member settings BFF，讓 `/settings` 從 mock surface 轉為 member-scoped contract。
+
+## 2026-06-19 Round 007 - LCH-002 Valid Client Write Proof
+
+### 本輪戰役
+
+- Workstream：Launch Readiness Implementation。
+- Batch / task：`LCH-002` DB-backed Client CRUD valid write proof。
+- 選擇原因：`LCH-002` 是最低未完成且最接近「資料能正常新增」上線阻擋的卡；operator 已批准目前 Supabase target 做 LCH demo/test 非破壞性寫入 proof。
+
+### 本輪完成
+
+- 在目前 `.env` 指向的 Supabase Postgres target 執行非破壞性 demo/test client 新增 proof。
+- 以 server session/dev header 建立 client，確認 API 不信任前端 org/user scope，而由 server session 寫入。
+- 重讀 list/detail API，確認新增 client 重新整理後仍存在。
+- 驗證新增 client 合規 checklist 初始化：`kycStatus=MISSING`。
+- 更新 `AGENTS.md`、`PLN-017`，將 `LCH-002` 完成。
+
+### DB / Prisma 操作
+
+- 是否修改 schema：否。
+- 是否執行 generate：否，本輪無 schema/codegen 需求。
+- 是否執行 db push：否。
+- DB target 判斷：`pnpm demo:preflight` 通過，`.env` 指向遠端 Supabase Postgres；operator 已批准目前 target 可做 LCH demo/test 非破壞性寫入 proof。
+- 寫入結果：
+  - Created client id：`cmqjsnwbf00005061en7zsevh`。
+  - Created client name：`LCH-002 測試客戶 20260619014910`。
+  - `POST /api/clients`：201。
+  - `GET /api/clients`：200，list 中找到 created client，list count 2。
+  - `GET /api/clients/cmqjsnwbf00005061en7zsevh`：200，detail name match，`kycStatus=MISSING`。
+
+### 驗收
+
+```bash
+pnpm demo:preflight
+pnpm exec tsc --noEmit --pretty false
+pnpm lint:changed
+ALLOW_DEV_AUTH_HEADER=true pnpm dev
+curl -H 'x-asai-demo-user-email: demo.member@asai.local' -H 'content-type: application/json' -d @/tmp/asai-lch002-create-payload.json http://localhost:3000/api/clients
+curl -H 'x-asai-demo-user-email: demo.member@asai.local' http://localhost:3000/api/clients
+curl -H 'x-asai-demo-user-email: demo.member@asai.local' http://localhost:3000/api/clients/cmqjsnwbf00005061en7zsevh
+```
+
+結果：
+
+- `pnpm demo:preflight`：通過 DB DNS / connection / required tables；仍警告 Supabase public env placeholder。
+- TypeScript：通過。
+- `pnpm lint:changed`：通過。
+- `POST /api/clients`：201。
+- `GET /api/clients`：200，created client found。
+- `GET /api/clients/[id]`：200，detail match，`kycStatus=MISSING`。
+
+### 失敗與風險
+
+- 本輪沒有清除新增 demo/test client，因禁止刪除遠端資料；該筆可保留為 LCH evidence。
+- Dev proof 依賴 `ALLOW_DEV_AUTH_HEADER=true`，production 不得啟用。
+- `pnpm demo:preflight` 仍警告 Supabase public env placeholder；此不阻擋 DB-backed client CRUD，但會阻擋未來 client-side Supabase features。
+- Dev server log 出現 pg deprecation warning：`Calling client.query() when the client is already executing a query is deprecated`；不阻擋本輪，但後續可檢查 preflight/dev concurrent query path。
+
+### 剩餘上線 blocker
+
+- `LCH-003` member settings 尚未 DB/BFF-backed。
+- `LCH-004` 三個 AI 尚未完成 session-scoped persistence / `AiUsageLog` 全路徑 proof。
+- `LCH-005` demo relogin full QA 仍缺 visit plans、reports、sessions、AI output。
+- `LCH-006` client portal/share DB-backed token lookup 仍缺。
+
+### 下一輪建議
+
+1. 做 `LCH-003` member settings BFF，讓 `/settings` 從 mock surface 轉成 member-scoped contract。
+2. 或開始 `LCH-004` 的 `/api/ai/interview` session-scope / `AiUsageLog` 最小閉環。

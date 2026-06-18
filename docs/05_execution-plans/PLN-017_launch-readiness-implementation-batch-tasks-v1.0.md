@@ -31,7 +31,7 @@
 | 卡片 | 主題 | 狀態 | 依賴 |
 | --- | --- | --- | --- |
 | LCH-001 | Session / workspace foundation | [x] | Auth.js provider/env |
-| LCH-002 | DB-backed client CRUD | [ ] | LCH-001 |
+| LCH-002 | DB-backed client CRUD | [x] | LCH-001 |
 | LCH-003 | Member settings and workspace preferences | [ ] | LCH-001 |
 | LCH-004 | Three AI production minimum | [ ] | LCH-001、LCH-002、ITA Route B decision |
 | LCH-005 | Demo account relogin QA | [ ] | LCH-001、LCH-002、LCH-004 |
@@ -76,11 +76,11 @@
 - [x] 建立最小 family/policy endpoint 或在 client detail API 內提供 transaction write path。
 - [x] 將 CRM list/detail store/page 改為 server API / cache-first；localStorage 不再是 client business source of truth。
 - [x] 清空 browser storage 後登入 demo member，仍可從 DB 看到 seeded clients。
-- [ ] 新增一筆 client，重新整理後仍存在。
+- [x] 新增一筆 client，重新整理後仍存在。
 - [x] 跑 `pnpm demo:runtime-audit`，確認 production runtime 不直接 import `src/domains/*/mocks.ts` 作業務資料。
 - [x] 跑 `pnpm lint:changed`；動 schema 才跑 `pnpm prisma:validate` 與 `pnpm prisma:generate`。
 
-進行中註記：2026-06-19 已建立 `src/lib/clients/client-dto.ts`、`src/lib/clients/client-repository.ts`、`GET/POST /api/clients`、`GET/PATCH /api/clients/[id]`；新增路徑由 server session 推導 `organizationId`、`ownerId`、`unitId`，並在 transaction create 中初始化合規 checklist。`/crm` list、`AddClientDialog`、CRM detail layout/overview/subpages 已改 BFF/cache-first；新 browser context + `x-asai-demo-user-email: demo.member@asai.local` 可看到 DB seeded client `王大明`。已驗收 401/200 list/200 detail/400 validation；`/crm/c_wang`、relationships、policies、gap-analysis、reports、timeline desktop Browser console error 0 / no overflow。已補 `POST /api/clients/[id]/family-members`、`POST /api/clients/[id]/policies` 與 service methods；relationships dialog child mode 接 family member BFF，API 401/400 proof 與 dialog open Browser proof 通過。Operator 於 2026-06-19 已批准目前 Supabase target 可做 LCH demo/test 非破壞性寫入 proof；下一輪可補「新增一筆 client，重新整理後仍存在」。
+完成註記：2026-06-19 已建立 `src/lib/clients/client-dto.ts`、`src/lib/clients/client-repository.ts`、`GET/POST /api/clients`、`GET/PATCH /api/clients/[id]`；新增路徑由 server session 推導 `organizationId`、`ownerId`、`unitId`，並在 transaction create 中初始化合規 checklist。`/crm` list、`AddClientDialog`、CRM detail layout/overview/subpages 已改 BFF/cache-first；新 browser context + `x-asai-demo-user-email: demo.member@asai.local` 可看到 DB seeded client `王大明`。已驗收 401/200 list/200 detail/400 validation；`/crm/c_wang`、relationships、policies、gap-analysis、reports、timeline desktop Browser console error 0 / no overflow。已補 `POST /api/clients/[id]/family-members`、`POST /api/clients/[id]/policies` 與 service methods；relationships dialog child mode 接 family member BFF，API 401/400 proof 與 dialog open Browser proof 通過。Operator 於 2026-06-19 已批准目前 Supabase target 可做 LCH demo/test 非破壞性寫入 proof；同日建立 demo/test client `cmqjsnwbf00005061en7zsevh`，`POST /api/clients` 201，重新 `GET /api/clients` 可找到，`GET /api/clients/cmqjsnwbf00005061en7zsevh` 200 且合規 checklist 初始化為 `MISSING`。
 
 範圍外：不做 org aggregate；不做 client portal；不改 SPIN/Theater。
 

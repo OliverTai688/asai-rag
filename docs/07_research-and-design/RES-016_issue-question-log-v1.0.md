@@ -110,6 +110,21 @@
 
 ## Resolved Issues
 
+### IQ-011 - LCH-002 valid client write proof
+
+- 狀態：Resolved
+- 發現日期：2026-06-19
+- 解決日期：2026-06-19
+- 影響 batch：`LCH-002`、`LCH-005`
+- 背景：
+  - `LCH-002` 剩餘驗收是「新增 client 後刷新仍存在」。
+  - Operator 已批准目前 Supabase target 可做 LCH demo/test 非破壞性寫入 proof。
+- 解法：
+  - 以 `ALLOW_DEV_AUTH_HEADER=true` + `x-asai-demo-user-email: demo.member@asai.local` 呼叫 `POST /api/clients`。
+  - 建立 demo/test client `cmqjsnwbf00005061en7zsevh`（`LCH-002 測試客戶 20260619014910`）。
+  - API proof：`POST /api/clients` 201；`GET /api/clients` 200 且 list 中找到 created client；`GET /api/clients/[id]` 200 且 detail match，`kycStatus=MISSING`。
+  - 新增資料保留作 evidence；不執行遠端 delete/cleanup。
+
 ### IQ-010 - LCH-002 family/policy minimal write path 缺 server guard
 
 - 狀態：Resolved
