@@ -68,6 +68,7 @@ function normalizeMessages(messages: InterviewAiMessage[]): OpenAI.Chat.ChatComp
 
 export async function POST(req: Request) {
   const startedAt = Date.now();
+  let bodyForFailure: Partial<z.infer<typeof interviewRequestSchema>> = {};
 
   try {
     const session = await requireCurrentMember();
@@ -84,6 +85,7 @@ export async function POST(req: Request) {
     }
 
     const body = parsedBody.data;
+    bodyForFailure = body;
     const quota = canUseAiModule(session, AiModule.INTERVIEW);
 
     if (!quota.allowed) {
@@ -188,6 +190,22 @@ export async function POST(req: Request) {
       headers: { "Content-Type": "text/plain; charset=utf-8" },
     });
   } catch (error) {
-    return authErrorResponse(error);
+    try {
+      const session = await requireCurrentMember();
+      await persistInterviewFailure({
+        session,
+        body: bodyForFailure,
+        model: MODEL,
+        latencyMs: Date.now() - startedAt,
+        error: error instanceof Error ? error.message : "Interview request failed",
+      });
+    } catch {
+      return authErrorResponse(error);
+    }
+
+    return Response.json(
+      { error: error instanceof Error ? error.message : "Interview request failed" },
+      { status: 500 },
+    );
   }
 }

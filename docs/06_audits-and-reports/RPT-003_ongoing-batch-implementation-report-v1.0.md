@@ -972,3 +972,62 @@ pnpm build
 
 1. 繼續 `LCH-004`，補三 AI provider error-path proof，確認 `AiUsageLog.error` 實際落庫。
 2. 或進 Route B theater migration 設計/實作，補 director/NPC/五視角資料結構與 UI。
+
+## 2026-06-19 Round 013 - LCH-004 Three AI Error Path Proof Slice
+
+### 本輪戰役
+
+- Workstream：Launch Readiness Implementation。
+- Batch / task：`LCH-004` Three AI Production Minimum - three AI provider error-path proof。
+- 選擇原因：三個 AI success path 與 quota proof 已有 evidence，但 provider/key/runtime error 是否會實際寫入 `AiUsageLog.error` 仍是上線觀測缺口。
+
+### 本輪完成
+
+- 補 `/api/ai/interview` outer catch：OpenAI stream 建立前若失敗，也會呼叫 `persistInterviewFailure()`。
+- 以測試用無效 OpenAI key 啟動 dev server，對 `/api/ai/chat`、`/api/ai/interview`、`/api/ai/theater` 各打一筆 provider error proof。
+- 三條 route 皆回 500，且 `AiUsageLog.error` 實際落庫。
+- LCH-004 的「三個 AI 都驗證 success/error path `AiUsageLog`」已標記完成。
+
+### DB / Prisma 操作
+
+- 是否修改 schema：否。
+- 是否執行 generate：否，本輪無 schema 變更。
+- 是否執行 db push：否。
+- DB target 判斷：`pnpm demo:preflight` 通過，`.env` 指向遠端 Supabase Postgres；本輪寫入 demo error usage proof。
+
+### 驗收
+
+```bash
+pnpm demo:preflight
+pnpm exec tsc --noEmit --pretty false
+OPENAI_API_KEY=sk-invalid-asai-proof ALLOW_DEV_AUTH_HEADER=true pnpm dev
+node <three-ai-error-proof-script>
+pnpm run lint:changed
+pnpm build
+```
+
+結果：
+
+- `/api/ai/chat` error proof：500，`CHAT` error count `+1`。
+- `/api/ai/interview` error proof：500，`INTERVIEW` error count `+1`。
+- `/api/ai/theater` error proof：500，`THEATER` error count `+1`。
+- Latest error logs：三者皆有 `model=gpt-4o-mini` 與 `error IS NOT NULL`。
+- TypeScript：通過。
+
+### 失敗與風險
+
+- 本輪使用測試用無效 key 觸發 provider 401；文件只記錄 masked/sample error，不存 raw secret。
+- 尚未做 browser UI error state proof；API/DB proof 已完成。
+- LCH-004 仍未完成新版 Route B Theater，且 quota UI 全頁 proof 仍待後續。
+
+### 剩餘上線 blocker
+
+- `LCH-004` 剩餘：Route B 新版 Theater、多角色/旁白 NPC/五視角回饋、quota UI 全頁 proof。
+- `LCH-005` demo relogin full QA 仍缺 visit plans、reports、sessions、AI output 整合。
+- `LCH-006` client portal/share DB-backed token lookup 仍缺。
+- `LCH-007` org aggregate + org settings 尚未完成。
+
+### 下一輪建議
+
+1. 補 LCH-004 quota UI/browser proof，讓 chat/interview/theater 的 429 friendly message 在頁面層可見。
+2. 或進 LCH-005 demo account relogin QA，因三 AI API minimum 已接近可驗收。

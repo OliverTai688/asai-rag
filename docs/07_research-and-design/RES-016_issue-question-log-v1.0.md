@@ -110,6 +110,22 @@
 
 ## Resolved Issues
 
+### IQ-017 - LCH-004 三 AI provider error-path 尚未實證
+
+- 狀態：Resolved
+- 發現日期：2026-06-19
+- 解決日期：2026-06-19
+- 影響 batch：`LCH-004`
+- 背景：
+  - Chat、Interview、Theater 都已有 success path `AiUsageLog` proof，但 provider/key/runtime error 是否確實落 `AiUsageLog.error` 尚未實證。
+  - `/api/ai/interview` 在 OpenAI stream 建立前失敗時，outer catch 原本沒有呼叫 `persistInterviewFailure()`。
+- 解法：
+  - 補 `/api/ai/interview` outer catch failure logging。
+  - 以測試用無效 OpenAI key 啟動 dev server，呼叫 `/api/ai/chat`、`/api/ai/interview`、`/api/ai/theater`。
+  - API proof：三條 route 皆回 500。
+  - DB proof：`AiUsageLog.error` deltas `CHAT +1`、`INTERVIEW +1`、`THEATER +1`，latest logs 皆帶 `model=gpt-4o-mini`。
+  - 剩餘：UI error state proof、Route B 新版 Theater 與 quota UI 全頁 proof。
+
 ### IQ-016 - LCH-004 Theater legacy route 缺 session/quota/usage guard
 
 - 狀態：Resolved
