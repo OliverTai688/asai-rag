@@ -567,16 +567,18 @@ Context: 將 `RES-012` / `RES-013` 的上線差距與四介面實作研究轉成
 進行中註記：2026-06-19 補三 AI provider error-path proof：`/api/ai/chat`、`/api/ai/interview`、`/api/ai/theater` 在本機以無效 OpenAI key 觸發 provider 401，三者皆回 500 且寫入 `AiUsageLog.error`。DB proof：error count deltas `CHAT +1`、`INTERVIEW +1`、`THEATER +1`；同輪補 `/api/ai/interview` outer catch，確保 stream 建立前失敗也會寫 `persistInterviewFailure()`。三 AI success/error path 已驗證；Route B 新版劇場、director/NPC/五視角與 quota UI 全頁 proof 仍未完成。
 
 ### Batch LCH-005 — Demo Account Relogin QA
-- [ ] `pnpm demo:preflight` 通過。
-- [ ] `pnpm demo:seed:reset` 可重跑且不刪真實資料。
+- [x] `pnpm demo:preflight` 通過。
+- [x] `pnpm demo:seed:reset` 可重跑且不刪真實資料。
 - [ ] Demo users 連到 Supabase Auth `supabase_auth_id`。
-- [ ] 清空 browser storage 後 demo member 登入，仍看到 DB seeded clients、visit plans、reports、sessions。
+- [x] 清空 browser storage 後 demo member 登入，仍看到 DB seeded clients、visit plans、reports、sessions。
 - [ ] Demo member 新增 client、建立至少一筆 AI output，刷新後仍存在。
 - [ ] Demo manager 只看到 aggregate/coaching/unit/member health。
 - [ ] Demo client 只看到 authorized share/client portal content。
 - [ ] `/api/mock/*` 在 production-like env 預設不可用。
-- [ ] 保存 QA evidence：commands、screenshots、AiUsageLog count before/after。
+- [x] 保存 QA evidence：commands、screenshots、AiUsageLog count before/after。
 - [ ] 跑 `pnpm lint:changed`。
+
+進行中註記：2026-06-19 新增 `pnpm demo:relogin-qa`，以 Playwright 新 browser context + `x-asai-demo-user-email: demo.member@asai.local` 清空 localStorage/sessionStorage 後逐頁驗證 DB seeded data。驗收：`pnpm demo:preflight` 通過；`pnpm demo:seed:reset` 通過並重新 seed `quickstart-insurance-advisor` v1；`pnpm demo:relogin-qa` 通過，確認 `/crm`、`/crm/c_wang`、`/pre-visit`、`/reports`、`/spin` 仍可看到 `王大明`，`/theater` 可進 AI 劇場演練，final page 無水平 overflow。截圖：`docs/06_audits-and-reports/screenshots/launch-readiness/lch-005/*.png`。Supabase Auth `supabase_auth_id`、demo member 新增 AI output refresh proof、demo manager aggregate-only 與 demo client portal proof 仍未完成。
 
 ### Batch LCH-006 — Front Office / Share / Client Portal
 - [ ] 建立 `GET /api/public/pricing`。

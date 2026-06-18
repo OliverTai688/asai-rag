@@ -110,6 +110,23 @@
 
 ## Resolved Issues
 
+### IQ-018 - LCH-005 缺清空 browser storage 後的 demo relogin QA
+
+- 狀態：Resolved
+- 發現日期：2026-06-19
+- 解決日期：2026-06-19
+- 影響 batch：`LCH-005`
+- 背景：
+  - LCH-005 需要證明體驗帳號資料來自 DB seed，不依賴 browser localStorage。
+  - 先前沒有可重跑的 browser QA script。
+- 解法：
+  - 新增 `pnpm demo:relogin-qa`，用 Playwright 新 context、demo auth header，清空 local/session storage 後巡檢主要 demo surfaces。
+  - `pnpm demo:preflight` 通過。
+  - `pnpm demo:seed:reset` 通過，重建 `quickstart-insurance-advisor` demo scenario。
+  - `pnpm demo:relogin-qa` 通過：`/crm`、`/crm/c_wang`、`/pre-visit`、`/reports`、`/spin` 看到 `王大明`，`/theater` 看到 `AI 劇場演練`。
+  - 截圖保存於 `docs/06_audits-and-reports/screenshots/launch-readiness/lch-005/`。
+  - 剩餘：正式 Supabase/Auth.js login、demo manager aggregate-only、demo client portal、demo member AI output refresh proof。
+
 ### IQ-017 - LCH-004 三 AI provider error-path 尚未實證
 
 - 狀態：Resolved

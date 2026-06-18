@@ -1031,3 +1031,65 @@ pnpm build
 
 1. 補 LCH-004 quota UI/browser proof，讓 chat/interview/theater 的 429 friendly message 在頁面層可見。
 2. 或進 LCH-005 demo account relogin QA，因三 AI API minimum 已接近可驗收。
+
+## 2026-06-19 Round 014 - LCH-005 Demo Relogin Browser QA Slice
+
+### 本輪戰役
+
+- Workstream：Launch Readiness Implementation。
+- Batch / task：`LCH-005` Demo Account Relogin QA - seed reset + browser storage proof。
+- 選擇原因：三 AI API minimum 已接近完成，下一個上線 demo blocker 是體驗帳號不能依賴 browser localStorage；需要可重跑 QA 來證明清空 storage 後仍從 DB 看到 seeded data。
+
+### 本輪完成
+
+- 新增 `scripts/demo-relogin-qa.mjs`，使用 Playwright/Edge 新 context、demo auth header、清空 localStorage/sessionStorage 後巡檢主要 demo surfaces。
+- 新增 package script `pnpm demo:relogin-qa`。
+- 實跑 `pnpm demo:preflight`，確認 DB target / required tables。
+- 實跑 `pnpm demo:seed:reset`，重新 seed `quickstart-insurance-advisor` v1。
+- 實跑 `pnpm demo:relogin-qa`，確認清空 browser storage 後 demo member 仍可看到 DB seeded data。
+- 保存 LCH-005 browser screenshots。
+
+### DB / Prisma 操作
+
+- 是否修改 schema：否。
+- 是否執行 generate：否，本輪無 schema 變更。
+- 是否執行 db push：否。
+- DB target 判斷：`pnpm demo:preflight` 通過，`.env` 指向遠端 Supabase Postgres；`demo:seed:reset` 僅 reset `quickstart-insurance-advisor` demo scenario。
+
+### 驗收
+
+```bash
+pnpm demo:preflight
+pnpm demo:seed:reset
+ALLOW_DEV_AUTH_HEADER=true pnpm dev
+pnpm demo:relogin-qa
+pnpm exec tsc --noEmit --pretty false
+pnpm run lint:changed
+pnpm build
+```
+
+結果：
+
+- `pnpm demo:preflight`：通過；Supabase public env placeholder 仍為 warning。
+- `pnpm demo:seed:reset`：通過，seeded demo scenario `quickstart-insurance-advisor` v1。
+- `pnpm demo:relogin-qa`：通過。
+- Browser QA：`/crm`、`/crm/c_wang`、`/pre-visit`、`/reports`、`/spin` 皆可看到 `王大明`；`/theater` 可看到 `AI 劇場演練`；final page 無水平 overflow。
+- 截圖：`docs/06_audits-and-reports/screenshots/launch-readiness/lch-005/crm.png`、`crm-detail.png`、`pre-visit.png`、`reports.png`、`spin.png`、`theater.png`。
+
+### 失敗與風險
+
+- 本輪使用 dev auth header，不等同正式 Supabase/Auth.js login flow。
+- `demo:seed:reset` 會 reset demo scenario，不會刪真實資料；仍需避免在未確認 target 時對 production 做 destructive reset。
+- demo manager aggregate-only、demo client portal、demo member 新增 AI output refresh proof 仍未完成。
+
+### 剩餘上線 blocker
+
+- `LCH-005` 剩餘：Supabase Auth `supabase_auth_id`、demo member 新增 client/AI output refresh proof、demo manager aggregate-only、demo client portal、mock API production-like guard proof。
+- `LCH-006` client portal/share DB-backed token lookup 仍缺。
+- `LCH-007` org aggregate + org settings 尚未完成。
+- Route B 新版 Theater 仍待後續。
+
+### 下一輪建議
+
+1. 繼續 `LCH-005`，補 demo member 新增 AI output 後刷新仍存在，並補 AiUsageLog count before/after。
+2. 或做 demo manager aggregate-only proof，確認 manager 不看到 member 客戶明細。

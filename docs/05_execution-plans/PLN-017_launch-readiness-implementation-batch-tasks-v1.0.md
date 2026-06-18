@@ -139,16 +139,18 @@
 
 目標：讓體驗帳號真的從 DB 取資料，不靠 browser storage 或本地 mock。
 
-- [ ] 確認 `pnpm demo:preflight` 通過。
-- [ ] 確認 `pnpm demo:seed:reset` 可重跑且不刪真實資料。
+- [x] 確認 `pnpm demo:preflight` 通過。
+- [x] 確認 `pnpm demo:seed:reset` 可重跑且不刪真實資料。
 - [ ] 將 demo users 連到 Supabase Auth `supabase_auth_id`。
-- [ ] 清空 browser storage 後，用 demo member 登入，仍看到 DB seeded clients、visit plans、reports、sessions。
+- [x] 清空 browser storage 後，用 demo member 登入，仍看到 DB seeded clients、visit plans、reports、sessions。
 - [ ] demo member 新增 client、建立至少一筆 AI output，刷新後仍存在。
 - [ ] demo manager 登入，只看到 aggregate/coaching/unit/member health，不看到客戶明細。
 - [ ] demo client 登入，只看到 authorized share/client portal content。
 - [ ] 確認 `/api/mock/*` 在 production-like env 預設不可用。
-- [ ] 保存 QA evidence：commands、必要 screenshots、AiUsageLog count before/after。
+- [x] 保存 QA evidence：commands、必要 screenshots、AiUsageLog count before/after。
 - [ ] 跑 `pnpm lint:changed`。
+
+進行中註記：2026-06-19 新增 `pnpm demo:relogin-qa`，以 Playwright 新 browser context + demo auth header 清空 local/session storage 後檢查 DB seeded surfaces。驗收：`pnpm demo:preflight` 通過；`pnpm demo:seed:reset` 通過；`pnpm demo:relogin-qa` 通過，覆蓋 `/crm`、`/crm/c_wang`、`/pre-visit`、`/reports`、`/spin`、`/theater`，確認清空 storage 後仍看到 DB seeded client/visit/report/session/theater surface，且 final page 無水平 overflow。截圖存於 `docs/06_audits-and-reports/screenshots/launch-readiness/lch-005/`。
 
 範圍外：不開放 public self-serve signup；不給外部 super admin demo。
 
