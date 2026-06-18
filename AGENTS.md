@@ -546,15 +546,17 @@ Context: 將 `RES-012` / `RES-013` 的上線差距與四介面實作研究轉成
 完成註記：2026-06-19 新增 `OrganizationMember.settings` nullable JSON 作為 member-scoped preferences contract；建立 `src/lib/member-settings/member-settings-repository.ts` 與 `GET/PATCH /api/member/settings`，只由 `requireCurrentMember()` 推導 current membership，不接受前端傳入 org/user scope。`/settings` 已改為「個人設定」，覆蓋 profile、notifications、AI preferences、personal integrations、default workspace、personal collaborator entry 與 security boundary；sidebar route naming 由「系統設定」改為「個人設定」。API proof：`GET /api/member/settings` 200，`PATCH /api/member/settings` 200，重讀 persisted true；`pnpm prisma:validate`、`pnpm prisma:generate`、`pnpm prisma db push`、`pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`、`pnpm build` 通過。Browser proof `/settings` desktop/mobile console error 0、無水平 overflow；截圖：`docs/06_audits-and-reports/screenshots/launch-readiness/lch-003/settings-desktop.png`、`docs/06_audits-and-reports/screenshots/launch-readiness/lch-003/settings-mobile.png`。
 
 ### Batch LCH-004 — Three AI Production Minimum
-- [ ] `/api/ai/chat` 改 session-scoped，保存 conversation/message，寫 `AiUsageLog`。
-- [ ] Assistant tool commands 依 surface allowlist。
+- [x] `/api/ai/chat` 改 session-scoped，保存 conversation/message，寫 `AiUsageLog`。
+- [x] Assistant tool commands 依 surface allowlist。
 - [ ] `/api/ai/interview` 與 `/outputs` 由 server session 注入 scope，保存 session/material/output draft。
 - [ ] `/interview` 頁面按鈕層完成 Browser success QA。
 - [ ] Theater 採 Route B 最小版，或 staging 明確 legacy demo gate。
 - [ ] Theater director/character/feedback calls 全部寫 `AiUsageLog`。
-- [ ] 建立 `canUseAiModule()` 與 quota check；超限回 429。
+- [~] 建立 `canUseAiModule()` 與 quota check；超限回 429。
 - [ ] 三個 AI 都驗證 success/error path `AiUsageLog`。
 - [ ] 跑 `pnpm lint:changed`；動 Theater schema 需 Prisma 驗收與 migration/rollback note。
+
+進行中註記：2026-06-19 已完成 `/api/ai/chat` production slice：route 以 `requireCurrentMember()` 推導 org/user/unit，不接受前端 org/user scope；`canUseAiModule(session, CHAT)` 超限會回 429；OpenAI 串流 success path 寫 `AiUsageLog`、`AssistantConversation`、`AssistantMessage`，並將 organization `monthlyAiUsed` increment 1。API proof：demo member `POST /api/ai/chat` 200，CHAT usage log 0→1、assistant conversations 0→1、assistant messages 0→2、latest model `gpt-4o-mini`、monthly counter 1。Browser proof `/dashboard` desktop/mobile console error 0、無水平 overflow；截圖：`docs/06_audits-and-reports/screenshots/launch-readiness/lch-004/dashboard-ai-chat-desktop.png`、`docs/06_audits-and-reports/screenshots/launch-readiness/lch-004/dashboard-ai-chat-mobile.png`。`/api/ai/interview`、Theater Route B、三 AI error-path 全覆蓋仍未完成，所以 LCH-004 不得標整卡完成。
 
 ### Batch LCH-005 — Demo Account Relogin QA
 - [ ] `pnpm demo:preflight` 通過。

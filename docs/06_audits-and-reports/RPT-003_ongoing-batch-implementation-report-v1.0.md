@@ -725,3 +725,63 @@ curl -X PATCH -H 'x-asai-demo-user-email: demo.member@asai.local' -H 'content-ty
 
 1. 進入 `LCH-004`，先完成 `/api/ai/chat` 或 `/api/ai/interview` session-scoped persistence + `AiUsageLog` proof。
 2. 或做 `LCH-007` org aggregate/org settings，因 `LCH-003` 已解除設定分層依賴。
+
+## 2026-06-19 Round 009 - LCH-004 Assistant Chat Usage And Persistence Slice
+
+### 本輪戰役
+
+- Workstream：Launch Readiness Implementation。
+- Batch / task：`LCH-004` Three AI Production Minimum - assistant chat slice。
+- 選擇原因：三個 AI 是上線核心阻擋；其中 `/api/ai/chat` 最接近可完成完整 session → provider → persistence → usage proof 的交付切片，且不牽動 Theater Route B migration。
+
+### 本輪完成
+
+- `/api/ai/chat` 改為 session-scoped route：使用 `requireCurrentMember()` 推導 organization/user/unit，不接受前端 org/user scope。
+- 加入 body schema validation 與 route context allowlist，導航工具只允許既有安全 route。
+- 加入 `canUseAiModule(session, CHAT)` quota check；超限回 429。
+- 保留 streaming UX，OpenAI success stream 完成後寫入 `AiUsageLog`、`AssistantConversation`、`AssistantMessage`。
+- 成功 AI call 後 increment organization `monthlyAiUsed`，讓 quota/aggregate 後續有真資料。
+- 前端 assistant request 附帶 local `conversationId` 作 metadata，不改 client store persistence 行為。
+
+### DB / Prisma 操作
+
+- 是否修改 schema：否，沿用既有 `AssistantConversation`、`AssistantMessage`、`AiUsageLog`。
+- 是否執行 generate：是，`pnpm build` 內執行 Prisma generate 成功。
+- 是否執行 db push：否，本輪無 schema 變更。
+- DB target 判斷：`pnpm demo:preflight` 通過，`.env` 指向遠端 Supabase Postgres；本輪寫入 demo member chat proof。
+
+### 驗收
+
+```bash
+pnpm demo:preflight
+pnpm exec tsc --noEmit --pretty false
+pnpm run lint:changed
+pnpm build
+ALLOW_DEV_AUTH_HEADER=true pnpm dev
+curl -H 'x-asai-demo-user-email: demo.member@asai.local' -H 'content-type: application/json' -X POST http://localhost:3000/api/ai/chat
+```
+
+結果：
+
+- `POST /api/ai/chat`：200，回傳串流文字。
+- DB proof：`CHAT usage=1`、`success_usage=1`、`assistant_conversations=1`、`assistant_messages=2`、`monthly_ai_used=1`、latest model `gpt-4o-mini`。
+- Browser proof：`/dashboard` desktop 1440x1000、mobile 390x844，console error 0、無水平 overflow。
+- TypeScript、lint:changed、build：通過。
+
+### 失敗與風險
+
+- 本輪只完成 assistant chat；`/api/ai/interview` 仍尚未改為 session-injected persistence，Theater Route B 尚未完成。
+- Chat error-path `AiUsageLog` 已在 code path 中補上，但本輪未刻意用壞 key 觸發 provider error；後續 LCH-004 全覆蓋時需補三 AI success/error evidence。
+- 這輪產生 1 筆真實 OpenAI demo usage 與 1 組 assistant conversation/message evidence；保留作 LCH proof，不刪遠端資料。
+
+### 剩餘上線 blocker
+
+- `LCH-004` 剩餘：interview session scope + output persistence、Theater Route B、三 AI success/error `AiUsageLog` 全路徑 proof。
+- `LCH-005` demo relogin full QA 仍缺 visit plans、reports、sessions、AI output。
+- `LCH-006` client portal/share DB-backed token lookup 仍缺。
+- `LCH-007` org aggregate + org settings 尚未完成。
+
+### 下一輪建議
+
+1. 繼續 `LCH-004`，處理 `/api/ai/interview` 與 `/api/ai/interview/outputs` session injection + persistence proof。
+2. 或先補 `LCH-004` chat error-path proof 與 quota 429 proof，再進 interview。

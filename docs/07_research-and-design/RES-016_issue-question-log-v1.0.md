@@ -110,6 +110,21 @@
 
 ## Resolved Issues
 
+### IQ-013 - LCH-004 assistant chat 缺 usage/persistence
+
+- 狀態：Resolved
+- 發現日期：2026-06-19
+- 解決日期：2026-06-19
+- 影響 batch：`LCH-004`
+- 背景：
+  - `/api/ai/chat` 原本直接讀前端 body、呼叫 OpenAI 串流，沒有 session scope、`AiUsageLog`、conversation/message persistence，也不更新 quota counter。
+- 解法：
+  - `/api/ai/chat` 改用 `requireCurrentMember()`，server 注入 org/user/unit。
+  - 使用 Zod 驗證 messages/context，工具 route context 只允許既有 route。
+  - success stream 結束後寫 `AiUsageLog`、`AssistantConversation`、`AssistantMessage`，並 increment `Organization.monthlyAiUsed`。
+  - API proof：demo member `POST /api/ai/chat` 200；DB proof `CHAT usage=1`、`assistant_conversations=1`、`assistant_messages=2`、`monthly_ai_used=1`。
+  - 剩餘：interview/theater 與三 AI error-path 全覆蓋仍待後續 LCH-004。
+
 ### IQ-012 - LCH-003 member settings 與 org settings 分層落地
 
 - 狀態：Resolved

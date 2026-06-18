@@ -89,7 +89,7 @@ export function GlobalAssistant() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           messages: [...currentMessages, userMsg],
-          context: { route: pathname }
+          context: { route: pathname, conversationId: activeConversationId ?? undefined }
         }),
       });
 

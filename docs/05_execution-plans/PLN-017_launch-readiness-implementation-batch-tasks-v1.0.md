@@ -109,15 +109,17 @@
 
 目標：至少三個 AI 可正常使用，且每次呼叫可計量、可限額、可保存必要結果。
 
-- [ ] `/api/ai/chat` 改為 session-scoped，不信任前端自由傳入 org/user；寫 `AiUsageLog`。
-- [ ] 建立 `AssistantConversation` / `AssistantMessage` persistence；assistant tool commands 依 surface allowlist。
+- [x] `/api/ai/chat` 改為 session-scoped，不信任前端自由傳入 org/user；寫 `AiUsageLog`。
+- [x] 建立 `AssistantConversation` / `AssistantMessage` persistence；assistant tool commands 依 surface allowlist。
 - [ ] `/api/ai/interview` 與 `/api/ai/interview/outputs` 由 server session 注入 org/user/client scope，並保存 session/material/output draft。
 - [ ] `/interview` 頁面按鈕層完成 Browser QA：成功生成、console error 0、無水平 overflow。
 - [ ] Theater 採 Route B 最小版：多角色/旁白 NPC/visibility/五視角回饋，或在 staging 明確加 legacy demo gate，不宣稱新版 Theater production ready。
 - [ ] Theater 每次 director/character/feedback AI call 寫 `AiUsageLog`。
-- [ ] 建立 `canUseAiModule()` 與 quota check：超限回 429，UI 顯示友善訊息。
+- [~] 建立 `canUseAiModule()` 與 quota check：超限回 429，UI 顯示友善訊息。
 - [ ] 三個 AI 都驗證 success/error path 寫 `AiUsageLog`。
 - [ ] 跑 `pnpm lint:changed`；動 Theater schema 需 `pnpm prisma:validate`、`pnpm prisma:generate` 與 migration/rollback note。
+
+進行中註記：2026-06-19 完成 `/api/ai/chat` session-scoped production slice：current member session 注入 organization/user/unit，route 不接受前端 org/user；success stream 結束後寫 `AiUsageLog`、`AssistantConversation`、`AssistantMessage`，並 increment organization `monthlyAiUsed`。驗收：`POST /api/ai/chat` 200；DB proof `CHAT usage=1`、`success_usage=1`、`assistant_conversations=1`、`assistant_messages=2`、`monthly_ai_used=1`；`pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`、`pnpm build` 通過；`/dashboard` desktop/mobile Browser proof console error 0、無水平 overflow。
 
 範圍外：不做 RAG 真檢索；不做 ECPay；不讓 org admin 讀逐字稿。
 
