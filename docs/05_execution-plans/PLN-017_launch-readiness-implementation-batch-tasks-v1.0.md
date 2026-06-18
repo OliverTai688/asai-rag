@@ -216,13 +216,13 @@
 - [x] 建立 `PATCH /api/platform/plan-configs/[plan]`，寫 `AuditLog`。
 - [x] 建立 `POST /api/platform/impersonation`：actor、target org/user、reason、scope、expiresAt 必填。
 - [x] 建立 impersonation end/revoke flow。
-- [ ] 所有 impersonated read/write 寫 `AuditLog` 並帶 `impersonationSessionId`。
+- [x] 所有 impersonated read/write 寫 `AuditLog` 並帶 `impersonationSessionId`。
 - [ ] 建立 `POST /api/platform/break-glass`，敏感內容查詢需 reason、scope、expiry、audit。
 - [x] 建立 `GET /api/platform/audit-logs`，支援 tenant/action/sensitivity filter。
 - [ ] 建立 platform settings 區塊：feature flags、provider policy、support policy；敏感改動寫 audit。
 - [ ] 跑 `pnpm lint:changed`；動 schema 跑 Prisma 驗收。
 
-進行中註記：2026-06-19 完成 platform read-only summary slice。新增 platform repository、organizations summary/detail、cross-tenant AI usage aggregate、audit log query 與 `demo:platform-read-qa`；一般 app session 403，platform user 200；private seeded sentinels 與 forbidden field names 0 leak。2026-06-19 續補 `PATCH /api/platform/plan-configs/[plan]` 與 `demo:platform-plan-config-qa`；FINANCE 403、SUPER_ADMIN invalid input 400、SUPER_ADMIN 可更新並還原 STARTER quota，兩次寫 PLAN_UPDATE audit。2026-06-19 續補 impersonation start/end/revoke API 與 `demo:platform-impersonation-qa`；FINANCE start 403、缺 reason 400、超時 403、SUPER_ADMIN start/end/revoke 寫 BREAK_GLASS audit。尚未完成 impersonated read/write audit、break-glass、platform settings。
+進行中註記：2026-06-19 完成 platform read-only summary slice。新增 platform repository、organizations summary/detail、cross-tenant AI usage aggregate、audit log query 與 `demo:platform-read-qa`；一般 app session 403，platform user 200；private seeded sentinels 與 forbidden field names 0 leak。2026-06-19 續補 `PATCH /api/platform/plan-configs/[plan]` 與 `demo:platform-plan-config-qa`；FINANCE 403、SUPER_ADMIN invalid input 400、SUPER_ADMIN 可更新並還原 STARTER quota，兩次寫 PLAN_UPDATE audit。2026-06-19 續補 impersonation start/end/revoke API 與 `demo:platform-impersonation-qa`；FINANCE start 403、缺 reason 400、超時 403、SUPER_ADMIN start/end/revoke 寫 BREAK_GLASS audit。2026-06-19 續補 impersonated read/write audit context：`read-proof` 只讀 tenant summary 並寫 `IMPERSONATED_READ`；`support-note` 只寫 audit metadata、不修改租戶業務資料並寫 `IMPERSONATED_WRITE`；兩者均驗證 active/expiry/actor/scope 且帶 `impersonationSessionId`。尚未完成 break-glass、platform settings。
 
 範圍外：不讓 support 無限制讀客戶內容；不接正式金流前不得宣稱 billing production complete。
 

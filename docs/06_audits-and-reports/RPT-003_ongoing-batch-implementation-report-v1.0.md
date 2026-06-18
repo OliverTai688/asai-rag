@@ -2221,6 +2221,7 @@ pnpm run lint:changed
 ALLOW_DEV_AUTH_HEADER=true pnpm dev
 pnpm demo:platform-impersonation-qa
 pnpm build
+pnpm build
 ```
 
 結果：
@@ -2248,3 +2249,76 @@ pnpm build
 
 1. 繼續 `LCH-008`，先做 impersonated read/write audit context：以 header 或 server-side context 接收 active impersonation session，對 platform-safe read route 產生 `IMPERSONATED_READ` audit，避免直接進敏感 read。
 2. 接著做 `POST /api/platform/break-glass`，把 sensitive scope、reason、expiry 與 audit 串到同一套 session guard。
+
+## 2026-06-19 Round 031 - LCH-008 Impersonated Read Write Audit Proof
+
+### 本輪戰役
+
+- Workstream：Launch Readiness Implementation。
+- Batch / task：`LCH-008` Super Admin / Audit / Impersonation - impersonated read/write audit context 與 proof。
+- 選擇原因：start/end/revoke 已建立 session 骨架；下一個最接近上線阻擋的是防止 platform impersonation 變成無痕讀寫。必須先證明 read/write 都會驗證 active session 並寫 `AuditLog.impersonationSessionId`，再進 break-glass。
+
+### 本輪完成
+
+- 在 `src/lib/platform/platform-impersonation-repository.ts` 新增 active impersonation resolver：驗證原 actor、session ACTIVE、未過期、required scope 符合。
+- 新增 `POST /api/platform/impersonation/[id]/read-proof`：只回 tenant summary/health proof，寫 `AuditLog(action=IMPERSONATED_READ,sensitivity=BREAK_GLASS)` 並帶 `impersonationSessionId`。
+- 新增 `POST /api/platform/impersonation/[id]/support-note`：只寫 audit metadata，明確回 `persistedBusinessData=false`，不修改租戶業務資料；寫 `AuditLog(action=IMPERSONATED_WRITE,sensitivity=BREAK_GLASS)` 並帶 `impersonationSessionId`。
+- 擴充 `pnpm demo:platform-impersonation-qa`：同一支 QA 驗證 FINANCE 禁止、missing reason、expiry limit、start/read/write/end/revoke、scope mismatch、audit query metadataKeys。
+- `AGENTS.md` 與 `PLN-017` 已將 impersonated read/write audit 勾選完成；LCH-008 剩 break-glass 與 platform settings。
+
+### 修改檔案
+
+- `src/lib/platform/platform-impersonation-repository.ts`
+- `src/app/api/platform/impersonation/[id]/read-proof/route.ts`
+- `src/app/api/platform/impersonation/[id]/support-note/route.ts`
+- `scripts/demo-platform-impersonation-qa.mjs`
+- `AGENTS.md`
+- `docs/05_execution-plans/PLN-017_launch-readiness-implementation-batch-tasks-v1.0.md`
+- `docs/06_audits-and-reports/RPT-003_ongoing-batch-implementation-report-v1.0.md`
+- `docs/07_research-and-design/RES-016_issue-question-log-v1.0.md`
+
+### DB / Prisma 操作
+
+- 是否修改 schema：否。
+- 是否執行 generate：否；本輪未改 Prisma schema。`pnpm build` 會再次執行 generate 作 build proof。
+- 是否執行 db push：否。
+- DB target 判斷：`pnpm demo:preflight` 通過，`.env` 指向遠端 Supabase Postgres。
+- DB 寫入摘要：`pnpm demo:platform-impersonation-qa` 新增 demo impersonation sessions 與 BREAK_GLASS audit evidence；首次 proof 為 `IMPERSONATED_READ 0→1`、`IMPERSONATED_WRITE 0→1`，修正後重跑為 `IMPERSONATED_READ 1→2`、`IMPERSONATED_WRITE 1→2`，另保留 start/end/revoke audit 軌跡。
+
+### 驗收
+
+```bash
+pnpm exec tsc --noEmit --pretty false
+pnpm exec eslint src/lib/platform/platform-impersonation-repository.ts 'src/app/api/platform/impersonation/[id]/read-proof/route.ts' 'src/app/api/platform/impersonation/[id]/support-note/route.ts' scripts/demo-platform-impersonation-qa.mjs
+pnpm demo:preflight
+pnpm run lint:changed
+ALLOW_DEV_AUTH_HEADER=true pnpm dev
+pnpm demo:platform-impersonation-qa
+```
+
+結果：
+
+- TypeScript：通過。
+- Targeted ESLint：通過。
+- `pnpm demo:preflight`：通過；Supabase public env placeholder 仍為 warning。
+- `pnpm run lint:changed`：通過。
+- `pnpm demo:platform-impersonation-qa`：通過；修正後重跑 read proof 200 且 `IMPERSONATED_READ 1→2`；support-note write proof 200、`persistedBusinessData=false` 且 `IMPERSONATED_WRITE 1→2`；scope mismatch read proof 403；audit query filter `BREAK_GLASS` 200 且只回 `metadataKeys`。
+- `pnpm build`：通過；Next route list 包含 `/api/platform/impersonation/[id]/read-proof` 與 `/api/platform/impersonation/[id]/support-note`。
+
+### 失敗與風險
+
+- 無未修復驗收失敗。
+- 本輪的 write proof 是 audit-only support note，不修改租戶業務資料；這是刻意的最小安全 proof。後續若要允許真實 impersonated tenant write，仍需逐 route 加 reason/scope/audit guard。
+- Build proof 已通過；無未驗收的 route/typegen 風險。
+- Dev server 仍在 `POST /api/platform/impersonation` start path 顯示既有 `pg@9` deprecation warning：`Calling client.query() when the client is already executing a query is deprecated`。本輪已把新增 read-proof transaction 查詢改為序列化；warning 未阻擋 QA，但後續可用 `node --trace-deprecation` 定位既有 start path 或 Prisma/pg interaction。
+
+### 剩餘上線 blocker
+
+- `LCH-008` 剩餘：break-glass API、platform settings surface。
+- `LCH-009`：production controls、AI usage route audit、backup/rollback、privacy/terms/disclaimer、ECPay test checklist、full smoke。
+- `LCH-004`：Theater Route B 與三 AI error-path / quota UI proof 仍未收完。
+
+### 下一輪建議
+
+1. 繼續 `LCH-008`，建立 `POST /api/platform/break-glass`：reason、scope、expiry、riskAccepted/audit required；只回最小 sensitive proof，不回 raw private payload。
+2. 同輪補 `demo:platform-break-glass-qa`，驗證 missing reason/scope/expiry 拒絕、FINANCE 403、SUPER_ADMIN/SUPPORT 成功寫 BREAK_GLASS audit、expired/revoked session 不可用。

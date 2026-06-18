@@ -433,6 +433,22 @@
   - QA 證明 FINANCE 403、missing reason 400、expiry too long 403、SUPER_ADMIN start/end/revoke 成功，DB 狀態與 audit count 均通過。
   - 尚未完成 impersonated read/write route context；已保留為 LCH-008 下一個未完成項。
 
+### IQ-019 - LCH-008 impersonated read/write audit context 已落地
+
+- 狀態：Resolved
+- 發現日期：2026-06-19
+- 解決日期：2026-06-19
+- 影響 batch：`LCH-008`
+- 背景：
+  - impersonation start/end/revoke 已存在，但 read/write 若未串 active session context，platform support 仍可能形成無痕讀寫。
+  - 此事項不需要額外使用者決策；可先用安全 proof endpoint 驗證 audit linkage，再做 break-glass。
+- 解法：
+  - 新增 active impersonation resolver：驗證 actor match、ACTIVE、未過期、required scope。
+  - 新增 `POST /api/platform/impersonation/[id]/read-proof`，只讀 tenant summary proof，寫 `IMPERSONATED_READ` BREAK_GLASS audit 並帶 `impersonationSessionId`。
+  - 新增 `POST /api/platform/impersonation/[id]/support-note`，只寫 audit metadata、不修改租戶業務資料，寫 `IMPERSONATED_WRITE` BREAK_GLASS audit 並帶 `impersonationSessionId`。
+  - QA：`demo:platform-impersonation-qa` 通過；read proof 200、write proof 200、scope mismatch 403、audit query 只回 `metadataKeys`。
+  - 剩餘：正式 break-glass API 與 platform settings surface。
+
 ### IQ-014 - LCH-004 interview agent 仍信任前端 scope 且缺 output evidence
 
 - 狀態：Resolved

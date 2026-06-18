@@ -20,6 +20,17 @@ const IMPERSONATION_SCOPES = [
 
 const IMPERSONATION_END_ACTIONS = ["END", "REVOKE"] as const;
 
+export const platformImpersonatedReadProofSchema = z.object({
+  reason: z.string().trim().min(10).max(1000),
+  scope: z.literal("ORG_SUMMARY").default("ORG_SUMMARY"),
+});
+
+export const platformImpersonatedSupportNoteSchema = z.object({
+  reason: z.string().trim().min(10).max(1000),
+  note: z.string().trim().min(10).max(1000),
+  scope: z.literal("SUPPORT_DIAGNOSTICS").default("SUPPORT_DIAGNOSTICS"),
+});
+
 export const platformImpersonationStartSchema = z.object({
   targetOrgId: z.string().trim().min(1),
   targetUserId: z.string().trim().min(1).optional(),
@@ -38,6 +49,8 @@ export const platformImpersonationEndSchema = z.object({
 
 export type PlatformImpersonationStartInput = z.infer<typeof platformImpersonationStartSchema>;
 export type PlatformImpersonationEndInput = z.infer<typeof platformImpersonationEndSchema>;
+export type PlatformImpersonatedReadProofInput = z.infer<typeof platformImpersonatedReadProofSchema>;
+export type PlatformImpersonatedSupportNoteInput = z.infer<typeof platformImpersonatedSupportNoteSchema>;
 
 function userDisplay(user: { id: string; name: string | null; status: string } | null | undefined) {
   if (!user) return null;
@@ -103,6 +116,63 @@ function endMetadata(input: PlatformImpersonationEndInput, previousStatus: Imper
     endAction: input.action,
     previousStatus,
   };
+}
+
+function forbiddenImpersonation(reason: string, message: string) {
+  return {
+    ok: false as const,
+    status: 403,
+    error: reason,
+    message,
+  };
+}
+
+async function resolveActiveImpersonationSession(
+  impersonationSessionId: string,
+  session: PlatformImpersonationSession,
+  requiredScope: string,
+) {
+  const current = await prisma.impersonationSession.findUnique({
+    where: { id: impersonationSessionId },
+    include: {
+      actor: { select: { id: true, name: true, status: true } },
+      targetUser: { select: { id: true, name: true, status: true } },
+      targetOrg: { select: { id: true, name: true, slug: true, status: true } },
+    },
+  });
+
+  if (!current) {
+    return { ok: false as const, status: 404, error: "IMPERSONATION_SESSION_NOT_FOUND" };
+  }
+
+  if (current.actorUserId !== session.user.id) {
+    return forbiddenImpersonation(
+      "IMPERSONATION_ACTOR_MISMATCH",
+      "Only the actor who started an impersonation session can use it.",
+    );
+  }
+
+  if (current.status !== "ACTIVE") {
+    return {
+      ok: false as const,
+      status: 409,
+      error: "IMPERSONATION_SESSION_NOT_ACTIVE",
+      statusValue: current.status,
+    };
+  }
+
+  if (current.expiresAt.getTime() <= Date.now()) {
+    return forbiddenImpersonation("IMPERSONATION_SESSION_EXPIRED", "Impersonation session has expired.");
+  }
+
+  if (!current.scope.includes(requiredScope)) {
+    return forbiddenImpersonation(
+      "IMPERSONATION_SCOPE_MISMATCH",
+      `Impersonation session does not include required scope ${requiredScope}.`,
+    );
+  }
+
+  return { ok: true as const, impersonationSession: current };
 }
 
 export async function startPlatformImpersonation(
@@ -201,6 +271,137 @@ export async function startPlatformImpersonation(
   });
 
   return result;
+}
+
+export async function recordImpersonatedReadProof(
+  session: PlatformImpersonationSession,
+  impersonationSessionId: string,
+  input: PlatformImpersonatedReadProofInput,
+) {
+  const active = await resolveActiveImpersonationSession(impersonationSessionId, session, input.scope);
+
+  if (!active.ok) {
+    return active;
+  }
+
+  const result = await prisma.$transaction(async (tx) => {
+    const organization = await tx.organization.findUnique({
+      where: { id: active.impersonationSession.targetOrgId },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        plan: true,
+        status: true,
+        monthlyAiQuota: true,
+        monthlyAiUsed: true,
+      },
+    });
+
+    if (!organization) {
+      return { ok: false as const, status: 404, error: "TARGET_ORG_NOT_FOUND" };
+    }
+
+    const activeMembers = await tx.organizationMember.count({
+      where: { organizationId: active.impersonationSession.targetOrgId, status: "ACTIVE" },
+    });
+    const clients = await tx.client.count({
+      where: { organizationId: active.impersonationSession.targetOrgId, status: { not: "ARCHIVED" } },
+    });
+    const reports = await tx.report.count({ where: { organizationId: active.impersonationSession.targetOrgId } });
+
+    await tx.auditLog.create({
+      data: {
+        organizationId: active.impersonationSession.targetOrgId,
+        actorUserId: session.user.id,
+        targetUserId: active.impersonationSession.targetUserId,
+        impersonationSessionId: active.impersonationSession.id,
+        action: "IMPERSONATED_READ",
+        sensitivity: "BREAK_GLASS",
+        resourceType: "ORGANIZATION_SUMMARY",
+        resourceId: organization.id,
+        reason: input.reason,
+        metadata: {
+          scope: input.scope,
+          proofType: "tenant_summary",
+          fields: ["plan", "status", "monthlyAiQuota", "monthlyAiUsed", "activeMembers", "clients", "reports"],
+        },
+      },
+    });
+
+    return {
+      ok: true as const,
+      impersonationSession: sessionDto(active.impersonationSession),
+      organization: {
+        id: organization.id,
+        name: organization.name,
+        slug: organization.slug,
+        plan: organization.plan,
+        status: organization.status,
+        usage: {
+          monthlyAiQuota: organization.monthlyAiQuota,
+          monthlyAiUsed: organization.monthlyAiUsed,
+        },
+        health: {
+          activeMembers,
+          clients,
+          reports,
+        },
+      },
+      audit: {
+        action: "IMPERSONATED_READ",
+        sensitivity: "BREAK_GLASS",
+        impersonationSessionId: active.impersonationSession.id,
+      },
+    };
+  });
+
+  return result;
+}
+
+export async function recordImpersonatedSupportNote(
+  session: PlatformImpersonationSession,
+  impersonationSessionId: string,
+  input: PlatformImpersonatedSupportNoteInput,
+) {
+  const active = await resolveActiveImpersonationSession(impersonationSessionId, session, input.scope);
+
+  if (!active.ok) {
+    return active;
+  }
+
+  await prisma.auditLog.create({
+    data: {
+      organizationId: active.impersonationSession.targetOrgId,
+      actorUserId: session.user.id,
+      targetUserId: active.impersonationSession.targetUserId,
+      impersonationSessionId: active.impersonationSession.id,
+      action: "IMPERSONATED_WRITE",
+      sensitivity: "BREAK_GLASS",
+      resourceType: "IMPERSONATION_SUPPORT_NOTE",
+      resourceId: active.impersonationSession.id,
+      reason: input.reason,
+      metadata: {
+        scope: input.scope,
+        proofType: "support_note_audit_only",
+        noteLength: input.note.length,
+      },
+    },
+  });
+
+  return {
+    ok: true as const,
+    impersonationSession: sessionDto(active.impersonationSession),
+    supportNote: {
+      persistedBusinessData: false,
+      noteLength: input.note.length,
+    },
+    audit: {
+      action: "IMPERSONATED_WRITE",
+      sensitivity: "BREAK_GLASS",
+      impersonationSessionId: active.impersonationSession.id,
+    },
+  };
 }
 
 export async function endPlatformImpersonation(

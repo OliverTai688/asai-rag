@@ -40,6 +40,8 @@ try {
 
   const beforeStartAudit = await countAudit("IMPERSONATION_START", target.organizationId);
   const beforeEndAudit = await countAudit("IMPERSONATION_END", target.organizationId);
+  const beforeReadAudit = await countAudit("IMPERSONATED_READ", target.organizationId);
+  const beforeWriteAudit = await countAudit("IMPERSONATED_WRITE", target.organizationId);
   const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
 
   const financeStart = await request("POST", "/api/platform/impersonation", demoFinanceEmail, {
@@ -84,7 +86,7 @@ try {
     targetOrgId: target.organizationId,
     targetUserId: target.userId,
     reason: "qa scoped support diagnostics impersonation",
-    scope: ["SUPPORT_DIAGNOSTICS", "MEMBER_PROFILE"],
+    scope: ["ORG_SUMMARY", "SUPPORT_DIAGNOSTICS", "MEMBER_PROFILE"],
     expiresAt,
   });
   const startSessionId = start.body?.impersonationSession?.id;
@@ -95,6 +97,37 @@ try {
   push(Boolean(startSessionId), "Impersonation start returns session id");
   push(activeSession?.status === "ACTIVE", "Impersonation session is ACTIVE in DB", activeSession?.status ?? "missing");
   push(afterStartAudit > beforeStartAudit, "Start writes IMPERSONATION_START AuditLog", `${beforeStartAudit}->${afterStartAudit}`);
+
+  const readProof = await request("POST", `/api/platform/impersonation/${startSessionId}/read-proof`, demoPlatformEmail, {
+    reason: "qa impersonated org summary read proof",
+  });
+  const supportNote = await request("POST", `/api/platform/impersonation/${startSessionId}/support-note`, demoPlatformEmail, {
+    reason: "qa impersonated support note write proof",
+    note: "qa support diagnostics note recorded as audit only",
+  });
+  const afterReadAudit = await countAudit("IMPERSONATED_READ", target.organizationId);
+  const afterWriteAudit = await countAudit("IMPERSONATED_WRITE", target.organizationId);
+
+  push(readProof.status === 200, "Impersonated read proof returns 200", `status=${readProof.status}`);
+  push(
+    readProof.body?.audit?.impersonationSessionId === startSessionId,
+    "Impersonated read proof response links impersonationSessionId",
+  );
+  push(afterReadAudit > beforeReadAudit, "Read proof writes IMPERSONATED_READ AuditLog", `${beforeReadAudit}->${afterReadAudit}`);
+  push(supportNote.status === 200, "Impersonated write proof returns 200", `status=${supportNote.status}`);
+  push(
+    supportNote.body?.supportNote?.persistedBusinessData === false,
+    "Impersonated support-note write proof does not persist tenant business data",
+  );
+  push(
+    supportNote.body?.audit?.impersonationSessionId === startSessionId,
+    "Impersonated write proof response links impersonationSessionId",
+  );
+  push(
+    afterWriteAudit > beforeWriteAudit,
+    "Write proof writes IMPERSONATED_WRITE AuditLog",
+    `${beforeWriteAudit}->${afterWriteAudit}`,
+  );
 
   const end = await request("PATCH", `/api/platform/impersonation/${startSessionId}`, demoPlatformEmail, {
     action: "END",
@@ -115,6 +148,14 @@ try {
     expiresAt,
   });
   const revokeSessionId = secondStart.body?.impersonationSession?.id;
+  const wrongScopeRead = await request(
+    "POST",
+    `/api/platform/impersonation/${revokeSessionId}/read-proof`,
+    demoPlatformEmail,
+    {
+      reason: "qa read proof should reject missing org summary scope",
+    },
+  );
   const revoke = await request("PATCH", `/api/platform/impersonation/${revokeSessionId}`, demoPlatformEmail, {
     action: "REVOKE",
     reason: "qa revoke impersonation session proof",
@@ -123,6 +164,11 @@ try {
   const afterRevokeAudit = await countAudit("IMPERSONATION_END", target.organizationId);
 
   push(secondStart.status === 201, "SUPER_ADMIN starts second impersonation session for revoke proof");
+  push(
+    wrongScopeRead.status === 403,
+    "Impersonated read proof rejects sessions without ORG_SUMMARY scope",
+    `status=${wrongScopeRead.status}, error=${wrongScopeRead.body?.error ?? "missing"}`,
+  );
   push(revoke.status === 200, "SUPER_ADMIN revokes impersonation session", `status=${revoke.status}`);
   push(revokedSession?.status === "REVOKED", "Impersonation session is REVOKED in DB", revokedSession?.status ?? "missing");
   push(afterRevokeAudit > afterEndAudit, "Revoke writes IMPERSONATION_END AuditLog", `${afterEndAudit}->${afterRevokeAudit}`);
@@ -155,14 +201,25 @@ try {
           missingReason: { status: missingReason.status, error: missingReason.body?.error },
           tooLong: { status: tooLong.status, error: tooLong.body?.error },
           start: { status: start.status, id: startSessionId },
+          readProof: { status: readProof.status, action: readProof.body?.audit?.action },
+          supportNote: {
+            status: supportNote.status,
+            action: supportNote.body?.audit?.action,
+            persistedBusinessData: supportNote.body?.supportNote?.persistedBusinessData,
+          },
           end: { status: end.status, statusValue: end.body?.impersonationSession?.status },
           secondStart: { status: secondStart.status, id: revokeSessionId },
+          wrongScopeRead: { status: wrongScopeRead.status, error: wrongScopeRead.body?.error },
           revoke: { status: revoke.status, statusValue: revoke.body?.impersonationSession?.status },
           auditLogs: { status: auditLogs.status, count: auditLogs.body?.auditLogs?.length ?? 0 },
         },
         auditCount: {
           startBefore: beforeStartAudit,
           startAfter: afterStartAudit,
+          readBefore: beforeReadAudit,
+          readAfter: afterReadAudit,
+          writeBefore: beforeWriteAudit,
+          writeAfter: afterWriteAudit,
           endBefore: beforeEndAudit,
           endAfter: afterEndAudit,
           revokeAfter: afterRevokeAudit,
