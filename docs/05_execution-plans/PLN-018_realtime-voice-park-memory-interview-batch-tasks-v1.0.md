@@ -145,16 +145,18 @@
 
 目標：建立安全的 Realtime session BFF 與 event mirror，讓中文語音可以進入同一 memory pipeline。
 
-- [ ] 新增 `POST /api/ai/interview/realtime-session`，用 `requireCurrentMember()` 推導 org/member/unit。
-- [ ] 套 `canUseAiModule(session, INTERVIEW)`；超限回 429，不 mint realtime token。
-- [ ] Mint short-lived ephemeral Realtime session token；不得把 server API key 下放 browser。
-- [ ] 新增 `POST /api/ai/interview/realtime-events`，只接 final transcript、assistant transcript、interrupt、correction、confirmation 等非 secret event。
-- [ ] final transcript event 進 memory extraction；raw audio 預設不保存。
-- [ ] Realtime provider success/error/usage metadata 可取得時寫 `AiUsageLog`；若 provider usage metadata 不足，至少記 session marker 與 event proof，不得偽造 cost。
-- [ ] API proof：unauth 401、quota 429、member 200、event mirror 200、secret 不出現在 response/log/report。
-- [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+- [x] 新增 `POST /api/ai/interview/realtime-session`，用 `requireCurrentMember()` 推導 org/member/unit。
+- [x] 套 `canUseAiModule(session, INTERVIEW)`；超限回 429，不 mint realtime token。
+- [x] Mint short-lived ephemeral Realtime session token；不得把 server API key 下放 browser。
+- [x] 新增 `POST /api/ai/interview/realtime-events`，只接 final transcript、assistant transcript、interrupt、correction、confirmation 等非 secret event。
+- [x] final transcript event 進 memory extraction；raw audio 預設不保存。
+- [x] Realtime provider success/error/usage metadata 可取得時寫 `AiUsageLog`；若 provider usage metadata 不足，至少記 session marker 與 event proof，不得偽造 cost。
+- [x] API proof：unauth 401、quota 429、member 200、event mirror 200、secret 不出現在 response/log/report。
+- [x] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
 
 範圍外：不做 server WebSocket relay；不啟 production recording。
+
+完成註記：2026-06-19 已新增 Realtime session BFF、event mirror route、shared helper 與 `pnpm interview:realtime-bff-qa`。Production path 使用 OpenAI `/v1/realtime/client_secrets` 並只回傳短效 client secret；non-production dry-run 驗證 unauth 401、quota 429、member 200、event mirror 200、raw-audio/secret reject 與 server API key 不出現在 response。Event mirror 將 final transcript 轉入 memory candidate，不保存 raw audio；session route 與 event mirror 均寫 usage/session marker，不偽造 cost。驗收：`pnpm interview:realtime-bff-qa`、`pnpm interview:memory-dry-run`、`pnpm interview:park-loop-dry-run`、`pnpm interview:theater-build-dry-run`、`pnpm ai:usage-audit`、`pnpm exec tsc --noEmit --pretty false`、`pnpm run lint:changed`、`pnpm build` 通過。下一張最低未完成卡為 PIM-006。
 
 ---
 

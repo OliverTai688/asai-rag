@@ -908,14 +908,16 @@ Context: 將兩個 AI 訪談（顧問陪談訪綱 A、劇場場域建構訪綱 B
 完成註記：2026-06-19 已在 `/interview` 補上文字/中文語音 Beta 切換、mic consent、voice stage、live transcript/correction placeholder、memory rail 與文字 fallback；`Textarea` 加入 composition guard，避免中文輸入組字期間 Enter 被誤送出。本輪不接 Realtime provider、不保存 raw audio。驗收：`pnpm exec tsc --noEmit --pretty false`、`pnpm exec eslint src/app/(dashboard)/interview/page.tsx`、`pnpm run lint:changed`、三個 PIM dry-run、`pnpm build` 通過；Browser proof desktop/mobile console error 0、無水平 overflow；headless Chrome smoke 覆蓋 permission denied/unsupported fallback。截圖：`docs/06_audits-and-reports/screenshots/pim/pim-004-interview-desktop.png`、`docs/06_audits-and-reports/screenshots/pim/pim-004-interview-mobile.png`。下一張最低未完成卡為 PIM-005。
 
 ### Batch PIM-005 — Realtime session BFF + event mirror
-- [ ] 新增 `POST /api/ai/interview/realtime-session`，用 `requireCurrentMember()` 推導 org/member/unit。
-- [ ] 套 `canUseAiModule(session, INTERVIEW)`；超限回 429，不 mint realtime token。
-- [ ] Mint short-lived ephemeral Realtime session token；不得把 server API key 下放 browser。
-- [ ] 新增 `POST /api/ai/interview/realtime-events`，只接 final transcript、assistant transcript、interrupt、correction、confirmation 等非 secret event。
-- [ ] final transcript event 進 memory extraction；raw audio 預設不保存。
-- [ ] Realtime provider success/error/usage metadata 可取得時寫 `AiUsageLog`；若 provider usage metadata 不足，至少記 session marker 與 event proof，不得偽造 cost。
-- [ ] API proof：unauth 401、quota 429、member 200、event mirror 200、secret 不出現在 response/log/report。
-- [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+- [x] 新增 `POST /api/ai/interview/realtime-session`，用 `requireCurrentMember()` 推導 org/member/unit。
+- [x] 套 `canUseAiModule(session, INTERVIEW)`；超限回 429，不 mint realtime token。
+- [x] Mint short-lived ephemeral Realtime session token；不得把 server API key 下放 browser。
+- [x] 新增 `POST /api/ai/interview/realtime-events`，只接 final transcript、assistant transcript、interrupt、correction、confirmation 等非 secret event。
+- [x] final transcript event 進 memory extraction；raw audio 預設不保存。
+- [x] Realtime provider success/error/usage metadata 可取得時寫 `AiUsageLog`；若 provider usage metadata 不足，至少記 session marker 與 event proof，不得偽造 cost。
+- [x] API proof：unauth 401、quota 429、member 200、event mirror 200、secret 不出現在 response/log/report。
+- [x] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+
+完成註記：2026-06-19 已新增 `src/lib/interview/realtime-bff.ts`、`/api/ai/interview/realtime-session` 與 `/api/ai/interview/realtime-events`。Session route 使用 `requireCurrentMember()` + `canUseAiModule(INTERVIEW)`，production path 透過 OpenAI `/v1/realtime/client_secrets` mint short-lived client secret，non-production dry-run path 可驗證 member 200 / quota 429 / no server API key leak；成功/失敗皆寫 `AiUsageLog` marker，不偽造 token/cost。Event mirror 只接受 final transcript、assistant transcript、interrupt、correction、confirmation，拒收 token/cookie/raw audio/base64 欄位，final transcript 會產生 `VOICE_TRANSCRIPT` memory candidate，raw audio 預設不保存。新增 `pnpm interview:realtime-bff-qa` 覆蓋 helper、unauth 401、quota 429、member dry-run 200、event mirror 200、raw-audio reject；`pnpm ai:usage-audit` 已納入兩條新 route。驗收：`pnpm interview:realtime-bff-qa`、三個 PIM dry-run、`pnpm ai:usage-audit`、`pnpm exec tsc --noEmit --pretty false`、`pnpm run lint:changed`、`pnpm build` 通過。下一張最低未完成卡為 PIM-006。
 
 ### Batch PIM-006 — Prisma persistence for turns/memory/reflection
 - [ ] Prisma 新增或調整 `InterviewSession`、`InterviewTurn`、`InterviewMemory`、`InterviewReflection`。

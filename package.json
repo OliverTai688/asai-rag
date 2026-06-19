@@ -39,6 +39,7 @@
     "interview:memory-dry-run": "node scripts/interview-memory-dry-run.mjs",
     "interview:park-loop-dry-run": "node scripts/interview-park-loop-dry-run.mjs",
     "interview:theater-build-dry-run": "node scripts/interview-theater-build-dry-run.mjs",
+    "interview:realtime-bff-qa": "node scripts/interview-realtime-bff-qa.mjs",
     "prisma:generate": "prisma generate",
     "prisma:validate": "prisma validate"
   },

@@ -38,6 +38,29 @@ const routeManifest = [
     errorEvidence: ["persistInterviewFailure"],
   },
   {
+    route: "/api/ai/interview/realtime-session",
+    file: "src/app/api/ai/interview/realtime-session/route.ts",
+    module: "INTERVIEW",
+    provider: "OPENAI",
+    expectedAuth: true,
+    expectedQuota: true,
+    providerCallEvidence: ["OPENAI_REALTIME_CLIENT_SECRET_URL", "Authorization: `Bearer ${process.env.OPENAI_API_KEY}`"],
+    successEvidence: ["writeAiUsageLogSafely"],
+    errorEvidence: ["writeAiUsageLogSafely"],
+  },
+  {
+    route: "/api/ai/interview/realtime-events",
+    file: "src/app/api/ai/interview/realtime-events/route.ts",
+    module: "INTERVIEW",
+    provider: "MOCK",
+    providerCallRequired: false,
+    disabledEvidence: ["mirrorRealtimeEventToMemoryCandidates", "AiProvider.MOCK", "rawAudioStored"],
+    expectedAuth: true,
+    expectedQuota: true,
+    successEvidence: ["writeAiUsageLogSafely"],
+    errorEvidence: ["writeAiUsageLogSafely"],
+  },
+  {
     route: "/api/ai/theater",
     file: "src/app/api/ai/theater/route.ts",
     module: "THEATER",
@@ -147,9 +170,11 @@ function auditRouteSource(route) {
     providerCall:
       route.providerCallRequired === false
         ? disabledGuarded
-        : /from\s+["']openai["']|new OpenAI|chat\.completions\.create|responses\.create|embeddings\.create/.test(
-            source,
-          ),
+        : route.providerCallEvidence
+          ? route.providerCallEvidence.every((token) => source.includes(token))
+          : /from\s+["']openai["']|new OpenAI|chat\.completions\.create|responses\.create|embeddings\.create/.test(
+              source,
+            ),
     authGuard: !route.expectedAuth || source.includes("requireCurrentMember"),
     quotaGuard: !route.expectedQuota || source.includes("canUseAiModule"),
     successUsageEvidence:
