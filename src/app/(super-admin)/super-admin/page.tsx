@@ -32,6 +32,8 @@ const TURN_TIME_FORMATTER = new Intl.DateTimeFormat("zh-TW", {
   hour12: false,
 });
 
+export const dynamic = "force-dynamic";
+
 function formatTurnTime(iso: string) {
   return TURN_TIME_FORMATTER.format(new Date(iso));
 }

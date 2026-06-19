@@ -3,6 +3,8 @@ import { requireMemberRoute } from "@/lib/auth/route-guards";
 import { demoLoginAccounts, isDemoPasswordLoginEnabled } from "@/lib/demo-login";
 import { prisma } from "@/lib/prisma";
 
+export const dynamic = "force-dynamic";
+
 export default async function DashboardLayout({
   children,
 }: {
