@@ -120,6 +120,8 @@
 - [ ] Browser QA：desktop/mobile 建場流程、錯誤狀態、console error 0。
 - [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`；動 schema 才跑 Prisma。
 
+進行中註記：2026-06-20 新增 LV3 pre-visit → theater handoff source/proof slice：`src/domains/theater/visit-handoff.ts` 可把 `VisitPlan`、`Client`、準備包 SPIN question reasoning evidence、family/policy/objection/material/compliance gap 轉成 `TheaterBuildPacket` 已知素材，保留 `FACT` / `INFERENCE` / `UNKNOWN` 分層；高敏感客戶缺 `reason`/`riskAccepted` 時回 `BLOCKED_SENSITIVE` 且 `canStartSimulation=false`。本 slice 不建立 BFF、不宣稱 TDF-004 完成、不改 Theater legacy enum/scoring/schema、不呼叫 provider、不寫 CRM。Proof：`pnpm visit:theater-handoff-dry-run` 通過，確認 READY packet、NPC ≤ 4、未知不升格成 fact、email/phone 不外洩。
+
 範圍外：不完成 Route B multi-character session；不做 public share。
 
 ---

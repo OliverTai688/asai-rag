@@ -63,11 +63,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 1,
+    "normalLoopsSinceLastWholeProductReview": 2,
     "lastWholeProductReviewAt": null,
     "lastWholeProductReviewReport": null,
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "Score `lv3-previsit-to-theater-stage` against `lv3-client-to-relationship-graph`; the next highest leverage slice is likely a preparation-package-to-theater setup draft handoff that reuses confirmed/inference/unknown evidence without starting Route B migration.",
+    "nextRecommendedImplementationSlice": "Continue `lv3-previsit-to-theater-stage` by wiring the pre-visit preparation package UI/BFF launch path to `/theater/build` using the new visit-theater handoff contract, or score it against `lv3-client-to-relationship-graph` if source ownership/browser proof is safer next loop.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {
