@@ -2,6 +2,12 @@ export type InterviewMode = "INDEPENDENT" | "CLIENT_CONTEXT";
 
 export type InterviewFramework = "SPIN_HIDDEN" | "SCHEIN_3LAYER";
 
+export type InterviewKind = "ADVISOR_COMPANION" | "THEATER_FIELD_BUILD";
+
+export type InterviewTurnRole = "USER" | "ASSISTANT" | "SYSTEM";
+
+export type InterviewModality = "TEXT" | "VOICE_REALTIME" | "VOICE_TRANSCRIPT_FALLBACK";
+
 export type InterviewOutputFieldType =
   | "text"
   | "list"
@@ -16,6 +22,41 @@ export type InterviewMaterialKind = "FACT" | "INFERENCE" | "UNKNOWN";
 export type InterviewSessionStatus = "DRAFT" | "ACTIVE" | "READY_TO_REVIEW" | "COMPLETED";
 
 export type InterviewConfidence = "LOW" | "MEDIUM" | "HIGH";
+
+export type InterviewMemoryKind =
+  | "UTTERANCE"
+  | "CRM_FACT"
+  | "SYSTEM_FACT"
+  | "CONFIRMED_FACT"
+  | "INFERENCE"
+  | "UNKNOWN"
+  | "REFLECTION"
+  | "PLAN"
+  | "CORRECTION";
+
+export type InterviewMemorySource =
+  | "VOICE_TRANSCRIPT"
+  | "TEXT_INPUT"
+  | "CRM"
+  | "POLICY"
+  | "FAMILY_GRAPH"
+  | "AI_REFLECTION"
+  | "USER_CONFIRMATION"
+  | "SYSTEM";
+
+export type InterviewDataClass = "FACT" | "CONFIRMED" | "INFERENCE" | "UNKNOWN" | "INSTRUCTION";
+
+export type InterviewVisibilityScope =
+  | "MEMBER_PRIVATE"
+  | "CLIENT_RECORD_CANDIDATE"
+  | "ORG_AGGREGATE_ONLY"
+  | "THEATER_BUILD_PRIVATE";
+
+export type InterviewEmbeddingStatus = "PENDING" | "READY" | "SKIPPED";
+
+export type InterviewRetentionPolicy = "SESSION_ONLY" | "MEMBER_WORKSPACE" | "CLIENT_CANDIDATE" | "THEATER_BUILD";
+
+export type InterviewMemoryImportance = 1 | 2 | 3 | 4 | 5;
 
 export type IssueReadinessLevel = 0 | 1 | 2 | 3 | 4 | 5;
 
@@ -96,6 +137,59 @@ export interface InterviewSession {
   materials: InterviewMaterial[];
   createdAt: string;
   updatedAt: string;
+}
+
+export interface InterviewMemory {
+  id: string;
+  organizationId: string;
+  memberId: string;
+  unitId?: string | null;
+  clientId?: string | null;
+  interviewSessionId: string;
+  turnId?: string | null;
+  interviewKind: InterviewKind;
+  createdAt: string;
+  kind: InterviewMemoryKind;
+  source: InterviewMemorySource;
+  dataClass: InterviewDataClass;
+  visibilityScope: InterviewVisibilityScope;
+  text: string;
+  evidenceText?: string;
+  confidence: InterviewConfidence;
+  importance: InterviewMemoryImportance;
+  issueTags: string[];
+  outlineSegmentId?: string;
+  pqQuestionIds?: string[];
+  embeddingStatus: InterviewEmbeddingStatus;
+  retentionPolicy: InterviewRetentionPolicy;
+  supersedesMemoryId?: string;
+  supersededByMemoryId?: string;
+}
+
+export interface InterviewReflection {
+  id: string;
+  organizationId: string;
+  interviewSessionId: string;
+  interviewKind: InterviewKind;
+  segmentId?: string;
+  summary: string;
+  confirmedFacts: string[];
+  inferredPatterns: string[];
+  unknowns: string[];
+  issueReadinessImpact?: string;
+  theaterBuildImpact?: string;
+  recommendedNextFocus: string;
+  supportingMemoryIds: string[];
+}
+
+export interface InterviewMicroPlan {
+  objective: string;
+  nextQuestion: string;
+  whyThisQuestion: string;
+  outlineSegmentId: string;
+  issueTags: string[];
+  expectedEvidenceType: "FACT" | "VALUE" | "RISK" | "DECISION" | "RELATIONSHIP" | "NEXT_STEP";
+  avoid: string[];
 }
 
 export interface SegmentProgress {

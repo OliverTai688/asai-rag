@@ -1,7 +1,7 @@
 # 誠問 AI Realtime Voice × Park-style Interview Memory Batch Tasks v1.0
 
 > 建立日期：2026-06-19  
-> 狀態：進行中（PIM-000 完成）  
+> 狀態：進行中（PIM-001 完成）  
 > 架構依據：`ARC-007_realtime-voice-and-park-memory-interview-architecture-v1.0.md`  
 > 研究依據：`RES-017_chinese-realtime-voice-and-park-memory-interview-research-v1.0.md`  
 > 既有雙 Agent 依據：`ARC-004_interview-theater-dual-agent-design-v1.1.md`、`PLN-015_interview-theater-dual-agent-batch-tasks-v1.0.md`  
@@ -35,7 +35,7 @@
 | 卡片 | 主題 | 狀態 | 依賴 |
 | --- | --- | --- | --- |
 | PIM-000 | 架構文件與 workstream 登錄 | [x] | `RES-017` |
-| PIM-001 | Memory domain contracts + pure services | [ ] | PIM-000 |
+| PIM-001 | Memory domain contracts + pure services | [x] | PIM-000 |
 | PIM-002 | 顧問陪談 Park memory loop | [ ] | PIM-001、ITA-001 |
 | PIM-003 | 劇場場域建構 Park memory loop | [ ] | PIM-001、ITA-003/Route B contract |
 | PIM-004 | `/interview` 中文語音 UX shell | [ ] | PIM-000 |
@@ -68,15 +68,17 @@
 
 目標：建立不依賴 DB 的 Park memory contract，讓兩個 AI 訪談先能共用記憶抽取、檢索、反思輸入與 planning 輸入。
 
-- [ ] 在 `src/domains/interview/` 新增或擴充 `InterviewKind`、`InterviewModality`、`InterviewMemory`、`InterviewReflection`、`InterviewMicroPlan` 型別。
-- [ ] 新增 memory candidate extraction pure service，將 user/assistant turn 轉成 `fact` / `inference` / `unknown` / `instruction` 候選。
-- [ ] 新增 retrieval scoring pure helper：relevance、importance、recency、outline match、scope filters。
-- [ ] 新增 correction/supersede helper，確保 transcript 修正後舊 memory 不再當 confirmed fact。
-- [ ] 新增 unit tests 或 dry-run script，覆蓋顧問陪談與劇場場域建構 memory candidate。
-- [ ] 不新增 DB、不改 AI route、不保存 raw audio。
-- [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+- [x] 在 `src/domains/interview/` 新增或擴充 `InterviewKind`、`InterviewModality`、`InterviewMemory`、`InterviewReflection`、`InterviewMicroPlan` 型別。
+- [x] 新增 memory candidate extraction pure service，將 user/assistant turn 轉成 `fact` / `inference` / `unknown` / `instruction` 候選。
+- [x] 新增 retrieval scoring pure helper：relevance、importance、recency、outline match、scope filters。
+- [x] 新增 correction/supersede helper，確保 transcript 修正後舊 memory 不再當 confirmed fact。
+- [x] 新增 unit tests 或 dry-run script，覆蓋顧問陪談與劇場場域建構 memory candidate。
+- [x] 不新增 DB、不改 AI route、不保存 raw audio。
+- [x] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
 
 範圍外：不實作 Realtime、不改 Prisma、不做 UI。
+
+完成註記：2026-06-19 已新增 `src/domains/interview/memory.ts` 與 `InterviewMemory` / `InterviewReflection` / `InterviewMicroPlan` 等 domain contract，並加入 `pnpm interview:memory-dry-run` 覆蓋顧問陪談 confirmed fact、劇場 inference、voice transcript unknown、correction/supersede 與 retrieval ranking。驗收：`pnpm interview:memory-dry-run`、`pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed` 通過。下一張最低未完成卡為 PIM-002。
 
 ---
 
