@@ -1,8 +1,11 @@
 import { demoLoginAccounts, isDemoPasswordLoginEnabled } from "@/lib/demo-login";
 import { AuthLinkRow, AuthSurfaceShell, SurfaceRuleCard, TextLink } from "../_components/auth-surface";
 import { DemoLoginForm } from "./demo-login-form";
+import { LoginAuthForm } from "./login-auth-form";
 
 export default function LoginPage() {
+  const googleEnabled = Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
+
   return (
     <AuthSurfaceShell
       eyebrow="App session"
@@ -21,10 +24,14 @@ export default function LoginPage() {
         />
       }
     >
+      <LoginAuthForm googleEnabled={googleEnabled} />
+
+      <div className="mt-4">
       <DemoLoginForm
         accounts={isDemoPasswordLoginEnabled ? demoLoginAccounts : []}
         demoLoginEnabled={isDemoPasswordLoginEnabled}
       />
+      </div>
 
       <AuthLinkRow>
         <span>還沒有帳號？</span>

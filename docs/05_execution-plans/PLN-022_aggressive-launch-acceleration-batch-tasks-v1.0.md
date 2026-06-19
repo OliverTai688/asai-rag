@@ -181,6 +181,8 @@ Context: 將誠問 AI 從 Level 1/2 foundation 積極推進到 Level 2 Controlle
 
 進行中註記：2026-06-19 新增 `POST /api/invite/[token]/accept` 與 `pnpm beta:invite-accept-qa`。Private beta manual invite token 暫採 `OrganizationMember.id`，accept route 驗證 email match、`INVITED` status、14-day expiry、replay guard、active organization 與 unit-org match；成功後啟用 user/membership、設定 default workspace、寫 `acceptedAt` 與 `AuditLog(resourceType=ORG_INVITE_ACCEPT)`，response 只回 masked email。`/signup` 已改為 waitlist/invite-required copy，主 action 不建立 workspace，且無 public signup API route。QA 覆蓋 invalid token 404、wrong email 403、valid accept 200、replay 409、expired 410、archived org 409、AuditLog created、dev auth explicit env 與 signup posture；目前 `.env` 未啟用 `ALLOW_DEV_AUTH_HEADER`，已驗證 accepted member 不能用 dev header 進 workspace。整卡仍未完成：尚缺 invite accept 後建立正式 app session、受邀 member dashboard Browser proof、真實 invite email/callback URL/beta participant policy 決策。
 
+進行中註記：2026-06-19 operator 決策改為 Level 3：支援帳號密碼註冊/登入、Google OAuth、Email 驗證碼登入，允許真實客戶資料並寄送真實 invite email。已新增 `password` / `email-code` / conditional `google` Auth.js providers、`POST /api/signup`、`POST /api/auth/email-code/request`、`/invite/[token]` accept form、Resend email adapter 與 real invite email gate。`pnpm prisma:validate`、`pnpm prisma:generate`、`pnpm prisma db push`、`pnpm exec tsc --noEmit --pretty false` 已通過；API proof：`GET /api/auth/providers` 回 `password`/`email-code`，`POST /api/signup` 回 201，Email code 因缺 `RESEND_API_KEY`/`EMAIL_FROM` 正確 503 fail closed。整卡仍未完成：尚缺 Google credentials、真實寄信 provider/DNS、正式 `AUTH_SECRET`/`NEXT_PUBLIC_APP_URL`、真實 email sent proof、Google OAuth browser proof、accepted invite dashboard Browser proof。
+
 ---
 
 ## Batch ALA-003 - BFF Coverage For Beta-critical Workflows

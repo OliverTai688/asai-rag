@@ -4,6 +4,7 @@ import { authErrorResponse, requireOrgAdmin } from "@/lib/auth/current-workspace
 import type { AppSession } from "@/lib/auth/session";
 import { checkInviteLimit } from "@/domains/subscription/plan-config";
 import type { InviteRole, PlanConfig } from "@/domains/subscription/types";
+import { isTransactionalEmailConfigured, sendTransactionalEmail } from "@/lib/email/send-email";
 import { prisma } from "@/lib/prisma";
 
 const inviteInputSchema = z.object({
@@ -45,6 +46,14 @@ function toPlanConfig(session: AppSession): PlanConfig {
     clientPortalEnabled: session.planCapability.clientPortalEnabled,
     impersonationAllowed: true,
   };
+}
+
+function requiresRealInviteEmail() {
+  return process.env.NODE_ENV === "production" || process.env.ENABLE_REAL_INVITE_EMAIL === "true";
+}
+
+function getAppUrl() {
+  return process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 }
 
 async function getSeatUsage(organizationId: string) {
@@ -114,6 +123,17 @@ export async function POST(req: Request) {
     const email = input.email.toLowerCase();
     const emailMasked = maskEmail(email);
     const emailHash = hashEmail(email);
+
+    if (requiresRealInviteEmail() && !isTransactionalEmailConfigured()) {
+      return Response.json(
+        {
+          error: "INVITE_EMAIL_PROVIDER_NOT_CONFIGURED",
+          message: "Level 3 invite delivery requires RESEND_API_KEY and EMAIL_FROM.",
+        },
+        { status: 503 },
+      );
+    }
+
     const primaryUnit = await validatePrimaryUnit(session, input.primaryUnitId);
 
     if (primaryUnit instanceof Response) {
@@ -245,13 +265,37 @@ export async function POST(req: Request) {
               limit: planDecision.limit ?? null,
             },
             riskAccepted: input.riskAccepted,
-            delivery: "not_sent",
+            delivery: requiresRealInviteEmail() ? "pending_resend" : "not_sent",
           },
         },
       });
 
       return { membership, user };
     });
+
+    const inviteUrl = `${getAppUrl().replace(/\/$/, "")}/invite/${encodeURIComponent(result.membership.id)}`;
+    const delivery = requiresRealInviteEmail()
+      ? await sendTransactionalEmail({
+          to: email,
+          subject: "你已受邀加入誠問 AI",
+          text: `你已受邀加入誠問 AI。請使用以下連結接受邀請：${inviteUrl}`,
+          html: `<p>你已受邀加入誠問 AI。</p><p><a href="${inviteUrl}">接受邀請</a></p><p>若按鈕無法開啟，請複製此連結：${inviteUrl}</p>`,
+        })
+      : { sent: false as const, provider: "manual", reason: "REAL_INVITE_EMAIL_DISABLED" as const };
+
+    if (requiresRealInviteEmail() && !delivery.sent) {
+      return Response.json(
+        {
+          error: delivery.reason,
+          invite: {
+            membershipId: result.membership.id,
+            emailMasked,
+            status: result.membership.status,
+          },
+        },
+        { status: 502 },
+      );
+    }
 
     return Response.json(
       {
@@ -271,7 +315,8 @@ export async function POST(req: Request) {
             : null,
           invitedAt: result.membership.invitedAt?.toISOString() ?? null,
           updatedAt: result.membership.updatedAt.toISOString(),
-          delivery: "not_sent",
+          delivery: delivery.sent ? "sent" : delivery.reason,
+          deliveryProvider: delivery.provider,
         },
         planUsage: {
           activeMembers: seatUsage.activeMembers,

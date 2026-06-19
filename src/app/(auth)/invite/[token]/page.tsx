@@ -1,10 +1,5 @@
-import {
-  AuthFormCard,
-  AuthLinkRow,
-  AuthSurfaceShell,
-  SurfaceRuleCard,
-  TextLink,
-} from "../../_components/auth-surface";
+import { AuthLinkRow, AuthSurfaceShell, SurfaceRuleCard, TextLink } from "../../_components/auth-surface";
+import { InviteAcceptForm } from "./invite-accept-form";
 
 export default async function InvitePage({
   params,
@@ -12,7 +7,6 @@ export default async function InvitePage({
   params: Promise<{ token: string }>;
 }) {
   const { token } = await params;
-  const shortToken = token.slice(0, 8);
 
   return (
     <AuthSurfaceShell
@@ -32,16 +26,7 @@ export default async function InvitePage({
         />
       }
     >
-      <AuthFormCard
-        title={`邀請碼 ${shortToken}`}
-        description="正式版本會先驗證 token 狀態、到期時間、organization 與席次限制。"
-        fields={[
-          { id: "email", label: "受邀 Email", type: "email", placeholder: "member@example.com" },
-          { id: "name", label: "顯示名稱", placeholder: "受邀成員姓名" },
-        ]}
-        primaryLabel="接受邀請"
-        helper="若 organization 已達席次或 personal collaborator 上限，server-side 必須拒絕。"
-      />
+      <InviteAcceptForm token={token} />
 
       <AuthLinkRow>
         <span>已經加入過？</span>

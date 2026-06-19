@@ -859,7 +859,7 @@
 
 ### IQ-037 - ALA-002 invite accept 已有 BFF，正式 session handoff 仍需決策
 
-- 狀態：Open
+- 狀態：Resolved in direction; provider env pending
 - 發現日期：2026-06-19
 - 影響 batch：`ALA-002`
 - 已完成：
@@ -869,9 +869,15 @@
   - `/signup` 已改成 private beta waitlist/invite-required copy；primary action 不建立 workspace，且無 public signup API route。
   - `pnpm beta:invite-accept-qa` proof 通過 invalid/wrong/valid/replay/expired/archived-org/audit/signup posture matrix。
   - 目前 `.env` 未啟用 `ALLOW_DEV_AUTH_HEADER=true`，QA 已驗證 accepted member 不能用 dev auth header 進 workspace；正式 session handoff 仍未完成。
-- 仍需 operator/product 決策：
-  - Invite accept 後要直接建立哪一種正式 app session？Auth.js credentials、Supabase Auth email/password、Magic Link、Google OAuth，或 staging-only manual login？
-  - Private beta 是否允許真實 invite email？若否，是否由 operator 手動傳送 invite token？
-  - `/signup` 在 private beta 是否應改為 waitlist-only，或顯示「需邀請碼」並引導 `/invite/[token]`？
-- 建議預設：
-  - 先保留 manual invite token + `/login` handoff，不自動建立 production session；等 auth provider 決策後再完成 ALA-002。
+- Operator 決策：
+  - 2026-06-19：Level 3 上線要支援帳號密碼登入註冊、Google OAuth、Email 驗證碼登入。
+  - 2026-06-19：允許真實客戶資料。
+  - 2026-06-19：需要寄真實 invite email。
+- 已落地：
+  - 新增 `password`、`email-code`、`google` Auth.js provider contract；Google 需 env 才啟用。
+  - 新增 `POST /api/signup`、`POST /api/auth/email-code/request`、`/invite/[token]` 真 accept form。
+  - `/api/org/invites` 在 production 或 `ENABLE_REAL_INVITE_EMAIL=true` 時要求真實 email provider，缺 provider 會 fail closed。
+- 仍需 operator 提供：
+  - `GOOGLE_CLIENT_ID`、`GOOGLE_CLIENT_SECRET` 與 Google callback URL 設定。
+  - `RESEND_API_KEY`、`EMAIL_FROM` 與寄件 domain/DNS 驗證。
+  - 正式 `NEXT_PUBLIC_APP_URL` 與 `AUTH_SECRET`。

@@ -40,7 +40,7 @@ export function DemoLoginForm({
     setError(null);
 
     startTransition(async () => {
-      const result = await signIn("credentials", {
+      const result = await signIn("demo-credentials", {
         email,
         password,
         redirect: false,

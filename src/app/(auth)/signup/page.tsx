@@ -1,41 +1,26 @@
-import {
-  AuthFormCard,
-  AuthLinkRow,
-  AuthSurfaceShell,
-  SurfaceRuleCard,
-  TextLink,
-} from "../_components/auth-surface";
+import { AuthLinkRow, AuthSurfaceShell, SurfaceRuleCard, TextLink } from "../_components/auth-surface";
+import { SignupForm } from "./signup-form";
 
 export default function SignupPage() {
   return (
     <AuthSurfaceShell
       eyebrow="Workspace selection"
-      title="申請加入誠問 AI beta"
-      description="Private beta 採 invite-only。留下資料後進入等待名單；正式帳號建立必須透過受控邀請 token，不開放 public self-serve workspace。"
+      title="建立你的誠問 AI 帳號"
+      description="Level 3 上線開放帳號密碼註冊，建立 personal workspace；團隊成員仍可透過 invite email 加入既有 organization。"
       surface="app"
       aside={
         <SurfaceRuleCard
-          title="Beta 加入規則"
+          title="上線登入規則"
           items={[
-            "未受邀使用者只能進入等待名單，不會自動建立 production workspace。",
-            "受邀使用者需走 /invite/[token]，由 server 建立或連結 membership。",
-            "可選載入 DB demo seed，不再使用本地 mockdata。",
-            "付款、正式 email 與 production notification 在 beta 仍預設關閉。",
+            "帳號密碼註冊會建立 personal workspace。",
+            "Google OAuth 會自動建立或連結同 email 的 workspace。",
+            "Email 驗證碼可作無密碼登入，但需正式寄信 provider。",
+            "團隊邀請需寄出真實 invite email。",
           ]}
         />
       }
     >
-      <AuthFormCard
-        title="加入等待名單"
-        description="此表單目前只作 beta access request；不會建立 User、Organization、Membership 或 workspace。"
-        fields={[
-          { id: "name", label: "姓名", placeholder: "王小明" },
-          { id: "email", label: "Email", type: "email", placeholder: "advisor@example.com" },
-          { id: "workspace", label: "預計使用型態", placeholder: "personal / team / enterprise" },
-        ]}
-        primaryLabel="送出 beta access request"
-        helper="目前不開 public signup；operator 核准後會以人工方式提供 invite token。"
-      />
+      <SignupForm />
 
       <AuthLinkRow>
         <span>已有帳號？</span>
