@@ -846,7 +846,7 @@ Context: 將兩個 AI 訪談（顧問陪談訪綱 A、劇場場域建構訪綱 B
 - `/interview` 已有文字訪談、中文語音 Beta shell、composition guard、Realtime session BFF 與 event mirror；production/live Realtime provider proof 尚未執行。
 - 訪綱 A 與訪綱 B 已共用 Park memory domain contracts；劇場場域建構可產生 `TheaterBuildPacket`，完整 Theater Route B migration 仍屬 `PLN-015`。
 - 訪談 turn、memory、reflection 已 DB 化，並提供 owner-scoped BFF routes；reflection/planning 已拆成可測 service 與 BFF route。
-- Confirmation card 與 CRM/writeback boundary 尚未完成；confirmed fact / inference / unknown 的人工核准流仍是上線缺口。
+- Confirmation card 與 CRM/writeback boundary 已完成；confirmed fact / inference / unknown 會先經人工確認卡，再依 server boundary 寫成 CRM candidate、interview insight 或 follow-up task。
 
 ### Batch PIM-000 — 架構文件與 workstream 登錄
 - [x] 新增 `ARC-007`，明確定義兩個 AI 訪談共用 Park-style runtime architecture。
@@ -944,14 +944,16 @@ Context: 將兩個 AI 訪談（顧問陪談訪綱 A、劇場場域建構訪綱 B
 完成註記：2026-06-19 已新增 `src/domains/interview/reflection-planning.ts`，把 Park-style reflection/planning 拆成 deterministic pure service，支援 `ADVISOR_COMPANION` 與 `THEATER_FIELD_BUILD` outline。新增 `src/lib/interview/interview-reflection-planning-repository.ts` 與 BFF routes：`POST /api/ai/interview/sessions/[sessionId]/reflections/generate`、`POST /api/ai/interview/sessions/[sessionId]/plans`。本輪不新增 provider call，因此無新增 `AiUsageLog` event；既有 AI route usage audit 仍通過。新增 `pnpm interview:reflection-planning-qa` 覆蓋 unauth 401、member session/turns、generated reflection persisted、confirmed/inference/unknown 分流、supporting memory IDs、no raw payload fields、plan 優先追問 unknown、不重問 confirmed fact、inference guard、manager 404 privacy guard。驗收：`pnpm interview:reflection-planning-qa`、四個 PIM proof、`pnpm ai:usage-audit`、`pnpm exec tsc --noEmit --pretty false`、`pnpm run lint:changed`、新增檔案 ESLint、`pnpm build` 通過。下一張最低未完成卡為 PIM-008。
 
 ### Batch PIM-008 — Confirmation card + CRM/writeback boundary
-- [ ] `/interview` 顧問陪談結束/段落結束顯示 confirmation card。
-- [ ] confirmed fact + user checked 才可寫回 CRM candidate；inference 只能保存為 interview insight。
-- [ ] unknown 轉成 follow-up question/task 或 Theater narrator question。
-- [ ] 高敏感資料寫回需要 explicit confirmation、reason/riskAccepted 或標記為不可寫回。
-- [ ] 所有 writeback 建立 audit/interaction event。
-- [ ] API proof：inference checked 不會變成 CRM fact；confirmed fact checked 才可 writeback。
-- [ ] Browser proof：desktop/mobile 可勾選、取消、保存、錯誤狀態。
-- [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+- [x] `/interview` 顧問陪談結束/段落結束顯示 confirmation card。
+- [x] confirmed fact + user checked 才可寫回 CRM candidate；inference 只能保存為 interview insight。
+- [x] unknown 轉成 follow-up question/task 或 Theater narrator question。
+- [x] 高敏感資料寫回需要 explicit confirmation、reason/riskAccepted 或標記為不可寫回。
+- [x] 所有 writeback 建立 audit/interaction event。
+- [x] API proof：inference checked 不會變成 CRM fact；confirmed fact checked 才可 writeback。
+- [x] Browser proof：desktop/mobile 可勾選、取消、保存、錯誤狀態。
+- [x] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+
+完成註記：2026-06-19 已新增 `src/domains/interview/writeback-boundary.ts`、`src/lib/interview/interview-writeback-repository.ts` 與 BFF route `GET/POST /api/ai/interview/sessions/[sessionId]/writebacks`。`/interview` 現可用 CRM 客戶 selector 建立 DB-backed session，段落確認卡支援 confirmed/inference/unknown 候選、checkbox、取消、高敏感理由/riskAccepted 與保存結果；server 端保證 inference 只會成為 interview insight，unknown 成為 follow-up task，confirmed + checked + 高敏感 approval 才會建立 CRM candidate interaction event。驗收：`pnpm interview:writeback-qa`、`pnpm interview:writeback-browser-qa`、PIM regression、`pnpm ai:usage-audit`、`pnpm exec tsc --noEmit --pretty false`、新增檔案 ESLint、`pnpm run lint:changed`、`pnpm build` 通過。截圖：`docs/06_audits-and-reports/screenshots/pim/pim-008-writeback/pim-008-interview-desktop.png`、`docs/06_audits-and-reports/screenshots/pim/pim-008-writeback/pim-008-interview-mobile.png`。下一張最低未完成卡為 PIM-009。
 
 ### Batch PIM-009 — Cross-mode QA, docs sync, rollback notes
 - [ ] 顧問陪談文字模式 multi-turn proof：不重問 confirmed fact，output draft 帶 memory evidence。

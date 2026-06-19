@@ -1,7 +1,8 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import {
+  AlertCircle,
   CheckCircle2,
   ClipboardList,
   Keyboard,
@@ -40,6 +41,39 @@ type MaterialBucket = {
   confirmed: string[];
   inferred: string[];
   unknown: string[];
+};
+
+type ClientOption = {
+  id: string;
+  name: string;
+  email?: string;
+};
+
+type ConfirmationCandidate = {
+  id: string;
+  kind: "CONFIRMED_FACT" | "INFERENCE" | "UNKNOWN";
+  text: string;
+  target: "CRM_CANDIDATE" | "INTERVIEW_INSIGHT" | "FOLLOW_UP_TASK" | "THEATER_NARRATOR_QUESTION" | "BLOCKED";
+  sensitivity: "NORMAL" | "SENSITIVE" | "HIGHLY_SENSITIVE";
+  supportingMemoryIds: string[];
+  canSelect: boolean;
+  requiresReason: boolean;
+  reasonHint?: string;
+  blockedReason?: string;
+};
+
+type WritebackResult = {
+  createdEvents?: {
+    id: string;
+    candidateId: string;
+    target: ConfirmationCandidate["target"];
+    title: string;
+    occurredAt: string;
+  }[];
+  blocked?: {
+    candidateId: string;
+    reason: string;
+  }[];
 };
 
 const VOICE_STAGE_COPY: Record<VoiceStage, { label: string; description: string }> = {
@@ -98,6 +132,18 @@ export default function InterviewPage() {
   const [transcriptCorrection, setTranscriptCorrection] = useState("");
   const [correctionDrafts, setCorrectionDrafts] = useState<string[]>([]);
   const [isComposingDraft, setIsComposingDraft] = useState(false);
+  const [crmClients, setCrmClients] = useState<ClientOption[]>([]);
+  const [selectedClientId, setSelectedClientId] = useState("");
+  const [persistentSessionId, setPersistentSessionId] = useState<string | null>(null);
+  const [persistenceError, setPersistenceError] = useState<string | null>(null);
+  const [confirmationCandidates, setConfirmationCandidates] = useState<ConfirmationCandidate[]>([]);
+  const [selectedCandidateIds, setSelectedCandidateIds] = useState<string[]>([]);
+  const [approvalReasons, setApprovalReasons] = useState<Record<string, string>>({});
+  const [approvalRiskAccepted, setApprovalRiskAccepted] = useState<Record<string, boolean>>({});
+  const [isLoadingConfirmationCard, setIsLoadingConfirmationCard] = useState(false);
+  const [isSavingConfirmation, setIsSavingConfirmation] = useState(false);
+  const [confirmationError, setConfirmationError] = useState<string | null>(null);
+  const [writebackResult, setWritebackResult] = useState<WritebackResult | null>(null);
   const activeSession = sessions.find((session) => session.id === activeSessionId);
   const currentSegment = advisorCompanionOutline.segments.find((segment) => segment.id === activeSession?.currentSegmentId)
     ?? advisorCompanionOutline.segments[0];
@@ -113,26 +159,92 @@ export default function InterviewPage() {
   const materialBuckets = useMemo(() => bucketMaterials(knownMaterials), [knownMaterials]);
   const voiceStageCopy = VOICE_STAGE_COPY[voiceStage];
 
-  function handleStart() {
+  useEffect(() => {
+    let ignore = false;
+
+    async function loadClients() {
+      try {
+        const response = await fetch("/api/clients", { cache: "no-store" });
+        const payload = await response.json();
+
+        if (!ignore && response.ok && Array.isArray(payload.clients)) {
+          setCrmClients(payload.clients.map((client: ClientOption) => ({
+            id: client.id,
+            name: client.name,
+            email: client.email,
+          })));
+        }
+      } catch {
+        if (!ignore) {
+          setCrmClients([]);
+        }
+      }
+    }
+
+    void loadClients();
+
+    return () => {
+      ignore = true;
+    };
+  }, []);
+
+  async function handleStart() {
     if (activeSession) return;
-    const session = createSession({ mode: "INDEPENDENT" });
+    const firstSegment = advisorCompanionOutline.segments[0];
+    const session = createSession({
+      mode: selectedClientId ? "CLIENT_CONTEXT" : "INDEPENDENT",
+      clientId: selectedClientId || undefined,
+    });
     setMicroPlan(null);
     setOutputDraft(null);
     setEditableOutputJson("");
+    setPersistentSessionId(null);
+    setPersistenceError(null);
+    setConfirmationCandidates([]);
+    setSelectedCandidateIds([]);
+    setApprovalReasons({});
+    setApprovalRiskAccepted({});
+    setConfirmationError(null);
+    setWritebackResult(null);
     setMessages([
       {
         role: "assistant",
-        content: `我們先從「${advisorCompanionOutline.segments[0].title}」開始。${advisorCompanionOutline.segments[0].coreQuestions[0].text}`,
+        content: `我們先從「${firstSegment.title}」開始。${firstSegment.coreQuestions[0].text}`,
       },
     ]);
     addMaterial(session.id, {
-      segmentId: advisorCompanionOutline.segments[0].id,
+      segmentId: firstSegment.id,
       fieldKey: "client_profile",
       kind: "UNKNOWN",
       content: "尚未鎖定拜訪客戶",
       confidence: "LOW",
       sourceAnswerIds: [],
     });
+
+    if (!selectedClientId) return;
+
+    try {
+      const response = await fetch("/api/ai/interview/sessions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          clientId: selectedClientId,
+          interviewKind: "ADVISOR_COMPANION",
+          outlineId: advisorCompanionOutline.id,
+          currentSegmentId: firstSegment.id,
+          title: `AI 顧問陪談 - ${new Date().toLocaleDateString("zh-TW")}`,
+        }),
+      });
+      const payload = await response.json();
+
+      if (!response.ok || typeof payload.session?.id !== "string") {
+        throw new Error(payload.error ?? "無法建立 DB-backed 訪談 session");
+      }
+
+      setPersistentSessionId(payload.session.id);
+    } catch (error) {
+      setPersistenceError(error instanceof Error ? error.message : "無法建立 DB-backed 訪談 session");
+    }
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -163,6 +275,9 @@ export default function InterviewPage() {
     setMessages(nextMessages);
     setDraft("");
     setIsStreaming(true);
+    if (persistentSessionId) {
+      void appendPersistentTurn(persistentSessionId, content, currentSegment.id);
+    }
 
     try {
       const response = await fetch("/api/ai/interview", {
@@ -297,6 +412,107 @@ export default function InterviewPage() {
     }
   }
 
+  async function handleGenerateConfirmationCard() {
+    if (!persistentSessionId) {
+      setConfirmationError("請先選擇 CRM 客戶並重新開始陪談，才能產生可寫回的確認卡。");
+      return;
+    }
+
+    setIsLoadingConfirmationCard(true);
+    setConfirmationError(null);
+    setWritebackResult(null);
+
+    try {
+      await fetch(`/api/ai/interview/sessions/${persistentSessionId}/reflections/generate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ currentSegmentId: currentSegment.id }),
+      });
+      const response = await fetch(`/api/ai/interview/sessions/${persistentSessionId}/writebacks`, {
+        cache: "no-store",
+      });
+      const payload = await response.json();
+
+      if (!response.ok || !Array.isArray(payload.candidates)) {
+        throw new Error(payload.error ?? "確認卡生成失敗");
+      }
+
+      setConfirmationCandidates(payload.candidates);
+      setSelectedCandidateIds([]);
+      setApprovalReasons({});
+      setApprovalRiskAccepted({});
+    } catch (error) {
+      setConfirmationError(error instanceof Error ? error.message : "確認卡生成失敗");
+    } finally {
+      setIsLoadingConfirmationCard(false);
+    }
+  }
+
+  async function handleSaveConfirmationCard() {
+    if (!persistentSessionId || selectedCandidateIds.length === 0) return;
+
+    setIsSavingConfirmation(true);
+    setConfirmationError(null);
+    setWritebackResult(null);
+
+    try {
+      const response = await fetch(`/api/ai/interview/sessions/${persistentSessionId}/writebacks`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          candidateIds: selectedCandidateIds,
+          approvals: selectedCandidateIds.map((candidateId) => ({
+            candidateId,
+            reason: approvalReasons[candidateId],
+            riskAccepted: approvalRiskAccepted[candidateId] === true,
+          })),
+        }),
+      });
+      const payload = await response.json();
+
+      if (!response.ok) {
+        throw new Error(payload.error ?? "確認卡保存失敗");
+      }
+
+      setWritebackResult(payload);
+    } catch (error) {
+      setConfirmationError(error instanceof Error ? error.message : "確認卡保存失敗");
+    } finally {
+      setIsSavingConfirmation(false);
+    }
+  }
+
+  async function appendPersistentTurn(sessionId: string, content: string, outlineSegmentId: string) {
+    try {
+      const response = await fetch(`/api/ai/interview/sessions/${sessionId}/turns`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          role: "USER",
+          modality: inputMode === "VOICE" ? "VOICE_TRANSCRIPT_FALLBACK" : "TEXT",
+          content,
+          transcriptFinal: true,
+          outlineSegmentId,
+        }),
+      });
+
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload.error ?? "訪談記憶保存失敗");
+      }
+    } catch (error) {
+      setPersistenceError(error instanceof Error ? error.message : "訪談記憶保存失敗");
+    }
+  }
+
+  function toggleCandidate(candidateId: string) {
+    setSelectedCandidateIds((state) => (
+      state.includes(candidateId)
+        ? state.filter((id) => id !== candidateId)
+        : [...state, candidateId]
+    ));
+  }
+
   return (
     <div className="space-y-6">
       <header className="flex flex-col gap-4 border-b border-hairline pb-5 md:flex-row md:items-end md:justify-between">
@@ -311,10 +527,34 @@ export default function InterviewPage() {
             </p>
           </div>
         </div>
-        <Button variant="mono" onClick={handleStart} disabled={Boolean(activeSession)}>
-          <Sparkles className="size-4" />
-          開始陪談
-        </Button>
+        <div className="flex flex-col gap-2 md:min-w-80">
+          <label className="text-xs font-semibold text-ink" htmlFor="interview-client-select">
+            CRM 客戶連結
+          </label>
+          <select
+            id="interview-client-select"
+            value={selectedClientId}
+            onChange={(event) => setSelectedClientId(event.target.value)}
+            disabled={Boolean(activeSession)}
+            className="h-10 rounded-md border border-hairline bg-paper px-3 text-sm text-ink outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <option value="">獨立模式，不寫回 CRM</option>
+            {crmClients.map((client) => (
+              <option key={client.id} value={client.id}>
+                {client.name}{client.email ? ` · ${client.email}` : ""}
+              </option>
+            ))}
+          </select>
+          <Button variant="mono" onClick={handleStart} disabled={Boolean(activeSession)}>
+            <Sparkles className="size-4" />
+            開始陪談
+          </Button>
+          {persistenceError ? (
+            <p className="text-xs leading-5 text-destructive">{persistenceError}</p>
+          ) : persistentSessionId ? (
+            <p className="text-xs leading-5 text-muted-foreground">已建立 DB-backed 訪談，可產生確認卡。</p>
+          ) : null}
+        </div>
       </header>
 
       <section className="rounded-lg border border-hairline bg-card p-4">
@@ -551,6 +791,125 @@ export default function InterviewPage() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
+                <ShieldCheck className="size-4 text-[#1A3A6B]" />
+                段落確認卡
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <p className="text-sm leading-6 text-muted-foreground">
+                只有「已確認」且由您勾選的項目會成為 CRM 候選；推論只會保存為訪談洞察，未知會變成待追問事項。
+              </p>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="monoOutline"
+                  className="flex-1"
+                  onClick={handleGenerateConfirmationCard}
+                  disabled={!activeSession || isLoadingConfirmationCard}
+                >
+                  {isLoadingConfirmationCard ? <Loader2 className="size-4 animate-spin" /> : <ClipboardList className="size-4" />}
+                  產生確認卡
+                </Button>
+                <Button
+                  type="button"
+                  variant="mono"
+                  className="flex-1"
+                  onClick={handleSaveConfirmationCard}
+                  disabled={!persistentSessionId || selectedCandidateIds.length === 0 || isSavingConfirmation}
+                >
+                  {isSavingConfirmation ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />}
+                  保存
+                </Button>
+              </div>
+              {confirmationError ? (
+                <div className="flex gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs leading-5 text-destructive">
+                  <AlertCircle className="mt-0.5 size-4 shrink-0" />
+                  <span>{confirmationError}</span>
+                </div>
+              ) : null}
+              {confirmationCandidates.length ? (
+                <div className="space-y-3">
+                  {confirmationCandidates.map((candidate) => {
+                    const selected = selectedCandidateIds.includes(candidate.id);
+                    return (
+                      <div key={candidate.id} className="rounded-lg border border-hairline bg-paper px-3 py-3">
+                        <label className="flex items-start gap-3">
+                          <input
+                            type="checkbox"
+                            checked={selected}
+                            onChange={() => toggleCandidate(candidate.id)}
+                            disabled={!candidate.canSelect}
+                            className="mt-1 size-4 rounded border-hairline text-ink focus-visible:ring-2 focus-visible:ring-ring"
+                          />
+                          <span className="min-w-0 flex-1">
+                            <span className="flex flex-wrap items-center gap-2">
+                              <Badge variant={candidate.kind === "CONFIRMED_FACT" ? "success" : "outline"}>
+                                {confirmationKindLabel(candidate.kind)}
+                              </Badge>
+                              <Badge variant={candidate.sensitivity === "HIGHLY_SENSITIVE" ? "destructive" : "secondary"}>
+                                {sensitivityLabel(candidate.sensitivity)}
+                              </Badge>
+                              <span className="text-[11px] font-medium text-muted-foreground">
+                                {targetLabel(candidate.target)}
+                              </span>
+                            </span>
+                            <span className="mt-2 block text-sm leading-6 text-ink">{candidate.text}</span>
+                            {candidate.blockedReason ? (
+                              <span className="mt-2 block text-xs leading-5 text-destructive">{candidate.blockedReason}</span>
+                            ) : null}
+                          </span>
+                        </label>
+                        {selected && candidate.requiresReason ? (
+                          <div className="mt-3 space-y-2 border-t border-hairline pt-3">
+                            <Textarea
+                              value={approvalReasons[candidate.id] ?? ""}
+                              onChange={(event) =>
+                                setApprovalReasons((state) => ({
+                                  ...state,
+                                  [candidate.id]: event.target.value,
+                                }))
+                              }
+                              placeholder={candidate.reasonHint ?? "請填寫確認理由"}
+                              className="min-h-20 resize-y text-sm leading-6"
+                              aria-label={`${candidate.text} 的高敏感寫回理由`}
+                            />
+                            <label className="flex items-start gap-2 text-xs leading-5 text-muted-foreground">
+                              <input
+                                type="checkbox"
+                                checked={approvalRiskAccepted[candidate.id] === true}
+                                onChange={(event) =>
+                                  setApprovalRiskAccepted((state) => ({
+                                    ...state,
+                                    [candidate.id]: event.target.checked,
+                                  }))
+                                }
+                                className="mt-0.5 size-4 rounded border-hairline"
+                              />
+                              我確認此高敏感資訊只作為 CRM 候選，仍需後續合規審查。
+                            </label>
+                          </div>
+                        ) : null}
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-sm leading-6 text-muted-foreground">
+                  完成一段回答後可產生確認卡。獨立模式只會顯示錯誤提示，不會寫回 CRM。
+                </p>
+              )}
+              {writebackResult ? (
+                <div className="rounded-lg border border-hairline bg-paper px-3 py-2 text-xs leading-5 text-muted-foreground">
+                  已建立 {writebackResult.createdEvents?.length ?? 0} 筆互動事件；
+                  阻擋 {writebackResult.blocked?.length ?? 0} 筆。
+                </div>
+              ) : null}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
                 <ClipboardList className="size-4 text-[#1A3A6B]" />
                 訪綱進度
               </CardTitle>
@@ -758,4 +1117,36 @@ function bucketMaterials(materials: string[]): MaterialBucket {
 
 function stripMaterialKind(material: string): string {
   return material.replace(/^(FACT|INFERENCE|UNKNOWN):\s*/, "");
+}
+
+function confirmationKindLabel(kind: ConfirmationCandidate["kind"]): string {
+  const labels: Record<ConfirmationCandidate["kind"], string> = {
+    CONFIRMED_FACT: "已確認",
+    INFERENCE: "推論",
+    UNKNOWN: "待確認",
+  };
+
+  return labels[kind];
+}
+
+function sensitivityLabel(sensitivity: ConfirmationCandidate["sensitivity"]): string {
+  const labels: Record<ConfirmationCandidate["sensitivity"], string> = {
+    NORMAL: "一般",
+    SENSITIVE: "敏感",
+    HIGHLY_SENSITIVE: "高敏感",
+  };
+
+  return labels[sensitivity];
+}
+
+function targetLabel(target: ConfirmationCandidate["target"]): string {
+  const labels: Record<ConfirmationCandidate["target"], string> = {
+    CRM_CANDIDATE: "CRM 候選",
+    INTERVIEW_INSIGHT: "訪談洞察",
+    FOLLOW_UP_TASK: "待追問",
+    THEATER_NARRATOR_QUESTION: "旁白補問",
+    BLOCKED: "不可寫回",
+  };
+
+  return labels[target];
 }

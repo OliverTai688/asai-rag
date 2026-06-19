@@ -42,6 +42,8 @@
     "interview:realtime-bff-qa": "node scripts/interview-realtime-bff-qa.mjs",
     "interview:persistence-qa": "node scripts/interview-persistence-qa.mjs",
     "interview:reflection-planning-qa": "node scripts/interview-reflection-planning-qa.mjs",
+    "interview:writeback-qa": "node scripts/interview-writeback-qa.mjs",
+    "interview:writeback-browser-qa": "node scripts/interview-writeback-browser-qa.mjs",
     "prisma:generate": "prisma generate",
     "prisma:validate": "prisma validate"
   },

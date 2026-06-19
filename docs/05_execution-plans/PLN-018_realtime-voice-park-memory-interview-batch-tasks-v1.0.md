@@ -1,7 +1,7 @@
 # 誠問 AI Realtime Voice × Park-style Interview Memory Batch Tasks v1.0
 
 > 建立日期：2026-06-19  
-> 狀態：進行中（PIM-004 完成）  
+> 狀態：進行中（PIM-008 完成）  
 > 架構依據：`ARC-007_realtime-voice-and-park-memory-interview-architecture-v1.0.md`  
 > 研究依據：`RES-017_chinese-realtime-voice-and-park-memory-interview-research-v1.0.md`  
 > 既有雙 Agent 依據：`ARC-004_interview-theater-dual-agent-design-v1.1.md`、`PLN-015_interview-theater-dual-agent-batch-tasks-v1.0.md`  
@@ -42,7 +42,7 @@
 | PIM-005 | Realtime session BFF + event mirror | [x] | PIM-004、session/quota guard |
 | PIM-006 | Prisma persistence for turns/memory/reflection | [x] | PIM-001、DB approval |
 | PIM-007 | Reflection + planning service/routes | [x] | PIM-006 可部分並行 |
-| PIM-008 | Confirmation card + CRM/writeback boundary | [ ] | PIM-002、PIM-006 |
+| PIM-008 | Confirmation card + CRM/writeback boundary | [x] | PIM-002、PIM-006 |
 | PIM-009 | Cross-mode QA, docs sync, rollback notes | [ ] | PIM-002 to PIM-008 |
 
 ---
@@ -202,16 +202,18 @@
 
 目標：讓兩個 AI 訪談的「已確認/推論/未知」都有可操作出口，且不發生 inference-to-fact leakage。
 
-- [ ] `/interview` 顧問陪談結束/段落結束顯示 confirmation card。
-- [ ] confirmed fact + user checked 才可寫回 CRM candidate；inference 只能保存為 interview insight。
-- [ ] unknown 轉成 follow-up question/task 或 Theater narrator question。
-- [ ] 高敏感資料寫回需要 explicit confirmation、reason/riskAccepted 或標記為不可寫回。
-- [ ] 所有 writeback 建立 audit/interaction event。
-- [ ] API proof：inference checked 不會變成 CRM fact；confirmed fact checked 才可 writeback。
-- [ ] Browser proof：desktop/mobile 可勾選、取消、保存、錯誤狀態。
-- [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+- [x] `/interview` 顧問陪談結束/段落結束顯示 confirmation card。
+- [x] confirmed fact + user checked 才可寫回 CRM candidate；inference 只能保存為 interview insight。
+- [x] unknown 轉成 follow-up question/task 或 Theater narrator question。
+- [x] 高敏感資料寫回需要 explicit confirmation、reason/riskAccepted 或標記為不可寫回。
+- [x] 所有 writeback 建立 audit/interaction event。
+- [x] API proof：inference checked 不會變成 CRM fact；confirmed fact checked 才可 writeback。
+- [x] Browser proof：desktop/mobile 可勾選、取消、保存、錯誤狀態。
+- [x] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
 
 範圍外：不做完整 CRM 欄位 allowlist 外的自動寫入。
+
+完成註記：2026-06-19 已新增 Park memory writeback boundary pure service、owner-scoped BFF preview/save route 與 `/interview` 段落確認卡。Confirmed fact 只有在 CRM-bound session、使用者勾選且高敏感項具 reason/riskAccepted 時才建立 `InteractionEvent` CRM candidate；inference 勾選只建立 `INTERVIEW_INSIGHT` metadata，unknown 轉 `FOLLOW_UP_TASK`，不寫入 Client 欄位。API proof `pnpm interview:writeback-qa` 驗證 unauth 401、高敏感未核准被 blocked、inference checked 不會變 CRM fact、confirmed checked 才建立 CRM candidate event，並用 DB metadata count 證明 inference CRM fact = 0。Browser proof `pnpm interview:writeback-browser-qa` 覆蓋 desktop 可選客戶、產生確認卡、勾選、未填理由保存被擋、補理由後保存成功，mobile 無水平 overflow。截圖：`docs/06_audits-and-reports/screenshots/pim/pim-008-writeback/pim-008-interview-desktop.png`、`docs/06_audits-and-reports/screenshots/pim/pim-008-writeback/pim-008-interview-mobile.png`。下一張最低未完成卡為 PIM-009。
 
 ---
 
