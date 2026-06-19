@@ -11,8 +11,11 @@ import {
   Loader2,
   MessageSquare,
   Send,
+  ShieldCheck,
+  Sparkles,
   Trophy,
   UserRound,
+  Users,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -30,6 +33,7 @@ import {
 } from "@/domains/demo/quickstart";
 import { theaterTourSteps } from "@/domains/demo/tour-steps";
 import { useSpinStore } from "@/domains/spin/store";
+import type { RouteBSessionSnapshot } from "@/domains/theater/route-b-session";
 import { theaterService } from "@/domains/theater/service";
 import { useTheaterStore } from "@/domains/theater/store";
 import type { TheaterScore, TheaterSession, TheaterTurn } from "@/domains/theater/types";
@@ -74,14 +78,68 @@ function TheaterSimulationContent() {
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [isLoadingScore, setIsLoadingScore] = useState(false);
+  const [routeBSession, setRouteBSession] = useState<RouteBSessionSnapshot | null>(null);
+  const [routeBStatus, setRouteBStatus] = useState<"idle" | "loading" | "not_found" | "error">("idle");
+  const [routeBError, setRouteBError] = useState<string | null>(null);
   const isQuickstart = searchParams.get("demo") === "quickstart";
   const turns = liveTurns.length ? liveTurns : storedTurns;
+  const shouldFetchRouteB = Boolean(sessionId && !isQuickstart && !session);
+  const activeRouteBSession = routeBSession?.session.id === sessionId ? routeBSession : null;
+  const activeRouteBStatus = shouldFetchRouteB ? routeBStatus : "idle";
 
   useEffect(() => {
     if (isQuickstart && !session) {
       router.replace(`/theater?clientId=${demoQuickstart.clientId}&autoCreate=true&demo=quickstart`);
     }
   }, [isQuickstart, router, session]);
+
+  useEffect(() => {
+    if (!shouldFetchRouteB || !sessionId) return;
+
+    let active = true;
+
+    void (async () => {
+      await Promise.resolve();
+      if (!active) return;
+      setRouteBStatus("loading");
+      setRouteBError(null);
+
+      try {
+        const response = await fetch(`/api/theater/route-b/sessions/${encodeURIComponent(sessionId)}`, {
+          cache: "no-store",
+        });
+
+        if (!active) return;
+
+        if (response.status === 404) {
+          setRouteBStatus("not_found");
+          setRouteBSession(null);
+          return;
+        }
+
+        const payload = (await response.json().catch(() => null)) as RouteBSessionSnapshot | { error?: string; message?: string } | null;
+
+        if (!response.ok || !payload || !("session" in payload)) {
+          setRouteBStatus("error");
+          setRouteBError(payload && "message" in payload && payload.message ? payload.message : "Route B session read failed.");
+          setRouteBSession(null);
+          return;
+        }
+
+        setRouteBSession(payload);
+        setRouteBStatus("idle");
+      } catch (caught) {
+        if (!active) return;
+        setRouteBStatus("error");
+        setRouteBError(caught instanceof Error ? caught.message : "Route B session read failed.");
+        setRouteBSession(null);
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [sessionId, shouldFetchRouteB]);
 
   useEffect(() => {
     if (!scrollRef.current) return;
@@ -93,7 +151,17 @@ function TheaterSimulationContent() {
     return spinSessions.find((item) => item.id === session.spinSessionId);
   }, [session, spinSessions]);
 
+  if (activeRouteBSession) {
+    return <RouteBSessionStage snapshot={activeRouteBSession} />;
+  }
+
   if (!session || !sessionId) {
+    if (activeRouteBStatus === "loading") {
+      return <TheaterSessionLoading />;
+    }
+    if (activeRouteBStatus === "error") {
+      return <TheaterSessionReadError message={routeBError ?? "Route B session read failed."} />;
+    }
     return <TheaterSessionMissing isQuickstart={isQuickstart} />;
   }
 
@@ -336,6 +404,320 @@ function TheaterSimulationContent() {
       </div>
     </div>
   );
+}
+
+const ROUTE_B_ROLE_LABEL: Record<string, string> = {
+  FOCUS_CLIENT: "焦點客戶",
+  DECISION_MAKER: "決策者",
+  INFLUENCER: "影響者",
+  DEPENDENT: "家屬／依賴者",
+  NARRATOR: "旁白",
+};
+
+const ROUTE_B_SCOPE_LABEL: Record<string, string> = {
+  GROUP: "群聊",
+  PRIVATE: "私聊",
+  DIRECTOR_ONLY: "導演",
+  NARRATOR: "旁白",
+};
+
+function RouteBSessionStage({ snapshot }: { snapshot: RouteBSessionSnapshot }) {
+  const focusCharacter = snapshot.characters.find((character) => character.isFocus) ?? snapshot.characters[0];
+  const relationships = routeBRecords(snapshot.scene.relationships);
+  const narratorQuestions = routeBRecords(snapshot.scene.narratorQuestions);
+  const visibilityRules = routeBRecords(snapshot.scene.visibilityRules);
+  const directorTurns = snapshot.turns.filter((turn) => turn.visibilityScope === "DIRECTOR_ONLY");
+  const groupTurns = snapshot.turns.filter((turn) => turn.visibilityScope === "GROUP" || !turn.visibilityScope);
+  const provider = snapshot.session.provider;
+
+  return (
+    <div className="mx-auto flex min-h-[calc(100vh-88px)] w-full max-w-7xl flex-col gap-4 px-4 py-4 sm:px-6 lg:px-8">
+      <header className="grid gap-4 border-b border-hairline pb-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+        <div className="flex min-w-0 items-center gap-3">
+          <Link
+            href="/theater"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-hairline text-muted-foreground transition hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            aria-label="回 AI 劇場演練"
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </Link>
+          <div className="min-w-0">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+              Route B Theater Stage
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="truncate text-xl font-semibold tracking-tight text-ink">
+                {focusCharacter ? `${focusCharacter.displayName} 的多角色劇場` : "多角色劇場舞台"}
+              </h1>
+              <Badge variant="outline" className="rounded-full">Route B</Badge>
+              <Badge variant="outline" className="rounded-full">guarded-disabled</Badge>
+            </div>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {snapshot.characters.length} 位角色・{relationships.length} 條關係・{snapshot.scene.statePatchCount} 個狀態更新
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-3 gap-2 text-center sm:min-w-80">
+          <RouteBMetric label="角色" value={snapshot.characters.length} />
+          <RouteBMetric label="旁白補問" value={narratorQuestions.length} />
+          <RouteBMetric label="私聊外洩" value={snapshot.visibilityProof.thirdPartyVisibleForDirectMessage ? "需查" : "0"} />
+        </div>
+      </header>
+
+      <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
+        <main className="grid min-h-0 gap-4 xl:grid-cols-[320px_minmax(0,1fr)]">
+          <section className="rounded-lg border border-hairline bg-background p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Characters</p>
+                <h2 className="mt-1 text-base font-semibold text-ink">舞台角色</h2>
+              </div>
+              <Users className="h-4 w-4 text-muted-foreground" />
+            </div>
+            <div className="mt-4 space-y-3">
+              {snapshot.characters.map((character) => (
+                <RouteBCharacterCard key={character.id} character={character} />
+              ))}
+            </div>
+          </section>
+
+          <section className="flex min-h-[640px] flex-col overflow-hidden rounded-lg border border-hairline bg-background">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-hairline px-4 py-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Stage Runtime</p>
+                <h2 className="mt-1 text-base font-semibold text-ink">群聊／私聊舞台</h2>
+              </div>
+              <Badge variant="outline" className="rounded-full">
+                {snapshot.session.status}
+              </Badge>
+            </div>
+
+            <div className="grid flex-1 gap-0 md:grid-cols-2">
+              <div className="flex min-h-0 flex-col border-b border-hairline md:border-b-0 md:border-r">
+                <RouteBLaneHeader icon={<MessageSquare className="h-4 w-4" />} title="群聊" subtitle="所有角色可見" />
+                <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
+                  {groupTurns.length ? (
+                    groupTurns.map((turn) => <RouteBTurnBubble key={turn.id} snapshot={snapshot} turn={turn} />)
+                  ) : (
+                    <RouteBEmptyLane title="群聊尚未開場" body="已建立舞台與角色，provider proof 完成後才會允許角色回覆。" />
+                  )}
+                </div>
+              </div>
+
+              <div className="flex min-h-0 flex-col">
+                <RouteBLaneHeader icon={<ShieldCheck className="h-4 w-4" />} title="私聊" subtitle="只對指定角色可見" />
+                <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
+                  {snapshot.characters.map((character) => (
+                    <div key={character.id} className="rounded-lg border border-hairline bg-paper px-3 py-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold text-ink">{character.displayName}</p>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {ROUTE_B_ROLE_LABEL[character.role] ?? character.role}
+                          </p>
+                        </div>
+                        <Badge variant="outline" className="rounded-full">
+                          私聊
+                        </Badge>
+                      </div>
+                      <p className="mt-2 line-clamp-2 text-xs leading-5 text-muted-foreground">
+                        {firstRouteBText(character.personaHints) ?? firstRouteBText(character.unknowns) ?? "尚無私聊提示。"}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="border-t border-hairline bg-paper p-3">
+              <div className="mx-auto grid max-w-3xl gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+                <div className="rounded-lg border border-hairline bg-background px-3 py-3 text-sm text-muted-foreground">
+                  Route B provider 目前關閉；不產生角色訊息、不寫假 `AiUsageLog`。
+                </div>
+                <Button type="button" variant="mono" className="rounded-full" disabled>
+                  <Sparkles className="h-4 w-4" />
+                  待 provider proof
+                </Button>
+              </div>
+            </div>
+          </section>
+        </main>
+
+        <aside className="space-y-3">
+          <Card className="border-hairline shadow-none">
+            <CardContent className="p-5">
+              <div className="flex items-start gap-3">
+                <CircleAlert className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                <div>
+                  <h2 className="text-sm font-semibold text-ink">Provider guard</h2>
+                  <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                    callsEnabled={String(provider.callsEnabled)}・callAttempted={String(provider.callAttempted)}・usageLogWritten={String(provider.usageLogWritten)}
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {provider.usageLogRequiredFor.map((kind) => (
+                      <Badge key={kind} variant="outline" className="rounded-full">
+                        {kind}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <RouteBDetails title={`導演開場・${directorTurns.length}`} items={directorTurns.map((turn) => turn.content)} />
+          <RouteBDetails title={`關係脈絡・${relationships.length}`} items={relationships.map(routeBRecordText)} />
+          <RouteBDetails title={`旁白補問・${narratorQuestions.length}`} items={narratorQuestions.map(routeBRecordText)} />
+          <RouteBDetails title={`可見性規則・${visibilityRules.length}`} items={visibilityRules.map(routeBVisibilityText)} />
+
+          <Card className="border-hairline shadow-none">
+            <CardContent className="space-y-3 p-5">
+              <h2 className="text-sm font-semibold text-ink">範圍證明</h2>
+              <ContextLine label="Owner read" value={snapshot.visibilityProof.ownerOnlyRead ? "true" : "false"} />
+              <ContextLine label="Scoped turn columns" value={snapshot.visibilityProof.scopedTurnColumnsPersisted ? "true" : "false"} />
+              <ContextLine label="Raw provider payload" value={provider.storesProviderBody ? "需查" : "false"} />
+            </CardContent>
+          </Card>
+        </aside>
+      </div>
+    </div>
+  );
+}
+
+function RouteBMetric({ label, value }: { label: string; value: number | string }) {
+  return (
+    <div className="rounded-lg border border-hairline bg-background px-3 py-2">
+      <p className="text-lg font-semibold tabular-nums text-ink">{value}</p>
+      <p className="text-[11px] text-muted-foreground">{label}</p>
+    </div>
+  );
+}
+
+function RouteBCharacterCard({ character }: { character: RouteBSessionSnapshot["characters"][number] }) {
+  const knownFacts = routeBRecords(character.knownFacts);
+  const unknowns = routeBRecords(character.unknowns);
+  const personaHints = routeBRecords(character.personaHints);
+
+  return (
+    <div className="rounded-lg border border-hairline bg-paper p-3">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="truncate text-sm font-semibold text-ink">{character.displayName}</p>
+          <p className="mt-1 text-xs text-muted-foreground">{ROUTE_B_ROLE_LABEL[character.role] ?? character.role}</p>
+        </div>
+        {character.isFocus ? <Badge className="rounded-full">焦點</Badge> : <Badge variant="outline" className="rounded-full">NPC</Badge>}
+      </div>
+      <p className="mt-3 line-clamp-3 text-xs leading-5 text-muted-foreground">{character.publicBrief}</p>
+      <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+        <RouteBMiniCount label="事實" value={knownFacts.length} />
+        <RouteBMiniCount label="推論" value={personaHints.length} />
+        <RouteBMiniCount label="未知" value={unknowns.length} />
+      </div>
+      {character.statePatchCount ? (
+        <p className="mt-2 text-xs font-medium text-muted-foreground">狀態更新 {character.statePatchCount}</p>
+      ) : null}
+    </div>
+  );
+}
+
+function RouteBMiniCount({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-md border border-hairline bg-background px-2 py-1.5">
+      <p className="text-sm font-semibold tabular-nums text-ink">{value}</p>
+      <p className="text-[10px] text-muted-foreground">{label}</p>
+    </div>
+  );
+}
+
+function RouteBLaneHeader({ icon, subtitle, title }: { icon: React.ReactNode; subtitle: string; title: string }) {
+  return (
+    <div className="flex items-center justify-between gap-3 border-b border-hairline px-4 py-3">
+      <div>
+        <h3 className="flex items-center gap-2 text-sm font-semibold text-ink">
+          {icon}
+          {title}
+        </h3>
+        <p className="mt-1 text-xs text-muted-foreground">{subtitle}</p>
+      </div>
+    </div>
+  );
+}
+
+function RouteBTurnBubble({ snapshot, turn }: { snapshot: RouteBSessionSnapshot; turn: RouteBSessionSnapshot["turns"][number] }) {
+  const speaker =
+    snapshot.characters.find((character) => character.routeBCharacterId === turn.speakerRouteBCharacterId)?.displayName ??
+    (turn.role === "DIRECTOR" ? "導演" : turn.role);
+
+  return (
+    <div className="rounded-lg border border-hairline bg-paper px-3 py-3">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-sm font-semibold text-ink">{speaker}</p>
+        <Badge variant="outline" className="rounded-full">
+          {turn.visibilityScope ? ROUTE_B_SCOPE_LABEL[turn.visibilityScope] ?? turn.visibilityScope : "群聊"}
+        </Badge>
+      </div>
+      <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-muted-foreground">{turn.content}</p>
+    </div>
+  );
+}
+
+function RouteBEmptyLane({ body, title }: { body: string; title: string }) {
+  return (
+    <div className="rounded-lg border border-dashed border-hairline bg-muted/20 p-5 text-center">
+      <p className="text-sm font-semibold text-ink">{title}</p>
+      <p className="mt-2 text-sm leading-6 text-muted-foreground">{body}</p>
+    </div>
+  );
+}
+
+function RouteBDetails({ items, title }: { items: string[]; title: string }) {
+  return (
+    <details className="group rounded-lg border border-hairline bg-card" open={items.length <= 1}>
+      <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between px-3 text-sm font-medium text-ink [&::-webkit-details-marker]:hidden">
+        <span>{title}</span>
+        <ChevronDown className="h-4 w-4 text-muted-foreground transition group-open:rotate-180" />
+      </summary>
+      <div className="space-y-2 border-t border-hairline p-3">
+        {items.length ? (
+          items.map((item, index) => (
+            <p key={`${title}-${index}`} className="text-sm leading-6 text-muted-foreground">
+              {item}
+            </p>
+          ))
+        ) : (
+          <p className="text-sm leading-6 text-muted-foreground">目前沒有資料。</p>
+        )}
+      </div>
+    </details>
+  );
+}
+
+function routeBRecords(value: unknown): Array<Record<string, unknown>> {
+  return Array.isArray(value) ? value.filter(isRouteBRecord) : [];
+}
+
+function isRouteBRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function routeBRecordText(record: Record<string, unknown>): string {
+  for (const key of ["summary", "text", "label", "content"]) {
+    const value = record[key];
+    if (typeof value === "string" && value.trim()) return value;
+  }
+  return "未命名項目";
+}
+
+function routeBVisibilityText(record: Record<string, unknown>): string {
+  const label = typeof record.label === "string" ? record.label : routeBRecordText(record);
+  const visibleTo = typeof record.visibleTo === "string" ? record.visibleTo : "UNKNOWN";
+  const canQuote = record.canBeQuotedInGroup === true ? "可引用" : "不可引用";
+  return `${label}・${visibleTo}・${canQuote}`;
+}
+
+function firstRouteBText(value: unknown): string | undefined {
+  return routeBRecords(value).map(routeBRecordText).find(Boolean);
 }
 
 function TensionPill({ value }: { value: number }) {
@@ -632,6 +1014,21 @@ function TheaterSessionMissing({ isQuickstart }: { isQuickstart: boolean }) {
       </div>
       <h1 className="mt-5 text-lg font-semibold text-ink">{isQuickstart ? "載入 Quickstart AI 劇場演練..." : "找不到演練"}</h1>
       <p className="mt-2 text-sm leading-6 text-muted-foreground">請回 AI 劇場演練中心重新建立一場演練。</p>
+      <Button type="button" variant="mono" className="mt-5 rounded-full" onClick={() => window.location.assign("/theater")}>
+        回 AI 劇場演練
+      </Button>
+    </div>
+  );
+}
+
+function TheaterSessionReadError({ message }: { message: string }) {
+  return (
+    <div className="mx-auto flex min-h-[50vh] max-w-md flex-col items-center justify-center px-6 text-center">
+      <div className="flex h-12 w-12 items-center justify-center rounded-full border border-hairline">
+        <CircleAlert className="h-5 w-5 text-muted-foreground" />
+      </div>
+      <h1 className="mt-5 text-lg font-semibold text-ink">Route B 舞台暫時無法讀取</h1>
+      <p className="mt-2 text-sm leading-6 text-muted-foreground">{message}</p>
       <Button type="button" variant="mono" className="mt-5 rounded-full" onClick={() => window.location.assign("/theater")}>
         回 AI 劇場演練
       </Button>

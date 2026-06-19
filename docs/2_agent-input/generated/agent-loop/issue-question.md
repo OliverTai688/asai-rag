@@ -16,12 +16,14 @@ Last updated: 2026-06-20
 - 2026-06-20 resolved: ITA-003a 已完成 Route B additive schema / typed persistence adapter proof；新增 `TheaterCharacter`、Route B character role / visibility scope enum、`TheaterSession` Route B scene/source/state metadata、`TheaterTurn` speaker/addressee/visibility/director/state patch 欄位與 `pnpm theater:route-b-schema-dry-run`。本輪只跑 local `prisma validate/generate`，未 db push、未 provider call；production/runtime 仍需正式 migration approval、DB rollback QA、director/character/feedback provider route 與 `AiUsageLog` success/error proof。
 - 2026-06-20 resolved: ITA-003b 已完成 Route B runtime guarded-disabled BFF proof；新增 `POST /api/theater/route-b/runtime` 與 `pnpm theater:route-b-runtime-qa`。`SESSION_DRAFT` 只產生 deterministic draft summary，`DIRECTOR` / `CHARACTER` / `FEEDBACK` 在 provider flag 未開時回 503 guarded-disabled，證明 no provider call、no fake `AiUsageLog`、private visibility、state patch 不寫 confirmed CRM fact、response 無 raw private sentinel。未做 DB push；production migration 與 provider success/error proof 仍需後續。
 - 2026-06-20 resolved: ITA-003c 已完成 Route B persisted session read/write proof；對目前 `.env` development Supabase Postgres target 執行 `pnpm exec prisma db push`（無 `--accept-data-loss`）成功，新增 `POST/GET /api/theater/route-b/sessions`、member-scoped BFF repository 與 `pnpm theater:route-b-persistence-qa`。Proof：create 201、owner read 200、manager read 404、DB rows 落地、response 無 raw private sentinel、`AiUsageLog` count before/after 不變。此 proof 不呼叫 provider；provider success/error `AiUsageLog` 與 session UI 仍待後續。
+- 2026-06-20 resolved: ITA-003d 已完成 Route B persisted session UI/read surface；`/theater/build` 可從 typed handoff 建立 DB-backed Route B session 並導向 `/theater/[sessionId]`，session 頁可讀 persisted DTO 並顯示多角色舞台、角色卡、群聊/私聊 lane、導演開場、關係/旁白補問、visibility proof 與 provider guarded-disabled。`pnpm theater:route-b-session-ui-qa` 通過 desktop/mobile browser proof、manager 404、no private sentinel、provider action disabled、`AiUsageLog` count before/after 不變；provider success/error `AiUsageLog`、真正群/私聊回合寫入、人物狀態更新互動與五視角 feedback runtime 仍待後續。
 
 ## Production Approval
 
 - PIM-006 已改 Prisma schema 並對目前 `.env` development Supabase Postgres target 執行 additive `db push`；production schema migration 仍需明確 approval。
 - ITA-003c 已對目前 `.env` development Supabase Postgres target 執行 Route B additive `db push` 並通過 persisted session proof；production schema migration / rollback plan 仍需明確 approval。
 - 後續若要做 live Realtime provider proof，需要 operator 明確允許打外部 provider，並記錄 usage/cost evidence。
+- 後續若要啟用 Route B director/character/feedback provider calls，需要 operator 明確允許打外部 provider，且 success/error path 都必須寫 `AiUsageLog`；provider 開啟前 UI 需維持 guarded-disabled，不得宣稱可正式互動。
 
 ## Operator 手動處理
 

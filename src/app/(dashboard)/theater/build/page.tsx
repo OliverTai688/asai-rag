@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useId, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   AlertCircle,
   AlertTriangle,
@@ -34,6 +35,8 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { theaterFieldBuildOutline } from "@/domains/interview/outlines";
 import { buildTheaterFieldBuildContext } from "@/domains/interview/theater-build";
 import type { TheaterBuildCharacterSeed, TheaterBuildPacket } from "@/domains/interview/types";
+import { buildTheaterRouteBHandoff } from "@/domains/theater/route-b-handoff";
+import type { RouteBSessionSnapshot } from "@/domains/theater/route-b-session";
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
 type InputMode = "TEXT" | "VOICE";
@@ -136,6 +139,7 @@ function getComposerVoiceLabel(stage: VoiceStage, consentAccepted: boolean) {
 }
 
 export default function TheaterBuildPage() {
+  const router = useRouter();
   const sessionId = `tb_${useId()}`;
   const [clientId, setClientId] = useState<string | null>(null);
   const [clientName, setClientName] = useState<string | null>(null);
@@ -157,6 +161,8 @@ export default function TheaterBuildPage() {
   const [riskAccepted, setRiskAccepted] = useState(false);
   const [isApprovingSensitivity, setIsApprovingSensitivity] = useState(false);
   const [sensitivityApprovalError, setSensitivityApprovalError] = useState<string | null>(null);
+  const [isStartingRouteB, setIsStartingRouteB] = useState(false);
+  const [routeBStartError, setRouteBStartError] = useState<string | null>(null);
 
   const [inputMode, setInputMode] = useState<InputMode>("TEXT");
   const [voiceStage, setVoiceStage] = useState<VoiceStage>("DISCONNECTED");
@@ -556,6 +562,44 @@ export default function TheaterBuildPage() {
     setMaterials((prev) => [...prev, `${CLASS_PREFIX[dataClass]}: ${body}`]);
   }
 
+  async function handleStartRouteBSession() {
+    if (!ready || isStartingRouteB) return;
+
+    setIsStartingRouteB(true);
+    setRouteBStartError(null);
+    try {
+      const handoff = buildTheaterRouteBHandoff(packet, { routeBEnabled: true });
+      const response = await fetch("/api/theater/route-b/sessions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          handoff,
+          clientId: clientId ?? undefined,
+          isDemo: false,
+          sensitivityApproval:
+            riskAccepted && sensitivityReason.trim().length >= 8
+              ? {
+                  reason: sensitivityReason,
+                  riskAccepted: true,
+                }
+              : undefined,
+        }),
+      });
+      const data = (await response.json().catch(() => null)) as RouteBSessionSnapshot | { error?: string; message?: string } | null;
+
+      if (!response.ok || !data || !("session" in data)) {
+        throw new Error(data && "message" in data && data.message ? data.message : "Route B session 建立失敗。");
+      }
+
+      setCompleted(true);
+      router.push(`/theater/${data.session.id}`);
+    } catch (caught) {
+      setRouteBStartError(caught instanceof Error ? caught.message : "Route B session 建立失敗。");
+    } finally {
+      setIsStartingRouteB(false);
+    }
+  }
+
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
       {/* Header */}
@@ -796,16 +840,22 @@ export default function TheaterBuildPage() {
             <PanelSection icon={<Sparkles className="size-4 text-[#1A3A6B]" />} title="完成建場">
               {completed ? (
                 <p className="rounded-lg border border-hairline bg-paper px-3 py-2 text-sm leading-6 text-muted-foreground">
-                  場域建構包已確認。多角色演練（Route B）尚未啟用，先停在這份可確認的建構包；啟用後即可直接帶入開演。
+                  場域建構包已確認，正在進入 Route B 多角色劇場舞台。
                 </p>
               ) : (
                 <p className="text-sm leading-6 text-muted-foreground">
-                  {ready ? "已具備焦點客戶、場景與確認事實，可以確認建構包。" : "仍缺焦點客戶、場景或確認事實，可以繼續訪談或手動補素材。"}
+                  {ready ? "已具備焦點客戶、場景與確認事實，可以建立 Route B 多角色劇場。" : "仍缺焦點客戶、場景或確認事實，可以繼續訪談或手動補素材。"}
                 </p>
               )}
-              <Button variant="mono" className="mt-3 w-full" disabled={!ready || completed} onClick={() => setCompleted(true)}>
-                <CheckCircle2 className="size-4" />
-                確認場域建構包
+              {routeBStartError ? <p className="mt-2 text-xs font-medium text-destructive">{routeBStartError}</p> : null}
+              <Button
+                variant="mono"
+                className="mt-3 w-full"
+                disabled={!ready || completed || isStartingRouteB}
+                onClick={handleStartRouteBSession}
+              >
+                {isStartingRouteB ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />}
+                建立 Route B 劇場
               </Button>
             </PanelSection>
           </div>

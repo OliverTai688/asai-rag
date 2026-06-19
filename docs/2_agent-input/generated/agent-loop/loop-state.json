@@ -64,11 +64,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 2,
+    "normalLoopsSinceLastWholeProductReview": 3,
     "lastWholeProductReviewAt": "2026-06-20",
     "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-20_lv3-whole-product-gap-review-route-b-runtime.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "ITA-003d Route B persisted session UI/read surface. Scope: wire the theater stage entry or /theater/[sessionId] to the persisted Route B session DTO, render scene/characters/opening turn and group/private lane affordances in guarded-disabled mode, keep provider calls off until success/error AiUsageLog proof exists. If UI scope is too wide, fallback to BFF-001 full-site data-source inventory.",
+    "nextRecommendedImplementationSlice": "LV3 previsit preparation package redesign. Scope: honor the user preference for research-backed restructuring, review current meeting/pre-call prep patterns, then reshape /pre-visit/[planId] into a project/relationship-aware preparation package with question list, evidence, inference/unknown labels, advisor-confirmation controls, and a clear theater handoff CTA. Keep server-owned VisitPlan BFF and /api/ai/visit provider contracts intact. If UI scope is too wide, fallback to ITA-003e Route B guarded interaction write shell with provider still disabled.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {

@@ -16,7 +16,7 @@ const dbUrl = process.env.DIRECT_URL ?? process.env.DATABASE_URL;
 const screenshotDir = resolve(
   process.env.DEMO_QA_SCREENSHOT_DIR ?? "docs/06_audits-and-reports/screenshots/lv3-theater-client-build",
 );
-const qaStamp = `TDF Client Build QA ${Date.now()}`;
+const qaStamp = `TDF Client Build QA ${alphabeticStamp(Date.now())}`;
 
 const checks = [];
 const consoleErrors = [];
@@ -316,4 +316,12 @@ function loadEnvFile(path) {
 
     process.env[key] = rawValue.replace(/^["']|["']$/g, "");
   }
+}
+
+function alphabeticStamp(value) {
+  const digitMap = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j"];
+  return String(value)
+    .split("")
+    .map((character) => digitMap[Number(character)] ?? character)
+    .join("");
 }
