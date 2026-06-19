@@ -1,7 +1,7 @@
 # 誠問 AI Realtime Voice × Park-style Interview Memory Batch Tasks v1.0
 
 > 建立日期：2026-06-19  
-> 狀態：進行中（PIM-003 完成）  
+> 狀態：進行中（PIM-004 完成）  
 > 架構依據：`ARC-007_realtime-voice-and-park-memory-interview-architecture-v1.0.md`  
 > 研究依據：`RES-017_chinese-realtime-voice-and-park-memory-interview-research-v1.0.md`  
 > 既有雙 Agent 依據：`ARC-004_interview-theater-dual-agent-design-v1.1.md`、`PLN-015_interview-theater-dual-agent-batch-tasks-v1.0.md`  
@@ -38,7 +38,7 @@
 | PIM-001 | Memory domain contracts + pure services | [x] | PIM-000 |
 | PIM-002 | 顧問陪談 Park memory loop | [x] | PIM-001、ITA-001 |
 | PIM-003 | 劇場場域建構 Park memory loop | [x] | PIM-001、ITA-003/Route B contract |
-| PIM-004 | `/interview` 中文語音 UX shell | [ ] | PIM-000 |
+| PIM-004 | `/interview` 中文語音 UX shell | [x] | PIM-000 |
 | PIM-005 | Realtime session BFF + event mirror | [ ] | PIM-004、session/quota guard |
 | PIM-006 | Prisma persistence for turns/memory/reflection | [ ] | PIM-001、DB approval |
 | PIM-007 | Reflection + planning service/routes | [ ] | PIM-006 可部分並行 |
@@ -125,17 +125,19 @@
 
 目標：先完成語音模式 UI 與 consent/fallback，不接 production Realtime provider。
 
-- [ ] `/interview` 新增 mode toggle：文字訪談 / 中文語音訪談 Beta。
-- [ ] 顯示 mic consent：使用麥克風、預設不保存 raw audio、只保存 transcript/structured memory。
-- [ ] 顯示 live voice stage：未連線、聽取中、AI 思考中、AI 回覆中、已暫停。
-- [ ] 顯示 live transcript panel，支援 transcript correction UI 與 `correction` memory placeholder。
-- [ ] 顯示 memory rail：已確認、推論、待確認、本段訪綱進度。
-- [ ] 提供 text fallback；browser 不支援 mic 或 permission denied 時不阻斷文字模式。
-- [ ] 不呼叫 production Realtime、不保存 raw audio。
-- [ ] Browser proof：desktop/mobile、permission denied、fallback、console error 0、無水平 overflow。
-- [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+- [x] `/interview` 新增 mode toggle：文字訪談 / 中文語音訪談 Beta。
+- [x] 顯示 mic consent：使用麥克風、預設不保存 raw audio、只保存 transcript/structured memory。
+- [x] 顯示 live voice stage：未連線、聽取中、AI 思考中、AI 回覆中、已暫停。
+- [x] 顯示 live transcript panel，支援 transcript correction UI 與 `correction` memory placeholder。
+- [x] 顯示 memory rail：已確認、推論、待確認、本段訪綱進度。
+- [x] 提供 text fallback；browser 不支援 mic 或 permission denied 時不阻斷文字模式。
+- [x] 不呼叫 production Realtime、不保存 raw audio。
+- [x] Browser proof：desktop/mobile、permission denied、fallback、console error 0、無水平 overflow。
+- [x] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
 
 範圍外：不新增 realtime-session route、不接 OpenAI。
+
+完成註記：2026-06-19 已在 `/interview` 完成中文語音 UX shell 與文字 fallback：mode toggle、mic consent、voice stage、live transcript、transcript correction placeholder、memory rail、permission denied/unsupported fallback，並補上中文 IME composition guard 避免組字 Enter 誤送出。驗收：`pnpm exec tsc --noEmit --pretty false`、`pnpm exec eslint src/app/(dashboard)/interview/page.tsx`、`pnpm run lint:changed`、`pnpm interview:memory-dry-run`、`pnpm interview:park-loop-dry-run`、`pnpm interview:theater-build-dry-run`、`pnpm build` 通過；Browser desktop/mobile console error 0、無水平 overflow；headless Chrome smoke 覆蓋 permission denied/unsupported fallback。截圖：`docs/06_audits-and-reports/screenshots/pim/pim-004-interview-desktop.png`、`docs/06_audits-and-reports/screenshots/pim/pim-004-interview-mobile.png`。下一張最低未完成卡為 PIM-005。
 
 ---
 

@@ -1,7 +1,23 @@
 "use client";
 
 import { FormEvent, useMemo, useState } from "react";
-import { CheckCircle2, ClipboardList, Loader2, MessageSquare, Send, Sparkles } from "lucide-react";
+import {
+  CheckCircle2,
+  ClipboardList,
+  Keyboard,
+  Loader2,
+  MessageSquare,
+  Mic,
+  MicOff,
+  Pause,
+  Play,
+  Radio,
+  RotateCcw,
+  Send,
+  ShieldCheck,
+  Sparkles,
+  Volume2,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,6 +30,47 @@ import { InterviewMicroPlan, InterviewOutputDraft } from "@/domains/interview/ty
 type ChatMessage = {
   role: "user" | "assistant";
   content: string;
+};
+
+type InputMode = "TEXT" | "VOICE";
+
+type VoiceStage = "DISCONNECTED" | "LISTENING" | "THINKING" | "SPEAKING" | "PAUSED" | "PERMISSION_DENIED" | "UNSUPPORTED";
+
+type MaterialBucket = {
+  confirmed: string[];
+  inferred: string[];
+  unknown: string[];
+};
+
+const VOICE_STAGE_COPY: Record<VoiceStage, { label: string; description: string }> = {
+  DISCONNECTED: {
+    label: "未連線",
+    description: "尚未請求麥克風；文字陪談可照常使用。",
+  },
+  LISTENING: {
+    label: "聽取中",
+    description: "語音 shell 已取得本機麥克風權限；目前不保存 raw audio。",
+  },
+  THINKING: {
+    label: "AI 思考中",
+    description: "後續 Realtime event mirror 會在這裡顯示推理等待狀態。",
+  },
+  SPEAKING: {
+    label: "AI 回覆中",
+    description: "後續語音輸出會在這裡顯示播放/中斷狀態。",
+  },
+  PAUSED: {
+    label: "已暫停",
+    description: "語音 shell 暫停；可繼續用文字輸入。",
+  },
+  PERMISSION_DENIED: {
+    label: "權限被拒",
+    description: "瀏覽器拒絕麥克風權限；文字模式仍可使用。",
+  },
+  UNSUPPORTED: {
+    label: "瀏覽器不支援",
+    description: "目前環境無法使用麥克風 API；請改用文字陪談。",
+  },
 };
 
 export default function InterviewPage() {
@@ -33,6 +90,14 @@ export default function InterviewPage() {
   const [microPlan, setMicroPlan] = useState<InterviewMicroPlan | null>(null);
   const [editableOutputJson, setEditableOutputJson] = useState("");
   const [outputError, setOutputError] = useState<string | null>(null);
+  const [inputMode, setInputMode] = useState<InputMode>("TEXT");
+  const [voiceStage, setVoiceStage] = useState<VoiceStage>("DISCONNECTED");
+  const [voiceConsentAccepted, setVoiceConsentAccepted] = useState(false);
+  const [voiceError, setVoiceError] = useState<string | null>(null);
+  const [liveTranscript, setLiveTranscript] = useState("");
+  const [transcriptCorrection, setTranscriptCorrection] = useState("");
+  const [correctionDrafts, setCorrectionDrafts] = useState<string[]>([]);
+  const [isComposingDraft, setIsComposingDraft] = useState(false);
   const activeSession = sessions.find((session) => session.id === activeSessionId);
   const currentSegment = advisorCompanionOutline.segments.find((segment) => segment.id === activeSession?.currentSegmentId)
     ?? advisorCompanionOutline.segments[0];
@@ -45,6 +110,8 @@ export default function InterviewPage() {
     if (!activeSession) return [];
     return activeSession.materials.map((material) => `${material.kind}: ${material.content}`);
   }, [activeSession]);
+  const materialBuckets = useMemo(() => bucketMaterials(knownMaterials), [knownMaterials]);
+  const voiceStageCopy = VOICE_STAGE_COPY[voiceStage];
 
   function handleStart() {
     if (activeSession) return;
@@ -70,6 +137,7 @@ export default function InterviewPage() {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (isComposingDraft) return;
     const content = draft.trim();
     if (!activeSession || !content || isStreaming) return;
 
@@ -144,6 +212,54 @@ export default function InterviewPage() {
     }
   }
 
+  function handleModeChange(nextMode: InputMode) {
+    setInputMode(nextMode);
+    if (nextMode === "TEXT") {
+      setVoiceStage((stage) => (stage === "LISTENING" || stage === "THINKING" || stage === "SPEAKING" ? "PAUSED" : stage));
+    }
+  }
+
+  async function handleEnableVoiceShell() {
+    setInputMode("VOICE");
+    setVoiceConsentAccepted(true);
+    setVoiceError(null);
+
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setVoiceStage("UNSUPPORTED");
+      setVoiceError("目前瀏覽器不支援麥克風權限 API，請使用文字陪談。");
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream.getTracks().forEach((track) => track.stop());
+      setVoiceStage("LISTENING");
+    } catch (error) {
+      setVoiceStage("PERMISSION_DENIED");
+      setVoiceError(error instanceof Error ? error.message : "麥克風權限被拒絕，請改用文字陪談。");
+    }
+  }
+
+  function handlePauseVoiceShell() {
+    setVoiceStage((stage) => (stage === "PAUSED" ? "LISTENING" : "PAUSED"));
+  }
+
+  function handleSaveTranscriptCorrection() {
+    const correction = transcriptCorrection.trim();
+    if (!activeSession || !correction) return;
+
+    addMaterial(activeSession.id, {
+      segmentId: currentSegment.id,
+      fieldKey: "transcript_correction",
+      kind: "UNKNOWN",
+      content: `轉寫修正待確認：${correction}`,
+      confidence: "LOW",
+      sourceAnswerIds: [],
+    });
+    setCorrectionDrafts((state) => [correction, ...state].slice(0, 4));
+    setTranscriptCorrection("");
+  }
+
   function handleAdvance() {
     if (!activeSession) return;
     advanceSegment(activeSession.id);
@@ -201,6 +317,107 @@ export default function InterviewPage() {
         </Button>
       </header>
 
+      <section className="rounded-lg border border-hairline bg-card p-4">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="space-y-3">
+            <div className="inline-flex rounded-lg border border-hairline bg-paper p-1" aria-label="選擇訪談輸入模式">
+              <button
+                type="button"
+                onClick={() => handleModeChange("TEXT")}
+                className={
+                  inputMode === "TEXT"
+                    ? "inline-flex items-center gap-2 rounded-md bg-ink px-3 py-2 text-sm font-medium text-paper"
+                    : "inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground hover:text-ink"
+                }
+              >
+                <Keyboard className="size-4" />
+                文字訪談
+              </button>
+              <button
+                type="button"
+                onClick={() => handleModeChange("VOICE")}
+                className={
+                  inputMode === "VOICE"
+                    ? "inline-flex items-center gap-2 rounded-md bg-ink px-3 py-2 text-sm font-medium text-paper"
+                    : "inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground hover:text-ink"
+                }
+              >
+                <Mic className="size-4" />
+                中文語音 Beta
+              </button>
+            </div>
+            <div className="grid gap-3 md:grid-cols-3">
+              <div className="rounded-lg border border-hairline bg-paper px-3 py-2">
+                <p className="text-xs font-semibold text-ink">語音狀態</p>
+                <div className="mt-2 flex items-center gap-2">
+                  <span className="flex size-8 items-center justify-center rounded-md border border-hairline bg-card">
+                    {voiceStage === "PERMISSION_DENIED" || voiceStage === "UNSUPPORTED" ? (
+                      <MicOff className="size-4 text-destructive" />
+                    ) : voiceStage === "SPEAKING" ? (
+                      <Volume2 className="size-4 text-[#1A3A6B]" />
+                    ) : (
+                      <Radio className="size-4 text-[#1A3A6B]" />
+                    )}
+                  </span>
+                  <div>
+                    <p className="text-sm font-semibold text-ink">{voiceStageCopy.label}</p>
+                    <p className="text-xs leading-5 text-muted-foreground">{voiceStageCopy.description}</p>
+                  </div>
+                </div>
+              </div>
+              <div className="rounded-lg border border-hairline bg-paper px-3 py-2">
+                <p className="text-xs font-semibold text-ink">保存規則</p>
+                <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                  預設不保存 raw audio；此 shell 只保留可檢視的 transcript 與 structured memory placeholder。
+                </p>
+              </div>
+              <div className="rounded-lg border border-hairline bg-paper px-3 py-2">
+                <p className="text-xs font-semibold text-ink">Fallback</p>
+                <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                  麥克風被拒或瀏覽器不支援時，文字陪談與送出按鈕仍保持可用。
+                </p>
+              </div>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2 lg:justify-end">
+            <Button type="button" variant="mono" onClick={handleEnableVoiceShell}>
+              <ShieldCheck className="size-4" />
+              啟用麥克風
+            </Button>
+            <Button
+              type="button"
+              variant="monoOutline"
+              onClick={handlePauseVoiceShell}
+              disabled={voiceStage === "DISCONNECTED" || voiceStage === "UNSUPPORTED" || voiceStage === "PERMISSION_DENIED"}
+            >
+              {voiceStage === "PAUSED" ? <Play className="size-4" /> : <Pause className="size-4" />}
+              {voiceStage === "PAUSED" ? "繼續聽取" : "暫停"}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setVoiceStage("THINKING")}
+              disabled={!voiceConsentAccepted || voiceStage === "PERMISSION_DENIED" || voiceStage === "UNSUPPORTED"}
+            >
+              AI 思考中
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setVoiceStage("SPEAKING")}
+              disabled={!voiceConsentAccepted || voiceStage === "PERMISSION_DENIED" || voiceStage === "UNSUPPORTED"}
+            >
+              AI 回覆中
+            </Button>
+          </div>
+        </div>
+        {voiceError ? (
+          <div className="mt-4 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs leading-5 text-destructive">
+            {voiceError}
+          </div>
+        ) : null}
+      </section>
+
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
         <section className="min-h-[620px] rounded-lg border border-hairline bg-card">
           <div className="flex items-center justify-between border-b border-hairline px-5 py-4">
@@ -249,6 +466,13 @@ export default function InterviewPage() {
               <Textarea
                 value={draft}
                 onChange={(event) => setDraft(event.target.value)}
+                onCompositionStart={() => setIsComposingDraft(true)}
+                onCompositionEnd={() => setIsComposingDraft(false)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" && (event.nativeEvent.isComposing || isComposingDraft)) {
+                    event.stopPropagation();
+                  }
+                }}
                 placeholder={activeSession ? "輸入業務員的回答..." : "請先開始陪談"}
                 disabled={!activeSession || isStreaming}
                 className="min-h-20 flex-1 resize-none"
@@ -267,6 +491,63 @@ export default function InterviewPage() {
         </section>
 
         <aside className="space-y-5">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Mic className="size-4 text-[#1A3A6B]" />
+                Live transcript
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <Textarea
+                value={liveTranscript}
+                onChange={(event) => setLiveTranscript(event.target.value)}
+                placeholder="PIM-005 接上 Realtime event mirror 前，可先在這裡貼上或修正語音轉寫。"
+                className="min-h-24 resize-y text-sm leading-6"
+                aria-label="即時語音轉寫草稿"
+              />
+              <div className="space-y-2">
+                <Textarea
+                  value={transcriptCorrection}
+                  onChange={(event) => setTranscriptCorrection(event.target.value)}
+                  placeholder="修正轉寫，例如：剛才不是醫療險，是長照險。"
+                  className="min-h-20 resize-y text-sm leading-6"
+                  aria-label="轉寫修正內容"
+                />
+                <Button
+                  type="button"
+                  variant="monoOutline"
+                  className="w-full"
+                  onClick={handleSaveTranscriptCorrection}
+                  disabled={!activeSession || !transcriptCorrection.trim()}
+                >
+                  <RotateCcw className="size-4" />
+                  加入 correction memory placeholder
+                </Button>
+              </div>
+              {correctionDrafts.length ? (
+                <div className="space-y-2">
+                  {correctionDrafts.map((correction, index) => (
+                    <div key={`${correction}-${index}`} className="rounded-lg border border-hairline bg-paper px-3 py-2 text-xs leading-5 text-muted-foreground">
+                      correction：{correction}
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Memory rail</CardTitle>
+            </CardHeader>
+            <CardContent className="grid gap-2">
+              <MemoryBucket label="已確認 / 事實" values={materialBuckets.confirmed} />
+              <MemoryBucket label="推論" values={materialBuckets.inferred} />
+              <MemoryBucket label="待確認" values={materialBuckets.unknown} />
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -415,6 +696,28 @@ export default function InterviewPage() {
   );
 }
 
+function MemoryBucket({ label, values }: { label: string; values: string[] }) {
+  return (
+    <div className="rounded-lg border border-hairline bg-paper px-3 py-2">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-xs font-semibold text-ink">{label}</p>
+        <Badge variant="outline">{values.length}</Badge>
+      </div>
+      {values.length ? (
+        <div className="mt-2 space-y-1">
+          {values.slice(-3).map((value, index) => (
+            <p key={`${value}-${index}`} className="text-xs leading-5 text-muted-foreground">
+              {stripMaterialKind(value)}
+            </p>
+          ))}
+        </div>
+      ) : (
+        <p className="mt-2 text-xs leading-5 text-muted-foreground">尚無素材。</p>
+      )}
+    </div>
+  );
+}
+
 function parseMicroPlanHeader(value: string | null): InterviewMicroPlan | null {
   if (!value) return null;
 
@@ -435,4 +738,24 @@ function parseMicroPlanHeader(value: string | null): InterviewMicroPlan | null {
   } catch {
     return null;
   }
+}
+
+function bucketMaterials(materials: string[]): MaterialBucket {
+  return materials.reduce<MaterialBucket>(
+    (bucket, material) => {
+      if (material.startsWith("FACT:")) bucket.confirmed.push(material);
+      else if (material.startsWith("INFERENCE:")) bucket.inferred.push(material);
+      else if (material.startsWith("UNKNOWN:")) bucket.unknown.push(material);
+      return bucket;
+    },
+    {
+      confirmed: [],
+      inferred: [],
+      unknown: [],
+    },
+  );
+}
+
+function stripMaterialKind(material: string): string {
+  return material.replace(/^(FACT|INFERENCE|UNKNOWN):\s*/, "");
 }

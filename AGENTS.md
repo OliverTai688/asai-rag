@@ -895,15 +895,17 @@ Context: 將兩個 AI 訪談（顧問陪談訪綱 A、劇場場域建構訪綱 B
 完成註記：2026-06-19 已新增 `theaterFieldBuildOutline`、`TheaterBuildPacket` contract 與 `src/domains/interview/theater-build.ts`，可將劇場場景/角色/關係/異議/敏感點/未知缺口轉為 Park memory stream、reflection 與 Route B build packet。`pnpm interview:theater-build-dry-run` 覆蓋 READY packet、資料不足 `NEEDS_MORE_INFO`、NPC <= 4、推論不混入 confirmed facts、未知缺口轉 narrator questions。驗收：`pnpm interview:theater-build-dry-run`、`pnpm interview:park-loop-dry-run`、`pnpm interview:memory-dry-run`、`pnpm exec tsc --noEmit --pretty false`、`pnpm run lint:changed`、針對新增檔案 ESLint、`pnpm build` 通過。下一張最低未完成卡為 PIM-004。
 
 ### Batch PIM-004 — `/interview` 中文語音 UX shell
-- [ ] `/interview` 新增 mode toggle：文字訪談 / 中文語音訪談 Beta。
-- [ ] 顯示 mic consent：使用麥克風、預設不保存 raw audio、只保存 transcript/structured memory。
-- [ ] 顯示 live voice stage：未連線、聽取中、AI 思考中、AI 回覆中、已暫停。
-- [ ] 顯示 live transcript panel，支援 transcript correction UI 與 `correction` memory placeholder。
-- [ ] 顯示 memory rail：已確認、推論、待確認、本段訪綱進度。
-- [ ] 提供 text fallback；browser 不支援 mic 或 permission denied 時不阻斷文字模式。
-- [ ] 不呼叫 production Realtime、不保存 raw audio。
-- [ ] Browser proof：desktop/mobile、permission denied、fallback、console error 0、無水平 overflow。
-- [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+- [x] `/interview` 新增 mode toggle：文字訪談 / 中文語音訪談 Beta。
+- [x] 顯示 mic consent：使用麥克風、預設不保存 raw audio、只保存 transcript/structured memory。
+- [x] 顯示 live voice stage：未連線、聽取中、AI 思考中、AI 回覆中、已暫停。
+- [x] 顯示 live transcript panel，支援 transcript correction UI 與 `correction` memory placeholder。
+- [x] 顯示 memory rail：已確認、推論、待確認、本段訪綱進度。
+- [x] 提供 text fallback；browser 不支援 mic 或 permission denied 時不阻斷文字模式。
+- [x] 不呼叫 production Realtime、不保存 raw audio。
+- [x] Browser proof：desktop/mobile、permission denied、fallback、console error 0、無水平 overflow。
+- [x] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+
+完成註記：2026-06-19 已在 `/interview` 補上文字/中文語音 Beta 切換、mic consent、voice stage、live transcript/correction placeholder、memory rail 與文字 fallback；`Textarea` 加入 composition guard，避免中文輸入組字期間 Enter 被誤送出。本輪不接 Realtime provider、不保存 raw audio。驗收：`pnpm exec tsc --noEmit --pretty false`、`pnpm exec eslint src/app/(dashboard)/interview/page.tsx`、`pnpm run lint:changed`、三個 PIM dry-run、`pnpm build` 通過；Browser proof desktop/mobile console error 0、無水平 overflow；headless Chrome smoke 覆蓋 permission denied/unsupported fallback。截圖：`docs/06_audits-and-reports/screenshots/pim/pim-004-interview-desktop.png`、`docs/06_audits-and-reports/screenshots/pim/pim-004-interview-mobile.png`。下一張最低未完成卡為 PIM-005。
 
 ### Batch PIM-005 — Realtime session BFF + event mirror
 - [ ] 新增 `POST /api/ai/interview/realtime-session`，用 `requireCurrentMember()` 推導 org/member/unit。
