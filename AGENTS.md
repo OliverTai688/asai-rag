@@ -753,6 +753,126 @@ Context: 將 SPIN 問答與劇場演練重構為「訪談 Agent」「劇場 Agen
 
 ---
 
+## Realtime Voice × Park-style Interview Memory Batch Tasks
+
+Context: 將兩個 AI 訪談（顧問陪談訪綱 A、劇場場域建構訪綱 B）升級為可用中文語音/文字進行的連續訪談，並導入 Park et al. `Memory Stream -> Reflection -> Planning` 運作架構。架構依據：`docs/02_architecture-and-rules/ARC-007_realtime-voice-and-park-memory-interview-architecture-v1.0.md`；研究依據：`docs/07_research-and-design/RES-017_chinese-realtime-voice-and-park-memory-interview-research-v1.0.md`；逐張任務卡：`docs/05_execution-plans/PLN-018_realtime-voice-park-memory-interview-batch-tasks-v1.0.md`；驗收：`docs/08_acceptance-and-qa/ACC-010_realtime-voice-park-memory-interview-acceptance-framework-v1.0.md`。本條只做**兩個 AI 訪談的記憶、反思、規劃、語音 shell/realtime 接入與 confirmation/writeback 邊界**；不取代 SPIN legacy、不直接完成 Theater Route B 全量 migration、不預設保存 raw audio。
+
+### Current PIM Gaps
+- `/interview` 已有文字訪談與 production-minimum `/api/ai/interview`、`/outputs`，但仍主要依 messages/output prompt，尚未把每回合轉為可檢索 memory stream。
+- 訪綱 A 已落地；訪綱 B 的劇場場域建構仍需與 Park memory loop 對齊，才能穩定產生 Theater Route B build packet。
+- 中文即時語音已有研究文件與推薦架構，但尚未有 consent UI、voice shell、Realtime session BFF、event mirror 或 transcript correction flow。
+- Reflection / planning 仍是 prompt 內隱邏輯，尚未成為可測、可審計、可重用的 service。
+
+### Batch PIM-000 — 架構文件與 workstream 登錄
+- [x] 新增 `ARC-007`，明確定義兩個 AI 訪談共用 Park-style runtime architecture。
+- [x] 新增 `PLN-018`，拆成可逐張執行的 PIM batch tasks。
+- [x] 新增 `ACC-010`，定義語音、memory、reflection、planning、writeback、QA 驗收。
+- [x] 更新 `AGENTS.md` 新 workstream，與本文件卡片狀態同步。
+- [x] 更新 `MAN-000` 文件數量與 `MAN-001` 文件索引。
+- [x] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+
+完成註記：2026-06-19 已新增 `ARC-007` / `PLN-018` / `ACC-010`，並同步 `AGENTS.md`、`MAN-000`、`MAN-001`。驗收：`pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed` 通過。下一張最低未完成卡為 PIM-001。
+
+### Batch PIM-001 — Memory domain contracts + pure services
+- [ ] 在 `src/domains/interview/` 新增或擴充 `InterviewKind`、`InterviewModality`、`InterviewMemory`、`InterviewReflection`、`InterviewMicroPlan` 型別。
+- [ ] 新增 memory candidate extraction pure service，將 user/assistant turn 轉成 `fact` / `inference` / `unknown` / `instruction` 候選。
+- [ ] 新增 retrieval scoring pure helper：relevance、importance、recency、outline match、scope filters。
+- [ ] 新增 correction/supersede helper，確保 transcript 修正後舊 memory 不再當 confirmed fact。
+- [ ] 新增 unit tests 或 dry-run script，覆蓋顧問陪談與劇場場域建構 memory candidate。
+- [ ] 不新增 DB、不改 AI route、不保存 raw audio。
+- [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+
+### Batch PIM-002 — 顧問陪談 Park memory loop
+- [ ] `/api/ai/interview` 使用 memory extraction 結果建立 session-local memory stream。
+- [ ] AI 回應前先做 scoped retrieval，prompt 中明確區分 confirmed facts / inferences / unknowns。
+- [ ] 產生 `InterviewMicroPlan`，UI 顯示「為什麼問這題」或可供 debug/QA 的 plan evidence。
+- [ ] `/api/ai/interview/outputs` 消費 memory stream / reflection / supporting memory IDs，而不只吃 messages。
+- [ ] 顧問陪談不重問已 confirmed facts；轉寫/輸入不確定時先確認。
+- [ ] 每次 AI call 成功/錯誤皆寫 `AiUsageLog`。
+- [ ] API proof：多輪對話中已確認事實不被重問，output draft 帶 supporting memory IDs。
+- [ ] Browser proof：`/interview` desktop/mobile 無 console error、無水平 overflow。
+- [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+
+### Batch PIM-003 — 劇場場域建構 Park memory loop
+- [ ] 萃取或補齊 theater field outline runtime entry，使用 `InterviewKind.THEATER_FIELD_BUILD`。
+- [ ] 將場景、角色、關係、異議、敏感資料與未知缺口轉成 memory candidates。
+- [ ] Reflection 判斷焦點客戶、NPC 必要性、已知/推論/未知、旁白 NPC 需補問項。
+- [ ] 產生 `TheaterBuildPacket`，只把 confirmed facts 當事實，inferred persona 保持推論語氣。
+- [ ] 若資料不足，不生成可演練劇場；改回補問或旁白 NPC question list。
+- [ ] 不改 Theater legacy enum/scoring；若要接 Route B schema，需依 ITA-003/ITA-006 migration note。
+- [ ] API/source-level proof：build packet 不含未確認 fact leakage，NPC <= 4。
+- [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`；動 schema 才跑 Prisma。
+
+### Batch PIM-004 — `/interview` 中文語音 UX shell
+- [ ] `/interview` 新增 mode toggle：文字訪談 / 中文語音訪談 Beta。
+- [ ] 顯示 mic consent：使用麥克風、預設不保存 raw audio、只保存 transcript/structured memory。
+- [ ] 顯示 live voice stage：未連線、聽取中、AI 思考中、AI 回覆中、已暫停。
+- [ ] 顯示 live transcript panel，支援 transcript correction UI 與 `correction` memory placeholder。
+- [ ] 顯示 memory rail：已確認、推論、待確認、本段訪綱進度。
+- [ ] 提供 text fallback；browser 不支援 mic 或 permission denied 時不阻斷文字模式。
+- [ ] 不呼叫 production Realtime、不保存 raw audio。
+- [ ] Browser proof：desktop/mobile、permission denied、fallback、console error 0、無水平 overflow。
+- [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+
+### Batch PIM-005 — Realtime session BFF + event mirror
+- [ ] 新增 `POST /api/ai/interview/realtime-session`，用 `requireCurrentMember()` 推導 org/member/unit。
+- [ ] 套 `canUseAiModule(session, INTERVIEW)`；超限回 429，不 mint realtime token。
+- [ ] Mint short-lived ephemeral Realtime session token；不得把 server API key 下放 browser。
+- [ ] 新增 `POST /api/ai/interview/realtime-events`，只接 final transcript、assistant transcript、interrupt、correction、confirmation 等非 secret event。
+- [ ] final transcript event 進 memory extraction；raw audio 預設不保存。
+- [ ] Realtime provider success/error/usage metadata 可取得時寫 `AiUsageLog`；若 provider usage metadata 不足，至少記 session marker 與 event proof，不得偽造 cost。
+- [ ] API proof：unauth 401、quota 429、member 200、event mirror 200、secret 不出現在 response/log/report。
+- [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+
+### Batch PIM-006 — Prisma persistence for turns/memory/reflection
+- [ ] Prisma 新增或調整 `InterviewSession`、`InterviewTurn`、`InterviewMemory`、`InterviewReflection`。
+- [ ] 所有 records 有 `organizationId`；client-bound records 有可驗證 `clientId`；必要時帶 `unitId`。
+- [ ] 建立 repository / DTO，不讓 client 直接 import Prisma/domain DB layer。
+- [ ] Backfill/seed strategy idempotent，只處理 demo 或新表，不破壞真實資料。
+- [ ] Org manager API 不回逐字稿、memory text、client detail。
+- [ ] 動 schema 跑 `pnpm prisma:validate`、`pnpm prisma:generate`、local/development `db push` 或 migration dry-run。
+- [ ] API proof：建立 session、turn、memory、reflection；重新登入/清空 storage 後可讀。
+- [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+
+### Batch PIM-007 — Reflection + planning service/routes
+- [ ] 新增 reflection service，輸入 scoped memory，輸出 `InterviewReflection`，保留 supporting memory IDs。
+- [ ] 新增 planning service，輸入 current segment、retrieved memories、latest reflection、Issue/PQ context，輸出 `InterviewMicroPlan`。
+- [ ] 可選新增 `POST /api/ai/interview/reflections` 與 `POST /api/ai/interview/plans`，或先以 server-only service 接入 existing route。
+- [ ] Reflection output 必須分 confirmed facts / inferred patterns / unknowns。
+- [ ] Planning 不得跳段、不重問 confirmed fact、不把 inference 當 fact。
+- [ ] 每次 AI call 寫 `AiUsageLog`；缺 provider/quota/provider error 也記錄。
+- [ ] API/source proof：supporting memory IDs 存在，reflection 不含 raw private payload。
+- [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+
+### Batch PIM-008 — Confirmation card + CRM/writeback boundary
+- [ ] `/interview` 顧問陪談結束/段落結束顯示 confirmation card。
+- [ ] confirmed fact + user checked 才可寫回 CRM candidate；inference 只能保存為 interview insight。
+- [ ] unknown 轉成 follow-up question/task 或 Theater narrator question。
+- [ ] 高敏感資料寫回需要 explicit confirmation、reason/riskAccepted 或標記為不可寫回。
+- [ ] 所有 writeback 建立 audit/interaction event。
+- [ ] API proof：inference checked 不會變成 CRM fact；confirmed fact checked 才可 writeback。
+- [ ] Browser proof：desktop/mobile 可勾選、取消、保存、錯誤狀態。
+- [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+
+### Batch PIM-009 — Cross-mode QA, docs sync, rollback notes
+- [ ] 顧問陪談文字模式 multi-turn proof：不重問 confirmed fact，output draft 帶 memory evidence。
+- [ ] 劇場場域建構 proof：build packet 分 confirmed/inference/unknown，NPC <= 4。
+- [ ] 語音 shell proof：mic consent、permission denied、fallback、correction UI。
+- [ ] Persistence proof：清空 browser storage 後 session/memory 可從 DB 恢復。
+- [ ] Privacy proof：org manager aggregate API 不回 transcript/memory/client private payload。
+- [ ] Rollback note：voice provider disabled、memory persistence disabled、schema rollback 或 migration revert strategy。
+- [ ] 更新 `AGENTS.md`、`PLN-018`、必要 report / issue-question。
+- [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`、必要 Prisma 與 Browser QA。
+
+### Current PIM Blockers
+- Realtime voice 若接 provider，需要可用 OpenAI Realtime model、ephemeral session policy 與 usage/cost evidence。
+- Raw audio retention 需要 legal/compliance approval；預設不可保存。
+- Prisma schema 改動需要 local/development db push 或 migration proof；production DB mutation 仍需明確 approval。
+- Theater Route B 完整 schema migration 仍依 `PLN-015`/ITA-003/ITA-006 管理。
+- Supabase pgvector 仍需 operator 確認，PIM 不應把 pgvector 當第一階段依賴。
+
+---
+
 ## 文件慣例（新增任何規劃/設計/報告/驗收文件時）
 
 - docs 採「分類資料夾 + 類型前綴流水號」：`<TYPE>-<NNN>_<kebab-slug>.md`。規則見 `docs/00_manual-and-index/MAN-000_docs-usage-manual.md`。

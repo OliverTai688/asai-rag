@@ -26,12 +26,12 @@
 | --- | --- | ---: |
 | `00_manual-and-index` | 使用說明與索引 | 2 |
 | `01_product-requirements` | 產品需求文件 | 3 |
-| `02_architecture-and-rules` | 架構、設計系統與規則 | 6 |
+| `02_architecture-and-rules` | 架構、設計系統與規則 | 7 |
 | `03_feature-reference` | 功能參考文件 | 0 |
-| `05_execution-plans` | 計畫、路線圖與批次任務 | 17 |
+| `05_execution-plans` | 計畫、路線圖與批次任務 | 18 |
 | `06_audits-and-reports` | 審計、開發與交付報告 | 7 |
 | `07_research-and-design` | 研究與設計探索 | 17 |
-| `08_acceptance-and-qa` | 驗收與 QA 文件 | 9 |
+| `08_acceptance-and-qa` | 驗收與 QA 文件 | 10 |
 
 > `03_feature-reference` 目前無文件，待有獨立功能說明文件（非需求、非計畫）時再啟用。`04_playbook`（前台使用內容）本專案暫不使用。
 
@@ -60,13 +60,13 @@
 | --- | --- | --- | ---: |
 | `MAN` | Manual / Index 使用說明與索引 | `00_manual-and-index` | 2 |
 | `PRD` | Product Requirements 產品需求 | `01_product-requirements` | 3 |
-| `ARC` | Architecture / Design System 架構與設計規則 | `02_architecture-and-rules` | 6 |
+| `ARC` | Architecture / Design System 架構與設計規則 | `02_architecture-and-rules` | 7 |
 | `REF` | Reference 功能參考 | `03_feature-reference` | 0 |
-| `PLN` | Plan / Roadmap / Batch 計畫與批次任務 | `05_execution-plans` | 17 |
+| `PLN` | Plan / Roadmap / Batch 計畫與批次任務 | `05_execution-plans` | 18 |
 | `AUD` | Audit 審計文件 | `06_audits-and-reports` | 4 |
 | `RPT` | Report 開發/交付/分析報告 | `06_audits-and-reports` | 3 |
 | `RES` | Research 研究與設計探索 | `07_research-and-design` | 17 |
-| `ACC` | Acceptance / QA 驗收文件 | `08_acceptance-and-qa` | 9 |
+| `ACC` | Acceptance / QA 驗收文件 | `08_acceptance-and-qa` | 10 |
 
 > 未來如需新增類型（如 `BIZ` 商務規則、`ENV` 環境變數、`DBS` 資料庫、`MIG` 遷移），沿用 nuvaclub 同名代碼，放入屬性最接近的資料夾。
 
