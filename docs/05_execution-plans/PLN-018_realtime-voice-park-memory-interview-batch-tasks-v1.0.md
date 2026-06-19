@@ -41,7 +41,7 @@
 | PIM-004 | `/interview` 中文語音 UX shell | [x] | PIM-000 |
 | PIM-005 | Realtime session BFF + event mirror | [x] | PIM-004、session/quota guard |
 | PIM-006 | Prisma persistence for turns/memory/reflection | [x] | PIM-001、DB approval |
-| PIM-007 | Reflection + planning service/routes | [ ] | PIM-006 可部分並行 |
+| PIM-007 | Reflection + planning service/routes | [x] | PIM-006 可部分並行 |
 | PIM-008 | Confirmation card + CRM/writeback boundary | [ ] | PIM-002、PIM-006 |
 | PIM-009 | Cross-mode QA, docs sync, rollback notes | [ ] | PIM-002 to PIM-008 |
 
@@ -183,16 +183,18 @@
 
 目標：把 Park reflection 與 planning 從 prompt 內隱邏輯拆成可測、可審計、可重用的 application service。
 
-- [ ] 新增 reflection service，輸入 scoped memory，輸出 `InterviewReflection`，保留 supporting memory IDs。
-- [ ] 新增 planning service，輸入 current segment、retrieved memories、latest reflection、Issue/PQ context，輸出 `InterviewMicroPlan`。
-- [ ] 可選新增 `POST /api/ai/interview/reflections` 與 `POST /api/ai/interview/plans`，或先以 server-only service 接入 existing route。
-- [ ] Reflection output 必須分 confirmed facts / inferred patterns / unknowns。
-- [ ] Planning 不得跳段、不重問 confirmed fact、不把 inference 當 fact。
-- [ ] 每次 AI call 寫 `AiUsageLog`；缺 provider/quota/provider error 也記錄。
-- [ ] API/source proof：supporting memory IDs 存在，reflection 不含 raw private payload。
-- [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+- [x] 新增 reflection service，輸入 scoped memory，輸出 `InterviewReflection`，保留 supporting memory IDs。
+- [x] 新增 planning service，輸入 current segment、retrieved memories、latest reflection、Issue/PQ context，輸出 `InterviewMicroPlan`。
+- [x] 可選新增 `POST /api/ai/interview/reflections` 與 `POST /api/ai/interview/plans`，或先以 server-only service 接入 existing route。
+- [x] Reflection output 必須分 confirmed facts / inferred patterns / unknowns。
+- [x] Planning 不得跳段、不重問 confirmed fact、不把 inference 當 fact。
+- [x] 每次 AI call 寫 `AiUsageLog`；缺 provider/quota/provider error 也記錄。
+- [x] API/source proof：supporting memory IDs 存在，reflection 不含 raw private payload。
+- [x] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
 
 範圍外：不做 CRM writeback；不做 voice transport。
+
+完成註記：2026-06-19 已新增 `src/domains/interview/reflection-planning.ts` deterministic pure service，將 scoped persisted memories 轉為 `InterviewReflection`，並依 current segment、retrieved memories、latest reflection 產生 `InterviewMicroPlan`。新增 BFF routes：`POST /api/ai/interview/sessions/[sessionId]/reflections/generate` 與 `POST /api/ai/interview/sessions/[sessionId]/plans`。本輪不新增 provider call，因此無新增 `AiUsageLog` event；既有 AI route usage audit 仍通過。新增 `pnpm interview:reflection-planning-qa` 覆蓋 unauth 401、member generated reflection persisted、confirmed/inference/unknown 分流、supporting memory IDs、no raw private payload fields、plan 優先追問 unknown、不重問 confirmed fact、inference guard 與 manager 404 privacy guard。驗收：`pnpm interview:reflection-planning-qa`、四個 PIM proof、`pnpm ai:usage-audit`、`pnpm exec tsc --noEmit --pretty false`、`pnpm run lint:changed`、新增檔案 ESLint、`pnpm build` 通過。下一張最低未完成卡為 PIM-008。
 
 ---
 

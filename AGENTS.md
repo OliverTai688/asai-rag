@@ -845,7 +845,7 @@ Context: 將兩個 AI 訪談（顧問陪談訪綱 A、劇場場域建構訪綱 B
 ### Current PIM Gaps
 - `/interview` 已有文字訪談、中文語音 Beta shell、composition guard、Realtime session BFF 與 event mirror；production/live Realtime provider proof 尚未執行。
 - 訪綱 A 與訪綱 B 已共用 Park memory domain contracts；劇場場域建構可產生 `TheaterBuildPacket`，完整 Theater Route B migration 仍屬 `PLN-015`。
-- 訪談 turn、memory、reflection 已 DB 化，並提供 owner-scoped BFF routes；下一步是把 reflection/planning 從 prompt 內隱邏輯拆成 service。
+- 訪談 turn、memory、reflection 已 DB 化，並提供 owner-scoped BFF routes；reflection/planning 已拆成可測 service 與 BFF route。
 - Confirmation card 與 CRM/writeback boundary 尚未完成；confirmed fact / inference / unknown 的人工核准流仍是上線缺口。
 
 ### Batch PIM-000 — 架構文件與 workstream 登錄
@@ -932,14 +932,16 @@ Context: 將兩個 AI 訪談（顧問陪談訪綱 A、劇場場域建構訪綱 B
 完成註記：2026-06-19 已新增 `InterviewSession`、`InterviewTurn`、`InterviewMemory`、`InterviewReflection` schema 與 owner-scoped BFF routes：`POST /api/ai/interview/sessions`、`GET /api/ai/interview/sessions/[sessionId]`、`POST /turns`、`POST /reflections`。`src/lib/interview/interview-persistence-repository.ts` 負責 DTO/repository 邊界，client 不直接 import Prisma；turn append 會沿用 Park-style memory extraction 產生 DB memory candidate；reflection 只接受同 session supporting memory IDs。DB target 為目前 `.env` Supabase Postgres development target，已執行 additive `pnpm exec prisma db push` 且無 data-loss prompt。新增 `pnpm interview:persistence-qa` 覆蓋 unauth 401、member create/turn/memory/reflection、stateless snapshot read、manager 404 privacy guard 與 no raw audio payload。驗收：`pnpm prisma:validate`、`pnpm prisma:generate`、`pnpm exec prisma db push`、`pnpm interview:persistence-qa`、四個 PIM proof、`pnpm ai:usage-audit`、`pnpm exec tsc --noEmit --pretty false`、`pnpm run lint:changed`、`pnpm build` 通過。下一張最低未完成卡為 PIM-007。
 
 ### Batch PIM-007 — Reflection + planning service/routes
-- [ ] 新增 reflection service，輸入 scoped memory，輸出 `InterviewReflection`，保留 supporting memory IDs。
-- [ ] 新增 planning service，輸入 current segment、retrieved memories、latest reflection、Issue/PQ context，輸出 `InterviewMicroPlan`。
-- [ ] 可選新增 `POST /api/ai/interview/reflections` 與 `POST /api/ai/interview/plans`，或先以 server-only service 接入 existing route。
-- [ ] Reflection output 必須分 confirmed facts / inferred patterns / unknowns。
-- [ ] Planning 不得跳段、不重問 confirmed fact、不把 inference 當 fact。
-- [ ] 每次 AI call 寫 `AiUsageLog`；缺 provider/quota/provider error 也記錄。
-- [ ] API/source proof：supporting memory IDs 存在，reflection 不含 raw private payload。
-- [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+- [x] 新增 reflection service，輸入 scoped memory，輸出 `InterviewReflection`，保留 supporting memory IDs。
+- [x] 新增 planning service，輸入 current segment、retrieved memories、latest reflection、Issue/PQ context，輸出 `InterviewMicroPlan`。
+- [x] 可選新增 `POST /api/ai/interview/reflections` 與 `POST /api/ai/interview/plans`，或先以 server-only service 接入 existing route。
+- [x] Reflection output 必須分 confirmed facts / inferred patterns / unknowns。
+- [x] Planning 不得跳段、不重問 confirmed fact、不把 inference 當 fact。
+- [x] 每次 AI call 寫 `AiUsageLog`；缺 provider/quota/provider error 也記錄。
+- [x] API/source proof：supporting memory IDs 存在，reflection 不含 raw private payload。
+- [x] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+
+完成註記：2026-06-19 已新增 `src/domains/interview/reflection-planning.ts`，把 Park-style reflection/planning 拆成 deterministic pure service，支援 `ADVISOR_COMPANION` 與 `THEATER_FIELD_BUILD` outline。新增 `src/lib/interview/interview-reflection-planning-repository.ts` 與 BFF routes：`POST /api/ai/interview/sessions/[sessionId]/reflections/generate`、`POST /api/ai/interview/sessions/[sessionId]/plans`。本輪不新增 provider call，因此無新增 `AiUsageLog` event；既有 AI route usage audit 仍通過。新增 `pnpm interview:reflection-planning-qa` 覆蓋 unauth 401、member session/turns、generated reflection persisted、confirmed/inference/unknown 分流、supporting memory IDs、no raw payload fields、plan 優先追問 unknown、不重問 confirmed fact、inference guard、manager 404 privacy guard。驗收：`pnpm interview:reflection-planning-qa`、四個 PIM proof、`pnpm ai:usage-audit`、`pnpm exec tsc --noEmit --pretty false`、`pnpm run lint:changed`、新增檔案 ESLint、`pnpm build` 通過。下一張最低未完成卡為 PIM-008。
 
 ### Batch PIM-008 — Confirmation card + CRM/writeback boundary
 - [ ] `/interview` 顧問陪談結束/段落結束顯示 confirmation card。

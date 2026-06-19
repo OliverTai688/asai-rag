@@ -41,6 +41,7 @@
     "interview:theater-build-dry-run": "node scripts/interview-theater-build-dry-run.mjs",
     "interview:realtime-bff-qa": "node scripts/interview-realtime-bff-qa.mjs",
     "interview:persistence-qa": "node scripts/interview-persistence-qa.mjs",
+    "interview:reflection-planning-qa": "node scripts/interview-reflection-planning-qa.mjs",
     "prisma:generate": "prisma generate",
     "prisma:validate": "prisma validate"
   },
