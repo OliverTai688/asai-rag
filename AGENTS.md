@@ -646,9 +646,9 @@ Context: 將 `RES-012` / `RES-013` 的上線差距與四介面實作研究轉成
 - [x] 建立 DB backup/restore 與 migration rollback note。
 - [x] 建立 privacy / terms / AI disclaimer 最小頁面或 release blocker。
 - [x] 建立 ECPay test flow checklist；正式收費開關預設關閉。
-- [ ] Full smoke：front office、member admin、org admin、super admin、client portal。
-- [ ] 保存 release QA evidence。
-- [ ] 跑 `pnpm lint:changed`、`pnpm exec tsc --noEmit --pretty false`、`pnpm prisma:validate`、`pnpm demo:preflight`、`pnpm demo:runtime-audit`。
+- [x] Full smoke：front office、member admin、org admin、super admin、client portal。
+- [x] 保存 release QA evidence。
+- [x] 跑 `pnpm lint:changed`、`pnpm exec tsc --noEmit --pretty false`、`pnpm prisma:validate`、`pnpm demo:preflight`、`pnpm demo:runtime-audit`。
 
 進行中註記：2026-06-19 新增 `GET /api/platform/release-readiness`、`src/lib/platform/platform-release-readiness-repository.ts`、super-admin `Release readiness` / `AI quota warning` 面板與 `pnpm demo:release-readiness-qa`。Readiness API 只允許 platform user 讀取，一般 app session 403；回傳 current-month `AiUsageLog` aggregate、organization quota usage、pending/failed billing order count、mock/email/notification/billing/auth/monitoring/legal/backup/ECPay control gate。QA 通過 API 200/403、required controls、private seeded sentinel 0 leak、super-admin desktop Playwright screenshot、console error 0、無水平 overflow。此切片只完成 AI quota/cost alert 與 production controls visibility；Sentry/backup/legal/ECPay/full smoke 仍為 LCH-009 blocker。
 
@@ -662,9 +662,10 @@ Context: 將 `RES-012` / `RES-013` 的上線差距與四介面實作研究轉成
 
 進行中註記：2026-06-19 續處理 `/api/rag` launch posture：route 改為 `requireCurrentMember()` session-scoped 並加入 `canUseAiModule(session, RAG)` quota guard；private beta 期間一律回 `503 RAG_DISABLED_FOR_PRIVATE_BETA`、`launchPosture=disabled_guarded`、`providerAttempted=false`，不呼叫 provider、不寫假 `AiUsageLog`。`pnpm ai:usage-audit` 更新後 overall=`pass`、routesWithGaps=`[]`；新增 `pnpm rag:launch-posture-qa` 驗證 unauth 401、invalid input 400、demo member valid request 503 disabled、DB `RAG` usage count unchanged。
 
+進行中註記：2026-06-19 新增 `pnpm demo:full-smoke-qa`，orchestration 執行 front office `public-pricing-qa`、member admin `demo-relogin-qa`、org admin `demo-org-coaching-ai-usage-qa`、super admin `demo-platform-read-qa`、client portal `client-portal-qa`；五個 surface command exit 0。Browser proof 覆蓋 `/pricing`、`/dashboard`、`/team`、`/super-admin`、`/share/demo-share-wang`，狀態皆 200、expected text 可見、console error 0、無水平 overflow。截圖保存到 `docs/06_audits-and-reports/screenshots/launch-readiness/lch-009/full-smoke/`；current-month `AiUsageLog` count 可讀且 full smoke 不新增 AI provider usage（`10→10`）。
+
 ### Current Launch Blockers
 - Auth provider 已改採 Auth.js / NextAuth；production 仍需 `AUTH_SECRET`、正式 provider/email/SSO 與 callback URL。
-- Demo account relogin 尚未完成。
 - `/api/rag` 已是 guarded disabled posture；若要 public RAG launch，仍需正式 provider/vector path 與 success/error `AiUsageLog`。
 - Theater Route B 尚未 migration；若用 legacy Theater，只能標 staging demo。
 - ECPay credentials、callback domain、CheckMacValue、notification/query API、refund/void process 尚未完成。

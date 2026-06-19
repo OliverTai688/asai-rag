@@ -3106,3 +3106,98 @@ pnpm build
 
 1. 做 `LCH-009` full smoke pack：front office、member admin、org admin、super admin、client portal API/browser evidence。
 2. 若 full smoke 先被 monitoring blocker 擋住，補 Sentry/等價監控方案或明確 release blocker + readiness panel evidence。
+
+## 2026-06-19 Round 042 - LCH-009 Full Smoke Pack
+
+### 本輪戰役
+
+- Workstream：Launch Readiness Implementation。
+- Batch / task：`LCH-009` Production Controls And Release QA。
+- 選擇原因：AI route audit 與 RAG guarded-disabled posture 已完成後，`LCH-009` 最接近上線阻擋的系統可推進項目是 full smoke 與 release QA evidence；monitoring/Sentry 仍需 DSN 或等價方案決策，先補可重跑的跨 surface proof。
+
+### 本輪完成
+
+- 新增 `pnpm demo:full-smoke-qa`。
+- Orchestration 串接既有 QA：
+  - front office：`scripts/public-pricing-qa.mjs`
+  - member admin：`scripts/demo-relogin-qa.mjs`
+  - org admin：`scripts/demo-org-coaching-ai-usage-qa.mjs`
+  - super admin：`scripts/demo-platform-read-qa.mjs`
+  - client portal：`scripts/client-portal-qa.mjs`
+- 補 browser proof：
+  - `/pricing`：front office。
+  - `/dashboard`：member admin。
+  - `/team`：org admin。
+  - `/super-admin`：super admin。
+  - `/share/demo-share-wang`：client portal / public share。
+- Browser proof 結果皆為 200、expected text 可見、console error 0、無水平 overflow。
+- Full smoke 讀取 current-month `AiUsageLog` count；本輪未呼叫 AI provider，count `10→10`。
+- 截圖保存於 `docs/06_audits-and-reports/screenshots/launch-readiness/lch-009/full-smoke/`，包含 5 個代表頁與 member admin relogin 6 頁截圖。
+- 更新 `AGENTS.md`、`PLN-017`、`RES-016`，將 full smoke 與 release QA evidence 轉為完成。
+
+### 修改檔案
+
+- `scripts/demo-full-smoke-qa.mjs`
+- `package.json`
+- `docs/06_audits-and-reports/screenshots/launch-readiness/lch-009/full-smoke/front-office-pricing.png`
+- `docs/06_audits-and-reports/screenshots/launch-readiness/lch-009/full-smoke/member-dashboard.png`
+- `docs/06_audits-and-reports/screenshots/launch-readiness/lch-009/full-smoke/org-team.png`
+- `docs/06_audits-and-reports/screenshots/launch-readiness/lch-009/full-smoke/super-admin.png`
+- `docs/06_audits-and-reports/screenshots/launch-readiness/lch-009/full-smoke/client-share.png`
+- `docs/06_audits-and-reports/screenshots/launch-readiness/lch-009/full-smoke/member-admin/*.png`
+- `docs/06_audits-and-reports/RPT-003_ongoing-batch-implementation-report-v1.0.md`
+- `docs/05_execution-plans/PLN-017_launch-readiness-implementation-batch-tasks-v1.0.md`
+- `docs/07_research-and-design/RES-016_issue-question-log-v1.0.md`
+- `AGENTS.md`
+
+### DB / Prisma 操作
+
+- 是否修改 schema：否。
+- 是否執行 generate：是，`pnpm build` 內執行 Prisma generate，通過。
+- 是否執行 db push：否。
+- DB target 判斷：`.env` 指向可連線 Supabase dev/staging target；本輪 only demo/staging proof。
+- Seed/backfill：無。
+- DB 寫入摘要：`client-portal-qa` 依既有 proof 追加 1 筆 demo client response `InteractionEvent`，response_events `3→4`，private payload persisted count `0`；未寄真 email、未打真 notification、未做 payment。
+
+### 驗收
+
+```bash
+pnpm exec tsc --noEmit --pretty false
+pnpm exec eslint scripts/demo-full-smoke-qa.mjs
+DEMO_QA_BASE_URL=http://localhost:3000 pnpm demo:full-smoke-qa
+pnpm run lint:changed
+pnpm prisma:validate
+pnpm demo:runtime-audit
+pnpm demo:preflight
+pnpm build
+```
+
+結果：
+
+- TypeScript：通過。
+- Targeted ESLint：通過。
+- `pnpm demo:full-smoke-qa`：通過；五個 surface command exit 0；browser proof 5 頁皆 200、console error 0、無水平 overflow；`AiUsageLog` count `10→10`。
+- `pnpm run lint:changed`：通過。
+- `pnpm prisma:validate`：通過。
+- `pnpm demo:runtime-audit`：通過。
+- `pnpm demo:preflight`：通過；Supabase public env placeholder 仍為既有 warning，DB DNS/table/connection pass。
+- `pnpm build`：通過。
+
+### 失敗與風險
+
+- Full smoke 仍是 demo/staging proof，不代表 production auth/payment/email/notification 已可開啟。
+- Monitoring/Sentry 尚未接入；readiness gate 仍應保持 monitoring blocker。
+- `AUTH_SECRET` 未設；production auth provider/email/SSO 仍需 operator。
+- `src/components/ui/dropdown-menu.tsx` 仍是既有未提交變更，本輪未碰、未 stage。
+
+### 剩餘上線 blocker
+
+- `LCH-009`：Sentry 或等價 production monitoring。
+- `LCH-005`：production `AUTH_SECRET`、正式 auth provider/email/SSO、password reset/MFA、production-safe demo/staging policy。
+- Payment / legal / operator：ECPay production credentials/callback/CheckMacValue/refund process、legal/compliance sign-off。
+- RAG public launch：正式 provider/vector path、知識庫資料來源、success/error `AiUsageLog`。
+
+### 下一輪建議
+
+1. 處理 `LCH-009` monitoring/Sentry blocker：若沒有 DSN，建立 monitoring setup doc、env contract、readiness gate operator action，並避免宣稱 monitoring pass。
+2. 接著回到 `LCH-005` production auth hardening：`AUTH_SECRET`、正式 provider/email/SSO、password reset/MFA。

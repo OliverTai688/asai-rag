@@ -26,6 +26,7 @@
     "demo:platform-break-glass-qa": "node scripts/demo-platform-break-glass-qa.mjs",
     "demo:platform-settings-qa": "node scripts/demo-platform-settings-qa.mjs",
     "demo:release-readiness-qa": "node scripts/demo-release-readiness-qa.mjs",
+    "demo:full-smoke-qa": "node scripts/demo-full-smoke-qa.mjs",
     "demo:ai-generation-qa": "node scripts/demo-ai-generation-qa.mjs",
     "rag:launch-posture-qa": "node scripts/rag-launch-posture-qa.mjs",
     "ai:usage-audit": "node scripts/ai-usage-route-audit.mjs",

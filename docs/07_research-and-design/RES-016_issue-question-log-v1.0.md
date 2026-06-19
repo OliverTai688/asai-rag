@@ -8,6 +8,31 @@
 
 ## Open Issues
 
+### IQ-034 - LCH-009 full smoke pack 已落地
+
+- 狀態：Resolved
+- 發現日期：2026-06-19
+- 解決日期：2026-06-19
+- 影響 batch：`LCH-009`
+- 背景：
+  - AI route audit 已 pass 後，release QA 仍缺跨 surface full smoke evidence：front office、member admin、org admin、super admin、client portal。
+  - 既有已有多個單點 QA 腳本，但缺一個能重跑並彙整 API/browser proof 的 orchestration。
+- 解法：
+  - 新增 `pnpm demo:full-smoke-qa`，串接 `public-pricing-qa`、`demo-relogin-qa`、`demo-org-coaching-ai-usage-qa`、`demo-platform-read-qa`、`client-portal-qa`。
+  - 補 browser proof：`/pricing`、`/dashboard`、`/team`、`/super-admin`、`/share/demo-share-wang` 皆 200、expected text 可見、console error 0、無水平 overflow。
+  - 截圖保存於 `docs/06_audits-and-reports/screenshots/launch-readiness/lch-009/full-smoke/`。
+  - Full smoke 讀取 current-month `AiUsageLog` count；本輪未呼叫 AI provider，count `10→10`。
+- 需要使用者決策：
+  - 無；這是 release QA evidence 補齊。
+- production approval：
+  - 無；本輪只做 demo/staging proof，不做 production mutation、真 email、真 notification 或真 payment。
+- operator 手動處理：
+  - 無。
+- session / seed data / env / external service：
+  - 需要 local dev server、demo seed、DB URL、Playwright Edge channel；client portal QA 會新增 demo response event 作為非破壞性 proof。
+- 已不再阻擋：
+  - `LCH-009` full smoke 與 release QA evidence 已不再是未完成項；剩餘主要是 production monitoring、production auth secret/provider 與 payment/legal/operator approvals。
+
 ### IQ-033 - RAG placeholder route 已改為 guarded disabled posture
 
 - 狀態：Resolved
