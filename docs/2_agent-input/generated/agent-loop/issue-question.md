@@ -13,7 +13,8 @@ Last updated: 2026-06-19
 
 ## Operator 手動處理
 
-- 無新增。
+- Production demo login hotfix：operator 已確認有 `AUTH_SECRET`；本輪定位為正式 DB-backed runtime path 失敗。部署本 commit 後需重測 `/api/public/pricing`、`/api/share/demo-share-wang`、demo one-click login。若仍 500，請檢查 Vercel Production env 是否有可用 `DATABASE_URL`，或至少有可用 `DIRECT_URL` fallback，並確認設定後已 redeploy。
+- Build blocker：`pnpm build` 目前卡在 Next/Turbopack Google Font path（`[next]/internal/font/google/*` / `@vercel/turbopack-next/internal/font/google/font`）。需另輪處理自託管字體或 Next 16 font build 設定後重跑 production build。
 
 ## Session / Seed Data / Env / External Service
 
@@ -21,6 +22,7 @@ Last updated: 2026-06-19
 - PIM-008 已 resolved；browser writeback proof 使用 demo member header 與自動建立 demo client 完成。
 - PIM-009 已 resolved；cross-mode QA 使用 local dev server、demo member/manager header、development Supabase DB proof 與 headless browser desktop/mobile proof 完成。
 - 後續若要做真實 browser WebRTC/voice transport proof，需要可用 OpenAI Realtime model、前端 WebRTC client、麥克風 permission 測試條件與 usage/cost evidence。
+- Production demo login：read-only DB proof 確認目前 Supabase target 內 demo users / password hashes / memberships 正常；正式站部署前 `/api/public/pricing` 與 `/api/share/demo-share-wang` 仍 500，demo credentials callback 仍 `302 /api/auth/error?error=Configuration`。
 
 ## 已解決 / 不再阻擋
 

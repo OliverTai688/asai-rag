@@ -881,3 +881,35 @@
   - `GOOGLE_CLIENT_ID`、`GOOGLE_CLIENT_SECRET` 與 Google callback URL 設定。
   - `RESEND_API_KEY`、`EMAIL_FROM` 與寄件 domain/DNS 驗證。
   - 正式 `NEXT_PUBLIC_APP_URL` 與 `AUTH_SECRET`。
+
+### IQ-038 - Production demo login 失敗已定位為 DB runtime path
+
+- 狀態：Open until production redeploy proof
+- 發現日期：2026-06-19
+- 影響 batch：`LCH-005`、production demo/staging access
+- 背景：
+  - Operator 已確認正式環境有 `AUTH_SECRET`。
+  - 正式 `/api/auth/providers` 回傳 `demo-credentials`，錯誤 demo credentials 回 `CredentialsSignin`，但正確 demo credentials 回 `302 /api/auth/error?error=Configuration`。
+  - 正式 `/api/public/pricing` 與 `/api/share/demo-share-wang` 同時回 500，顯示不是登入 UI 單點問題，而是 DB-backed runtime path 失敗。
+  - Read-only DB proof 確認目前 Supabase target 內 demo users / password hashes / memberships 正常。
+- 已修補：
+  - `src/lib/prisma.ts` runtime Prisma connection string 改為 `DATABASE_URL ?? DIRECT_URL`。
+  - Auth health 加入 `runtimeDatabaseConfigured`，release readiness 加入 `runtime_database` gate。
+  - `demo:release-readiness-qa` required controls 已同步。
+- 仍需 operator / deployment proof：
+  - 部署本 commit 後重測正式 `/api/public/pricing`、`/api/share/demo-share-wang`、demo one-click login。
+  - 若仍 500，檢查 Vercel Production env 是否有可用 `DATABASE_URL`，或至少有可用 `DIRECT_URL` fallback，並確認設定後已 redeploy。
+  - 長期 production/serverless 仍建議使用 transaction pooler `DATABASE_URL`；`DIRECT_URL` fallback 只作 controlled demo/staging hotfix。
+
+### IQ-039 - Next/Turbopack Google Font build blocker
+
+- 狀態：Open
+- 發現日期：2026-06-19
+- 影響 batch：production build / deployment verification
+- 背景：
+  - 本輪 `pnpm build` 兩次失敗；Prisma generate 通過，Next/Turbopack build 失敗集中在 `[next]/internal/font/google/*`。
+  - 錯誤包含 Google Font resource request failure 與 `@vercel/turbopack-next/internal/font/google/font` module resolution failure。
+  - 本輪未修改 `src/app/layout.tsx` 或 font stack；`pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`、`pnpm demo:preflight`、`pnpm public:pricing-qa` 均通過。
+- 建議下一步：
+  - 獨立處理 font build strategy：改自託管字體、降低 Google Font subset 數量，或依 Next 16 bundled docs 調整 build/font 設定。
+  - 修完後重跑 `pnpm build`，再做 production deployment proof。

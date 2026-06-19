@@ -2,7 +2,7 @@ import "server-only";
 
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { prisma } from "@/lib/prisma";
+import { prisma, prismaRuntimeDatabaseUrl } from "@/lib/prisma";
 import { getPlatformSettings } from "./platform-settings-repository";
 
 type DecimalLike = { toString(): string } | null | undefined;
@@ -109,7 +109,8 @@ export async function getPlatformReleaseReadiness() {
   const productionNotificationsDisabled = settings.providerPolicy.productionNotificationsEnabled === false;
   const billingCheckoutDisabled = settings.featureFlags.billingCheckoutEnabled === false;
   const mockApiDisabled = process.env.ALLOW_MOCK_API !== "true";
-  const authSecretConfigured = Boolean(process.env.AUTH_SECRET);
+  const authSecretConfigured = Boolean(process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET);
+  const runtimeDatabaseConfigured = Boolean(prismaRuntimeDatabaseUrl);
   const monitoringConfigured = Boolean(process.env.SENTRY_DSN || process.env.NEXT_PUBLIC_SENTRY_DSN);
   const privacyTermsReady =
     projectFileExists("src/app/(public)/privacy/page.tsx") &&
@@ -142,7 +143,13 @@ export async function getPlatformReleaseReadiness() {
       authSecretConfigured ? "pass" : "blocked",
       "auth_secret",
       "AUTH_SECRET configured",
-      "Production Auth.js sessions require operator-provided AUTH_SECRET.",
+      "Production Auth.js sessions require operator-provided AUTH_SECRET or NEXTAUTH_SECRET.",
+    ),
+    gate(
+      runtimeDatabaseConfigured ? "pass" : "blocked",
+      "runtime_database",
+      "Runtime database configured",
+      "DB-backed routes require DATABASE_URL; DIRECT_URL is accepted as a fallback for controlled demo deployments.",
     ),
     gate(
       monitoringConfigured ? "pass" : "blocked",

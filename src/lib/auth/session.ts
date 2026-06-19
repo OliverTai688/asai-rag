@@ -1,6 +1,6 @@
 import { cookies, headers } from "next/headers";
 import { auth } from "@/auth";
-import { prisma } from "@/lib/prisma";
+import { prisma, prismaRuntimeDatabaseUrl } from "@/lib/prisma";
 import type {
   MemberRole,
   OrganizationPlan,
@@ -20,6 +20,7 @@ interface SupabaseUser {
 export interface AuthHealth {
   provider: "AUTH_JS";
   authSecretConfigured: boolean;
+  runtimeDatabaseConfigured: boolean;
   demoCredentialsAllowed: boolean;
   legacySupabaseConfigured: boolean;
 }
@@ -87,7 +88,10 @@ export interface PlatformSession {
 export function getAuthHealth(): AuthHealth {
   return {
     provider: "AUTH_JS",
-    authSecretConfigured: Boolean(process.env.AUTH_SECRET) || process.env.NODE_ENV !== "production",
+    authSecretConfigured:
+      Boolean(process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET) ||
+      process.env.NODE_ENV !== "production",
+    runtimeDatabaseConfigured: Boolean(prismaRuntimeDatabaseUrl),
     demoCredentialsAllowed: isDevAuthHeaderAllowed(),
     legacySupabaseConfigured: isSupabaseAuthConfigured(),
   };

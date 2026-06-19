@@ -54,6 +54,7 @@ try {
     "production_notifications",
     "billing_checkout",
     "auth_secret",
+    "runtime_database",
     "monitoring",
     "legal_pages",
     "backup_restore",

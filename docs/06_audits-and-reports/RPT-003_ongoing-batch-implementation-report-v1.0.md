@@ -3294,3 +3294,78 @@ pnpm build
 
 1. 回到 `LCH-005` production auth hardening：`AUTH_SECRET`、正式 provider/email/SSO、password reset/MFA。
 2. 或新增 Level 3 hardening workstream，拆出 uptime monitoring、incident response drill、public launch security/legal/payment gates。
+
+## 2026-06-19 Round 044 - Production Demo Login Runtime DB Fix
+
+### 本輪戰役
+
+- Workstream：Production auth / launch blocker hotfix。
+- 目標：修復正式網域 `https://asai.spinbestmdrt.com` demo 帳號無法登入。
+- 起始狀態：正式 `/login` 顯示 demo one-click login，但點擊 demo member 後停在 `/login`；直接呼叫 Auth.js demo callback 回 `302 /api/auth/error?error=Configuration`。
+
+### 本輪完成
+
+- 實測正式站：
+  - `GET /api/auth/providers` 回 `demo-credentials`，代表 demo provider 有啟用。
+  - 錯誤 demo credentials 回 `CredentialsSignin`，代表 Auth.js route/provider 可工作。
+  - 正確 demo credentials 回 `Configuration`，代表失敗發生在 credentials 通過後的 server callback path。
+  - `GET /api/public/pricing` 與 `GET /api/share/demo-share-wang` 均回 500，證明不是單一登入 UI 問題，而是正式 DB-backed runtime path 失敗。
+- Read-only DB proof：
+  - 目前 `.env` Supabase target 有 demo users、`is_demo=true`、`status=ACTIVE`、password hash 與 active memberships。
+  - demo password hashes 與 fixture 密碼相符。
+- 修補：
+  - `src/lib/prisma.ts` runtime Prisma 連線改為 `DATABASE_URL ?? DIRECT_URL`，避免 production demo/staging 只設定 `DIRECT_URL` 時所有 DB-backed route 500。
+  - `getAuthHealth()` 新增 `runtimeDatabaseConfigured`，並讓 auth secret health 同時接受 `AUTH_SECRET` / `NEXTAUTH_SECRET`。
+  - Platform release readiness 新增 `runtime_database` gate；不輸出 DB URL 或 secret。
+  - `demo:release-readiness-qa` 必備 control list 同步加入 `runtime_database`。
+
+### 修改檔案
+
+- `src/lib/prisma.ts`
+- `src/lib/auth/session.ts`
+- `src/lib/platform/platform-release-readiness-repository.ts`
+- `scripts/demo-release-readiness-qa.mjs`
+- `docs/06_audits-and-reports/RPT-003_ongoing-batch-implementation-report-v1.0.md`
+- `docs/07_research-and-design/RES-016_issue-question-log-v1.0.md`
+- `docs/2_agent-input/generated/agent-loop/issue-question.md`
+
+### DB / Prisma 操作
+
+- 是否修改 schema：否。
+- 是否執行 generate：否。
+- 是否執行 db push：否。
+- DB 操作：只做 read-only proof；未新增、更新、刪除資料。
+
+### 驗收
+
+```bash
+pnpm exec tsc --noEmit --pretty false
+pnpm lint:changed
+pnpm demo:preflight
+pnpm public:pricing-qa
+pnpm build
+curl https://asai.spinbestmdrt.com/api/public/pricing
+curl https://asai.spinbestmdrt.com/api/share/demo-share-wang
+POST https://asai.spinbestmdrt.com/api/auth/callback/demo-credentials
+```
+
+結果：
+
+- TypeScript：通過。
+- `pnpm lint:changed`：通過。
+- `pnpm demo:preflight`：通過；DB DNS / connection / seed tables pass；Supabase public env placeholder 仍為既有 warning。
+- `pnpm public:pricing-qa`：通過；local/current DB-backed pricing API source=`database`。
+- `pnpm build`：失敗；Prisma generate 通過，Next/Turbopack build 在 Google Font assets 下載/解析階段失敗，錯誤集中於 `[next]/internal/font/google/*` 與 `@vercel/turbopack-next/internal/font/google/font` module resolution。本輪未修改 `src/app/layout.tsx` 或 font stack。
+- 正式站部署前 proof 仍失敗：`/api/public/pricing` 500、`/api/share/demo-share-wang` 500、demo credentials callback `302 /api/auth/error?error=Configuration`。這是本輪定位的 production runtime 症狀，需部署本 commit 後重測。
+
+### 失敗與風險
+
+- Operator 已確認有 `AUTH_SECRET`；本輪不再將問題歸因為缺 `AUTH_SECRET`。
+- Build 尚未通過，阻擋原因是既有 Google Font/Turbopack build path；需另輪處理自託管字體或 build font fetch strategy。
+- 若部署本 commit 後正式站仍 500，下一步要檢查 Vercel Production 環境是否有可用的 `DATABASE_URL`，或至少有可用的 `DIRECT_URL` fallback，且設定後已 redeploy。
+- `DIRECT_URL` fallback 適合 controlled demo/staging hotfix；長期 production/serverless 仍建議使用 transaction pooler `DATABASE_URL`。
+
+### 下一輪建議
+
+1. 部署本 commit 後重測正式站 `/api/public/pricing`、`/api/share/demo-share-wang` 與 demo one-click login。
+2. 若仍 500，進 Vercel Production env 檢查 DB runtime URL 與最近 deployment 是否已 redeploy。

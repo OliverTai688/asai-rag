@@ -5,8 +5,11 @@ const globalForPrisma = globalThis as unknown as {
   prisma?: PrismaClient;
 };
 
+export const prismaRuntimeDatabaseUrl =
+  process.env.DATABASE_URL ?? process.env.DIRECT_URL;
+
 const adapter = new PrismaPg({
-  connectionString: process.env.DATABASE_URL,
+  connectionString: prismaRuntimeDatabaseUrl,
 });
 
 export const prisma =
