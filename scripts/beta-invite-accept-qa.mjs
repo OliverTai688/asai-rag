@@ -36,6 +36,23 @@ try {
     name: `Expired Beta Invite ${runId}`,
     invitedAt: new Date(Date.now() - 16 * 24 * 60 * 60 * 1000),
   });
+  const archivedOrg = await createArchivedOrg();
+  const inactiveOrgInvite = await createInvite({
+    organizationId: archivedOrg.id,
+    unitId: archivedOrg.branchId,
+    email: `beta.invite.archived.${runId}@asai.local`,
+    name: `Archived Org Invite ${runId}`,
+    invitedAt: new Date(),
+    flavor: "archived",
+  });
+
+  const devAuthProbe = await workspaceBootstrap(demoManagerEmail);
+  const devAuthHeaderEnabled = devAuthProbe.status === 200;
+  push(
+    devAuthHeaderEnabled || devAuthProbe.status === 401,
+    "Dev auth header is explicit: enabled only when server env allows it",
+    `status=${devAuthProbe.status}`,
+  );
 
   const missing = await acceptInvite("missing_invite_token", validEmail);
   push(missing.status === 404, "Invalid invite token returns 404", `status=${missing.status}`);
@@ -53,6 +70,20 @@ try {
   push(activeMembership?.status === "ACTIVE", "DB membership status is ACTIVE after accept", activeMembership?.status ?? "missing");
   push(Boolean(activeMembership?.accepted_at), "DB membership has accepted_at timestamp");
 
+  const bootstrap = await workspaceBootstrap(validEmail);
+  if (devAuthHeaderEnabled) {
+    push(bootstrap.status === 200, "Accepted member can bootstrap dashboard workspace", `status=${bootstrap.status}`);
+    push(bootstrap.body?.user?.email === validEmail, "Workspace bootstrap resolves accepted member email");
+    push(bootstrap.body?.organization?.id === org.id, "Workspace bootstrap resolves invited organization");
+    push(
+      bootstrap.body?.auth?.demoCredentialsAllowed === true,
+      "Dev auth header requires explicit non-production env",
+      `demoCredentialsAllowed=${bootstrap.body?.auth?.demoCredentialsAllowed}`,
+    );
+  } else {
+    push(bootstrap.status === 401, "Accepted member cannot use dev auth header when env is disabled", `status=${bootstrap.status}`);
+  }
+
   const replay = await acceptInvite(validInvite.membershipId, validEmail);
   push(replay.status === 409, "Replayed invite returns 409", `status=${replay.status}`);
   push(replay.body?.error === "INVITE_ALREADY_ACCEPTED", "Replayed invite has already accepted error", replay.body?.error ?? "missing");
@@ -61,8 +92,22 @@ try {
   push(expired.status === 410, "Expired invite returns 410", `status=${expired.status}`);
   push(expired.body?.error === "INVITE_EXPIRED", "Expired invite has explicit expired error", expired.body?.error ?? "missing");
 
+  const inactiveOrg = await acceptInvite(inactiveOrgInvite.membershipId, inactiveOrgInvite.email);
+  push(inactiveOrg.status === 409, "Archived organization invite returns 409", `status=${inactiveOrg.status}`);
+  push(
+    inactiveOrg.body?.error === "INVITE_ORGANIZATION_INACTIVE",
+    "Archived organization invite has explicit inactive-org error",
+    inactiveOrg.body?.error ?? "missing",
+  );
+
   const auditCount = await countAcceptAudit(validInvite.membershipId);
   push(auditCount > 0, "Accepted invite writes AuditLog", `auditCount=${auditCount}`);
+
+  const signupPosture = inspectPublicSignupPosture();
+  push(signupPosture.hasSignupPage, "Public signup surface exists for controlled messaging");
+  push(signupPosture.primaryButtonIsInert, "Public signup primary action is inert without auth provider");
+  push(signupPosture.inviteRequiredCopy, "Public signup copy states invite/waitlist requirement");
+  push(!signupPosture.hasPublicSignupApi, "No public signup API route is exposed");
 
   console.log(
     JSON.stringify(
@@ -72,12 +117,19 @@ try {
           membershipId: validInvite.membershipId,
           emailMasked: accepted.body?.invite?.emailMasked,
           acceptedStatus: accepted.body?.invite?.status,
+          auditLogId: accepted.body?.debugProof?.auditLogId,
         },
         expiredInvite: {
           membershipId: expiredInvite.membershipId,
           status: expired.status,
           error: expired.body?.error,
         },
+        inactiveOrgInvite: {
+          membershipId: inactiveOrgInvite.membershipId,
+          status: inactiveOrg.status,
+          error: inactiveOrg.body?.error,
+        },
+        signupPosture,
       },
       null,
       2,
@@ -117,9 +169,28 @@ async function getDemoOrg() {
   return { id: org.id, slug: org.slug, branchId: org.branch_id };
 }
 
-async function createInvite({ organizationId, unitId, email, name, invitedAt }) {
-  const userId = `beta_invite_user_${runId}_${email.includes("expired") ? "expired" : "valid"}`;
-  const membershipId = `beta_invite_membership_${runId}_${email.includes("expired") ? "expired" : "valid"}`;
+async function createArchivedOrg() {
+  const organizationId = `beta_invite_org_${runId}_archived`;
+  const unitId = `beta_invite_unit_${runId}_archived`;
+
+  await db.query(
+    `INSERT INTO organizations (id, name, slug, plan, status, is_demo, demo_scenario, demo_seed_version, created_at, updated_at)
+     VALUES ($1, $2, $3, 'STARTER'::"OrganizationPlan", 'ARCHIVED'::"OrganizationStatus", true, 'beta-invite-accept-qa', 1, now(), now())`,
+    [organizationId, `Archived Beta QA ${runId}`, `beta-invite-archived-${runId}`],
+  );
+  await db.query(
+    `INSERT INTO organization_units (id, organization_id, type, name, slug, is_active, is_demo, demo_scenario, demo_seed_version, created_at, updated_at)
+     VALUES ($1, $2, 'BRANCH'::"OrganizationUnitType", 'Archived Branch', 'archived-branch', true, true, 'beta-invite-accept-qa', 1, now(), now())`,
+    [unitId, organizationId],
+  );
+
+  return { id: organizationId, branchId: unitId };
+}
+
+async function createInvite({ organizationId, unitId, email, name, invitedAt, flavor }) {
+  const suffix = flavor ?? (email.includes("expired") ? "expired" : "valid");
+  const userId = `beta_invite_user_${runId}_${suffix}`;
+  const membershipId = `beta_invite_membership_${runId}_${suffix}`;
 
   await db.query(
     `INSERT INTO users (id, email, name, status, is_demo, demo_scenario, demo_seed_version, created_at, updated_at)
@@ -145,6 +216,15 @@ async function acceptInvite(token, email, name = "Beta Invite Accepted") {
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ email, name }),
   });
+  return parseResponse(response);
+}
+
+async function workspaceBootstrap(email) {
+  const response = await fetch(`${baseUrl}/api/workspace/bootstrap`, {
+    method: "GET",
+    headers: { "x-asai-demo-user-email": email },
+  });
+
   return parseResponse(response);
 }
 
@@ -190,6 +270,22 @@ function push(condition, label, detail = "") {
     label,
     detail,
   });
+}
+
+function inspectPublicSignupPosture() {
+  const signupPath = "src/app/(auth)/signup/page.tsx";
+  const authSurfacePath = "src/app/(auth)/_components/auth-surface.tsx";
+  const apiPath = "src/app/api/signup/route.ts";
+  const signupSource = existsSync(signupPath) ? readFileSync(signupPath, "utf8") : "";
+  const authSurfaceSource = existsSync(authSurfacePath) ? readFileSync(authSurfacePath, "utf8") : "";
+  const source = `${signupSource}\n${authSurfaceSource}`;
+
+  return {
+    hasSignupPage: Boolean(signupSource),
+    primaryButtonIsInert: source.includes('type="button"'),
+    inviteRequiredCopy: /邀請|waitlist|等待名單|受邀/.test(source),
+    hasPublicSignupApi: existsSync(apiPath),
+  };
 }
 
 function loadEnvFile(path) {

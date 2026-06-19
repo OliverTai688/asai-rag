@@ -31,7 +31,7 @@
 | --- | --- | --- | --- |
 | ALA-000 | 文件與 AGENTS workstream 登錄 | ☐ | `RES-021` |
 | ALA-001 | Launch scope lock and risk register | [x] | ALA-000 |
-| ALA-002 | Private beta account and onboarding path | ☐ | ALA-001, LCH-001 |
+| ALA-002 | Private beta account and onboarding path | [~] | ALA-001, LCH-001 |
 | ALA-003 | BFF coverage for beta-critical workflows | ☐ | ALA-001, BFF/RAS context |
 | ALA-004 | AI governance and kill-switch hardening | ☐ | LCH-004 |
 | ALA-005 | Production observability and incident loop | ☐ | LCH-009 |
@@ -78,19 +78,19 @@ Context: 將誠問 AI 從 Level 1/2 foundation 積極推進到 Level 2 Controlle
 - [ ] 跑 `pnpm exec tsc --noEmit --pretty false` 與 `pnpm lint:changed`。
 
 ### Batch ALA-001 — Launch scope lock and risk register
-- [ ] 建立 private beta launch scope lock：advisor SaaS only，不含網路投保/正式商品建議。
-- [ ] 建立 beta risk register，至少覆蓋 tenant leak、AI cost、AI advice misuse、client token abuse、billing half-enable、monitoring missing、super admin break-glass。
-- [ ] 將 release gates 寫入 platform readiness 或 report checklist。
-- [ ] 更新 `RES-016` issue-question，記錄需 operator 決策的 scope、billing、real user invite、real data policy。
-- [ ] 跑 `pnpm exec tsc --noEmit --pretty false` 與 `pnpm lint:changed`。
+- [x] 建立 private beta launch scope lock：advisor SaaS only，不含網路投保/正式商品建議。
+- [x] 建立 beta risk register，至少覆蓋 tenant leak、AI cost、AI advice misuse、client token abuse、billing half-enable、monitoring missing、super admin break-glass。
+- [x] 將 release gates 寫入 platform readiness 或 report checklist。
+- [x] 更新 `RES-016` issue-question，記錄需 operator 決策的 scope、billing、real user invite、real data policy。
+- [x] 跑 `pnpm exec tsc --noEmit --pretty false` 與 `pnpm lint:changed`。
 
 ### Batch ALA-002 — Private beta account and onboarding path
-- [ ] 建立或補齊 invite-only beta account flow；public signup 預設 waitlist/invite required。
-- [ ] Invite accept 後建立/連結 user、organization membership、default workspace。
-- [ ] Dev auth header 只在 non-production explicit env 可用。
-- [ ] 補 invite token expiry/replay/invalid org proof。
+- [x] 建立或補齊 invite-only beta account flow；public signup 預設 waitlist/invite required。
+- [x] Invite accept 後建立/連結 user、organization membership、default workspace。
+- [x] Dev auth header 只在 non-production explicit env 可用。
+- [x] 補 invite token expiry/replay/invalid org proof。
 - [ ] Browser/API proof：受邀 member 可進 dashboard；未受邀 user 不能建立 production workspace。
-- [ ] 跑 `pnpm exec tsc --noEmit --pretty false` 與 `pnpm lint:changed`；改 auth/route 時讀 Next docs。
+- [x] 跑 `pnpm exec tsc --noEmit --pretty false` 與 `pnpm lint:changed`；改 auth/route 時讀 Next docs。
 
 ### Batch ALA-003 — BFF coverage for beta-critical workflows
 - [ ] 盤點 beta-critical workflows：client、family、policy、visit/interview output、report/share、theater session、member/org settings、client portal response。
@@ -168,18 +168,18 @@ Context: 將誠問 AI 從 Level 1/2 foundation 積極推進到 Level 2 Controlle
 
 目標：建立 invite-only beta account path，讓外部受邀使用者可試用，但 public signup 仍關閉。
 
-- [ ] 盤點既有 `/login`、`/signup`、`/invite/[token]`、Auth.js/Supabase/Auth helper 狀態。
-- [ ] 建立或補齊 invite-only beta account flow；public signup 預設 waitlist/invite required。
-- [ ] Invite accept 後建立/連結 user、organization membership、default workspace。
-- [ ] Dev auth header 只在 non-production explicit env 可用。
-- [ ] Invite token expiry/replay/invalid org/used token proof。
+- [x] 盤點既有 `/login`、`/signup`、`/invite/[token]`、Auth.js/Supabase/Auth helper 狀態。
+- [x] 建立或補齊 invite-only beta account flow；public signup 預設 waitlist/invite required。
+- [x] Invite accept 後建立/連結 user、organization membership、default workspace。
+- [x] Dev auth header 只在 non-production explicit env 可用。
+- [x] Invite token expiry/replay/invalid org/used token proof。
 - [ ] Browser/API proof：受邀 member 可進 dashboard；未受邀 user 不能建立 production workspace。
-- [ ] 更新 issue-question：正式 provider/email/SSO、callback URL、beta participant policy。
-- [ ] 跑 `pnpm exec tsc --noEmit --pretty false` 與 `pnpm lint:changed`；改 auth/route 時讀 Next docs。
+- [x] 更新 issue-question：正式 provider/email/SSO、callback URL、beta participant policy。
+- [x] 跑 `pnpm exec tsc --noEmit --pretty false` 與 `pnpm lint:changed`；改 auth/route 時讀 Next docs。
 
 範圍外：不做 public self-serve signup、不寄 production email。
 
-進行中註記：2026-06-19 已完成 manual invite token accept BFF slice：新增 `POST /api/invite/[token]/accept`，token 暫採 existing `OrganizationMember.id`；驗證 token exists、email match、`INVITED` status、14-day expiry、replay guard。成功後更新 user/membership 為 active、寫 `acceptedAt`、必要時設 default membership，並寫 `AuditLog(resourceType=ORG_INVITE_ACCEPT)`。新增 `scripts/beta-invite-accept-qa.mjs`，API proof 通過：invalid 404、wrong email 403、valid 200、replay 409、expired 410、audit count 1。Proof report：`RPT-005_private-beta-invite-accept-proof-v1.0.md`。整卡仍未完成：尚缺 invite accept 後建立正式 app session、public signup invite-required/waitlist behavior、Browser QA、正式 provider/email/SSO 決策。
+進行中註記：2026-06-19 新增 `POST /api/invite/[token]/accept` 與 `pnpm beta:invite-accept-qa`。Private beta manual invite token 暫採 `OrganizationMember.id`，accept route 驗證 email match、`INVITED` status、14-day expiry、replay guard、active organization 與 unit-org match；成功後啟用 user/membership、設定 default workspace、寫 `acceptedAt` 與 `AuditLog(resourceType=ORG_INVITE_ACCEPT)`，response 只回 masked email。`/signup` 已改為 waitlist/invite-required copy，主 action 不建立 workspace，且無 public signup API route。QA 覆蓋 invalid token 404、wrong email 403、valid accept 200、replay 409、expired 410、archived org 409、AuditLog created、dev auth explicit env 與 signup posture；目前 `.env` 未啟用 `ALLOW_DEV_AUTH_HEADER`，已驗證 accepted member 不能用 dev header 進 workspace。整卡仍未完成：尚缺 invite accept 後建立正式 app session、受邀 member dashboard Browser proof、真實 invite email/callback URL/beta participant policy 決策。
 
 ---
 

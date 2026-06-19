@@ -100,7 +100,20 @@ export async function POST(
     },
   });
   const acceptedAt = new Date();
-  const [user, membership] = await prisma.$transaction([
+  const membershipUpdate = await prisma.organizationMember.updateMany({
+    where: { id: invite.id, status: "INVITED" },
+    data: {
+      status: "ACTIVE",
+      acceptedAt,
+      isDefault: activeMembershipCount === 0 ? true : invite.isDefault,
+    },
+  });
+
+  if (membershipUpdate.count === 0) {
+    return Response.json({ error: "INVITE_ALREADY_ACCEPTED", emailMasked }, { status: 409 });
+  }
+
+  const [user, membership] = await Promise.all([
     prisma.user.update({
       where: { id: invite.userId },
       data: {
@@ -109,13 +122,8 @@ export async function POST(
       },
       select: { id: true, name: true, email: true },
     }),
-    prisma.organizationMember.update({
+    prisma.organizationMember.findUniqueOrThrow({
       where: { id: invite.id },
-      data: {
-        status: "ACTIVE",
-        acceptedAt,
-        isDefault: activeMembershipCount === 0 ? true : invite.isDefault,
-      },
       select: {
         id: true,
         role: true,
@@ -124,25 +132,40 @@ export async function POST(
         isDefault: true,
       },
     }),
-    prisma.auditLog.create({
-      data: {
-        organizationId: invite.organizationId,
-        targetUserId: invite.userId,
-        action: "SUPPORT_NOTE",
-        sensitivity: "MEDIUM",
-        resourceType: "ORG_INVITE_ACCEPT",
-        resourceId: invite.id,
-        reason: "manual invite token accepted",
-        metadata: {
-          emailHash: hashEmail(email),
-          emailMasked,
-          delivery: "manual_token",
-          tokenType: "organization_member_id",
-        },
-      },
-      select: { id: true },
-    }),
   ]);
+
+  const auditLogId = `audit_invite_accept_${invite.id}`;
+  await prisma.$executeRaw`
+    INSERT INTO audit_logs (
+      id,
+      organization_id,
+      target_user_id,
+      action,
+      sensitivity,
+      resource_type,
+      resource_id,
+      reason,
+      metadata,
+      created_at
+    )
+    VALUES (
+      ${auditLogId},
+      ${invite.organizationId},
+      ${invite.userId},
+      'SUPPORT_NOTE'::"AuditAction",
+      'MEDIUM'::"AuditSensitivity",
+      'ORG_INVITE_ACCEPT',
+      ${invite.id},
+      'manual invite token accepted',
+      ${{
+        emailHash: hashEmail(email),
+        emailMasked,
+        delivery: "manual_token",
+        tokenType: "organization_member_id",
+      }},
+      now()
+    )
+  `;
 
   return Response.json({
     invite: {
@@ -169,6 +192,9 @@ export async function POST(
     nextStep: {
       route: "/login",
       message: "邀請已接受。正式 beta 登入 provider 尚未啟用時，請由 operator 提供受控登入方式。",
+    },
+    debugProof: {
+      auditLogId,
     },
   });
 }

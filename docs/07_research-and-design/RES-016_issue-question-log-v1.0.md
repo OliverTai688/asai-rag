@@ -864,9 +864,11 @@
 - 影響 batch：`ALA-002`
 - 已完成：
   - 新增 `POST /api/invite/[token]/accept`，manual token 暫採 existing `OrganizationMember.id`。
-  - Endpoint 驗證 email match、`INVITED` status、14-day expiry、replay guard。
+  - Endpoint 驗證 email match、`INVITED` status、14-day expiry、replay guard、active organization 與 unit-org match。
   - 成功後啟用 user/membership、寫 `acceptedAt` 與 `AuditLog(resourceType=ORG_INVITE_ACCEPT)`。
-  - `scripts/beta-invite-accept-qa.mjs` proof 通過 invalid/wrong/valid/replay/expired/audit matrix。
+  - `/signup` 已改成 private beta waitlist/invite-required copy；primary action 不建立 workspace，且無 public signup API route。
+  - `pnpm beta:invite-accept-qa` proof 通過 invalid/wrong/valid/replay/expired/archived-org/audit/signup posture matrix。
+  - 目前 `.env` 未啟用 `ALLOW_DEV_AUTH_HEADER=true`，QA 已驗證 accepted member 不能用 dev auth header 進 workspace；正式 session handoff 仍未完成。
 - 仍需 operator/product 決策：
   - Invite accept 後要直接建立哪一種正式 app session？Auth.js credentials、Supabase Auth email/password、Magic Link、Google OAuth，或 staging-only manual login？
   - Private beta 是否允許真實 invite email？若否，是否由 operator 手動傳送 invite token？
