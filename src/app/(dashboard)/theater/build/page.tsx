@@ -40,6 +40,12 @@ type InputMode = "TEXT" | "VOICE";
 type VoiceStage = "DISCONNECTED" | "LISTENING" | "PAUSED" | "PERMISSION_DENIED" | "UNSUPPORTED";
 type DataClass = "fact" | "inference" | "unknown";
 type MaterialCategory = "focus" | "scenario" | "role" | "relationship" | "objection" | "sensitive" | "note";
+type VisitTheaterHandoffStatus = "READY" | "NEEDS_MORE_INFO" | "BLOCKED_SENSITIVE";
+type HandoffNotice = {
+  status: VisitTheaterHandoffStatus;
+  warnings: string[];
+  missing: string[];
+};
 
 const CLASS_PREFIX: Record<DataClass, string> = { fact: "FACT", inference: "INFERENCE", unknown: "UNKNOWN" };
 const CLASS_LABEL: Record<DataClass, string> = { fact: "確認事實", inference: "推論", unknown: "待確認" };
@@ -94,6 +100,19 @@ function buildClientIntroMessage(clientName: string): ChatMessage {
   };
 }
 
+function buildVisitHandoffIntroMessage(
+  clientName: string,
+  scenario: string | undefined,
+  status: VisitTheaterHandoffStatus,
+): ChatMessage {
+  const statusCopy = status === "READY" ? "已可整理成場域建構包" : "仍有待確認項，我會先保留在旁白補問";
+
+  return {
+    role: "assistant",
+    content: `已讀取「${clientName}」的拜訪準備包。${scenario ? `這次演練場景是「${scenario}」。` : ""}${statusCopy}。你想先確認角色關係，還是直接補充這次拜訪最擔心的異議？`,
+  };
+}
+
 // The build interview is one continuous conversation. The AI drives segment
 // progression itself and signals the segment it is currently focused on with a
 // hidden [[SEG:<id>]] marker, which we strip before showing the reply.
@@ -127,6 +146,8 @@ export default function TheaterBuildPage() {
   const [materials, setMaterials] = useState<string[]>([]);
   const [completed, setCompleted] = useState(false);
   const [panelOpen, setPanelOpen] = useState(false);
+  const [handoffNotice, setHandoffNotice] = useState<HandoffNotice | null>(null);
+  const [isLoadingHandoff, setIsLoadingHandoff] = useState(false);
 
   const [inputMode, setInputMode] = useState<InputMode>("TEXT");
   const [voiceStage, setVoiceStage] = useState<VoiceStage>("DISCONNECTED");
@@ -160,23 +181,72 @@ export default function TheaterBuildPage() {
 
   const ready = packet.readiness === "READY";
 
-  // Optionally pre-load a client's known materials (opening question is seeded by
-  // the messages initializer, so no synchronous setState is needed here).
+  // Optionally pre-load a DB-backed visit package handoff, then fall back to
+  // client materials for older clientId-only entry points.
   useEffect(() => {
     if (seededRef.current) return;
     seededRef.current = true;
 
     const params = new URLSearchParams(window.location.search);
     const paramClientId = params.get("clientId");
-    if (!paramClientId) return;
+    const visitPlanId = params.get("visitPlanId");
+    let active = true;
 
     void (async () => {
+      if (visitPlanId) {
+        setIsLoadingHandoff(true);
+        try {
+          const response = await fetch(`/api/visits/${encodeURIComponent(visitPlanId)}/theater-handoff`, {
+            cache: "no-store",
+          });
+
+          if (response.ok) {
+            const data = (await response.json()) as VisitTheaterHandoffResponse;
+            if (!active) return;
+            setClientId(data.client.id);
+            setClientName(data.client.name);
+            setMaterials(data.handoff.knownMaterials);
+            setHandoffNotice({
+              status: data.handoff.status,
+              warnings: data.handoff.warnings,
+              missing: data.handoff.missing,
+            });
+            setMessages((prev) =>
+              prev.length === 1 && prev[0] === INTRO_MESSAGE
+                ? [buildVisitHandoffIntroMessage(data.client.name, data.handoff.packet.scenario, data.handoff.status)]
+                : prev,
+            );
+            return;
+          }
+
+          if (response.status !== 404 && active) {
+            setHandoffNotice({
+              status: "NEEDS_MORE_INFO",
+              warnings: ["準備包 handoff 暫時無法讀取，已改用客戶資料建場。"],
+              missing: [],
+            });
+          }
+        } catch {
+          if (active) {
+            setHandoffNotice({
+              status: "NEEDS_MORE_INFO",
+              warnings: ["準備包 handoff 暫時無法讀取，已改用客戶資料建場。"],
+              missing: [],
+            });
+          }
+        } finally {
+          if (active) setIsLoadingHandoff(false);
+        }
+      }
+
+      if (!paramClientId || !active) return;
+
       setClientId(paramClientId);
       try {
         const response = await fetch(`/api/clients/${encodeURIComponent(paramClientId)}`, { cache: "no-store" });
         if (!response.ok) return;
         const data = (await response.json()) as { client?: ClientDetail };
-        if (!data.client) return;
+        if (!data.client || !active) return;
         setClientName(data.client.name);
         setMaterials(seedMaterialsFromClient(data.client));
         // Replace the generic "which client?" opening with a client-aware confirmation,
@@ -190,6 +260,10 @@ export default function TheaterBuildPage() {
         // best-effort preload; the user can still build manually
       }
     })();
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   // Scroll only the thread container (not the page) to avoid the window jumping.
@@ -425,6 +499,18 @@ export default function TheaterBuildPage() {
           <p className="max-w-xl text-sm leading-6 text-muted-foreground">
             {clientName ? `已帶入客戶「${clientName}」的已知資料，` : ""}用文字或語音，跟著訪綱把場域建出來。
           </p>
+          {isLoadingHandoff ? (
+            <p className="text-xs font-medium text-muted-foreground">正在讀取拜訪準備包...</p>
+          ) : handoffNotice ? (
+            <div className="max-w-xl rounded-lg border border-hairline bg-paper px-3 py-2 text-xs leading-5 text-muted-foreground">
+              <span className="font-semibold text-ink">{getHandoffNoticeLabel(handoffNotice.status)}</span>
+              {[...handoffNotice.warnings, ...handoffNotice.missing].slice(0, 2).map((item) => (
+                <span key={item} className="ml-2">
+                  {item}
+                </span>
+              ))}
+            </div>
+          ) : null}
         </div>
 
         <div className="flex items-center gap-3">
@@ -759,6 +845,27 @@ type ClientDetail = {
   existingPolicies?: Array<{ type?: string; provider?: string }>;
 };
 
+type VisitTheaterHandoffResponse = {
+  client: {
+    id: string;
+    name: string;
+    sensitivityLevel?: "NORMAL" | "SENSITIVE" | "HIGHLY_SENSITIVE";
+    kycStatus?: string;
+  };
+  visitPlan: {
+    id: string;
+    purpose: string;
+    status: string;
+  };
+  handoff: {
+    status: VisitTheaterHandoffStatus;
+    knownMaterials: string[];
+    warnings: string[];
+    missing: string[];
+    packet: TheaterBuildPacket;
+  };
+};
+
 function seedMaterialsFromClient(client: ClientDetail): string[] {
   const materials: string[] = [`FACT: focus_client=${client.name}`];
   if (client.occupation) materials.push(`FACT: ${client.name} 的職業是 ${client.occupation}`);
@@ -778,6 +885,12 @@ function seedMaterialsFromClient(client: ClientDetail): string[] {
     materials.push(`UNKNOWN: ${client.name} 屬${client.sensitivityLevel === "HIGHLY_SENSITIVE" ? "高敏感" : "敏感"}客戶，敏感資訊需先確認再使用`);
   }
   return materials;
+}
+
+function getHandoffNoticeLabel(status: VisitTheaterHandoffStatus) {
+  if (status === "READY") return "準備包已帶入";
+  if (status === "BLOCKED_SENSITIVE") return "敏感資料暫停";
+  return "準備包需補資料";
 }
 
 /* ---- Minimal Web Speech API typings (not in lib.dom for all targets) ---- */

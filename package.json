@@ -32,6 +32,7 @@
     "demo:ai-generation-qa": "node scripts/demo-ai-generation-qa.mjs",
     "visit:reasoning-dry-run": "node scripts/visit-reasoning-dry-run.mjs",
     "visit:theater-handoff-dry-run": "node scripts/visit-theater-handoff-dry-run.mjs",
+    "visit:theater-bff-qa": "node scripts/visit-theater-bff-qa.mjs",
     "demo:three-ai-turn-usage-qa": "node scripts/three-ai-turn-usage-qa.mjs",
     "rag:launch-posture-qa": "node scripts/rag-launch-posture-qa.mjs",
     "ai:usage-audit": "node scripts/ai-usage-route-audit.mjs",

@@ -64,11 +64,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 3,
+    "normalLoopsSinceLastWholeProductReview": 4,
     "lastWholeProductReviewAt": null,
     "lastWholeProductReviewReport": null,
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "Continue with either (1) a BFF-backed `visitPlanId` handoff on `/theater/build` so the stage can read the exact preparation package server-side, or (2) `lv3-client-to-relationship-graph` if the next loop should strengthen the upstream client -> relationship graph source before more theater UI.",
+    "nextRecommendedImplementationSlice": "Cadence is now 4 normal loops since the last whole-product review. The next automation turn should run `docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md` before more implementation. After review, likely continuation is BFF-104 full Visit / Pre-visit BFF or TDF-004 full client-data build flow.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {

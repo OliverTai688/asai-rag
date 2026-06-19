@@ -122,6 +122,8 @@
 
 進行中註記：2026-06-20 新增 LV3 pre-visit → theater handoff source/proof slice：`src/domains/theater/visit-handoff.ts` 可把 `VisitPlan`、`Client`、準備包 SPIN question reasoning evidence、family/policy/objection/material/compliance gap 轉成 `TheaterBuildPacket` 已知素材，保留 `FACT` / `INFERENCE` / `UNKNOWN` 分層；高敏感客戶缺 `reason`/`riskAccepted` 時回 `BLOCKED_SENSITIVE` 且 `canStartSimulation=false`。本 slice 不建立 BFF、不宣稱 TDF-004 完成、不改 Theater legacy enum/scoring/schema、不呼叫 provider、不寫 CRM。Proof：`pnpm visit:theater-handoff-dry-run` 通過，確認 READY packet、NPC ≤ 4、未知不升格成 fact、email/phone 不外洩。
 
+進行中註記：2026-06-20 續補 member-scoped persisted visit package → theater build BFF proof：新增 `GET /api/visits/[id]/theater-handoff`，由 `requireCurrentMember()` 推導 org/member/unit，讀 DB `VisitPlan` + client detail policy，回傳 client-safe summary、knownMaterials、warnings/missing、`TheaterBuildPacket`。`/theater/build?visitPlanId=...` 會優先讀此 server-owned handoff，失敗才退回舊 `clientId` 預載。新增 `pnpm visit:theater-bff-qa` 覆蓋 unauth 401、missing 404、demo persisted visit 200、email/phone/raw private sentinel 0、desktop/mobile theater build 無 overflow。TDF-004 仍未完成，因為尚未提供完整 client selector、高敏感 reason/riskAccepted UI 與 full customer-data build review flow。
+
 範圍外：不完成 Route B multi-character session；不做 public share。
 
 ---
