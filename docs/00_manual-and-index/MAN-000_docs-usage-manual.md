@@ -29,7 +29,7 @@
 | `02_architecture-and-rules` | 架構、設計系統與規則 | 6 |
 | `03_feature-reference` | 功能參考文件 | 0 |
 | `05_execution-plans` | 計畫、路線圖與批次任務 | 17 |
-| `06_audits-and-reports` | 審計、開發與交付報告 | 6 |
+| `06_audits-and-reports` | 審計、開發與交付報告 | 7 |
 | `07_research-and-design` | 研究與設計探索 | 16 |
 | `08_acceptance-and-qa` | 驗收與 QA 文件 | 8 |
 
@@ -63,7 +63,7 @@
 | `ARC` | Architecture / Design System 架構與設計規則 | `02_architecture-and-rules` | 6 |
 | `REF` | Reference 功能參考 | `03_feature-reference` | 0 |
 | `PLN` | Plan / Roadmap / Batch 計畫與批次任務 | `05_execution-plans` | 17 |
-| `AUD` | Audit 審計文件 | `06_audits-and-reports` | 3 |
+| `AUD` | Audit 審計文件 | `06_audits-and-reports` | 4 |
 | `RPT` | Report 開發/交付/分析報告 | `06_audits-and-reports` | 3 |
 | `RES` | Research 研究與設計探索 | `07_research-and-design` | 16 |
 | `ACC` | Acceptance / QA 驗收文件 | `08_acceptance-and-qa` | 8 |

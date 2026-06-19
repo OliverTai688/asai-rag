@@ -235,7 +235,7 @@
 目標：讓受控 staging demo 進入 private beta 前，有基本成本、錯誤、合規與回滾控制。
 
 - [x] 建立 AI quota/cost alert：至少 DB counter + UI quota warning；若導入 Redis rate limit 需文件化。
-- [ ] 對所有 OpenAI/Anthropic routes 做 audit，列出 module、provider、success/error `AiUsageLog` evidence。
+- [x] 對所有 OpenAI/Anthropic routes 做 audit，列出 module、provider、success/error `AiUsageLog` evidence。
 - [x] 關閉 production-like env 的 `/api/mock/*`，保留 dev/test guard。
 - [ ] 建立 Sentry 或等價錯誤監控方案；若暫不接，寫入 release blocker。
 - [x] 建立 DB backup/restore 與 migration rollback note。
@@ -249,6 +249,8 @@
 
 進行中註記：2026-06-19 續補 release blocker 文檔與 public legal pages。新增 `/privacy`、`/terms`，兩頁皆標明 private beta 最小揭露、AI 輔助不構成保險/法律/稅務建議、正式公開上線前仍需法務/合規核可。新增 `ACC-007_release-rollback-and-backup-runbook.md` 與 `ACC-008_ecpay-test-flow-checklist.md`，readiness gate 的 legal_pages、backup_restore、ecpay_checklist 可由檔案存在與 QA 驗證轉為 pass；production monitoring、AI route usage audit、full smoke、正式 ECPay credentials/callback/CheckMacValue 與 production payment approval 仍是 blocker。
 
+進行中註記：2026-06-19 新增 `pnpm ai:usage-audit` 與 `AUD-005_ai-usage-route-audit-v1.0.md`。Audit source + DB aggregate proof 顯示 production-minimum pass：`/api/ai/chat`、`/api/ai/interview`、`/api/ai/interview/outputs`、`/api/ai/theater`、`/api/ai/theater/score`；gap：legacy `/api/ai/spin`、`/api/ai/spin-suggestions`、`/api/ai/visit`、`/api/ai/report` 缺 auth/quota/success/error `AiUsageLog`，`/api/rag` 為 placeholder 且缺 guard/quota。此項完成 audit evidence，不代表 legacy gap 已修復。
+
 範圍外：不宣稱 full public production，除非 LCH-001-LCH-008 與 operator blockers 全部解除。
 
 ---
@@ -257,7 +259,7 @@
 
 - Supabase Auth public env、service role、callback URL 尚未完整接入。
 - Demo account relogin 仍未完成：清空 browser storage 後需證明資料從 DB 還原。
-- 多數 AI routes 尚未完成 `AiUsageLog` success/error 實寫驗證。
+- Legacy `/api/ai/spin`、`/api/ai/spin-suggestions`、`/api/ai/visit`、`/api/ai/report` 缺 auth/quota/success/error `AiUsageLog`；`/api/rag` 仍是 placeholder 且缺 guard/quota。
 - Theater Route B 尚未 migration；若用 legacy Theater，只能標 staging demo。
 - ECPay credentials、callback domain、CheckMacValue、notification/query API、refund/void process 尚未完成。
 - Super admin platform auth/MFA/staging access 仍需 operator。

@@ -8,6 +8,28 @@
 
 ## Open Issues
 
+### IQ-030 - AI usage route audit 已完成，legacy route gap 轉為工程 blocker
+
+- 狀態：Resolved
+- 發現日期：2026-06-19
+- 解決日期：2026-06-19
+- 影響 batch：`LCH-009`
+- 背景：
+  - Release readiness 需要列出所有 OpenAI/Anthropic route 的 module、provider、success/error `AiUsageLog` evidence。
+  - 這是 audit evidence，不應把 legacy route 以 mock 成功或只回 error 的方式宣稱完成。
+- 解法：
+  - 新增 `pnpm ai:usage-audit`，以 route manifest 檢查 provider call、member auth guard、quota guard、success usage evidence、error usage evidence。
+  - 新增 `AUD-005_ai-usage-route-audit-v1.0.md`，列出 pass/gap matrix 與 current-month DB aggregate。
+  - Audit 結果：`/api/ai/chat`、`/api/ai/interview`、`/api/ai/interview/outputs`、`/api/ai/theater`、`/api/ai/theater/score` pass；legacy `/api/ai/spin`、`/api/ai/spin-suggestions`、`/api/ai/visit`、`/api/ai/report` gap；`/api/rag` 是 placeholder 且缺 guard/quota。
+- 需要使用者決策：
+  - 無；這是工程修補清單，不需要使用者判斷或 production approval。
+- production approval：
+  - 無；本輪未做 production mutation 或 provider-side change。
+- operator 手動處理：
+  - 無。
+- session / seed data / env / external service：
+  - `pnpm ai:usage-audit` 若要查 DB aggregate 需要 `DIRECT_URL` 或 `DATABASE_URL`；無 DB URL 時仍可跑 source audit。
+
 ### IQ-028 - AI-first sidebar 決策與後續 IA 原則
 
 - 狀態：Resolved

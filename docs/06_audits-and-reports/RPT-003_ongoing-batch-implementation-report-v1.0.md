@@ -2781,3 +2781,78 @@ pnpm build
 
 1. 繼續 `LCH-009`：建立 OpenAI/Anthropic route usage audit report，列出每條 route 的 module/provider/success/error `AiUsageLog` evidence 與缺口。
 2. 或先接 Sentry/等價 monitoring blocker：若無 DSN，至少建立 monitoring setup doc + readiness gate operator action。
+
+## 2026-06-19 Round 038 - LCH-009 AI Usage Route Audit Evidence
+
+### 本輪戰役
+
+- Workstream：Launch Readiness Implementation。
+- Batch / task：`LCH-009` Production Controls And Release QA。
+- 選擇原因：readiness gate 已剩 monitoring / auth secret 等 blockers；下一個可由系統推進且最接近上線風險的是列出所有 AI provider route 的 `AiUsageLog` evidence，避免 legacy route 漏計成本或裸露 provider call。
+
+### 本輪完成
+
+- 新增 `pnpm ai:usage-audit`，以 route manifest 檢查 provider call、member auth guard、quota guard、success usage evidence、error usage evidence。
+- 新增 `AUD-005_ai-usage-route-audit-v1.0.md`，整理 module/provider/pass/gap matrix 與 current-month DB aggregate。
+- 將 `LCH-009` AI route audit checkbox 標記完成；同時明確註記這是 audit evidence 完成，不代表 legacy gaps 已修復。
+- 同步 `MAN-000` / `MAN-001` 文件索引與 `RES-016` issue-question log。
+
+### 修改檔案
+
+- `scripts/ai-usage-route-audit.mjs`
+- `package.json`
+- `docs/06_audits-and-reports/AUD-005_ai-usage-route-audit-v1.0.md`
+- `docs/06_audits-and-reports/RPT-003_ongoing-batch-implementation-report-v1.0.md`
+- `docs/05_execution-plans/PLN-017_launch-readiness-implementation-batch-tasks-v1.0.md`
+- `AGENTS.md`
+- `docs/00_manual-and-index/MAN-000_docs-usage-manual.md`
+- `docs/00_manual-and-index/MAN-001_document-index.md`
+- `docs/07_research-and-design/RES-016_issue-question-log-v1.0.md`
+
+### DB / Prisma 操作
+
+- 是否修改 schema：否。
+- 是否執行 generate：否。
+- 是否執行 db push：否。
+- DB target 判斷：`.env` 指向可連線 DB；本輪 audit 只讀 `ai_usage_logs` current-month aggregate。
+- Seed/backfill：無。
+
+### 驗收
+
+```bash
+pnpm ai:usage-audit
+pnpm exec eslint scripts/ai-usage-route-audit.mjs
+pnpm run lint:changed
+pnpm exec tsc --noEmit --pretty false
+pnpm prisma:validate
+pnpm demo:preflight
+pnpm demo:runtime-audit
+```
+
+結果：
+
+- `pnpm ai:usage-audit`：通過執行，overall=`gaps_found`；source audit pass routes：`/api/ai/chat`、`/api/ai/interview`、`/api/ai/interview/outputs`、`/api/ai/theater`、`/api/ai/theater/score`。
+- Gap routes：legacy `/api/ai/spin`、`/api/ai/spin-suggestions`、`/api/ai/visit`、`/api/ai/report` 缺 auth/quota/success/error `AiUsageLog`；`/api/rag` 是 placeholder 且缺 guard/quota。
+- DB aggregate：current-month `INTERVIEW/OPENAI total=2 success=2 error=0`；不輸出 raw error、request id、cookie 或 private payload。
+- Targeted ESLint：通過。
+- `pnpm run lint:changed`：通過。
+- TypeScript：通過。
+- `pnpm prisma:validate`：通過。
+- `pnpm demo:preflight`：通過；Supabase public env placeholder 仍為既有 warning。
+- `pnpm demo:runtime-audit`：通過。
+
+### 失敗與風險
+
+- Audit 指出 legacy routes 仍是 public beta blocker；本輪只做 evidence，不直接修 legacy provider routes。
+- `/api/rag` 目前不是真 provider call，但 route 缺 guard/quota；上線前需關閉、guard，或補成正式 RAG provider path + `AiUsageLog`。
+
+### 剩餘上線 blocker
+
+- `LCH-009`：monitoring/Sentry、full smoke、release QA evidence 整包彙整。
+- Legacy AI routes：`/api/ai/visit`、`/api/ai/report`、`/api/ai/spin*`、`/api/rag` 需改造或 production gate。
+- `LCH-005`：production auth provider、password reset/MFA、production-safe demo/staging policy。
+
+### 下一輪建議
+
+1. 先轉換 `/api/ai/visit` 與 `/api/ai/report`：補 `requireCurrentMember()`、`canUseAiModule()`、success/error `AiUsageLog`、BFF DTO 與 API proof。
+2. 或先做 monitoring blocker：若沒有 Sentry DSN，建立 monitoring setup doc + readiness gate operator action，讓 LCH-009 blockers 繼續收斂。
