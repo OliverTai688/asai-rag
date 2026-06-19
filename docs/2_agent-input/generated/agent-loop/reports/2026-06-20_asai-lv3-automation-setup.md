@@ -67,7 +67,10 @@ Reviewed NuvaClub repo agent-loop prompts:
 ## Git
 
 - Branch: `codex/asai-lv3-automation`
-- Commit/push: pending at report update time.
+- Initial setup commit: `9c67124`
+- Push target: `origin/codex/asai-lv3-automation`
+- Note: this report was finalized after the initial setup commit, so the final thread response is
+  authoritative for the latest commit hash.
 
 ## Next Recommended Loop
 
