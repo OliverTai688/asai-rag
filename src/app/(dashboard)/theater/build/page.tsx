@@ -46,6 +46,7 @@ type HandoffNotice = {
   warnings: string[];
   missing: string[];
 };
+type HandoffReview = VisitTheaterHandoffResponse;
 
 const CLASS_PREFIX: Record<DataClass, string> = { fact: "FACT", inference: "INFERENCE", unknown: "UNKNOWN" };
 const CLASS_LABEL: Record<DataClass, string> = { fact: "確認事實", inference: "推論", unknown: "待確認" };
@@ -147,7 +148,13 @@ export default function TheaterBuildPage() {
   const [completed, setCompleted] = useState(false);
   const [panelOpen, setPanelOpen] = useState(false);
   const [handoffNotice, setHandoffNotice] = useState<HandoffNotice | null>(null);
+  const [handoffReview, setHandoffReview] = useState<HandoffReview | null>(null);
   const [isLoadingHandoff, setIsLoadingHandoff] = useState(false);
+  const [sourceVisitPlanId, setSourceVisitPlanId] = useState<string | null>(null);
+  const [sensitivityReason, setSensitivityReason] = useState("");
+  const [riskAccepted, setRiskAccepted] = useState(false);
+  const [isApprovingSensitivity, setIsApprovingSensitivity] = useState(false);
+  const [sensitivityApprovalError, setSensitivityApprovalError] = useState<string | null>(null);
 
   const [inputMode, setInputMode] = useState<InputMode>("TEXT");
   const [voiceStage, setVoiceStage] = useState<VoiceStage>("DISCONNECTED");
@@ -167,7 +174,7 @@ export default function TheaterBuildPage() {
   const voiceLive = voiceStage === "LISTENING";
   const voiceButtonLabel = getComposerVoiceLabel(voiceStage, voiceConsentAccepted);
   const showVoiceComposerStatus = inputMode === "VOICE" && (voiceConsentAccepted || Boolean(voiceError) || Boolean(interimTranscript));
-  const packet = useMemo<TheaterBuildPacket>(() => {
+  const localPacket = useMemo<TheaterBuildPacket>(() => {
     return buildTheaterFieldBuildContext({
       organizationId: "local",
       memberId: "local",
@@ -179,7 +186,9 @@ export default function TheaterBuildPage() {
     }).packet;
   }, [clientId, sessionId, segment.id, messages, materials]);
 
-  const ready = packet.readiness === "READY";
+  const packet = handoffReview?.handoff.packet ?? localPacket;
+  const handoffBlocked = handoffReview?.handoff.status === "BLOCKED_SENSITIVE";
+  const ready = packet.readiness === "READY" && packet.routeBCompatibility.canStartSimulation && !handoffBlocked;
 
   // Optionally pre-load a DB-backed visit package handoff, then fall back to
   // client materials for older clientId-only entry points.
@@ -190,6 +199,7 @@ export default function TheaterBuildPage() {
     const params = new URLSearchParams(window.location.search);
     const paramClientId = params.get("clientId");
     const visitPlanId = params.get("visitPlanId");
+    setSourceVisitPlanId(visitPlanId);
     let active = true;
 
     void (async () => {
@@ -203,19 +213,7 @@ export default function TheaterBuildPage() {
           if (response.ok) {
             const data = (await response.json()) as VisitTheaterHandoffResponse;
             if (!active) return;
-            setClientId(data.client.id);
-            setClientName(data.client.name);
-            setMaterials(data.handoff.knownMaterials);
-            setHandoffNotice({
-              status: data.handoff.status,
-              warnings: data.handoff.warnings,
-              missing: data.handoff.missing,
-            });
-            setMessages((prev) =>
-              prev.length === 1 && prev[0] === INTRO_MESSAGE
-                ? [buildVisitHandoffIntroMessage(data.client.name, data.handoff.packet.scenario, data.handoff.status)]
-                : prev,
-            );
+            applyVisitHandoff(data);
             return;
           }
 
@@ -265,6 +263,51 @@ export default function TheaterBuildPage() {
       active = false;
     };
   }, []);
+
+  function applyVisitHandoff(data: VisitTheaterHandoffResponse) {
+    setClientId(data.client.id);
+    setClientName(data.client.name);
+    setMaterials(data.handoff.knownMaterials);
+    setHandoffReview(data);
+    setHandoffNotice({
+      status: data.handoff.status,
+      warnings: data.handoff.warnings,
+      missing: data.handoff.missing,
+    });
+    setMessages((prev) =>
+      prev.length === 1 && prev[0] === INTRO_MESSAGE
+        ? [buildVisitHandoffIntroMessage(data.client.name, data.handoff.packet.scenario, data.handoff.status)]
+        : prev,
+    );
+  }
+
+  async function handleApproveSensitiveHandoff() {
+    if (!sourceVisitPlanId) return;
+
+    setIsApprovingSensitivity(true);
+    setSensitivityApprovalError(null);
+    try {
+      const response = await fetch(`/api/visits/${encodeURIComponent(sourceVisitPlanId)}/theater-handoff`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          reason: sensitivityReason,
+          riskAccepted,
+        }),
+      });
+      const data = (await response.json().catch(() => null)) as VisitTheaterHandoffResponse | { error?: string } | null;
+
+      if (!response.ok || !data || !("handoff" in data)) {
+        throw new Error(data && "error" in data && data.error ? data.error : "SENSITIVITY_APPROVAL_FAILED");
+      }
+
+      applyVisitHandoff(data);
+    } catch (caught) {
+      setSensitivityApprovalError(caught instanceof Error ? caught.message : "高敏感資料確認失敗。");
+    } finally {
+      setIsApprovingSensitivity(false);
+    }
+  }
 
   // Scroll only the thread container (not the page) to avoid the window jumping.
   useEffect(() => {
@@ -525,6 +568,20 @@ export default function TheaterBuildPage() {
         </div>
       </header>
 
+      {handoffReview ? (
+        <VisitSourceReviewPanel
+          approvalError={sensitivityApprovalError}
+          isApproving={isApprovingSensitivity}
+          onApprove={handleApproveSensitiveHandoff}
+          onReasonChange={setSensitivityReason}
+          onRiskAcceptedChange={setRiskAccepted}
+          packet={packet}
+          reason={sensitivityReason}
+          review={handoffReview}
+          riskAccepted={riskAccepted}
+        />
+      ) : null}
+
       {/* Conversation hero */}
       <section className="flex h-[calc(100dvh-13rem)] min-h-[480px] flex-col overflow-hidden rounded-xl border border-hairline bg-card">
         <div className="flex flex-col gap-3 border-b border-hairline px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
@@ -737,6 +794,138 @@ function PanelSection({ title, icon, children }: { title: string; icon?: React.R
   );
 }
 
+function VisitSourceReviewPanel({
+  approvalError,
+  isApproving,
+  onApprove,
+  onReasonChange,
+  onRiskAcceptedChange,
+  packet,
+  reason,
+  review,
+  riskAccepted,
+}: {
+  approvalError: string | null;
+  isApproving: boolean;
+  onApprove: () => void;
+  onReasonChange: (value: string) => void;
+  onRiskAcceptedChange: (value: boolean) => void;
+  packet: TheaterBuildPacket;
+  reason: string;
+  review: HandoffReview;
+  riskAccepted: boolean;
+}) {
+  const blocked = review.handoff.status === "BLOCKED_SENSITIVE";
+  const sourceCounts = review.handoff.sourceSummary.sourceCounts;
+  const canApprove = reason.trim().length >= 8 && riskAccepted && !isApproving;
+
+  return (
+    <section className="rounded-xl border border-hairline bg-card p-4">
+      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant={blocked ? "destructive" : review.handoff.status === "READY" ? "success" : "outline"}>
+              {getHandoffNoticeLabel(review.handoff.status)}
+            </Badge>
+            <span className="text-sm font-semibold text-ink">準備包來源審查</span>
+          </div>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
+            已從 {review.client.name} 的準備包整理角色、關係、提問依據與待確認項；推論與未知會停留在建構包，不會寫回 CRM 事實。
+          </p>
+        </div>
+        <div className="grid grid-cols-3 gap-2 text-center sm:min-w-72">
+          <SourceCountPill label="目標" value={sourceCounts.objectives} />
+          <SourceCountPill label="提問" value={sourceCounts.spinQuestions} />
+          <SourceCountPill label="依據" value={sourceCounts.questionEvidence} />
+        </div>
+      </div>
+
+      {blocked ? (
+        <div className="mt-4 rounded-lg border border-destructive/30 bg-destructive/5 p-4">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="mt-0.5 size-4 shrink-0 text-destructive" />
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold text-destructive">高敏感客戶需先確認使用邊界</p>
+              <p className="mt-1 text-sm leading-6 text-destructive/85">
+                請記錄本次演練理由，並確認只把準備包內容用於內部訓練，不當成正式客戶溝通紀錄。
+              </p>
+              <Textarea
+                value={reason}
+                onChange={(event) => onReasonChange(event.target.value)}
+                placeholder="例：內部演練加保溝通，僅使用已確認準備包素材，不外傳、不寫回 CRM。"
+                aria-label="高敏感建場理由"
+                className="mt-3 min-h-20 resize-none border-destructive/30 bg-background"
+              />
+              <label className="mt-3 flex items-start gap-2 text-sm leading-6 text-destructive/90">
+                <input
+                  type="checkbox"
+                  checked={riskAccepted}
+                  onChange={(event) => onRiskAcceptedChange(event.target.checked)}
+                  className="mt-1 h-4 w-4 rounded border-destructive/40"
+                />
+                <span>我確認本次劇場只作內部訓練，已理解高敏感資料使用風險。</span>
+              </label>
+              {approvalError ? <p className="mt-2 text-xs font-medium text-destructive">{approvalError}</p> : null}
+              <Button type="button" variant="mono" className="mt-3 rounded-lg" onClick={onApprove} disabled={!canApprove}>
+                {isApproving ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />}
+                確認並重新建場
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      <div className="mt-4 grid gap-3 lg:grid-cols-3">
+        <SourcePreviewList title="已知事實" items={packet.confirmedFacts} empty="目前沒有確認事實。" />
+        <SourcePreviewList title="推論線索" items={packet.inferredPersona} empty="目前沒有推論線索。" />
+        <SourcePreviewList
+          title="待確認"
+          items={[...packet.unknowns, ...packet.narratorQuestions, ...review.handoff.missing]}
+          empty="目前沒有待確認項。"
+        />
+      </div>
+
+      {review.handoff.warnings.length ? (
+        <div className="mt-3 rounded-lg border border-hairline bg-paper px-3 py-2 text-xs leading-5 text-muted-foreground">
+          <span className="font-semibold text-ink">注意事項：</span>
+          {review.handoff.warnings.slice(0, 3).join("；")}
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+function SourceCountPill({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-lg border border-hairline bg-paper px-3 py-2">
+      <p className="text-lg font-semibold tabular-nums text-ink">{value}</p>
+      <p className="text-[11px] text-muted-foreground">{label}</p>
+    </div>
+  );
+}
+
+function SourcePreviewList({ empty, items, title }: { empty: string; items: string[]; title: string }) {
+  return (
+    <div className="rounded-lg border border-hairline bg-paper p-3">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-sm font-semibold text-ink">{title}</p>
+        <span className="text-xs tabular-nums text-muted-foreground">{items.length}</span>
+      </div>
+      {items.length ? (
+        <ul className="mt-2 space-y-1">
+          {items.slice(0, 3).map((item, index) => (
+            <li key={`${title}-${index}`} className="line-clamp-2 text-xs leading-5 text-muted-foreground">
+              {item}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="mt-2 text-xs leading-5 text-muted-foreground">{empty}</p>
+      )}
+    </div>
+  );
+}
+
 function DraftRow({ label, value, tone }: { label: string; value: string; tone?: "ok" | "warn" }) {
   return (
     <div className="flex items-start justify-between gap-3 rounded-lg border border-hairline bg-paper px-3 py-2">
@@ -862,6 +1051,19 @@ type VisitTheaterHandoffResponse = {
     knownMaterials: string[];
     warnings: string[];
     missing: string[];
+    sourceSummary: {
+      clientId: string;
+      visitPlanId: string;
+      sourceCounts: {
+        objectives: number;
+        spinQuestions: number;
+        questionEvidence: number;
+        familyMembers: number;
+        policies: number;
+        objections: number;
+        visitMaterials: number;
+      };
+    };
     packet: TheaterBuildPacket;
   };
 };
