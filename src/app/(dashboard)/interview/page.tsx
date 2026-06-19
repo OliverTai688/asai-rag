@@ -839,6 +839,8 @@ export default function InterviewPage() {
                             checked={selected}
                             onChange={() => toggleCandidate(candidate.id)}
                             disabled={!candidate.canSelect}
+                            aria-label={`選取確認卡項目：${candidate.text}`}
+                            data-testid={`confirmation-candidate-${candidate.id}`}
                             className="mt-1 size-4 rounded border-hairline text-ink focus-visible:ring-2 focus-visible:ring-ring"
                           />
                           <span className="min-w-0 flex-1">
@@ -883,6 +885,8 @@ export default function InterviewPage() {
                                     [candidate.id]: event.target.checked,
                                   }))
                                 }
+                                aria-label={`${candidate.text} 的高敏感風險確認`}
+                                data-testid={`confirmation-risk-${candidate.id}`}
                                 className="mt-0.5 size-4 rounded border-hairline"
                               />
                               我確認此高敏感資訊只作為 CRM 候選，仍需後續合規審查。

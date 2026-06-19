@@ -44,6 +44,7 @@
     "interview:reflection-planning-qa": "node scripts/interview-reflection-planning-qa.mjs",
     "interview:writeback-qa": "node scripts/interview-writeback-qa.mjs",
     "interview:writeback-browser-qa": "node scripts/interview-writeback-browser-qa.mjs",
+    "interview:cross-mode-qa": "node scripts/interview-cross-mode-qa.mjs",
     "prisma:generate": "prisma generate",
     "prisma:validate": "prisma validate"
   },

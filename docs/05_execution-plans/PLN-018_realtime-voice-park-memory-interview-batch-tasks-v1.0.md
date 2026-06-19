@@ -1,7 +1,7 @@
 # 誠問 AI Realtime Voice × Park-style Interview Memory Batch Tasks v1.0
 
 > 建立日期：2026-06-19  
-> 狀態：進行中（PIM-008 完成）  
+> 狀態：完成（PIM-009 cross-mode QA 完成，live provider / production migration 仍需 approval）
 > 架構依據：`ARC-007_realtime-voice-and-park-memory-interview-architecture-v1.0.md`  
 > 研究依據：`RES-017_chinese-realtime-voice-and-park-memory-interview-research-v1.0.md`  
 > 既有雙 Agent 依據：`ARC-004_interview-theater-dual-agent-design-v1.1.md`、`PLN-015_interview-theater-dual-agent-batch-tasks-v1.0.md`  
@@ -43,7 +43,7 @@
 | PIM-006 | Prisma persistence for turns/memory/reflection | [x] | PIM-001、DB approval |
 | PIM-007 | Reflection + planning service/routes | [x] | PIM-006 可部分並行 |
 | PIM-008 | Confirmation card + CRM/writeback boundary | [x] | PIM-002、PIM-006 |
-| PIM-009 | Cross-mode QA, docs sync, rollback notes | [ ] | PIM-002 to PIM-008 |
+| PIM-009 | Cross-mode QA, docs sync, rollback notes | [x] | PIM-002 to PIM-008 |
 
 ---
 
@@ -221,16 +221,26 @@
 
 目標：把文字、語音 shell、顧問陪談、劇場場域建構、persistence、privacy 共同驗收完，並更新文件真相源。
 
-- [ ] 顧問陪談文字模式 multi-turn proof：不重問 confirmed fact，output draft 帶 memory evidence。
-- [ ] 劇場場域建構 proof：build packet 分 confirmed/inference/unknown，NPC <= 4。
-- [ ] 語音 shell proof：mic consent、permission denied、fallback、correction UI。
-- [ ] Persistence proof：清空 browser storage 後 session/memory 可從 DB 恢復。
-- [ ] Privacy proof：org manager aggregate API 不回 transcript/memory/client private payload。
-- [ ] Rollback note：voice provider disabled、memory persistence disabled、schema rollback 或 migration revert strategy。
-- [ ] 更新 `AGENTS.md`、`PLN-018`、必要 report / issue-question。
-- [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`、必要 Prisma 與 Browser QA。
+- [x] 顧問陪談文字模式 multi-turn proof：不重問 confirmed fact，output draft 帶 memory evidence。
+- [x] 劇場場域建構 proof：build packet 分 confirmed/inference/unknown，NPC <= 4。
+- [x] 語音 shell proof：mic consent、permission denied、fallback、correction UI。
+- [x] Persistence proof：清空 browser storage 後 session/memory 可從 DB 恢復。
+- [x] Privacy proof：org manager aggregate API 不回 transcript/memory/client private payload。
+- [x] Rollback note：voice provider disabled、memory persistence disabled、schema rollback 或 migration revert strategy。
+- [x] 更新 `AGENTS.md`、`PLN-018`、必要 report / issue-question。
+- [x] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`、必要 Prisma 與 Browser QA。
 
 範圍外：不宣稱 production raw audio recording ready；不宣稱 public RAG ready。
+
+完成註記：2026-06-19 已新增 `pnpm interview:cross-mode-qa`，串接 advisor memory loop、theater build packet、voice memory/correction、Realtime BFF guard、DB persistence、reflection/planning、confirmation writeback、desktop/mobile browser proof 與 org manager aggregate privacy proof。Cross-mode QA 證明 confirmed/inference/unknown 邊界、NPC <= 4、mic consent/fallback/correction UI、stateless DB restore、manager aggregate 不回 transcript/memory/client private payload。驗收：`pnpm interview:cross-mode-qa`、`pnpm exec tsc --noEmit --pretty false`、`pnpm run lint:changed` 通過。Rollback note 已補於下方。
+
+### PIM Rollback Note - 2026-06-19
+
+- **Voice provider disabled**：保持 `/interview` 為文字模式與中文語音 Beta shell；不要設定 production Realtime provider env 或 production provider allow flag。若 provider 已接上，將 Realtime session BFF 的 production env 移除/停用，前端仍會保留文字 fallback、mic denied/unsupported fallback 與 transcript correction placeholder。
+- **Memory persistence disabled**：若 Interview DB persistence 需要暫停，先停止呼叫 DB-backed session BFF，讓 `/api/ai/interview` 回到 request-local memory stream；不要刪除 `InterviewSession` / `InterviewTurn` / `InterviewMemory` / `InterviewReflection` 既有資料。UI 可隱藏 DB session selector/writeback card，保留文字訪談與 local prompt evidence。
+- **Schema rollback / migration revert**：PIM-006 對 development Supabase 已做 additive `db push`。Production 上線時需以正式 migration 管理；若需 rollback，先停用寫入路由與 writeback action，再執行已審核的 reverse migration 或保留 unused additive tables，禁止 drop/reset/清表。任何 production mutation 仍需 explicit approval。
+- **CRM writeback rollback**：停用 `GET/POST /api/ai/interview/sessions/[sessionId]/writebacks` action 或隱藏 confirmation save button；已建立的 `InteractionEvent` 保留 audit trail，不做自動刪除。Inference-to-fact guard 仍保留在 server boundary。
+- **Privacy rollback guard**：即使停用新功能，org manager aggregate API 不得改回讀 transcript、memory text、client private payload；若需要除錯，只能使用 owner-scoped session API 或 platform break-glass audit 流程。
 
 ---
 

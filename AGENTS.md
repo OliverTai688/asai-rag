@@ -1020,14 +1020,16 @@ Context: 將兩個 AI 訪談（顧問陪談訪綱 A、劇場場域建構訪綱 B
 完成註記：2026-06-19 已新增 `src/domains/interview/writeback-boundary.ts`、`src/lib/interview/interview-writeback-repository.ts` 與 BFF route `GET/POST /api/ai/interview/sessions/[sessionId]/writebacks`。`/interview` 現可用 CRM 客戶 selector 建立 DB-backed session，段落確認卡支援 confirmed/inference/unknown 候選、checkbox、取消、高敏感理由/riskAccepted 與保存結果；server 端保證 inference 只會成為 interview insight，unknown 成為 follow-up task，confirmed + checked + 高敏感 approval 才會建立 CRM candidate interaction event。驗收：`pnpm interview:writeback-qa`、`pnpm interview:writeback-browser-qa`、PIM regression、`pnpm ai:usage-audit`、`pnpm exec tsc --noEmit --pretty false`、新增檔案 ESLint、`pnpm run lint:changed`、`pnpm build` 通過。截圖：`docs/06_audits-and-reports/screenshots/pim/pim-008-writeback/pim-008-interview-desktop.png`、`docs/06_audits-and-reports/screenshots/pim/pim-008-writeback/pim-008-interview-mobile.png`。下一張最低未完成卡為 PIM-009。
 
 ### Batch PIM-009 — Cross-mode QA, docs sync, rollback notes
-- [ ] 顧問陪談文字模式 multi-turn proof：不重問 confirmed fact，output draft 帶 memory evidence。
-- [ ] 劇場場域建構 proof：build packet 分 confirmed/inference/unknown，NPC <= 4。
-- [ ] 語音 shell proof：mic consent、permission denied、fallback、correction UI。
-- [ ] Persistence proof：清空 browser storage 後 session/memory 可從 DB 恢復。
-- [ ] Privacy proof：org manager aggregate API 不回 transcript/memory/client private payload。
-- [ ] Rollback note：voice provider disabled、memory persistence disabled、schema rollback 或 migration revert strategy。
-- [ ] 更新 `AGENTS.md`、`PLN-018`、必要 report / issue-question。
-- [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`、必要 Prisma 與 Browser QA。
+- [x] 顧問陪談文字模式 multi-turn proof：不重問 confirmed fact，output draft 帶 memory evidence。
+- [x] 劇場場域建構 proof：build packet 分 confirmed/inference/unknown，NPC <= 4。
+- [x] 語音 shell proof：mic consent、permission denied、fallback、correction UI。
+- [x] Persistence proof：清空 browser storage 後 session/memory 可從 DB 恢復。
+- [x] Privacy proof：org manager aggregate API 不回 transcript/memory/client private payload。
+- [x] Rollback note：voice provider disabled、memory persistence disabled、schema rollback 或 migration revert strategy。
+- [x] 更新 `AGENTS.md`、`PLN-018`、必要 report / issue-question。
+- [x] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`、必要 Prisma 與 Browser QA。
+
+完成註記：2026-06-19 新增 `pnpm interview:cross-mode-qa` 作為 PIM release-candidate proof，串接 advisor/theater/voice shell/persistence/reflection/writeback/browser/privacy 驗收。`PLN-018` 已補 rollback note：voice provider 可停用回文字 fallback、memory persistence 可停用回 request-local stream、schema rollback 必須以 approved reverse migration 或 unused additive tables 處理、CRM writeback rollback 保留 audit trail、manager aggregate API 不得讀 transcript/memory/client private payload。驗收：`pnpm interview:cross-mode-qa`、`pnpm exec tsc --noEmit --pretty false`、`pnpm run lint:changed` 通過。PIM workstream code/docs/proof 已可交接；live Realtime provider proof、raw audio retention 與 production migration approval 仍是 blockers。
 
 ### Current PIM Blockers
 - Realtime voice 若接 provider，需要可用 OpenAI Realtime model、ephemeral session policy 與 usage/cost evidence。

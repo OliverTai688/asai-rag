@@ -59,8 +59,9 @@ async function checkDesktopFlow() {
 
     await page.getByRole("button", { name: "產生確認卡" }).click();
     await expectText(page, "CRM 候選", "desktop confirmation card shows CRM candidate");
-    const candidateCheckboxes = page.getByRole("checkbox");
-    await candidateCheckboxes.nth(0).check();
+    const candidateCheckbox = page.locator('[data-testid^="confirmation-candidate-"]').first();
+    await candidateCheckbox.waitFor({ state: "visible", timeout: 30000 });
+    await candidateCheckbox.check();
     push(true, "desktop candidate can be checked");
     await page.getByRole("button", { name: "保存" }).click();
     await expectText(page, "阻擋 1 筆", "desktop blocks high-sensitivity save without approval");
