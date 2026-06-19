@@ -16,6 +16,8 @@ export type InterviewAiBody = {
   messages?: InterviewAiMessage[];
   knownMaterials?: string[];
   materials?: string[];
+  memoryEvidence?: unknown;
+  microPlan?: unknown;
 };
 
 type InterviewAiUsage = {
@@ -69,6 +71,8 @@ export async function persistInterviewTurnSuccess(input: InterviewAiSuccessInput
           currentSegmentId: input.body.currentSegmentId,
           messages: input.body.messages?.slice(-12) ?? [],
           knownMaterials: input.body.knownMaterials ?? [],
+          memoryEvidence: input.body.memoryEvidence,
+          microPlan: input.body.microPlan,
           assistantContent: input.assistantContent,
           requestId: input.usage.requestId,
         } as Prisma.InputJsonValue,
@@ -98,6 +102,8 @@ export async function persistInterviewOutputSuccess(input: InterviewOutputSucces
           sessionId: input.body.sessionId,
           materials: input.body.materials ?? [],
           messages: input.body.messages?.slice(-12) ?? [],
+          memoryEvidence: input.body.memoryEvidence,
+          microPlan: input.body.microPlan,
           output: input.output,
           requestId: input.usage.requestId,
         } as Prisma.InputJsonValue,

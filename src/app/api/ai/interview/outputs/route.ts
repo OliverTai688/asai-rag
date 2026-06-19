@@ -3,6 +3,7 @@ import { z } from "zod";
 import { AiModule } from "@/generated/prisma/enums";
 import { ISSUE_CATEGORIES, ISSUE_READINESS_LEVELS, PQ_QUESTION_BANK } from "@/domains/interview/issue-maturity";
 import { advisorCompanionOutline } from "@/domains/interview/outlines";
+import { buildAdvisorMemoryLoopContext } from "@/domains/interview/park-loop";
 import { canUseAiModule } from "@/lib/auth/policies";
 import { authErrorResponse, requireCurrentMember } from "@/lib/auth/current-workspace";
 import {
@@ -101,7 +102,11 @@ const outputDraftSchema = z.object({
   complianceNotes: safeStringArraySchema,
 });
 
-function buildOutputPrompt(materials: string[], messages: { role: "user" | "assistant"; content: string }[]): string {
+function buildOutputPrompt(
+  materials: string[],
+  messages: { role: "user" | "assistant"; content: string }[],
+  memoryPromptContext: string,
+): string {
   return [
     "你是誠問 AI 訪談 Agent 的輸出整理器。請把保險業務員的訪談素材整理成可編輯草稿。",
     "",
@@ -117,6 +122,10 @@ function buildOutputPrompt(materials: string[], messages: { role: "user" | "assi
     `Issue 類別：${ISSUE_CATEGORIES.map((issue) => `${issue.key}=${issue.label}`).join("；")}`,
     `IRL 定義：${ISSUE_READINESS_LEVELS.map((level) => `${level.level}:${level.label}`).join("；")}`,
     `PQ 題庫候選：${PQ_QUESTION_BANK.map((question) => question.text).join(" / ")}`,
+    "",
+    memoryPromptContext,
+    "",
+    "輸出記憶規則：knownFacts 只能使用「已確認事實」；likelyIssues / personalityInference 才能使用「合理推論」；unknownsToConfirm 必須收納待確認。",
     "",
     "JSON 格式必須完全使用下列英文 key，不要改成中文 key：",
     JSON.stringify({
@@ -211,6 +220,21 @@ export async function POST(req: Request) {
       return Response.json({ error: "OPENAI_API_KEY is not configured" }, { status: 500 });
     }
 
+    const memoryLoop = buildAdvisorMemoryLoopContext({
+      organizationId: session.organization.id,
+      memberId: session.user.id,
+      unitId: session.membership.primaryUnitId,
+      clientId: body.clientId,
+      sessionId: body.sessionId,
+      messages: body.messages,
+      knownMaterials: body.materials,
+    });
+    const bodyWithMemory = {
+      ...body,
+      memoryEvidence: memoryLoop.evidence,
+      microPlan: memoryLoop.microPlan,
+    };
+
     const completion = await client.chat.completions.create({
       model: MODEL,
       messages: [
@@ -220,7 +244,7 @@ export async function POST(req: Request) {
         },
         {
           role: "user",
-          content: buildOutputPrompt(body.materials, body.messages),
+          content: buildOutputPrompt(body.materials, body.messages, memoryLoop.promptContext),
         },
       ],
       response_format: { type: "json_object" },
@@ -236,7 +260,7 @@ export async function POST(req: Request) {
     } catch {
       await persistInterviewFailure({
         session,
-        body,
+        body: bodyWithMemory,
         model: MODEL,
         requestId: completion.id,
         latencyMs: Date.now() - startedAt,
@@ -251,7 +275,7 @@ export async function POST(req: Request) {
     if (!parsedOutput.success) {
       await persistInterviewFailure({
         session,
-        body,
+        body: bodyWithMemory,
         model: MODEL,
         requestId: completion.id,
         latencyMs: Date.now() - startedAt,
@@ -261,10 +285,15 @@ export async function POST(req: Request) {
       return Response.json({ error: "AI output did not match the expected schema" }, { status: 502 });
     }
 
+    const outputWithEvidence = {
+      ...parsedOutput.data,
+      memoryEvidence: memoryLoop.evidence,
+    };
+
     await persistInterviewOutputSuccess({
       session,
-      body,
-      output: parsedOutput.data,
+      body: bodyWithMemory,
+      output: outputWithEvidence,
       usage: {
         model: MODEL,
         promptTokens: completion.usage?.prompt_tokens,
@@ -275,7 +304,7 @@ export async function POST(req: Request) {
       },
     });
 
-    return Response.json(parsedOutput.data);
+    return Response.json(outputWithEvidence);
   } catch (error) {
     try {
       const session = await requireCurrentMember();

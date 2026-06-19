@@ -190,6 +190,7 @@ export interface InterviewMicroPlan {
   issueTags: string[];
   expectedEvidenceType: "FACT" | "VALUE" | "RISK" | "DECISION" | "RELATIONSHIP" | "NEXT_STEP";
   avoid: string[];
+  supportingMemoryIds?: string[];
 }
 
 export interface SegmentProgress {
@@ -305,4 +306,10 @@ export interface InterviewOutputDraft {
   issueReadiness: InterviewOutputIssueReadiness[];
   personalityInference: string;
   complianceNotes: string[];
+  memoryEvidence?: {
+    supportingMemoryIds: string[];
+    confirmedFactMemoryIds: string[];
+    inferenceMemoryIds: string[];
+    unknownMemoryIds: string[];
+  };
 }

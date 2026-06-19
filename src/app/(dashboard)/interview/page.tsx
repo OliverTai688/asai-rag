@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { advisorCompanionOutline } from "@/domains/interview/outlines";
 import { useInterviewStore } from "@/domains/interview/store";
 import { getSegmentProgress } from "@/domains/interview/service";
-import { InterviewOutputDraft } from "@/domains/interview/types";
+import { InterviewMicroPlan, InterviewOutputDraft } from "@/domains/interview/types";
 
 type ChatMessage = {
   role: "user" | "assistant";
@@ -30,6 +30,7 @@ export default function InterviewPage() {
   const [isStreaming, setIsStreaming] = useState(false);
   const [isGeneratingOutputs, setIsGeneratingOutputs] = useState(false);
   const [outputDraft, setOutputDraft] = useState<InterviewOutputDraft | null>(null);
+  const [microPlan, setMicroPlan] = useState<InterviewMicroPlan | null>(null);
   const [editableOutputJson, setEditableOutputJson] = useState("");
   const [outputError, setOutputError] = useState<string | null>(null);
   const activeSession = sessions.find((session) => session.id === activeSessionId);
@@ -48,6 +49,9 @@ export default function InterviewPage() {
   function handleStart() {
     if (activeSession) return;
     const session = createSession({ mode: "INDEPENDENT" });
+    setMicroPlan(null);
+    setOutputDraft(null);
+    setEditableOutputJson("");
     setMessages([
       {
         role: "assistant",
@@ -108,6 +112,7 @@ export default function InterviewPage() {
         throw new Error("訪談 Agent 暫時無法回應");
       }
 
+      setMicroPlan(parseMicroPlanHeader(response.headers.get("X-Interview-Micro-Plan")));
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let assistantContent = "";
@@ -354,8 +359,13 @@ export default function InterviewPage() {
                   <div className="rounded-lg border border-hairline bg-paper px-3 py-2">
                     <p className="text-xs font-semibold text-ink">目前判讀</p>
                     <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                      {outputDraft.issueReadiness.map((issue) => `${issue.label} L${issue.level}`).join("、") || "尚無明確議題"}
+                  {outputDraft.issueReadiness.map((issue) => `${issue.label} L${issue.level}`).join("、") || "尚無明確議題"}
                     </p>
+                    {outputDraft.memoryEvidence?.supportingMemoryIds.length ? (
+                      <p className="mt-2 text-[11px] leading-5 text-muted-foreground">
+                        Evidence：{outputDraft.memoryEvidence.supportingMemoryIds.join("、")}
+                      </p>
+                    ) : null}
                   </div>
                   <Textarea
                     value={editableOutputJson}
@@ -367,8 +377,62 @@ export default function InterviewPage() {
               ) : null}
             </CardContent>
           </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>下一題計畫</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {microPlan ? (
+                <>
+                  <div className="rounded-lg border border-hairline bg-paper px-3 py-2">
+                    <p className="text-xs font-semibold text-ink">AI 準備追問</p>
+                    <p className="mt-1 text-xs leading-5 text-muted-foreground">{microPlan.nextQuestion}</p>
+                  </div>
+                  <div className="rounded-lg border border-hairline bg-paper px-3 py-2">
+                    <p className="text-xs font-semibold text-ink">為什麼問這題</p>
+                    <p className="mt-1 text-xs leading-5 text-muted-foreground">{microPlan.whyThisQuestion}</p>
+                  </div>
+                  {microPlan.supportingMemoryIds?.length ? (
+                    <div className="rounded-lg border border-hairline bg-paper px-3 py-2">
+                      <p className="text-xs font-semibold text-ink">Supporting memory IDs</p>
+                      <p className="mt-1 break-all text-xs leading-5 text-muted-foreground">
+                        {microPlan.supportingMemoryIds.join("、")}
+                      </p>
+                    </div>
+                  ) : null}
+                </>
+              ) : (
+                <p className="text-sm leading-6 text-muted-foreground">
+                  送出回答後會顯示 AI 的下一題計畫與引用的訪談記憶，方便確認它沒有重問已確認事實。
+                </p>
+              )}
+            </CardContent>
+          </Card>
         </aside>
       </div>
     </div>
   );
+}
+
+function parseMicroPlanHeader(value: string | null): InterviewMicroPlan | null {
+  if (!value) return null;
+
+  try {
+    const parsed = JSON.parse(decodeURIComponent(value)) as Partial<InterviewMicroPlan>;
+    if (!parsed.nextQuestion || !parsed.whyThisQuestion || !parsed.outlineSegmentId) return null;
+
+    return {
+      objective: parsed.objective ?? "",
+      nextQuestion: parsed.nextQuestion,
+      whyThisQuestion: parsed.whyThisQuestion,
+      outlineSegmentId: parsed.outlineSegmentId,
+      issueTags: parsed.issueTags ?? [],
+      expectedEvidenceType: parsed.expectedEvidenceType ?? "FACT",
+      avoid: parsed.avoid ?? [],
+      supportingMemoryIds: parsed.supportingMemoryIds ?? [],
+    };
+  } catch {
+    return null;
+  }
 }

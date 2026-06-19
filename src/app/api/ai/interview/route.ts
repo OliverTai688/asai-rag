@@ -2,6 +2,10 @@ import OpenAI from "openai";
 import { z } from "zod";
 import { AiModule } from "@/generated/prisma/enums";
 import { advisorCompanionOutline } from "@/domains/interview/outlines";
+import {
+  buildAdvisorMemoryLoopContext,
+  encodeInterviewPlanHeader,
+} from "@/domains/interview/park-loop";
 import { canUseAiModule } from "@/lib/auth/policies";
 import { authErrorResponse, requireCurrentMember } from "@/lib/auth/current-workspace";
 import {
@@ -111,8 +115,24 @@ export async function POST(req: Request) {
       return Response.json({ error: "OPENAI_API_KEY is not configured" }, { status: 500 });
     }
 
+    const memoryLoop = buildAdvisorMemoryLoopContext({
+      organizationId: session.organization.id,
+      memberId: session.user.id,
+      unitId: session.membership.primaryUnitId,
+      clientId: body.clientId,
+      sessionId: body.sessionId,
+      currentSegmentId: body.currentSegmentId,
+      messages: body.messages,
+      knownMaterials: body.knownMaterials,
+    });
+    const bodyWithMemory = {
+      ...body,
+      memoryEvidence: memoryLoop.evidence,
+      microPlan: memoryLoop.microPlan,
+    };
     const promptContext = [
       buildOutlineContext(body.currentSegmentId),
+      memoryLoop.promptContext,
       body.knownMaterials.length
         ? `目前已整理素材：\n${body.knownMaterials.map((item) => `- ${item}`).join("\n")}`
         : "",
@@ -159,7 +179,7 @@ export async function POST(req: Request) {
         } catch (error) {
           await persistInterviewFailure({
             session,
-            body,
+            body: bodyWithMemory,
             model: MODEL,
             requestId,
             latencyMs: Date.now() - startedAt,
@@ -171,7 +191,7 @@ export async function POST(req: Request) {
 
         await persistInterviewTurnSuccess({
           session,
-          body,
+          body: bodyWithMemory,
           assistantContent,
           usage: {
             model: MODEL,
@@ -187,7 +207,10 @@ export async function POST(req: Request) {
     });
 
     return new Response(readable, {
-      headers: { "Content-Type": "text/plain; charset=utf-8" },
+      headers: {
+        "Content-Type": "text/plain; charset=utf-8",
+        "X-Interview-Micro-Plan": encodeInterviewPlanHeader(memoryLoop.microPlan),
+      },
     });
   } catch (error) {
     try {

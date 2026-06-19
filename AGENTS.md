@@ -870,15 +870,17 @@ Context: 將兩個 AI 訪談（顧問陪談訪綱 A、劇場場域建構訪綱 B
 完成註記：2026-06-19 已新增 `src/domains/interview/memory.ts` 與 `InterviewMemory` / `InterviewReflection` / `InterviewMicroPlan` 等 domain contract，並加入 `pnpm interview:memory-dry-run` 覆蓋顧問陪談 confirmed fact、劇場 inference、voice transcript unknown、correction/supersede 與 retrieval ranking。驗收：`pnpm interview:memory-dry-run`、`pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed` 通過。下一張最低未完成卡為 PIM-002。
 
 ### Batch PIM-002 — 顧問陪談 Park memory loop
-- [ ] `/api/ai/interview` 使用 memory extraction 結果建立 session-local memory stream。
-- [ ] AI 回應前先做 scoped retrieval，prompt 中明確區分 confirmed facts / inferences / unknowns。
-- [ ] 產生 `InterviewMicroPlan`，UI 顯示「為什麼問這題」或可供 debug/QA 的 plan evidence。
-- [ ] `/api/ai/interview/outputs` 消費 memory stream / reflection / supporting memory IDs，而不只吃 messages。
-- [ ] 顧問陪談不重問已 confirmed facts；轉寫/輸入不確定時先確認。
-- [ ] 每次 AI call 成功/錯誤皆寫 `AiUsageLog`。
-- [ ] API proof：多輪對話中已確認事實不被重問，output draft 帶 supporting memory IDs。
-- [ ] Browser proof：`/interview` desktop/mobile 無 console error、無水平 overflow。
-- [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+- [x] `/api/ai/interview` 使用 memory extraction 結果建立 session-local memory stream。
+- [x] AI 回應前先做 scoped retrieval，prompt 中明確區分 confirmed facts / inferences / unknowns。
+- [x] 產生 `InterviewMicroPlan`，UI 顯示「為什麼問這題」或可供 debug/QA 的 plan evidence。
+- [x] `/api/ai/interview/outputs` 消費 memory stream / reflection / supporting memory IDs，而不只吃 messages。
+- [x] 顧問陪談不重問已 confirmed facts；轉寫/輸入不確定時先確認。
+- [x] 每次 AI call 成功/錯誤皆寫 `AiUsageLog`。
+- [x] API proof：多輪對話中已確認事實不被重問，output draft 帶 supporting memory IDs。
+- [x] Browser proof：`/interview` desktop/mobile 無 console error、無水平 overflow。
+- [x] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+
+完成註記：2026-06-19 已新增 `src/domains/interview/park-loop.ts`，讓 `/api/ai/interview` 與 `/api/ai/interview/outputs` 共用 session-local memory stream、retrieval partition、micro-plan 與 evidence IDs。UI 於 `/interview` 顯示「下一題計畫」與 supporting memory IDs。驗收：`pnpm interview:park-loop-dry-run`、`pnpm interview:memory-dry-run`、`pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`、`pnpm build` 通過；Browser proof desktop/mobile console error 0、無水平 overflow，且合成回答送出後顯示 plan evidence。截圖：`docs/06_audits-and-reports/screenshots/pim/pim-002-interview-desktop.png`、`docs/06_audits-and-reports/screenshots/pim/pim-002-interview-mobile.png`。下一張最低未完成卡為 PIM-003。
 
 ### Batch PIM-003 — 劇場場域建構 Park memory loop
 - [ ] 萃取或補齊 theater field outline runtime entry，使用 `InterviewKind.THEATER_FIELD_BUILD`。

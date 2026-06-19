@@ -1,7 +1,7 @@
 # 誠問 AI Realtime Voice × Park-style Interview Memory Batch Tasks v1.0
 
 > 建立日期：2026-06-19  
-> 狀態：進行中（PIM-001 完成）  
+> 狀態：進行中（PIM-002 完成）  
 > 架構依據：`ARC-007_realtime-voice-and-park-memory-interview-architecture-v1.0.md`  
 > 研究依據：`RES-017_chinese-realtime-voice-and-park-memory-interview-research-v1.0.md`  
 > 既有雙 Agent 依據：`ARC-004_interview-theater-dual-agent-design-v1.1.md`、`PLN-015_interview-theater-dual-agent-batch-tasks-v1.0.md`  
@@ -36,7 +36,7 @@
 | --- | --- | --- | --- |
 | PIM-000 | 架構文件與 workstream 登錄 | [x] | `RES-017` |
 | PIM-001 | Memory domain contracts + pure services | [x] | PIM-000 |
-| PIM-002 | 顧問陪談 Park memory loop | [ ] | PIM-001、ITA-001 |
+| PIM-002 | 顧問陪談 Park memory loop | [x] | PIM-001、ITA-001 |
 | PIM-003 | 劇場場域建構 Park memory loop | [ ] | PIM-001、ITA-003/Route B contract |
 | PIM-004 | `/interview` 中文語音 UX shell | [ ] | PIM-000 |
 | PIM-005 | Realtime session BFF + event mirror | [ ] | PIM-004、session/quota guard |
@@ -86,17 +86,19 @@
 
 目標：讓 `ADVISOR_COMPANION` 在文字訪談模式先具備 Park-style 連續記憶，不重問已確認事實，並可產生可追溯準備卡。
 
-- [ ] `/api/ai/interview` 使用 memory extraction 結果建立 session-local memory stream。
-- [ ] AI 回應前先做 scoped retrieval，prompt 中明確區分 confirmed facts / inferences / unknowns。
-- [ ] 產生 `InterviewMicroPlan`，UI 顯示「為什麼問這題」或可供 debug/QA 的 plan evidence。
-- [ ] `/api/ai/interview/outputs` 消費 memory stream / reflection / supporting memory IDs，而不只吃 messages。
-- [ ] 顧問陪談不重問已 confirmed facts；轉寫/輸入不確定時先確認。
-- [ ] 每次 AI call 成功/錯誤皆寫 `AiUsageLog`。
-- [ ] API proof：多輪對話中已確認事實不被重問，output draft 帶 supporting memory IDs。
-- [ ] Browser proof：`/interview` desktop/mobile 無 console error、無水平 overflow。
-- [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+- [x] `/api/ai/interview` 使用 memory extraction 結果建立 session-local memory stream。
+- [x] AI 回應前先做 scoped retrieval，prompt 中明確區分 confirmed facts / inferences / unknowns。
+- [x] 產生 `InterviewMicroPlan`，UI 顯示「為什麼問這題」或可供 debug/QA 的 plan evidence。
+- [x] `/api/ai/interview/outputs` 消費 memory stream / reflection / supporting memory IDs，而不只吃 messages。
+- [x] 顧問陪談不重問已 confirmed facts；轉寫/輸入不確定時先確認。
+- [x] 每次 AI call 成功/錯誤皆寫 `AiUsageLog`。
+- [x] API proof：多輪對話中已確認事實不被重問，output draft 帶 supporting memory IDs。
+- [x] Browser proof：`/interview` desktop/mobile 無 console error、無水平 overflow。
+- [x] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
 
 範圍外：不做 voice、不寫回 CRM、不新增 Prisma schema。
+
+完成註記：2026-06-19 已新增 `src/domains/interview/park-loop.ts`，讓 `/api/ai/interview` 與 `/api/ai/interview/outputs` 共用 session-local memory stream、retrieval partition、micro-plan 與 evidence IDs。UI 於 `/interview` 顯示「下一題計畫」與 supporting memory IDs。驗收：`pnpm interview:park-loop-dry-run`、`pnpm interview:memory-dry-run`、`pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`、`pnpm build` 通過；Browser proof desktop/mobile console error 0、無水平 overflow，且合成回答送出後顯示 plan evidence。截圖：`docs/06_audits-and-reports/screenshots/pim/pim-002-interview-desktop.png`、`docs/06_audits-and-reports/screenshots/pim/pim-002-interview-mobile.png`。下一張最低未完成卡為 PIM-003。
 
 ---
 
