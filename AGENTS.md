@@ -800,6 +800,8 @@ ITA-003c persisted session note（2026-06-20）：已完成 Route B persisted se
 
 ITA-003d session UI note（2026-06-20）：已完成 Route B persisted session UI/read surface。`/theater/build` 的完成 CTA 會用 `buildTheaterRouteBHandoff(packet, { routeBEnabled: true })` 建立 `POST /api/theater/route-b/sessions`，成功後導向 `/theater/[sessionId]`；`/theater/[sessionId]` 會先讀 persisted Route B DTO，渲染多角色舞台、角色卡、群聊/私聊 lane、導演開場、關係/旁白補問、visibility proof 與 provider guarded-disabled 狀態，legacy store session 仍僅作舊 quickstart/舊演練讀取。新增 `src/domains/theater/route-b-session.ts` 作 client-safe DTO type、`pnpm theater:route-b-session-ui-qa` 覆蓋 create session、owner browser read、manager 404、desktop/mobile no overflow、provider action disabled、response/page no private sentinel、`AiUsageLog` THEATER count before/after 不變。修正 `theater-client-build-qa` QA stamp，避免 timestamp 片段被電話 sentinel 誤判。尚未完成：Route B provider success/error `AiUsageLog` proof、真正群/私聊回合寫入、人物狀態更新互動與五視角 feedback runtime。
 
+Whole-product review 註記（2026-06-20 after previsit redesign）：最新端到端校準確認 client/relationship graph/previsit package/theater handoff 已可串起，但 Route B session 仍停在 read-only guarded-disabled stage。下一個最高槓桿子切片建議為 `ITA-003e Route B persisted interaction write shell`：新增 owner-scoped advisor turn append / group-private lane selection / state patch proposal persistence，先不呼叫 provider；proof 必須覆蓋 member 201、manager 404、private visibility 不外洩、state patch 不寫 confirmed CRM fact、response no raw private sentinel、`AiUsageLog` count before/after 不變。若本切片被 provider/env 阻擋，fallback 為 `BFF-001` 全站資料來源盤點。
+
 ### Batch ITA-004 — 五視角質化回饋（M4）
 - [ ] 五視角 prompt：教練的耳朵 / 客戶的眼睛 / 沉默裡的需求 / 守門的良心 / 決策的橋。
 - [ ] 結束一次跑五個，可勾選、預設全部（F20/F21）；以 `TheaterFeedback` 取代數值評分。
@@ -1104,6 +1106,8 @@ Context: 將目前 partial vertical-slice BFF 推進成全站一致的 Backend-f
 - [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
 
 Whole-product review fallback（2026-06-20）：若下一輪無法安全確認 Route B DB target 或 migration approval，BFF-001 是最高安全 fallback。盤點時要特別標出 `/reports` local store/share action、`/issues` static mock、admin demo seed、client service local write methods，以及 theater Route B runtime/source 邊界。
+
+Whole-product review fallback update（2026-06-20 after previsit redesign）：若 `ITA-003e` 互動寫入切片被 provider/env/session 條件阻擋，優先執行 BFF-001。盤點需把目前已完成的 DB-backed client/relationship/visit/theater session proof 與仍 local/static 的 `/reports`、`/issues`、admin/demo seed、client store local write methods 分開標示，避免後續 LV3 proof 混入 mock/local truth。
 
 ### Batch BFF-002 — Shared API foundation
 - [ ] 建立共用 error/response/validation/sanitize helpers。

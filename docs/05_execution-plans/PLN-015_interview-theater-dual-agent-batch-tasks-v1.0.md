@@ -149,6 +149,8 @@ ITA-003c persisted session note（2026-06-20）：已完成 Route B persisted se
 
 ITA-003d session UI note（2026-06-20）：已完成 Route B persisted session UI/read surface。`/theater/build` 完成 CTA 會以 `buildTheaterRouteBHandoff(packet, { routeBEnabled: true })` 建立 DB-backed Route B session 並導向 `/theater/[sessionId]`；session 頁在 legacy store fallback 前先讀 `GET /api/theater/route-b/sessions/[sessionId]`，渲染多角色舞台、角色卡、群聊/私聊 lane、導演開場、關係/旁白補問、visibility proof 與 provider guarded-disabled 狀態。新增 `src/domains/theater/route-b-session.ts` client-safe DTO type 與 `pnpm theater:route-b-session-ui-qa`；proof 覆蓋 create session、owner browser read、manager 404、desktop/mobile no overflow、provider action disabled、response/page no private sentinel、`AiUsageLog` THEATER count before/after 不變。尚未完成：Route B provider success/error `AiUsageLog` proof、真正群/私聊回合寫入、人物狀態更新互動與五視角 feedback runtime。
 
+Whole-product review 註記（2026-06-20 after previsit redesign）：最新端到端校準確認 previsit 準備包已成為 project/relationship-aware handoff，但 Route B theater 仍缺「可操作」的群聊/私聊/人物狀態更新寫入。下一個最高槓桿子切片建議為 `ITA-003e Route B persisted interaction write shell`：新增 owner-scoped advisor turn append / group-private lane selection / state patch proposal persistence，先不呼叫 provider；proof 必須覆蓋 member 201、manager 404、private visibility 不外洩、state patch 不寫 confirmed CRM fact、response no raw private sentinel、`AiUsageLog` count before/after 不變。provider director/character/feedback success/error `AiUsageLog` 仍留到後續 ITA-003f 或 ITA-004 前置，不得在無 proof 時開啟。
+
 ---
 
 ## Batch ITA-004 - 五視角質化回饋

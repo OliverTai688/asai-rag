@@ -84,6 +84,8 @@
 
 Whole-product review fallback（2026-06-20）：若下一輪無法安全確認 Route B DB target 或 migration approval，BFF-001 是最高安全 fallback。盤點時要特別標出 `/reports` local store/share action、`/issues` static mock、admin demo seed、client service local write methods，以及 theater Route B runtime/source 邊界。
 
+Whole-product review fallback update（2026-06-20 after previsit redesign）：若 `ITA-003e` Route B 互動寫入切片被 provider/env/session 條件阻擋，BFF-001 仍是最高安全 fallback。盤點時要把已完成的 DB-backed client/relationship/visit/Route B session proof 與仍 local/static 的 `/reports`、`/issues`、admin/demo seed、client store local write methods 分開標示，避免後續 LV3 proof 混入 mock/local truth。
+
 ---
 
 ## Batch BFF-002 - Shared API Foundation
