@@ -152,7 +152,7 @@ function TheaterSimulationContent() {
   }, [session, spinSessions]);
 
   if (activeRouteBSession) {
-    return <RouteBSessionStage snapshot={activeRouteBSession} />;
+    return <RouteBSessionStage snapshot={activeRouteBSession} onSnapshotUpdate={setRouteBSession} />;
   }
 
   if (!session || !sessionId) {
@@ -421,7 +421,13 @@ const ROUTE_B_SCOPE_LABEL: Record<string, string> = {
   NARRATOR: "旁白",
 };
 
-function RouteBSessionStage({ snapshot }: { snapshot: RouteBSessionSnapshot }) {
+function RouteBSessionStage({
+  onSnapshotUpdate,
+  snapshot,
+}: {
+  onSnapshotUpdate: (snapshot: RouteBSessionSnapshot) => void;
+  snapshot: RouteBSessionSnapshot;
+}) {
   const focusCharacter = snapshot.characters.find((character) => character.isFocus) ?? snapshot.characters[0];
   const relationships = routeBRecords(snapshot.scene.relationships);
   const narratorQuestions = routeBRecords(snapshot.scene.narratorQuestions);
@@ -508,7 +514,14 @@ function RouteBSessionStage({ snapshot }: { snapshot: RouteBSessionSnapshot }) {
               <div className="flex min-h-0 flex-col">
                 <RouteBLaneHeader icon={<ShieldCheck className="h-4 w-4" />} title="私聊" subtitle="只對指定角色可見" />
                 <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
-                  {snapshot.characters.map((character) => (
+                  {snapshot.characters.map((character) => {
+                    const privateTurns = snapshot.turns.filter(
+                      (turn) =>
+                        turn.visibilityScope === "PRIVATE" &&
+                        turn.addresseeRouteBCharacterId === character.routeBCharacterId,
+                    );
+
+                    return (
                     <div key={character.id} className="rounded-lg border border-hairline bg-paper px-3 py-3">
                       <div className="flex items-center justify-between gap-3">
                         <div className="min-w-0">
@@ -524,16 +537,25 @@ function RouteBSessionStage({ snapshot }: { snapshot: RouteBSessionSnapshot }) {
                       <p className="mt-2 line-clamp-2 text-xs leading-5 text-muted-foreground">
                         {firstRouteBText(character.personaHints) ?? firstRouteBText(character.unknowns) ?? "尚無私聊提示。"}
                       </p>
+                      {privateTurns.length ? (
+                        <div className="mt-3 space-y-2">
+                          {privateTurns.map((turn) => (
+                            <RouteBTurnBubble key={turn.id} snapshot={snapshot} turn={turn} />
+                          ))}
+                        </div>
+                      ) : null}
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             </div>
 
-            <div className="border-t border-hairline bg-paper p-3">
+            <div className="space-y-3 border-t border-hairline bg-paper p-3">
+              <RouteBAdvisorComposer snapshot={snapshot} onSnapshotUpdate={onSnapshotUpdate} />
               <div className="mx-auto grid max-w-3xl gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
                 <div className="rounded-lg border border-hairline bg-background px-3 py-3 text-sm text-muted-foreground">
-                  Route B provider 目前關閉；不產生角色訊息、不寫假 `AiUsageLog`。
+                  Provider 目前關閉；互動只寫入顧問 turn 與待確認狀態，不產生角色訊息、不寫假 `AiUsageLog`。
                 </div>
                 <Button type="button" variant="mono" className="rounded-full" disabled>
                   <Sparkles className="h-4 w-4" />
@@ -582,6 +604,157 @@ function RouteBSessionStage({ snapshot }: { snapshot: RouteBSessionSnapshot }) {
         </aside>
       </div>
     </div>
+  );
+}
+
+function RouteBAdvisorComposer({
+  onSnapshotUpdate,
+  snapshot,
+}: {
+  onSnapshotUpdate: (snapshot: RouteBSessionSnapshot) => void;
+  snapshot: RouteBSessionSnapshot;
+}) {
+  const defaultCharacterId = snapshot.characters[0]?.routeBCharacterId ?? "";
+  const [content, setContent] = useState("");
+  const [visibilityScope, setVisibilityScope] = useState<"GROUP" | "PRIVATE">("GROUP");
+  const [addresseeRouteBCharacterId, setAddresseeRouteBCharacterId] = useState(defaultCharacterId);
+  const [statePatchTargetRouteBCharacterId, setStatePatchTargetRouteBCharacterId] = useState(defaultCharacterId);
+  const [statePatchSummary, setStatePatchSummary] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const selectedAddresseeId = addresseeRouteBCharacterId || defaultCharacterId;
+  const selectedStatePatchTargetId = statePatchTargetRouteBCharacterId || selectedAddresseeId || defaultCharacterId;
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    const trimmedContent = content.trim();
+    const trimmedStatePatchSummary = statePatchSummary.trim();
+
+    if (!trimmedContent || !defaultCharacterId || isSubmitting) return;
+
+    setIsSubmitting(true);
+
+    try {
+      const response = await fetch(`/api/theater/route-b/sessions/${encodeURIComponent(snapshot.session.id)}/turns`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          content: trimmedContent,
+          visibilityScope,
+          addresseeRouteBCharacterId: visibilityScope === "PRIVATE" ? selectedAddresseeId : undefined,
+          statePatch: trimmedStatePatchSummary
+            ? {
+                targetRouteBCharacterId: selectedStatePatchTargetId,
+                summary: trimmedStatePatchSummary,
+              }
+            : undefined,
+        }),
+      });
+
+      const payload = (await response.json().catch(() => null)) as RouteBSessionSnapshot | { error?: string; message?: string } | null;
+
+      if (!response.ok || !payload || !("session" in payload)) {
+        const message = payload && "message" in payload && payload.message ? payload.message : "Route B interaction write failed.";
+        throw new Error(message);
+      }
+
+      onSnapshotUpdate(payload);
+      setContent("");
+      setStatePatchSummary("");
+      toast.success("已寫入 Route B 舞台");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Route B interaction write failed.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="mx-auto grid max-w-3xl gap-3">
+      <div className="grid gap-2 sm:grid-cols-[140px_minmax(0,1fr)_auto] sm:items-end">
+        <label className="grid gap-1 text-xs font-medium text-muted-foreground">
+          發話範圍
+          <select
+            value={visibilityScope}
+            onChange={(event) => setVisibilityScope(event.target.value === "PRIVATE" ? "PRIVATE" : "GROUP")}
+            className="h-10 rounded-lg border border-hairline bg-background px-3 text-sm font-medium text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            aria-label="選擇 Route B 發話範圍"
+          >
+            <option value="GROUP">群聊</option>
+            <option value="PRIVATE">私聊</option>
+          </select>
+        </label>
+
+        {visibilityScope === "PRIVATE" ? (
+          <label className="grid gap-1 text-xs font-medium text-muted-foreground">
+            私聊對象
+            <select
+              value={selectedAddresseeId}
+              onChange={(event) => {
+                setAddresseeRouteBCharacterId(event.target.value);
+                setStatePatchTargetRouteBCharacterId(event.target.value);
+              }}
+              className="h-10 rounded-lg border border-hairline bg-background px-3 text-sm font-medium text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              aria-label="選擇 Route B 私聊對象"
+            >
+              {snapshot.characters.map((character) => (
+                <option key={character.id} value={character.routeBCharacterId}>
+                  {character.displayName}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : (
+          <div className="hidden sm:block" />
+        )}
+
+        <Button
+          type="submit"
+          variant="mono"
+          className="h-10 rounded-full"
+          disabled={!content.trim() || !defaultCharacterId || isSubmitting}
+          aria-label="寫入 Route B 顧問互動"
+        >
+          {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+          寫入舞台
+        </Button>
+      </div>
+
+      <Textarea
+        value={content}
+        onChange={(event) => setContent(event.target.value)}
+        placeholder="輸入顧問要放進群聊或私聊的訊息"
+        className="min-h-20 resize-y rounded-lg border-hairline bg-background text-sm leading-6 focus-visible:ring-ring"
+        disabled={isSubmitting}
+        aria-label="Route B 顧問訊息"
+      />
+
+      <div className="grid gap-2 sm:grid-cols-[180px_minmax(0,1fr)] sm:items-start">
+        <label className="grid gap-1 text-xs font-medium text-muted-foreground">
+          狀態對象
+          <select
+            value={selectedStatePatchTargetId}
+            onChange={(event) => setStatePatchTargetRouteBCharacterId(event.target.value)}
+            className="h-10 rounded-lg border border-hairline bg-background px-3 text-sm font-medium text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            aria-label="選擇 Route B 狀態更新對象"
+          >
+            {snapshot.characters.map((character) => (
+              <option key={character.id} value={character.routeBCharacterId}>
+                {character.displayName}
+              </option>
+            ))}
+          </select>
+        </label>
+        <Textarea
+          value={statePatchSummary}
+          onChange={(event) => setStatePatchSummary(event.target.value)}
+          placeholder="新增待確認狀態筆記；留空則只寫入對話"
+          className="min-h-10 resize-y rounded-lg border-hairline bg-background text-sm leading-6 focus-visible:ring-ring"
+          disabled={isSubmitting}
+          aria-label="Route B 待確認狀態筆記"
+        />
+      </div>
+    </form>
   );
 }
 
@@ -647,7 +820,7 @@ function RouteBLaneHeader({ icon, subtitle, title }: { icon: React.ReactNode; su
 function RouteBTurnBubble({ snapshot, turn }: { snapshot: RouteBSessionSnapshot; turn: RouteBSessionSnapshot["turns"][number] }) {
   const speaker =
     snapshot.characters.find((character) => character.routeBCharacterId === turn.speakerRouteBCharacterId)?.displayName ??
-    (turn.role === "DIRECTOR" ? "導演" : turn.role);
+    (turn.role === "AGENT" ? "顧問" : turn.role === "SYSTEM" ? "導演" : turn.role);
 
   return (
     <div className="rounded-lg border border-hairline bg-paper px-3 py-3">

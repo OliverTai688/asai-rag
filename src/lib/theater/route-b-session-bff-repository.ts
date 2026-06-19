@@ -1,12 +1,16 @@
 import { randomUUID } from "node:crypto";
 import type { Prisma } from "@/generated/prisma/client";
 import { ClientSensitivity, InteractionEventType } from "@/generated/prisma/enums";
+import { buildTheaterRouteBStatePatch } from "@/domains/theater/route-b-handoff";
 import type { TheaterRouteBHandoffPacket } from "@/domains/theater/route-b-handoff";
 import type { RouteBSessionSnapshot } from "@/domains/theater/route-b-session";
 import { canReadClientDetail } from "@/lib/auth/policies";
 import type { AppSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
-import { persistRouteBHandoffDraft } from "@/lib/theater/route-b-session-repository";
+import {
+  buildRouteBTurnCreateData,
+  persistRouteBHandoffDraft,
+} from "@/lib/theater/route-b-session-repository";
 
 export type RouteBSensitivityApproval = {
   reason: string;
@@ -30,6 +34,22 @@ export type CreateRouteBSessionResult =
 export type GetRouteBSessionResult =
   | { status: "OK"; data: RouteBSessionSnapshot }
   | { status: "NOT_FOUND" };
+
+export type AppendRouteBAdvisorTurnInput = {
+  content: string;
+  visibilityScope: "GROUP" | "PRIVATE";
+  addresseeRouteBCharacterId?: string | null;
+  statePatch?: {
+    targetRouteBCharacterId: string;
+    summary: string;
+  } | null;
+};
+
+export type AppendRouteBAdvisorTurnResult =
+  | { status: "CREATED"; data: RouteBSessionSnapshot }
+  | { status: "NOT_FOUND" }
+  | { status: "INVALID_PRIVATE_ADDRESSEE" }
+  | { status: "INVALID_STATE_PATCH_TARGET" };
 
 const routeBSessionInclude = {
   characters: {
@@ -146,6 +166,103 @@ export async function getRouteBSessionForMember(
   }
 
   return { status: "OK", data: toRouteBSessionSnapshot(record) };
+}
+
+export async function appendRouteBAdvisorTurnForMember(
+  session: AppSession,
+  sessionId: string,
+  input: AppendRouteBAdvisorTurnInput,
+): Promise<AppendRouteBAdvisorTurnResult> {
+  const data = await prisma.$transaction(async (tx): Promise<AppendRouteBAdvisorTurnResult> => {
+    const record = await tx.theaterSession.findFirst({
+      where: {
+        id: sessionId,
+        organizationId: session.organization.id,
+        ownerId: session.user.id,
+        routeBEnabled: true,
+      },
+      include: {
+        characters: true,
+      },
+    });
+
+    if (!record) {
+      return { status: "NOT_FOUND" };
+    }
+
+    const charactersByRouteBId = new Map(record.characters.map((character) => [character.routeBCharacterId, character]));
+    const addressee =
+      input.visibilityScope === "PRIVATE"
+        ? charactersByRouteBId.get(input.addresseeRouteBCharacterId ?? "")
+        : null;
+
+    if (input.visibilityScope === "PRIVATE" && !addressee) {
+      return { status: "INVALID_PRIVATE_ADDRESSEE" };
+    }
+
+    const turnId = `route_b_turn_${randomUUID().replaceAll("-", "")}`;
+    const statePatchTarget = input.statePatch
+      ? charactersByRouteBId.get(input.statePatch.targetRouteBCharacterId)
+      : null;
+
+    if (input.statePatch && !statePatchTarget) {
+      return { status: "INVALID_STATE_PATCH_TARGET" };
+    }
+
+    const statePatch = input.statePatch && statePatchTarget
+      ? buildTheaterRouteBStatePatch({
+          targetCharacterId: statePatchTarget.routeBCharacterId,
+          summary: input.statePatch.summary,
+          factStatus: "INFERENCE",
+          visibilityScope: input.visibilityScope,
+          sourceTurnId: turnId,
+        })
+      : null;
+
+    await tx.theaterTurn.create({
+      data: buildRouteBTurnCreateData({
+        id: turnId,
+        sessionId,
+        actorKind: "ADVISOR",
+        content: input.content,
+        visibilityScope: input.visibilityScope,
+        addresseeCharacterId: addressee?.id ?? null,
+        statePatches: statePatch ? [statePatch] : undefined,
+        metadata: {
+          source: "theater_route_b_advisor_turn",
+          noProviderCall: true,
+          providerCallAttempted: false,
+          requiresConfirmationBeforeCrmWrite: true,
+          writesConfirmedCrmFact: false,
+        },
+      }),
+    });
+
+    if (statePatch) {
+      const sceneState = asRecord(record.sceneState);
+      const statePatches = Array.isArray(sceneState.statePatches) ? sceneState.statePatches : [];
+
+      await tx.theaterSession.update({
+        where: { id: sessionId },
+        data: {
+          sceneState: toInputJson({
+            ...sceneState,
+            statePatches: [...statePatches, statePatch],
+            writesConfirmedCrmFact: false,
+          }),
+        },
+      });
+    }
+
+    const updatedRecord = await tx.theaterSession.findUniqueOrThrow({
+      where: { id: sessionId },
+      include: routeBSessionInclude,
+    });
+
+    return { status: "CREATED", data: toRouteBSessionSnapshot(updatedRecord) };
+  });
+
+  return data;
 }
 
 function toRouteBSessionSnapshot(record: RouteBSessionRecord): RouteBSessionSnapshot {
