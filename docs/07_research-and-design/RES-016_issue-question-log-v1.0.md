@@ -893,13 +893,13 @@
   - 正式 `/api/public/pricing` 與 `/api/share/demo-share-wang` 同時回 500，顯示不是登入 UI 單點問題，而是 DB-backed runtime path 失敗。
   - Read-only DB proof 確認目前 Supabase target 內 demo users / password hashes / memberships 正常。
 - 已修補：
-  - `src/lib/prisma.ts` runtime Prisma connection string 改為 `DATABASE_URL ?? DIRECT_URL`。
+  - `src/lib/prisma.ts` runtime Prisma connection string 改為依序讀取 `DATABASE_URL`、`POSTGRES_PRISMA_URL`、`POSTGRES_URL`、`DIRECT_URL`、`POSTGRES_URL_NON_POOLING`。
   - Auth health 加入 `runtimeDatabaseConfigured`，release readiness 加入 `runtime_database` gate。
   - `demo:release-readiness-qa` required controls 已同步。
 - 仍需 operator / deployment proof：
   - 部署本 commit 後重測正式 `/api/public/pricing`、`/api/share/demo-share-wang`、demo one-click login。
-  - 若仍 500，檢查 Vercel Production env 是否有可用 `DATABASE_URL`，或至少有可用 `DIRECT_URL` fallback，並確認設定後已 redeploy。
-  - 長期 production/serverless 仍建議使用 transaction pooler `DATABASE_URL`；`DIRECT_URL` fallback 只作 controlled demo/staging hotfix。
+  - 若仍 500，檢查 Vercel Production env 是否有可用 runtime DB URL 候選，並確認設定後已 redeploy。
+  - 長期 production/serverless 仍建議使用 transaction pooler `DATABASE_URL` / `POSTGRES_PRISMA_URL`；direct/non-pooling fallback 只作 controlled demo/staging hotfix。
 
 ### IQ-039 - Next/Turbopack Google Font build blocker
 

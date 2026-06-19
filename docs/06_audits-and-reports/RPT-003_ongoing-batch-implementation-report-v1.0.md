@@ -3314,7 +3314,7 @@ pnpm build
   - 目前 `.env` Supabase target 有 demo users、`is_demo=true`、`status=ACTIVE`、password hash 與 active memberships。
   - demo password hashes 與 fixture 密碼相符。
 - 修補：
-  - `src/lib/prisma.ts` runtime Prisma 連線改為 `DATABASE_URL ?? DIRECT_URL`，避免 production demo/staging 只設定 `DIRECT_URL` 時所有 DB-backed route 500。
+  - `src/lib/prisma.ts` runtime Prisma 連線改為依序讀取 `DATABASE_URL`、`POSTGRES_PRISMA_URL`、`POSTGRES_URL`、`DIRECT_URL`、`POSTGRES_URL_NON_POOLING`，避免 production demo/staging 使用 Vercel/Supabase 常見 env 名稱時所有 DB-backed route 500。
   - `getAuthHealth()` 新增 `runtimeDatabaseConfigured`，並讓 auth secret health 同時接受 `AUTH_SECRET` / `NEXTAUTH_SECRET`。
   - Platform release readiness 新增 `runtime_database` gate；不輸出 DB URL 或 secret。
   - `demo:release-readiness-qa` 必備 control list 同步加入 `runtime_database`。
@@ -3362,10 +3362,10 @@ POST https://asai.spinbestmdrt.com/api/auth/callback/demo-credentials
 
 - Operator 已確認有 `AUTH_SECRET`；本輪不再將問題歸因為缺 `AUTH_SECRET`。
 - Build 尚未通過，阻擋原因是既有 Google Font/Turbopack build path；需另輪處理自託管字體或 build font fetch strategy。
-- 若部署本 commit 後正式站仍 500，下一步要檢查 Vercel Production 環境是否有可用的 `DATABASE_URL`，或至少有可用的 `DIRECT_URL` fallback，且設定後已 redeploy。
-- `DIRECT_URL` fallback 適合 controlled demo/staging hotfix；長期 production/serverless 仍建議使用 transaction pooler `DATABASE_URL`。
+- 若部署本 commit 後正式站仍 500，下一步要檢查 Vercel Production 環境是否有可用的 `DATABASE_URL` / `POSTGRES_PRISMA_URL` / `POSTGRES_URL` / `DIRECT_URL` / `POSTGRES_URL_NON_POOLING`，且設定後已 redeploy。
+- Direct/non-pooling fallback 適合 controlled demo/staging hotfix；長期 production/serverless 仍建議使用 transaction pooler `DATABASE_URL` 或 `POSTGRES_PRISMA_URL`。
 
 ### 下一輪建議
 
 1. 部署本 commit 後重測正式站 `/api/public/pricing`、`/api/share/demo-share-wang` 與 demo one-click login。
-2. 若仍 500，進 Vercel Production env 檢查 DB runtime URL 與最近 deployment 是否已 redeploy。
+2. 若仍 500，進 Vercel Production env 檢查 DB runtime URL 候選清單與最近 deployment 是否已 redeploy。

@@ -2,7 +2,7 @@ import "server-only";
 
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { prisma, prismaRuntimeDatabaseUrl } from "@/lib/prisma";
+import { prisma, prismaRuntimeDatabaseSource, prismaRuntimeDatabaseUrl } from "@/lib/prisma";
 import { getPlatformSettings } from "./platform-settings-repository";
 
 type DecimalLike = { toString(): string } | null | undefined;
@@ -149,7 +149,9 @@ export async function getPlatformReleaseReadiness() {
       runtimeDatabaseConfigured ? "pass" : "blocked",
       "runtime_database",
       "Runtime database configured",
-      "DB-backed routes require DATABASE_URL; DIRECT_URL is accepted as a fallback for controlled demo deployments.",
+      runtimeDatabaseConfigured
+        ? `DB-backed routes have a runtime connection env (${prismaRuntimeDatabaseSource ?? "configured"}).`
+        : "DB-backed routes require DATABASE_URL, POSTGRES_PRISMA_URL, POSTGRES_URL, DIRECT_URL, or POSTGRES_URL_NON_POOLING.",
     ),
     gate(
       monitoringConfigured ? "pass" : "blocked",

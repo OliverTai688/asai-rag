@@ -13,7 +13,7 @@ Last updated: 2026-06-19
 
 ## Operator 手動處理
 
-- Production demo login hotfix：operator 已確認有 `AUTH_SECRET`；本輪定位為正式 DB-backed runtime path 失敗。部署本 commit 後需重測 `/api/public/pricing`、`/api/share/demo-share-wang`、demo one-click login。若仍 500，請檢查 Vercel Production env 是否有可用 `DATABASE_URL`，或至少有可用 `DIRECT_URL` fallback，並確認設定後已 redeploy。
+- Production demo login hotfix：operator 已確認有 `AUTH_SECRET`；本輪定位為正式 DB-backed runtime path 失敗。部署本 commit 後需重測 `/api/public/pricing`、`/api/share/demo-share-wang`、demo one-click login。若仍 500，請檢查 Vercel Production env 是否有可用 runtime DB URL（`DATABASE_URL`、`POSTGRES_PRISMA_URL`、`POSTGRES_URL`、`DIRECT_URL`、`POSTGRES_URL_NON_POOLING`），並確認設定後已 redeploy。
 - Build blocker：`pnpm build` 目前卡在 Next/Turbopack Google Font path（`[next]/internal/font/google/*` / `@vercel/turbopack-next/internal/font/google/font`）。需另輪處理自託管字體或 Next 16 font build 設定後重跑 production build。
 
 ## Session / Seed Data / Env / External Service
