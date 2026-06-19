@@ -143,6 +143,8 @@ ITA-003a schema adapter note（2026-06-20）：已完成 Route B additive schema
 
 Whole-product review 註記（2026-06-20）：第五輪 LV3 校準確認 Route B 已跨過 handoff/schema adapter，但 immersive theater 的最大缺口已轉為 runtime proof。下一個最高槓桿子切片建議為 `ITA-003b Route B development migration + deterministic runtime BFF gate`：先確認 DB target 為 local/development/已授權 staging，做 additive migration proof 或 dry-run fallback，再補 director/character/feedback runtime route 的 guarded-disabled/no-provider 與 `AiUsageLog` success/error contract；若 DB target 不能確認，改先執行 `BFF-001` 全站資料來源盤點。
 
+ITA-003b runtime gate note（2026-06-20）：已新增 deterministic Route B runtime BFF gate：`POST /api/theater/route-b/runtime`。`SESSION_DRAFT` 可用 handoff packet 產生 typed session draft summary；`DIRECTOR` / `CHARACTER` / `FEEDBACK` 在 `ENABLE_ROUTE_B_THEATER_PROVIDER` 未開啟時回 `503 ROUTE_B_PROVIDER_DISABLED`，明確證明 providerCallAttempted=false、aiUsageLogWritten=false、未偽造 usage，並保留 provider 啟用前必須補 success/error `AiUsageLog` 的 contract。`pnpm theater:route-b-runtime-qa` 通過 unauth 401、invalid 400、draft 200、director/character/feedback guarded-disabled、private visibility、state patch 不寫 confirmed CRM fact、response no private sentinel、`AiUsageLog` count before/after 不變。尚未完成：DB push/migration rollback QA、正式 persisted Route B session read/write、provider success/error path 與 session UI。
+
 ---
 
 ## Batch ITA-004 - 五視角質化回饋
