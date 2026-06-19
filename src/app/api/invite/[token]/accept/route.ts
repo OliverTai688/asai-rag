@@ -52,13 +52,13 @@ export async function POST(
     where: { id: token },
     include: {
       organization: {
-        select: { id: true, name: true, slug: true },
+        select: { id: true, name: true, slug: true, status: true },
       },
       user: {
         select: { id: true, email: true, name: true, status: true },
       },
       primaryUnit: {
-        select: { id: true, name: true, type: true },
+        select: { id: true, organizationId: true, name: true, type: true },
       },
     },
   });
@@ -71,6 +71,14 @@ export async function POST(
 
   if (invite.user.email.toLowerCase() !== email) {
     return Response.json({ error: "INVITE_EMAIL_MISMATCH", emailMasked }, { status: 403 });
+  }
+
+  if (invite.organization.status !== "ACTIVE") {
+    return Response.json({ error: "INVITE_ORGANIZATION_INACTIVE", emailMasked }, { status: 409 });
+  }
+
+  if (invite.primaryUnit && invite.primaryUnit.organizationId !== invite.organizationId) {
+    return Response.json({ error: "INVITE_UNIT_ORG_MISMATCH", emailMasked }, { status: 409 });
   }
 
   if (invite.status === "ACTIVE") {
