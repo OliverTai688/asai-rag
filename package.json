@@ -35,6 +35,7 @@
     "visit:theater-bff-qa": "node scripts/visit-theater-bff-qa.mjs",
     "visit:theater-gate-qa": "node scripts/visit-theater-gate-qa.mjs",
     "visit:bff-qa": "node scripts/visit-bff-qa.mjs",
+    "client:relationship-graph-qa": "node scripts/client-relationship-graph-qa.mjs",
     "theater:client-build-qa": "node scripts/theater-client-build-qa.mjs",
     "demo:three-ai-turn-usage-qa": "node scripts/three-ai-turn-usage-qa.mjs",
     "rag:launch-posture-qa": "node scripts/rag-launch-posture-qa.mjs",

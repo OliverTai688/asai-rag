@@ -11,6 +11,7 @@ Last updated: 2026-06-20
 - 2026-06-20 resolved: BFF-104a 已完成 Visit / Pre-visit server-owned workspace；`/pre-visit` list/detail/notes/create/update 改走 member-scoped BFF，`/api/ai/visit` 仍只負責 provider generation，deterministic save/update 另走 `/api/visits`。Proof 不呼叫 provider，僅做 demo `VisitPlan` 非破壞性新增/更新 evidence。
 - 2026-06-20 resolved: TDF-004a 已完成 persisted visit package -> theater build 高敏感 gate；準備包來源審查顯示 known/inference/unknown，缺 reason/riskAccepted 會 blocked，approval 寫 `InteractionEvent` audit。Proof 不呼叫 provider；仍待 TDF-004b 補 `/theater` client selector 與越權 403 proof。
 - 2026-06-20 resolved: TDF-004b 已完成 `/theater` client selector + owner-scoped client-data build review；`/api/theater/client-builds/[clientId]` 對 manager/member 越權回 403，高敏感 client 直建場 blocked，browser proof 顯示 known/inference/unknown review。Proof 不呼叫 provider。
+- 2026-06-20 resolved: BFF-103a 已完成關係圖來源審查 DTO 與 `/api/clients/[id]/relationship-graph`；每個人物節點含職位、年收入、狀態、關係脈絡、fact/inference/unknown 與 source references，CRM 關係圖頁可見準備包/劇場 readiness。Proof 不呼叫 provider；仍待後續補 family edit/delete remote-confirmed write path。
 
 ## Production Approval
 

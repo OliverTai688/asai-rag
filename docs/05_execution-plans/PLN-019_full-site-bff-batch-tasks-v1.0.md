@@ -139,6 +139,8 @@
 - [ ] Browser proof：`/crm` 與 `/crm/[clientId]/*` refresh/new context。
 - [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
 
+完成註記（2026-06-20 BFF-103a）：已補關係圖 metadata/source review 子切片。新增 deterministic `ClientRelationshipGraphReview` builder、member-scoped `/api/clients/[id]/relationship-graph`、CRM relationships 頁「關係圖來源審查」面板與 `pnpm client:relationship-graph-qa`。DTO 以人物節點呈現職位、年收入、人物狀態、關係脈絡、fact/inference/unknown、source references、準備包與劇場 readiness；response 不回 email/phone/raw private sentinel。API proof：unauth 401、missing 404、member 200、manager 403；Browser proof：desktop/mobile no overflow。BFF-103 仍未完成，因 family edit/delete remote-confirmed write path 與其他 related-list BFF 尚待後續。
+
 ---
 
 ## Batch BFF-104 - Visit / Pre-visit BFF

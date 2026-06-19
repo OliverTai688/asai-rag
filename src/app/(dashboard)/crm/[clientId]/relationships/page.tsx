@@ -1,13 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import { AddRelationshipDialog } from "@/components/crm/AddRelationshipDialog";
 import { RelationshipMap } from "@/components/crm/RelationshipMap";
+import { RelationshipGraphSourceReview } from "@/components/crm/RelationshipGraphSourceReview";
 import { useClientRecord } from "@/components/crm/use-client-record";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { buildClientRelationshipGraphReview } from "@/domains/client/relationship-graph";
 import { clientService } from "@/domains/client/service";
 import { Info, Trash2, UserPlus, Users } from "lucide-react";
 import {
@@ -25,6 +27,10 @@ export default function ClientRelationshipsPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogMode, setDialogMode] = useState<"child" | "parent">("child");
   const [targetNodeId, setTargetNodeId] = useState<string | null>(null);
+  const graphReview = useMemo(
+    () => (client ? buildClientRelationshipGraphReview(client) : null),
+    [client],
+  );
 
   function openDialogForRoot() {
     setTargetNodeId(null);
@@ -44,7 +50,7 @@ export default function ClientRelationshipsPage() {
     setDialogOpen(true);
   }
 
-  if (!client) return null;
+  if (!client || !graphReview) return null;
 
   const directConnections = client.family.filter((member) => !member.parentMemberId).length;
   const withPhone = client.family.filter((member) => member.phone).length;
@@ -88,6 +94,8 @@ export default function ClientRelationshipsPage() {
         onAddChild={openDialogForNodeAsChild}
         onAddParent={openDialogForNodeAsParent}
       />
+
+      <RelationshipGraphSourceReview graph={graphReview} />
 
       {client.family.length === 0 ? (
         <EmptyRelatedState

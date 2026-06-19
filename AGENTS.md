@@ -1117,6 +1117,8 @@ Context: 將目前 partial vertical-slice BFF 推進成全站一致的 Backend-f
 - [ ] Browser proof：`/crm` 與 `/crm/[clientId]/*` refresh/new context。
 - [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
 
+完成註記（2026-06-20 BFF-103a）：新增 `src/domains/client/relationship-graph.ts`、`src/lib/clients/relationship-graph-repository.ts`、`GET /api/clients/[id]/relationship-graph`、CRM 關係圖來源審查面板與 `pnpm client:relationship-graph-qa`。每個人物節點含職位、年收入、人物狀態、關係脈絡、fact/inference/unknown 與 source references；API proof 覆蓋 unauth 401、missing 404、member 200、manager 403、no email/phone/raw private sentinel；Browser proof 覆蓋 `/crm/[clientId]/relationships` desktop/mobile no overflow。此子切片不呼叫 provider，無 AiUsageLog 需求；仍未完成 family edit/delete remote-confirmed write path，故 BFF-103 大卡保持未完成。
+
 ### Batch BFF-104 — Visit / pre-visit BFF
 - [x] 建立 visit list/detail/create/update/notes BFF。
 - [x] DTO 回準備包、checklist、source client context、status、updatedAt，不回 raw prompt/provider payload。
