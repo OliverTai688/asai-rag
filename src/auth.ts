@@ -1,29 +1,33 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { z } from "zod";
+import { isDemoPasswordLoginEnabled, validateDemoLoginPassword } from "@/lib/demo-login";
 import { prisma } from "@/lib/prisma";
 
 const credentialsSchema = z.object({
   email: z.string().email(),
+  password: z.string().min(1),
 });
 
 const demoCredentialsProvider =
-  process.env.NODE_ENV !== "production" && process.env.ALLOW_DEV_AUTH_HEADER === "true"
+  isDemoPasswordLoginEnabled
     ? [
         Credentials({
           name: "Demo account",
           credentials: {
             email: { label: "Email", type: "email" },
+            password: { label: "Password", type: "password" },
           },
           async authorize(credentials) {
             const parsed = credentialsSchema.safeParse(credentials);
             if (!parsed.success) return null;
+            if (!validateDemoLoginPassword(parsed.data.email, parsed.data.password)) return null;
 
             const user = await prisma.user.findUnique({
               where: { email: parsed.data.email.toLowerCase() },
             });
 
-            if (!user || user.status !== "ACTIVE") return null;
+            if (!user || user.status !== "ACTIVE" || !user.isDemo) return null;
 
             return {
               id: user.id,

@@ -1,10 +1,6 @@
-import {
-  AuthFormCard,
-  AuthLinkRow,
-  AuthSurfaceShell,
-  SurfaceRuleCard,
-  TextLink,
-} from "../_components/auth-surface";
+import { demoLoginAccounts, isDemoPasswordLoginEnabled } from "@/lib/demo-login";
+import { AuthLinkRow, AuthSurfaceShell, SurfaceRuleCard, TextLink } from "../_components/auth-surface";
+import { DemoLoginForm } from "./demo-login-form";
 
 export default function LoginPage() {
   return (
@@ -25,15 +21,9 @@ export default function LoginPage() {
         />
       }
     >
-      <AuthFormCard
-        title="登入誠問 AI"
-        description="此頁是 auth provider 接入前的 route skeleton；正式版本會接 Supabase Auth 或同等 provider。"
-        fields={[
-          { id: "email", label: "Email", type: "email", placeholder: "advisor@example.com" },
-          { id: "password", label: "密碼", type: "password", placeholder: "輸入密碼" },
-        ]}
-        primaryLabel="登入工作台"
-        helper="PSA-002 僅建立 surface 與 redirect 邊界，不建立假 session。"
+      <DemoLoginForm
+        accounts={isDemoPasswordLoginEnabled ? demoLoginAccounts : []}
+        demoLoginEnabled={isDemoPasswordLoginEnabled}
       />
 
       <AuthLinkRow>

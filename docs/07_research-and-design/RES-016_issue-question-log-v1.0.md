@@ -637,3 +637,21 @@
   - 已建立 `PLN-017_launch-readiness-implementation-batch-tasks-v1.0.md`。
   - 已在 `AGENTS.md` 新增 `Launch Readiness Implementation Batch Tasks`。
   - 後續每輪依 `LCH-001` 到 `LCH-009` 推進。
+
+### IQ-022 - LCH-005 demo password login 需要三組可用體驗帳密
+
+- 狀態：Resolved
+- 發現日期：2026-06-19
+- 解決日期：2026-06-19
+- 影響 batch：`LCH-005`
+- 背景：
+  - `/login` 原本仍是 auth surface skeleton，表單不送出。
+  - Auth.js credentials provider 只接受 email，沒有 password gate；demo account 不能以使用者可理解的帳密體驗登入。
+  - 初次 redirect 後發現 `getAppSession()` 將 demo seed id `demo_user_member` 也放入 `supabaseAuthId` lookup，導致 PostgreSQL uuid 解析錯誤。
+- 解法：
+  - 新增 server-only `demoLoginAccounts`，產生 app session 三組體驗帳密：`demo.member@asai.local`、`demo.manager@asai.local`、`demo.collaborator@asai.local`。
+  - Auth.js credentials provider 改為 email + password，只在 non-production 且 `ALLOW_DEV_AUTH_HEADER=true` 開啟，並要求 user `isDemo=true` / `status=ACTIVE`。
+  - `/login` 顯示三組 demo-only 帳密卡，可一鍵帶入並提交。
+  - `getAppSession()` 僅在 NextAuth user id 為 UUID 時加入 `supabaseAuthId` 條件；demo seed id 走 `id/email` lookup。
+  - Browser proof：`/login` 顯示三組帳密；demo member 登入後 `/dashboard` 200 且顯示「今日決策台」。
+  - 剩餘：正式 production auth provider、MFA、password reset、production-safe demo/staging account policy。

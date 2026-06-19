@@ -104,11 +104,18 @@ export async function getAppSession(): Promise<AppSession | null> {
     return null;
   }
 
+  const nextAuthUserLookup = nextAuthUserId
+    ? [
+        { id: nextAuthUserId },
+        ...(isUuid(nextAuthUserId) ? [{ supabaseAuthId: nextAuthUserId }] : []),
+      ]
+    : [];
+
   const dbUser = await prisma.user.findFirst({
     where: nextAuthUserId || nextAuthEmail
       ? {
           OR: [
-            ...(nextAuthUserId ? [{ id: nextAuthUserId }, { supabaseAuthId: nextAuthUserId }] : []),
+            ...nextAuthUserLookup,
             ...(nextAuthEmail ? [{ email: nextAuthEmail }] : []),
           ],
           status: "ACTIVE",
@@ -376,6 +383,10 @@ function isSupabaseAuthConfigured(): boolean {
 
 function isDevAuthHeaderAllowed(): boolean {
   return process.env.NODE_ENV !== "production" && process.env.ALLOW_DEV_AUTH_HEADER === "true";
+}
+
+function isUuid(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

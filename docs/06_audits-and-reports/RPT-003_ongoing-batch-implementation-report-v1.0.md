@@ -2550,3 +2550,73 @@ pnpm build
 
 1. 回到 `LCH-009`，先做 production controls/readiness API 與 release blocker panel：AI quota/cost alert、production email/notification/payment disabled policy、backup/rollback/disclaimer/ECPay checklist。
 2. 另開 AI-first IA cleanup batch，研究 `/interview` 與 legacy `/spin` 的主導覽關係，再決定是否移除 `SPIN 舊版` 主 sidebar 入口。
+
+## 2026-06-19 Round 035 - Demo Password Login Accounts
+
+### 本輪戰役
+
+- Workstream：Launch Readiness Implementation。
+- Batch / task：`LCH-005` demo account login proof。
+- 選擇原因：使用者在 `/login` 需要三組體驗帳號密碼；原本 Auth.js credentials provider 只有 email、登入頁仍是 skeleton，會阻擋 demo account 實際體驗。
+
+### 本輪完成
+
+- 新增 server-only demo login 白名單，產生三組 app session 體驗帳密：member、manager、collaborator。
+- Auth.js credentials provider 改為 email + password，且只在 `NODE_ENV !== production` 且 `ALLOW_DEV_AUTH_HEADER=true` 時啟用。
+- Provider 只允許 `isDemo=true` 且 `status=ACTIVE` 的白名單 user，避免非 demo user 走此入口。
+- `/login` 改為可提交的 client form，開發 demo auth 啟用時顯示三組帳密卡並可一鍵帶入。
+- 客戶體驗維持 client portal token path，不混入 app session；登入頁提示 `demo-share-wang`。
+- 修正 `getAppSession()`：只有 UUID 格式的 NextAuth user id 才加入 `supabaseAuthId` 查詢，避免 demo seed id `demo_user_member` 被當 PostgreSQL uuid 造成 500。
+
+### 修改檔案
+
+- `src/lib/demo-login.ts`
+- `src/auth.ts`
+- `src/app/(auth)/login/page.tsx`
+- `src/app/(auth)/login/demo-login-form.tsx`
+- `src/lib/auth/session.ts`
+- `docs/06_audits-and-reports/RPT-003_ongoing-batch-implementation-report-v1.0.md`
+- `docs/07_research-and-design/RES-016_issue-question-log-v1.0.md`
+
+### DB / Prisma 操作
+
+- 是否修改 schema：否。
+- 是否執行 generate：否。
+- 是否執行 db push：否。
+- DB target 判斷：本輪只讀既有 demo seed user；不做 DB mutation。
+- Seed/backfill：無。
+
+### 驗收
+
+```bash
+pnpm run lint:changed
+pnpm exec tsc --noEmit
+ALLOW_DEV_AUTH_HEADER=true pnpm dev
+Browser proof: /login -> demo member credentials -> /dashboard
+curl -I http://localhost:3000/login
+curl http://localhost:3000/api/auth/providers
+```
+
+結果：
+
+- `pnpm run lint:changed`：通過。
+- `pnpm exec tsc --noEmit`：通過。
+- `/api/auth/providers`：200，回傳 `credentials` provider。
+- Browser proof：`/login` 顯示三組 demo-only 帳密；使用 `demo.member@asai.local` 登入後進入 `/dashboard`；最後一次 reload `/dashboard` 回 200 且畫面有「今日決策台」，不再停留登入頁。
+- Dev server：已以 `ALLOW_DEV_AUTH_HEADER=true pnpm dev` 重啟在 `localhost:3000` 供目前瀏覽器直接體驗。
+
+### 失敗與風險
+
+- 初次 proof 因既有 dev server 未帶 `ALLOW_DEV_AUTH_HEADER=true`，登入頁正確顯示 demo password login 未啟用；已重啟 3000 dev server 後驗證。
+- 初次 dashboard redirect 暴露既有 session lookup bug：demo user id 被當成 Supabase UUID 查詢；已補 UUID guard 並重新驗證 `/dashboard` 200。
+- 這不是 production auth；正式 Supabase/Auth.js 密碼或 magic-link provider、MFA、password reset 仍屬 production blocker。
+
+### 剩餘上線 blocker
+
+- `LCH-005`：正式 auth provider、password reset/MFA、production demo/staging account policy 仍待定。
+- `LCH-009`：production controls、AI quota/cost alert、backup/rollback、privacy/terms/disclaimer、ECPay test checklist、full smoke。
+
+### 下一輪建議
+
+1. 繼續 `LCH-005` 正式 auth provider 接入：Supabase/Auth.js production provider、password reset、MFA/session expiry、production-safe demo/staging account policy。
+2. 或回到 `LCH-009`，補 production readiness panel 與 release blocker checklist。
