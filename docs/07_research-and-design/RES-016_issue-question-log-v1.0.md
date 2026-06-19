@@ -838,7 +838,7 @@
   - 更新 `demo:release-readiness-qa`，驗證 `legal_pages`、`backup_restore`、`ecpay_checklist` 為 pass，且 `/privacy`、`/terms` 回 200 並包含 AI disclaimer。
   - 剩餘：正式 legal/compliance sign-off、ECPay production credentials/callback/CheckMacValue/refund process、monitoring DSN、AI route usage audit 與 full smoke。
 
-### IQ-025 - ALA-001 private beta scope lock 與 operator 決策事項
+### IQ-036 - ALA-001 private beta scope lock 與 operator 決策事項
 
 - 狀態：Open
 - 發現日期：2026-06-19
@@ -857,7 +857,7 @@
 - 建議預設：
   - 先採 invite-only、manual invite token、self-serve checkout off、production email off、少量半匿名資料優先；待 monitoring/legal/billing gate 有 proof 後再放寬。
 
-### IQ-026 - ALA-002 invite accept 已有 BFF，正式 session handoff 仍需決策
+### IQ-037 - ALA-002 invite accept 已有 BFF，正式 session handoff 仍需決策
 
 - 狀態：Open
 - 發現日期：2026-06-19
