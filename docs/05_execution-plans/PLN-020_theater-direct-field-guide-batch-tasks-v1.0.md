@@ -147,6 +147,8 @@
 
 範圍外：不在本卡直接完成 full Route B migration，除非 operator 明確指定本輪進入 ITA-003。
 
+Whole-product review 註記（2026-06-20）：第五輪校準後的下一個建議切片是 `TDF-005a Route B handoff packet and migration compatibility brief`。本切片應先完成文件/contract/proof planning，不直接改 Theater schema：定義 setup draft 到 scene/characters 的 handoff、director/character inputs、群聊/私聊 visibility scope、人物狀態更新邊界、director/character/feedback `AiUsageLog` 策略、Route B disabled rollback note，並同步 `PLN-015` ITA-003，讓後續真正進 migration 時有可 review 邊界。
+
 ---
 
 ## Batch TDF-006 - Cross-state QA and docs sync
