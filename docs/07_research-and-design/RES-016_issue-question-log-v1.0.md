@@ -8,6 +8,31 @@
 
 ## Open Issues
 
+### IQ-033 - RAG placeholder route 已改為 guarded disabled posture
+
+- 狀態：Resolved
+- 發現日期：2026-06-19
+- 解決日期：2026-06-19
+- 影響 batch：`LCH-009`
+- 背景：
+  - `AUD-005` 最後剩餘 AI route gap 是 `/api/rag`：route 仍可被呼叫、缺 member session/quota guard，但實際只是 placeholder，尚未有正式 RAG provider/vector path。
+  - 若直接補假 `AiUsageLog` 或 mock success 會誤導 production proof；private beta 前應明確停用並受 session/quota 保護。
+- 解法：
+  - `/api/rag` 改為 `requireCurrentMember()` session-scoped，並加入 `canUseAiModule(session, RAG)` quota guard。
+  - Private beta 期間 valid request 一律回 `503 RAG_DISABLED_FOR_PRIVATE_BETA`，response 明確帶 `launchPosture=disabled_guarded` 與 `providerAttempted=false`。
+  - Disabled posture 不呼叫 provider、不寫假 `AiUsageLog`；新增 `pnpm rag:launch-posture-qa` 驗證 unauth 401、invalid input 400、disabled 503、DB `RAG` usage count unchanged。
+  - `pnpm ai:usage-audit` 已能辨識 provider-ready route 與 guarded disabled route；更新後 overall=`pass`，routesWithGaps=`[]`。
+- 需要使用者決策：
+  - 無；本輪只是將 private beta 不啟用功能收成可驗證、安全的停用態。
+- production approval：
+  - 若未來要公開 RAG，需要正式核可 provider/vector path、知識庫資料來源、成本/權限策略與 success/error `AiUsageLog` 實作；本輪未做 production mutation。
+- operator 手動處理：
+  - 無。
+- session / seed data / env / external service：
+  - QA 需要 demo member seed、DB URL、local dev server；不需要 OpenAI 呼叫，也不保存 secret。
+- 已不再阻擋：
+  - `/api/rag` 不再是「缺 guard/quota 的半開 route」。剩餘 blocker 是正式 RAG public launch 尚未實作。
+
 ### IQ-032 - Legacy SPIN routes 已轉為 session/quota/usage contract
 
 - 狀態：Resolved

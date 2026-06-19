@@ -13,8 +13,8 @@
 Audit 結論：
 
 - ✅ Production-minimum pass：`/api/ai/chat`、`/api/ai/interview`、`/api/ai/interview/outputs`、`/api/ai/theater`、`/api/ai/theater/score`、`/api/ai/spin`、`/api/ai/spin-suggestions`、`/api/ai/visit`、`/api/ai/report`。
-- ⛔ 必須改造、guard 或下線後才可 public：`/api/rag`。
-- ⚠️ `/api/rag` 目前是 placeholder service，沒有 provider call；但 route 仍缺 member guard/quota，public beta 前應關閉、guard 或明確移出 AI provider audit 範圍。
+- ✅ Guarded disabled pass：`/api/rag` 已改為 private beta disabled posture，具備 `requireCurrentMember()`、`canUseAiModule()` 與 deterministic `503 RAG_DISABLED_FOR_PRIVATE_BETA`；disabled 時不呼叫 provider、不寫假 `AiUsageLog`。
+- ⚠️ `/api/rag` 不是 provider-ready RAG feature；若要 public launch，仍需正式 vector/provider path 與 success/error `AiUsageLog` 實作。
 
 Current-month DB aggregate proof（`pnpm ai:usage-audit`，2026-06-19）：
 
@@ -42,18 +42,19 @@ Current-month DB aggregate proof（`pnpm ai:usage-audit`，2026-06-19）：
 | `/api/ai/spin-suggestions` | `SPIN` | `OPENAI` | ✅ | ✅ `requireCurrentMember` | ✅ `canUseAiModule` | ✅ `persistAiGenerationSuccess` | ✅ `persistAiGenerationFailure` | Pass |
 | `/api/ai/visit` | `VISIT` | `OPENAI` | ✅ | ✅ `requireCurrentMember` | ✅ `canUseAiModule` | ✅ `persistAiGenerationSuccess` | ✅ `persistAiGenerationFailure` | Pass |
 | `/api/ai/report` | `REPORT` | `OPENAI` | ✅ | ✅ `requireCurrentMember` | ✅ `canUseAiModule` | ✅ `persistAiGenerationSuccess` | ✅ `persistAiGenerationFailure` | Pass |
-| `/api/rag` | `RAG` | `OPENAI` target | ❌ placeholder | ❌ | ❌ | ❌ | ❌ | Gap / placeholder |
+| `/api/rag` | `RAG` | `OPENAI` target | N/A disabled | ✅ `requireCurrentMember` | ✅ `canUseAiModule` | N/A disabled | N/A disabled | Pass / `disabled_guarded` |
 
 ---
 
 ## 3. Required Fixes Before Public Beta
 
-1. Decide `/api/rag` launch posture: keep disabled/placeholder behind guard, or implement real provider/vector path with `AiUsageLog`.
+1. Keep `/api/rag` disabled for private beta unless/until formal RAG provider/vector path is implemented with success/error `AiUsageLog`.
 2. Keep `/api/ai/spin`、`/api/ai/spin-suggestions`、`/api/ai/visit` and `/api/ai/report` in the release QA matrix because they now have session, quota, success/error usage logging and DB-backed client lookup.
-4. After each conversion, rerun:
+3. After each route or launch-posture change, rerun:
 
 ```bash
 pnpm ai:usage-audit
+pnpm rag:launch-posture-qa
 pnpm run lint:changed
 pnpm exec tsc --noEmit --pretty false
 pnpm prisma:validate
@@ -71,6 +72,19 @@ pnpm ai:usage-audit
 
 Result summary:
 
-- Overall: `gaps_found`.
-- Routes with gaps: `/api/rag`.
+- Overall: `pass`.
+- Routes with gaps: none.
 - DB aggregate status: `pass`.
+
+Additional RAG disabled proof:
+
+```bash
+DEMO_QA_BASE_URL=http://localhost:3000 pnpm rag:launch-posture-qa
+```
+
+Result summary:
+
+- Unauthenticated `/api/rag`: `401`.
+- Authenticated invalid question: `400 INVALID_RAG_INPUT`.
+- Authenticated valid question: `503 RAG_DISABLED_FOR_PRIVATE_BETA`, `launchPosture=disabled_guarded`, `providerAttempted=false`.
+- DB `AiUsageLog(module=RAG)` count unchanged while disabled.

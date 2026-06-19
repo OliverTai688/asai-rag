@@ -102,6 +102,8 @@ const routeManifest = [
     file: "src/app/api/rag/route.ts",
     module: "RAG",
     provider: "OPENAI",
+    providerCallRequired: false,
+    disabledEvidence: ["RAG_DISABLED_FOR_PRIVATE_BETA", "disabled_guarded", "providerAttempted"],
     expectedAuth: true,
     expectedQuota: true,
     successEvidence: ["AiUsageLog", "aiUsageLog.create", "writeAiUsageLog"],
@@ -138,14 +140,26 @@ function auditRouteSource(route) {
   }
 
   const source = readFileSync(absolutePath, "utf8");
+  const disabledGuarded =
+    route.providerCallRequired === false &&
+    route.disabledEvidence.every((token) => source.includes(token));
   const checks = {
-    providerCall: /from\s+["']openai["']|new OpenAI|chat\.completions\.create|responses\.create|embeddings\.create/.test(
-      source,
-    ),
+    providerCall:
+      route.providerCallRequired === false
+        ? disabledGuarded
+        : /from\s+["']openai["']|new OpenAI|chat\.completions\.create|responses\.create|embeddings\.create/.test(
+            source,
+          ),
     authGuard: !route.expectedAuth || source.includes("requireCurrentMember"),
     quotaGuard: !route.expectedQuota || source.includes("canUseAiModule"),
-    successUsageEvidence: route.successEvidence.some((token) => source.includes(token)),
-    errorUsageEvidence: route.errorEvidence.some((token) => source.includes(token)),
+    successUsageEvidence:
+      route.providerCallRequired === false
+        ? disabledGuarded
+        : route.successEvidence.some((token) => source.includes(token)),
+    errorUsageEvidence:
+      route.providerCallRequired === false
+        ? disabledGuarded
+        : route.errorEvidence.some((token) => source.includes(token)),
   };
   const gaps = Object.entries(checks)
     .filter(([, value]) => !value)
@@ -156,6 +170,7 @@ function auditRouteSource(route) {
     file: route.file,
     module: route.module,
     provider: route.provider,
+    launchPosture: route.providerCallRequired === false ? "disabled_guarded" : "provider_ready",
     status: gaps.length === 0 ? "pass" : "gap",
     checks,
     gaps,

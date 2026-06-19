@@ -3024,3 +3024,85 @@ pnpm build
 
 1. 處理 `/api/rag` launch posture：disabled behind guard、正式 RAG provider path，或移出 public beta route surface。
 2. 接著做 `LCH-009` full smoke pack，彙整 front office、member admin、org admin、super admin、client portal 的 API/browser evidence。
+
+## 2026-06-19 Round 041 - LCH-009 RAG Guarded Disabled Launch Posture
+
+### 本輪戰役
+
+- Workstream：Launch Readiness Implementation。
+- Batch / task：`LCH-009` Production Controls And Release QA。
+- 選擇原因：Round 040 後，`pnpm ai:usage-audit` 唯一剩餘 gap 是 `/api/rag`。該 route 不是正式 provider-ready RAG，而是 placeholder；private beta 前最安全的閉環是明確受 session/quota guard 保護並停用，而不是偽造 AI success proof。
+
+### 本輪完成
+
+- `/api/rag` 改為 `requireCurrentMember()` session-scoped。
+- `/api/rag` valid request 先跑 `canUseAiModule(session, RAG)` quota guard，超限回 `429 QUOTA_EXCEEDED`，未登入回 `401 UNAUTHENTICATED`。
+- Private beta 期間 valid request 一律回 `503 RAG_DISABLED_FOR_PRIVATE_BETA`、`launchPosture=disabled_guarded`、`providerAttempted=false`。
+- 移除 route 對 placeholder `ragService` 的 runtime 呼叫；disabled posture 不呼叫 provider、不寫假 `AiUsageLog`。
+- `pnpm ai:usage-audit` 升級為能辨識 provider-ready route 與 guarded disabled route；更新後 overall=`pass`、routesWithGaps=`[]`。
+- 新增 `pnpm rag:launch-posture-qa`：驗證 unauth 401、invalid input 400、demo member valid request 503 disabled、DB `RAG` usage count unchanged。
+- 更新 `AUD-005`、`PLN-017`、`AGENTS.md` 與 `RES-016`：`/api/rag` 從缺 guard/quota gap 改為 guarded disabled posture；正式 public RAG launch 仍需 provider/vector path + success/error `AiUsageLog`。
+
+### 修改檔案
+
+- `src/app/api/rag/route.ts`
+- `scripts/ai-usage-route-audit.mjs`
+- `scripts/rag-launch-posture-qa.mjs`
+- `package.json`
+- `docs/06_audits-and-reports/AUD-005_ai-usage-route-audit-v1.0.md`
+- `docs/06_audits-and-reports/RPT-003_ongoing-batch-implementation-report-v1.0.md`
+- `docs/05_execution-plans/PLN-017_launch-readiness-implementation-batch-tasks-v1.0.md`
+- `docs/07_research-and-design/RES-016_issue-question-log-v1.0.md`
+- `AGENTS.md`
+
+### DB / Prisma 操作
+
+- 是否修改 schema：否。
+- 是否執行 generate：`pnpm build` 內執行 Prisma generate，通過。
+- 是否執行 db push：否。
+- DB target 判斷：`.env` 指向可連線 Supabase dev/staging target；本輪只讀 `AiUsageLog(module=RAG)` count，未做 schema mutation、seed 或 backfill。
+- Seed/backfill：無。
+
+### 驗收
+
+```bash
+pnpm exec tsc --noEmit --pretty false
+pnpm exec eslint src/app/api/rag/route.ts scripts/ai-usage-route-audit.mjs scripts/rag-launch-posture-qa.mjs
+pnpm ai:usage-audit
+DEMO_QA_BASE_URL=http://localhost:3000 pnpm rag:launch-posture-qa
+pnpm run lint:changed
+pnpm prisma:validate
+pnpm demo:runtime-audit
+pnpm demo:preflight
+pnpm build
+```
+
+結果：
+
+- TypeScript：通過。
+- Targeted ESLint：通過。
+- `pnpm ai:usage-audit`：通過，overall=`pass`，routesWithGaps=`[]`；`/api/rag` 顯示 `launchPosture=disabled_guarded`。
+- `pnpm rag:launch-posture-qa`：通過；unauth 401、invalid input 400、demo member valid request 503 disabled、DB `RAG` usage count unchanged。
+- `pnpm run lint:changed`：通過。
+- `pnpm prisma:validate`：通過。
+- `pnpm demo:runtime-audit`：通過。
+- `pnpm demo:preflight`：通過；Supabase public env placeholder 仍為既有 warning，DB DNS/table/connection pass。
+- `pnpm build`：通過；Next build route list 包含 `/api/rag`。
+
+### 失敗與風險
+
+- 本輪不宣稱 RAG provider/vector feature 已完成；只完成 private beta disabled posture。
+- Disabled posture 不產生 `AiUsageLog`，這是刻意行為：沒有 provider attempt 就不寫假 usage proof。
+- `pnpm run lint:changed` 仍會看見既有未提交 `src/components/ui/dropdown-menu.tsx`；該檔不是本輪變更，未納入 stage。
+
+### 剩餘上線 blocker
+
+- `LCH-009`：monitoring/Sentry、full smoke、release QA evidence 整包彙整。
+- `LCH-005`：production auth provider、password reset/MFA、production-safe demo/staging policy。
+- RAG public launch：正式 provider/vector path、知識庫資料來源、success/error `AiUsageLog`、成本/權限策略尚未完成。
+- Operator / approval：`AUTH_SECRET`、正式 auth provider/email/SSO、ECPay production credentials/callback/CheckMacValue、monitoring DSN、legal/compliance sign-off。
+
+### 下一輪建議
+
+1. 做 `LCH-009` full smoke pack：front office、member admin、org admin、super admin、client portal API/browser evidence。
+2. 若 full smoke 先被 monitoring blocker 擋住，補 Sentry/等價監控方案或明確 release blocker + readiness panel evidence。
