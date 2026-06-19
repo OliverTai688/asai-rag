@@ -47,6 +47,7 @@ type HandoffNotice = {
   missing: string[];
 };
 type HandoffReview = VisitTheaterHandoffResponse;
+type ClientBuildReview = TheaterClientBuildResponse;
 
 const CLASS_PREFIX: Record<DataClass, string> = { fact: "FACT", inference: "INFERENCE", unknown: "UNKNOWN" };
 const CLASS_LABEL: Record<DataClass, string> = { fact: "確認事實", inference: "推論", unknown: "待確認" };
@@ -149,6 +150,7 @@ export default function TheaterBuildPage() {
   const [panelOpen, setPanelOpen] = useState(false);
   const [handoffNotice, setHandoffNotice] = useState<HandoffNotice | null>(null);
   const [handoffReview, setHandoffReview] = useState<HandoffReview | null>(null);
+  const [clientBuildReview, setClientBuildReview] = useState<ClientBuildReview | null>(null);
   const [isLoadingHandoff, setIsLoadingHandoff] = useState(false);
   const [sourceVisitPlanId, setSourceVisitPlanId] = useState<string | null>(null);
   const [sensitivityReason, setSensitivityReason] = useState("");
@@ -186,9 +188,14 @@ export default function TheaterBuildPage() {
     }).packet;
   }, [clientId, sessionId, segment.id, messages, materials]);
 
-  const packet = handoffReview?.handoff.packet ?? localPacket;
+  const packet = handoffReview?.handoff.packet ?? clientBuildReview?.build.packet ?? localPacket;
   const handoffBlocked = handoffReview?.handoff.status === "BLOCKED_SENSITIVE";
-  const ready = packet.readiness === "READY" && packet.routeBCompatibility.canStartSimulation && !handoffBlocked;
+  const clientBuildBlocked = clientBuildReview?.build.status === "BLOCKED_SENSITIVE";
+  const ready =
+    packet.readiness === "READY" &&
+    packet.routeBCompatibility.canStartSimulation &&
+    !handoffBlocked &&
+    !clientBuildBlocked;
 
   // Optionally pre-load a DB-backed visit package handoff, then fall back to
   // client materials for older clientId-only entry points.
@@ -241,21 +248,28 @@ export default function TheaterBuildPage() {
 
       setClientId(paramClientId);
       try {
-        const response = await fetch(`/api/clients/${encodeURIComponent(paramClientId)}`, { cache: "no-store" });
-        if (!response.ok) return;
-        const data = (await response.json()) as { client?: ClientDetail };
-        if (!data.client || !active) return;
-        setClientName(data.client.name);
-        setMaterials(seedMaterialsFromClient(data.client));
-        // Replace the generic "which client?" opening with a client-aware confirmation,
-        // but only if the user hasn't started the conversation yet.
-        setMessages((prev) =>
-          prev.length === 1 && prev[0] === INTRO_MESSAGE
-            ? [buildClientIntroMessage(data.client!.name)]
-            : prev,
-        );
+        const response = await fetch(`/api/theater/client-builds/${encodeURIComponent(paramClientId)}`, { cache: "no-store" });
+        if (!response.ok) {
+          if (active) {
+            setHandoffNotice({
+              status: "NEEDS_MORE_INFO",
+              warnings: [response.status === 403 ? "目前角色不能讀取這位客戶明細。" : "客戶建場素材暫時無法讀取。"],
+              missing: [],
+            });
+          }
+          return;
+        }
+        const data = (await response.json()) as TheaterClientBuildResponse;
+        if (!active) return;
+        applyClientBuild(data);
       } catch {
-        // best-effort preload; the user can still build manually
+        if (active) {
+          setHandoffNotice({
+            status: "NEEDS_MORE_INFO",
+            warnings: ["客戶建場素材暫時無法讀取。"],
+            missing: [],
+          });
+        }
       }
     })();
 
@@ -269,6 +283,7 @@ export default function TheaterBuildPage() {
     setClientName(data.client.name);
     setMaterials(data.handoff.knownMaterials);
     setHandoffReview(data);
+    setClientBuildReview(null);
     setHandoffNotice({
       status: data.handoff.status,
       warnings: data.handoff.warnings,
@@ -278,6 +293,22 @@ export default function TheaterBuildPage() {
       prev.length === 1 && prev[0] === INTRO_MESSAGE
         ? [buildVisitHandoffIntroMessage(data.client.name, data.handoff.packet.scenario, data.handoff.status)]
         : prev,
+    );
+  }
+
+  function applyClientBuild(data: TheaterClientBuildResponse) {
+    setClientId(data.client.id);
+    setClientName(data.client.name);
+    setMaterials(data.build.knownMaterials);
+    setClientBuildReview(data);
+    setHandoffReview(null);
+    setHandoffNotice({
+      status: data.build.status,
+      warnings: data.build.warnings,
+      missing: data.build.missing,
+    });
+    setMessages((prev) =>
+      prev.length === 1 && prev[0] === INTRO_MESSAGE ? [buildClientIntroMessage(data.client.name)] : prev,
     );
   }
 
@@ -581,6 +612,8 @@ export default function TheaterBuildPage() {
           riskAccepted={riskAccepted}
         />
       ) : null}
+
+      {clientBuildReview ? <ClientBuildSourceReviewPanel packet={packet} review={clientBuildReview} /> : null}
 
       {/* Conversation hero */}
       <section className="flex h-[calc(100dvh-13rem)] min-h-[480px] flex-col overflow-hidden rounded-xl border border-hairline bg-card">
@@ -895,6 +928,66 @@ function VisitSourceReviewPanel({
   );
 }
 
+function ClientBuildSourceReviewPanel({ packet, review }: { packet: TheaterBuildPacket; review: ClientBuildReview }) {
+  const blocked = review.build.status === "BLOCKED_SENSITIVE";
+  const sourceCounts = review.build.sourceSummary.sourceCounts;
+
+  return (
+    <section className="rounded-xl border border-hairline bg-card p-4">
+      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant={blocked ? "destructive" : review.build.status === "READY" ? "success" : "outline"}>
+              {getClientBuildNoticeLabel(review.build.status)}
+            </Badge>
+            <span className="text-sm font-semibold text-ink">客戶資料來源審查</span>
+          </div>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
+            已從 {review.client.name} 的 owner-scoped 客戶資料整理場域素材；推論與未知會停留在建構包，不會寫回 CRM 事實。
+          </p>
+        </div>
+        <div className="grid grid-cols-4 gap-2 text-center sm:min-w-80">
+          <SourceCountPill label="關係" value={sourceCounts.familyMembers} />
+          <SourceCountPill label="保單" value={sourceCounts.policies} />
+          <SourceCountPill label="推論" value={sourceCounts.aiTags} />
+          <SourceCountPill label="待補" value={sourceCounts.complianceMissing} />
+        </div>
+      </div>
+
+      {blocked ? (
+        <div className="mt-4 rounded-lg border border-destructive/30 bg-destructive/5 p-4">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="mt-0.5 size-4 shrink-0 text-destructive" />
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold text-destructive">高敏感客戶不可從客戶清單直建場</p>
+              <p className="mt-1 text-sm leading-6 text-destructive/85">
+                請先建立拜訪準備包，並在準備包進劇場時填寫 reason/riskAccepted audit；本頁只保留來源審查，不允許確認場域建構包。
+              </p>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      <div className="mt-4 grid gap-3 lg:grid-cols-3">
+        <SourcePreviewList title="已知事實" items={packet.confirmedFacts} empty="目前沒有確認事實。" />
+        <SourcePreviewList title="推論線索" items={packet.inferredPersona} empty="目前沒有推論線索。" />
+        <SourcePreviewList
+          title="待確認"
+          items={[...packet.unknowns, ...packet.narratorQuestions, ...review.build.missing]}
+          empty="目前沒有待確認項。"
+        />
+      </div>
+
+      {review.build.warnings.length ? (
+        <div className="mt-3 rounded-lg border border-hairline bg-paper px-3 py-2 text-xs leading-5 text-muted-foreground">
+          <span className="font-semibold text-ink">注意事項：</span>
+          {review.build.warnings.slice(0, 3).join("；")}
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
 function SourceCountPill({ label, value }: { label: string; value: number }) {
   return (
     <div className="rounded-lg border border-hairline bg-paper px-3 py-2">
@@ -1024,16 +1117,6 @@ function AddMaterialForm({ onAdd }: { onAdd: (text: string, dataClass: DataClass
   );
 }
 
-type ClientDetail = {
-  id: string;
-  name: string;
-  occupation?: string;
-  annualIncome?: number;
-  sensitivityLevel?: "NORMAL" | "SENSITIVE" | "HIGHLY_SENSITIVE";
-  family?: Array<{ name: string; relation?: string }>;
-  existingPolicies?: Array<{ type?: string; provider?: string }>;
-};
-
 type VisitTheaterHandoffResponse = {
   client: {
     id: string;
@@ -1068,31 +1151,44 @@ type VisitTheaterHandoffResponse = {
   };
 };
 
-function seedMaterialsFromClient(client: ClientDetail): string[] {
-  const materials: string[] = [`FACT: focus_client=${client.name}`];
-  if (client.occupation) materials.push(`FACT: ${client.name} 的職業是 ${client.occupation}`);
-  if (typeof client.annualIncome === "number" && client.annualIncome > 0) {
-    materials.push(`FACT: ${client.name} 年收入約 ${client.annualIncome}`);
-  }
-  for (const member of client.family ?? []) {
-    if (!member.name) continue;
-    materials.push(`INFERENCE: npc=${member.name}|INFLUENCER`);
-    materials.push(`FACT: relationship=${client.name} 的${member.relation ?? "家人"}：${member.name}`);
-  }
-  for (const policy of client.existingPolicies ?? []) {
-    if (!policy.type) continue;
-    materials.push(`FACT: ${client.name} 已有保單：${policy.type}${policy.provider ? `（${policy.provider}）` : ""}`);
-  }
-  if (client.sensitivityLevel && client.sensitivityLevel !== "NORMAL") {
-    materials.push(`UNKNOWN: ${client.name} 屬${client.sensitivityLevel === "HIGHLY_SENSITIVE" ? "高敏感" : "敏感"}客戶，敏感資訊需先確認再使用`);
-  }
-  return materials;
-}
+type TheaterClientBuildResponse = {
+  client: {
+    id: string;
+    name: string;
+    occupation: string;
+    annualIncome: number;
+    status: string;
+    sensitivityLevel: "NORMAL" | "SENSITIVE" | "HIGHLY_SENSITIVE";
+    kycStatus: string;
+  };
+  build: {
+    status: VisitTheaterHandoffStatus;
+    knownMaterials: string[];
+    warnings: string[];
+    missing: string[];
+    sourceSummary: {
+      clientId: string;
+      sourceCounts: {
+        familyMembers: number;
+        policies: number;
+        aiTags: number;
+        complianceMissing: number;
+      };
+    };
+    packet: TheaterBuildPacket;
+  };
+};
 
 function getHandoffNoticeLabel(status: VisitTheaterHandoffStatus) {
   if (status === "READY") return "準備包已帶入";
   if (status === "BLOCKED_SENSITIVE") return "敏感資料暫停";
   return "準備包需補資料";
+}
+
+function getClientBuildNoticeLabel(status: VisitTheaterHandoffStatus) {
+  if (status === "READY") return "客戶資料已帶入";
+  if (status === "BLOCKED_SENSITIVE") return "敏感資料暫停";
+  return "客戶資料需補資料";
 }
 
 /* ---- Minimal Web Speech API typings (not in lib.dom for all targets) ---- */

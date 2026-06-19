@@ -126,6 +126,8 @@
 
 進行中註記：2026-06-20 續補 persisted visit package → theater build 高敏感 gate：`GET /api/visits/[id]/theater-handoff` 保持 read-only，新增 `POST /api/visits/[id]/theater-handoff` 僅接受 `riskAccepted=true` 與 8 字以上 reason，通過後寫 `InteractionEvent` audit（metadata source `visit_theater_handoff_approval`）並回傳 READY handoff；`/theater/build?visitPlanId=...&source=previsit` 新增準備包來源審查 panel，顯示 known facts / inferences / unknowns source counts、source preview 與高敏感確認 UI，approval 後才允許進 setup review。新增 `pnpm visit:theater-gate-qa` 覆蓋 unauth 401、高敏感缺 approval blocked、invalid approval 400、approved audit write、email/phone/raw private sentinel 0、desktop/mobile no overflow 與 no-provider proof。TDF-004 仍未完成，因為 `/theater` client selector、越權 403 與完整 owner-readable client-data build flow 尚待補。
 
+進行中註記：2026-06-20 續補 `/theater` client selector + owner-scoped client-data build review：新增 `src/domains/theater/client-build.ts` pure builder、`src/lib/theater/client-build-repository.ts`、`GET /api/theater/client-builds` 與 `GET /api/theater/client-builds/[clientId]`。列表只回 owner-readable client build options；detail 由 current member scope 推導 org/member/unit，同 org 但非 owner 回 `403 CLIENT_FORBIDDEN`。`/theater` 的 `帶客戶資料建場` 改讀此 BFF，選客戶後先顯示 known facts / inference / unknown review；`/theater/build?clientId=...&source=client` 也改讀同一 BFF，移除舊 `/api/clients/[id]` fallback。高敏感 client 直建場回 `BLOCKED_SENSITIVE` 且 `canStartSimulation=false`，需改走準備包 high-sensitive approval flow。新增 `pnpm theater:client-build-qa` 覆蓋 unauth 401、member 200、manager 403、高敏感 blocked、email/phone/raw private sentinel 0、desktop/mobile no overflow 與 no-provider proof。TDF-004 仍未完成，因 Route B multi-character session 與完整 production theater migration 另屬 TDF-005/ITA-003。
+
 範圍外：不完成 Route B multi-character session；不做 public share。
 
 ---

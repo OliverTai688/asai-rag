@@ -7,11 +7,15 @@ import {
   BrainCircuit,
   Check,
   ChevronDown,
+  CircleHelp,
   Clapperboard,
   Clock3,
+  FileText,
   History,
+  Lightbulb,
   MessageSquare,
   Play,
+  ShieldCheck,
   Settings2,
   Target,
   UserRound,
@@ -27,6 +31,7 @@ import { clientService } from "@/domains/client/service";
 import type { ClientSensitivityLevel } from "@/domains/client/types";
 import { getQuickstartTheaterFixture } from "@/domains/demo/quickstart";
 import { theaterFieldBuildOutline } from "@/domains/interview/outlines";
+import type { TheaterBuildPacket } from "@/domains/interview/types";
 import { useSpinStore } from "@/domains/spin/store";
 import type { SpinSession } from "@/domains/spin/types";
 import { theaterService } from "@/domains/theater/service";
@@ -80,11 +85,46 @@ const GOALS = [
 
 const PERSONA_ORDER: TheaterPersonaType[] = ["SKEPTICAL", "BUSY", "EMOTIONAL", "CONSERVATIVE"];
 
+type ClientTheaterBuildStatus = "READY" | "NEEDS_MORE_INFO" | "BLOCKED_SENSITIVE";
+
 type ClientLite = {
   id: string;
   name: string;
   occupation: string;
+  annualIncome: number;
   sensitivityLevel: ClientSensitivityLevel;
+  kycStatus: string;
+  sourceCounts: {
+    familyMembers: number;
+    policies: number;
+    aiTags: number;
+    complianceMissing: number;
+  };
+  warnings: string[];
+  missing: string[];
+};
+
+type TheaterClientBuildReview = {
+  client: {
+    id: string;
+    name: string;
+    occupation: string;
+    annualIncome: number;
+    status: string;
+    sensitivityLevel: ClientSensitivityLevel;
+    kycStatus: string;
+  };
+  build: {
+    status: ClientTheaterBuildStatus;
+    knownMaterials: string[];
+    warnings: string[];
+    missing: string[];
+    sourceSummary: {
+      clientId: string;
+      sourceCounts: ClientLite["sourceCounts"];
+    };
+    packet: TheaterBuildPacket;
+  };
 };
 
 export default function TheaterListPage() {
@@ -112,7 +152,9 @@ function TheaterListContent() {
   const [clients, setClients] = useState<ClientLite[]>([]);
   const [clientsLoaded, setClientsLoaded] = useState(false);
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
-  const [sensitiveAckClientId, setSensitiveAckClientId] = useState<string | null>(null);
+  const [clientBuildReview, setClientBuildReview] = useState<TheaterClientBuildReview | null>(null);
+  const [clientBuildLoading, setClientBuildLoading] = useState(false);
+  const [clientBuildError, setClientBuildError] = useState<string | null>(null);
   const quickstartCreatedRef = useRef(false);
 
   const completedSpinSessions = useMemo(() => {
@@ -136,7 +178,7 @@ function TheaterListContent() {
     () => clients.find((client) => client.id === selectedClientId) ?? null,
     [clients, selectedClientId],
   );
-  const sensitiveAck = Boolean(selectedClientId && sensitiveAckClientId === selectedClientId);
+  const clientBuildBlocked = clientBuildReview?.build.status === "BLOCKED_SENSITIVE";
 
   const recentSessions = useMemo(() => {
     return theaterSessions
@@ -154,21 +196,14 @@ function TheaterListContent() {
     let cancelled = false;
     void (async () => {
       try {
-        const response = await fetch("/api/clients", { cache: "no-store" });
+        const response = await fetch("/api/theater/client-builds", { cache: "no-store" });
         if (!response.ok) {
           if (!cancelled) setClientsLoaded(true);
           return;
         }
         const data = (await response.json()) as { clients?: ClientLite[] };
         if (cancelled) return;
-        setClients(
-          (data.clients ?? []).map((client) => ({
-            id: client.id,
-            name: client.name,
-            occupation: client.occupation,
-            sensitivityLevel: client.sensitivityLevel,
-          })),
-        );
+        setClients(data.clients ?? []);
         setClientsLoaded(true);
       } catch {
         if (!cancelled) setClientsLoaded(true);
@@ -178,6 +213,48 @@ function TheaterListContent() {
       cancelled = true;
     };
   }, [mode, clientsLoaded]);
+
+  function handleSelectClient(clientId: string) {
+    setSelectedClientId(clientId);
+    setClientBuildReview(null);
+    setClientBuildError(null);
+  }
+
+  useEffect(() => {
+    if (mode !== "client" || !selectedClientId) return;
+
+    let cancelled = false;
+    void (async () => {
+      setClientBuildLoading(true);
+      setClientBuildError(null);
+      try {
+        const response = await fetch(`/api/theater/client-builds/${encodeURIComponent(selectedClientId)}`, {
+          cache: "no-store",
+        });
+        const data = (await response.json().catch(() => null)) as TheaterClientBuildReview | { error?: string } | null;
+
+        if (cancelled) return;
+        if (!response.ok || !data || !("build" in data)) {
+          setClientBuildReview(null);
+          setClientBuildError(response.status === 403 ? "目前角色只能看彙總，不能讀取這位客戶明細。" : "無法讀取客戶建場素材。");
+          return;
+        }
+
+        setClientBuildReview(data);
+      } catch {
+        if (!cancelled) {
+          setClientBuildReview(null);
+          setClientBuildError("無法讀取客戶建場素材。");
+        }
+      } finally {
+        if (!cancelled) setClientBuildLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [mode, selectedClientId]);
 
   useEffect(() => {
     const shouldAutoCreate = demoParam === "quickstart" && autoCreate === "true";
@@ -213,10 +290,6 @@ function TheaterListContent() {
     router.replace(`/theater/${newSession.id}?demo=quickstart`);
   }, [addTurn, autoCreate, clientIdParam, completeSession, createSession, demoParam, router, spinIdParam, spinSessions, updateTension]);
 
-  const sensitiveBlocked = Boolean(
-    selectedClient && selectedClient.sensitivityLevel !== "NORMAL" && !sensitiveAck,
-  );
-
   const handleStartSimulation = () => {
     if (!selectedSpin) return;
 
@@ -241,8 +314,8 @@ function TheaterListContent() {
       return;
     }
     if (mode === "client") {
-      if (!selectedClientId || sensitiveBlocked) return;
-      router.push(`/theater/build?clientId=${encodeURIComponent(selectedClientId)}`);
+      if (!selectedClientId || !clientBuildReview || clientBuildBlocked) return;
+      router.push(`/theater/build?clientId=${encodeURIComponent(selectedClientId)}&source=client`);
       return;
     }
     router.push("/theater/build");
@@ -253,10 +326,13 @@ function TheaterListContent() {
       return { label: "開始演練", disabled: !selectedSpin };
     }
     if (mode === "client") {
-      return { label: "帶這位客戶建場", disabled: !selectedClientId || sensitiveBlocked };
+      return {
+        label: clientBuildBlocked ? "高敏感需先完成準備包確認" : "帶這位客戶建場",
+        disabled: !selectedClientId || !clientBuildReview || clientBuildLoading || Boolean(clientBuildBlocked),
+      };
     }
     return { label: "開始建場", disabled: false };
-  }, [mode, selectedSpin, selectedClientId, sensitiveBlocked]);
+  }, [mode, selectedSpin, selectedClientId, clientBuildReview, clientBuildLoading, clientBuildBlocked]);
 
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8">
@@ -338,10 +414,11 @@ function TheaterListContent() {
               clients={clients}
               clientsLoaded={clientsLoaded}
               selectedClientId={selectedClientId}
-              onSelect={setSelectedClientId}
+              onSelect={handleSelectClient}
               selectedClient={selectedClient}
-              sensitiveAck={sensitiveAck}
-              onAckChange={(checked) => setSensitiveAckClientId(checked ? selectedClientId : null)}
+              buildError={clientBuildError}
+              buildLoading={clientBuildLoading}
+              buildReview={clientBuildReview}
               onSkip={() => router.push("/theater/build")}
             />
           ) : null}
@@ -446,10 +523,18 @@ function TheaterListContent() {
                     />
                   </>
                 ) : (
-                  <SummaryLine
-                    label="客戶"
-                    value={mode === "client" ? selectedClient?.name ?? "選填・尚未選擇" : "演練中由訪綱補齊"}
-                  />
+                  <>
+                    <SummaryLine
+                      label="客戶"
+                      value={mode === "client" ? selectedClient?.name ?? "選填・尚未選擇" : "演練中由訪綱補齊"}
+                    />
+                    {mode === "client" && clientBuildReview ? (
+                      <SummaryLine
+                        label="來源審查"
+                        value={clientBuildReview.build.status === "BLOCKED_SENSITIVE" ? "需高敏感確認" : "已載入"}
+                      />
+                    ) : null}
+                  </>
                 )}
               </div>
               <p className="mt-5 rounded-lg border border-hairline bg-muted/20 p-3 text-sm leading-6 text-muted-foreground">
@@ -529,22 +614,24 @@ function OutlineModePanel() {
 }
 
 function ClientModePanel({
+  buildError,
+  buildLoading,
+  buildReview,
   clients,
   clientsLoaded,
   selectedClientId,
   onSelect,
   selectedClient,
-  sensitiveAck,
-  onAckChange,
   onSkip,
 }: {
+  buildError: string | null;
+  buildLoading: boolean;
+  buildReview: TheaterClientBuildReview | null;
   clients: ClientLite[];
   clientsLoaded: boolean;
   selectedClientId: string | null;
   onSelect: (id: string) => void;
   selectedClient: ClientLite | null;
-  sensitiveAck: boolean;
-  onAckChange: (value: boolean) => void;
   onSkip: () => void;
 }) {
   return (
@@ -580,7 +667,7 @@ function ClientModePanel({
                       {selected ? <Check className="h-4 w-4 shrink-0" /> : null}
                     </span>
                     <span className={cn("mt-2 block truncate text-sm leading-6", selected ? "text-paper/70" : "text-muted-foreground")}>
-                      {client.occupation || "未填寫職業"}
+                      {client.occupation || "未填寫職業"}・關係 {client.sourceCounts.familyMembers}・保單 {client.sourceCounts.policies}
                     </span>
                   </span>
                   {client.sensitivityLevel !== "NORMAL" ? (
@@ -598,21 +685,25 @@ function ClientModePanel({
           )}
         </div>
 
-        {selectedClient && selectedClient.sensitivityLevel !== "NORMAL" ? (
-          <label className="mt-4 flex items-start gap-3 rounded-lg border border-hairline bg-muted/20 p-3 text-sm leading-6 text-ink">
-            <input
-              type="checkbox"
-              className="mt-1 h-4 w-4"
-              checked={sensitiveAck}
-              onChange={(event) => onAckChange(event.target.checked)}
-            />
-            <span className="flex items-start gap-2">
-              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
-              <span>
-                這是{selectedClient.sensitivityLevel === "HIGHLY_SENSITIVE" ? "高敏感" : "敏感"}客戶。我已確認本次僅用於內部演練準備，敏感資訊只會輕碰並先確認。
-              </span>
-            </span>
-          </label>
+        {buildLoading ? (
+          <div className="mt-4 rounded-lg border border-dashed border-hairline bg-muted/20 p-4 text-sm leading-6 text-muted-foreground">
+            正在整理客戶建場素材…
+          </div>
+        ) : null}
+
+        {buildError ? (
+          <div className="mt-4 flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm leading-6 text-destructive">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+            <span>{buildError}</span>
+          </div>
+        ) : null}
+
+        {buildReview ? (
+          <ClientBuildReviewPanel review={buildReview} />
+        ) : selectedClient ? (
+          <div className="mt-4 rounded-lg border border-hairline bg-muted/20 p-4 text-sm leading-6 text-muted-foreground">
+            選擇後會先顯示來源審查，再進入建場頁。
+          </div>
         ) : null}
 
         <button
@@ -625,6 +716,118 @@ function ClientModePanel({
       </CardContent>
     </Card>
   );
+}
+
+function ClientBuildReviewPanel({ review }: { review: TheaterClientBuildReview }) {
+  const blocked = review.build.status === "BLOCKED_SENSITIVE";
+  const counts = review.build.sourceSummary.sourceCounts;
+
+  return (
+    <div className="mt-4 rounded-lg border border-hairline bg-background p-4">
+      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant={blocked ? "destructive" : review.build.status === "READY" ? "success" : "outline"}>
+              {getClientBuildStatusLabel(review.build.status)}
+            </Badge>
+            <span className="text-sm font-semibold text-ink">客戶資料建場審查</span>
+          </div>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">
+            這一步只整理可讀的客戶資料，不會把推論寫回 CRM，也不會啟動多角色 Route B。
+          </p>
+        </div>
+        <div className="grid grid-cols-4 gap-2 text-center">
+          <ReviewCount label="關係" value={counts.familyMembers} />
+          <ReviewCount label="保單" value={counts.policies} />
+          <ReviewCount label="推論" value={counts.aiTags} />
+          <ReviewCount label="待補" value={counts.complianceMissing} />
+        </div>
+      </div>
+
+      {blocked ? (
+        <div className="mt-4 flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm leading-6 text-destructive">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>高敏感客戶不可從客戶清單直建場；請先建立拜訪準備包，並在準備包進劇場時留下 reason/riskAccepted audit。</span>
+        </div>
+      ) : null}
+
+      <div className="mt-4 grid gap-3 lg:grid-cols-3">
+        <ReviewList
+          icon={<ShieldCheck className="h-3.5 w-3.5 text-[#2E7D32]" />}
+          title="已知事實"
+          items={review.build.packet.confirmedFacts}
+          empty="目前沒有足夠確認事實。"
+        />
+        <ReviewList
+          icon={<Lightbulb className="h-3.5 w-3.5 text-amber-600" />}
+          title="推論線索"
+          items={review.build.packet.inferredPersona}
+          empty="目前沒有推論線索。"
+        />
+        <ReviewList
+          icon={<CircleHelp className="h-3.5 w-3.5 text-sky-600" />}
+          title="待確認"
+          items={[...review.build.packet.unknowns, ...review.build.packet.narratorQuestions, ...review.build.missing]}
+          empty="目前沒有待確認項。"
+        />
+      </div>
+
+      {review.build.warnings.length ? (
+        <div className="mt-3 flex items-start gap-2 rounded-lg border border-hairline bg-paper p-3 text-xs leading-5 text-muted-foreground">
+          <FileText className="mt-0.5 h-3.5 w-3.5 shrink-0 text-ink-3" />
+          <span>{review.build.warnings.slice(0, 3).join("；")}</span>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function ReviewCount({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="min-w-14 rounded-lg border border-hairline bg-paper px-2 py-2">
+      <p className="text-base font-semibold tabular-nums text-ink">{value}</p>
+      <p className="text-[11px] text-muted-foreground">{label}</p>
+    </div>
+  );
+}
+
+function ReviewList({
+  empty,
+  icon,
+  items,
+  title,
+}: {
+  empty: string;
+  icon: React.ReactNode;
+  items: string[];
+  title: string;
+}) {
+  return (
+    <div className="rounded-lg border border-hairline bg-paper p-3">
+      <div className="flex items-center gap-2">
+        {icon}
+        <p className="text-sm font-semibold text-ink">{title}</p>
+        <span className="ml-auto text-xs tabular-nums text-muted-foreground">{items.length}</span>
+      </div>
+      {items.length ? (
+        <ul className="mt-2 space-y-1">
+          {items.slice(0, 3).map((item, index) => (
+            <li key={`${title}-${index}`} className="line-clamp-2 text-xs leading-5 text-muted-foreground">
+              {item}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="mt-2 text-xs leading-5 text-muted-foreground">{empty}</p>
+      )}
+    </div>
+  );
+}
+
+function getClientBuildStatusLabel(status: ClientTheaterBuildStatus) {
+  if (status === "READY") return "可建場";
+  if (status === "BLOCKED_SENSITIVE") return "高敏感暫停";
+  return "需補資料";
 }
 
 function SetupStep({ eyebrow, icon, title }: { eyebrow: string; icon: React.ReactNode; title: string }) {
