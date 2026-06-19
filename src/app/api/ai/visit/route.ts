@@ -10,6 +10,7 @@ import {
   persistAiGenerationFailure,
   persistAiGenerationSuccess,
 } from "@/lib/ai/generation-usage-repository";
+import { enrichSpinQuestionsWithReasoning } from "@/domains/visit/reasoning";
 
 const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const MODEL = "gpt-4o-mini";
@@ -52,6 +53,23 @@ const visitOutputSchema = z.object({
         id: z.string(),
         type: z.enum(["S", "P", "I", "N"]),
         question: z.string(),
+        reasoning: z
+          .object({
+            summary: z.string(),
+            confirmationPrompt: z.string().optional(),
+            evidence: z
+              .array(
+                z.object({
+                  id: z.string(),
+                  source: z.enum(["client_profile", "relationship_graph", "policy", "ai_tag", "visit_purpose", "unknown"]),
+                  status: z.enum(["confirmed", "inference", "unknown"]),
+                  label: z.string(),
+                  detail: z.string(),
+                }),
+              )
+              .default([]),
+          })
+          .optional(),
       }),
     )
     .default([]),
@@ -111,7 +129,8 @@ const SYSTEM_PROMPT = `你是一位專業的保險銷售顧問與 AI 助手。
 3. 預期疑問要貼合客戶目前的保障缺口（aiTags）與其職業背景。
 4. 時間分配總和必須剛好為 60 分鐘。
 5. 所有回應使用繁體中文。
-6. 不要輸出任何 JSON 以外的文字。`;
+6. 不要輸出任何 JSON 以外的文字。
+7. 不需要輸出推論依據，系統會在 server 端依已授權的客戶資料補上 evidence。`;
 
 export async function POST(req: Request) {
   const startedAt = Date.now();
@@ -238,6 +257,14 @@ export async function POST(req: Request) {
       return Response.json({ error: "VISIT_AI_SCHEMA_MISMATCH" }, { status: 502 });
     }
 
+    const enrichedOutput = {
+      ...parsedOutput.data,
+      spinQuestions: enrichSpinQuestionsWithReasoning(parsedOutput.data.spinQuestions, {
+        client: clientData,
+        purpose: body.purpose,
+      }),
+    };
+
     await persistAiGenerationSuccess({
       session,
       module: AiModule.VISIT,
@@ -252,7 +279,7 @@ export async function POST(req: Request) {
       },
     });
 
-    return Response.json(parsedOutput.data);
+    return Response.json(enrichedOutput);
   } catch (error) {
     if (!session) {
       return authErrorResponse(error);

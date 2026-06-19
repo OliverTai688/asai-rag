@@ -46,6 +46,10 @@ try {
     Array.isArray(visit.body?.objectives) && Array.isArray(visit.body?.spinQuestions),
     "visit response has expected planning arrays",
   );
+  check(
+    visit.body?.spinQuestions?.some((question) => Array.isArray(question?.reasoning?.evidence) && question.reasoning.evidence.length > 0),
+    "visit response includes question reasoning evidence",
+  );
 
   const report = await postJson(
     "/api/ai/report",

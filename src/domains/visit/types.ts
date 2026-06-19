@@ -17,6 +17,31 @@ export interface SpinQuestion {
   id: string;
   type: "S" | "P" | "I" | "N";
   question: string;
+  reasoning?: VisitQuestionReasoning;
+}
+
+export type VisitQuestionEvidenceSource =
+  | "client_profile"
+  | "relationship_graph"
+  | "policy"
+  | "ai_tag"
+  | "visit_purpose"
+  | "unknown";
+
+export type VisitQuestionEvidenceStatus = "confirmed" | "inference" | "unknown";
+
+export interface VisitQuestionEvidence {
+  id: string;
+  source: VisitQuestionEvidenceSource;
+  status: VisitQuestionEvidenceStatus;
+  label: string;
+  detail: string;
+}
+
+export interface VisitQuestionReasoning {
+  summary: string;
+  evidence: VisitQuestionEvidence[];
+  confirmationPrompt?: string;
 }
 
 export interface ObjectionHandling {

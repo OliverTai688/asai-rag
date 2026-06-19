@@ -405,9 +405,7 @@ function VisitPlanDetailContent() {
                         <p className="text-sm font-semibold text-ink">{SPIN_LABELS[type]}</p>
                       </div>
                       {questions.map((question) => (
-                        <p key={question.id} className="rounded-lg bg-muted/40 p-3 text-sm leading-6 text-ink">
-                          {question.question}
-                        </p>
+                        <QuestionCard key={question.id} question={question} />
                       ))}
                     </div>
                   ) : null,
@@ -567,6 +565,44 @@ function PrepSection({
       <div className="border-t border-hairline p-4">{children}</div>
     </details>
   );
+}
+
+function QuestionCard({ question }: { question: SpinQuestion }) {
+  return (
+    <div className="rounded-lg bg-muted/40 p-3">
+      <p className="text-sm leading-6 text-ink">{question.question}</p>
+      {question.reasoning ? (
+        <div className="mt-3 rounded-md border border-hairline bg-background/80 p-3">
+          <p className="text-xs font-semibold text-ink">推論依據</p>
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">{question.reasoning.summary}</p>
+          <div className="mt-3 grid gap-2">
+            {question.reasoning.evidence.map((item) => (
+              <div key={item.id} className="grid gap-1 border-l border-hairline pl-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs font-semibold text-ink">{item.label}</span>
+                  <Badge variant="outline" className="rounded-full px-2 py-0 text-[10px]">
+                    {getEvidenceStatusLabel(item.status)}
+                  </Badge>
+                </div>
+                <p className="text-xs leading-5 text-muted-foreground">{item.detail}</p>
+              </div>
+            ))}
+          </div>
+          {question.reasoning.confirmationPrompt ? (
+            <p className="mt-3 text-xs leading-5 text-muted-foreground">
+              現場確認：{question.reasoning.confirmationPrompt}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function getEvidenceStatusLabel(status: NonNullable<SpinQuestion["reasoning"]>["evidence"][number]["status"]) {
+  if (status === "confirmed") return "已知";
+  if (status === "inference") return "推論";
+  return "待確認";
 }
 
 function ObjectionCard({ objection }: { objection: ObjectionHandling }) {
