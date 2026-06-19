@@ -3201,3 +3201,96 @@ pnpm build
 
 1. 處理 `LCH-009` monitoring/Sentry blocker：若沒有 DSN，建立 monitoring setup doc、env contract、readiness gate operator action，並避免宣稱 monitoring pass。
 2. 接著回到 `LCH-005` production auth hardening：`AUTH_SECRET`、正式 provider/email/SSO、password reset/MFA。
+
+## 2026-06-19 Round 043 - LCH-009 Monitoring Readiness Runbook
+
+### 本輪戰役
+
+- Workstream：Launch Readiness Implementation。
+- Batch / task：`LCH-009` Production Controls And Release QA。
+- 選擇原因：Full smoke 與 AI usage audit 已完成後，`LCH-009` 最低未完成項只剩 production monitoring/Sentry。此項可由系統先完成 runbook、env contract、readiness QA 與 release blocker 註記；正式 provider/DSN/alert 仍留給 operator。
+
+### 本輪完成
+
+- 新增 `ACC-009_release-monitoring-setup-runbook.md`。
+- 定義 monitoring env contract：
+  - `SENTRY_DSN`：server/runtime error monitoring。
+  - `NEXT_PUBLIC_SENTRY_DSN`：browser/client error monitoring。
+  - 任一存在時 readiness gate 可 pass；兩者都不存在時維持 blocked。
+- 補 operator checklist：建立 Sentry/等價 project、設定 runtime env、alert recipient、incident owner、staging sample ingestion proof。
+- 補 privacy/security guardrail：monitoring event 不得含 cookie、authorization header、raw request body、客戶 email/phone/policy number、AI prompt/response 原文。
+- 新增 `scripts/monitoring-readiness-qa.mjs` 與 package script `pnpm monitoring:readiness-qa`。
+- QA 會驗證：
+  - 一般 member session 讀 release readiness 回 403。
+  - platform user 可讀 release readiness。
+  - readiness response 含 `monitoring` control。
+  - live response 不輸出 DSN 或 env var 名稱。
+  - source 使用 `SENTRY_DSN || NEXT_PUBLIC_SENTRY_DSN` contract。
+  - dry-run：無 DSN blocked、server DSN pass、public DSN pass。
+- 更新 `AGENTS.md`、`PLN-017`、`MAN-000`、`MAN-001`、`RES-016`。
+
+### 修改檔案
+
+- `docs/08_acceptance-and-qa/ACC-009_release-monitoring-setup-runbook.md`
+- `scripts/monitoring-readiness-qa.mjs`
+- `package.json`
+- `docs/00_manual-and-index/MAN-000_docs-usage-manual.md`
+- `docs/00_manual-and-index/MAN-001_document-index.md`
+- `docs/05_execution-plans/PLN-017_launch-readiness-implementation-batch-tasks-v1.0.md`
+- `docs/07_research-and-design/RES-016_issue-question-log-v1.0.md`
+- `docs/06_audits-and-reports/RPT-003_ongoing-batch-implementation-report-v1.0.md`
+- `docs/06_audits-and-reports/screenshots/launch-readiness/lch-009/release-readiness-super-admin.png`
+- `AGENTS.md`
+
+### DB / Prisma 操作
+
+- 是否修改 schema：否。
+- 是否執行 generate：是，`pnpm build` 內執行 Prisma generate，通過。
+- 是否執行 db push：否。
+- DB target 判斷：`.env` 指向可連線 Supabase dev/staging target；本輪只做 idempotent demo platform user upsert 與 readiness read proof。
+- Seed/backfill：`monitoring:readiness-qa` 沿用既有 demo org，並 idempotent upsert `demo.platform@asai.local` platform user。
+
+### 驗收
+
+```bash
+pnpm exec tsc --noEmit --pretty false
+pnpm exec eslint scripts/monitoring-readiness-qa.mjs
+DEMO_QA_BASE_URL=http://localhost:3000 pnpm monitoring:readiness-qa
+DEMO_QA_BASE_URL=http://localhost:3000 pnpm demo:release-readiness-qa
+pnpm run lint:changed
+pnpm prisma:validate
+pnpm demo:runtime-audit
+pnpm demo:preflight
+pnpm build
+```
+
+結果：
+
+- TypeScript：通過。
+- Targeted ESLint：通過。
+- `pnpm monitoring:readiness-qa`：通過；member 403、platform 200、`monitoring` control 存在、live gate=`blocked`、response 不輸出 DSN、dry-run 無 DSN blocked / server DSN pass / public DSN pass。
+- `pnpm demo:release-readiness-qa`：通過；overall=`blocked`，blockerCount=`2`，剩 `auth_secret` 與 `monitoring`；legal/backup/ECPay gates pass，super-admin/privacy/terms browser proof console error 0、無水平 overflow。
+- `pnpm run lint:changed`：通過。
+- `pnpm prisma:validate`：通過。
+- `pnpm demo:runtime-audit`：通過。
+- `pnpm demo:preflight`：通過；Supabase public env placeholder 仍為既有 warning，DB DNS/table/connection pass。
+- `pnpm build`：通過。
+
+### 失敗與風險
+
+- 本輪不宣稱 Sentry production ingestion 已完成；若 runtime 沒有 DSN，readiness gate 仍保持 `monitoring=blocked`。
+- Public production 前仍需 operator 設定 DSN、alert route、incident owner，並提供不含 secret 的 sample ingestion proof。
+- `AUTH_SECRET`、正式 auth provider/email/SSO、ECPay production credentials/callback/CheckMacValue/refund process、legal/compliance sign-off 仍是 production blocker。
+- `src/components/ui/dropdown-menu.tsx` 仍是既有未提交變更，本輪未碰、未 stage。
+
+### 剩餘上線 blocker
+
+- `LCH-005`：production `AUTH_SECRET`、正式 auth provider/email/SSO、password reset/MFA、production-safe demo/staging policy。
+- Payment / legal / operator：ECPay production credentials/callback/CheckMacValue/refund process、legal/compliance sign-off。
+- Monitoring operator approval：正式 Sentry/等價 project、runtime DSN、alert route、sample ingestion proof。
+- RAG public launch：正式 provider/vector path、知識庫資料來源、success/error `AiUsageLog`。
+
+### 下一輪建議
+
+1. 回到 `LCH-005` production auth hardening：`AUTH_SECRET`、正式 provider/email/SSO、password reset/MFA。
+2. 或新增 Level 3 hardening workstream，拆出 uptime monitoring、incident response drill、public launch security/legal/payment gates。

@@ -237,7 +237,7 @@
 - [x] 建立 AI quota/cost alert：至少 DB counter + UI quota warning；若導入 Redis rate limit 需文件化。
 - [x] 對所有 OpenAI/Anthropic routes 做 audit，列出 module、provider、success/error `AiUsageLog` evidence。
 - [x] 關閉 production-like env 的 `/api/mock/*`，保留 dev/test guard。
-- [ ] 建立 Sentry 或等價錯誤監控方案；若暫不接，寫入 release blocker。
+- [x] 建立 Sentry 或等價錯誤監控方案；若暫不接，寫入 release blocker。
 - [x] 建立 DB backup/restore 與 migration rollback note。
 - [x] 建立 privacy / terms / AI disclaimer 最小頁面或 release blocker。
 - [x] 建立 ECPay test flow checklist；正式收費開關預設關閉。
@@ -259,6 +259,8 @@
 
 進行中註記：2026-06-19 新增 `pnpm demo:full-smoke-qa`，orchestration 執行 front office `public-pricing-qa`、member admin `demo-relogin-qa`、org admin `demo-org-coaching-ai-usage-qa`、super admin `demo-platform-read-qa`、client portal `client-portal-qa`；五個 surface command exit 0。Browser proof 覆蓋 `/pricing`、`/dashboard`、`/team`、`/super-admin`、`/share/demo-share-wang`，狀態皆 200、expected text 可見、console error 0、無水平 overflow。截圖保存到 `docs/06_audits-and-reports/screenshots/launch-readiness/lch-009/full-smoke/`；current-month `AiUsageLog` count 可讀且 full smoke 不新增 AI provider usage（`10→10`）。
 
+進行中註記：2026-06-19 新增 `ACC-009_release-monitoring-setup-runbook.md` 與 `pnpm monitoring:readiness-qa`。Runbook 定義 `SENTRY_DSN` / `NEXT_PUBLIC_SENTRY_DSN` env contract、operator checklist、PII/cookie/authorization/prompt 禁止規則與 production ingestion proof 要求；QA 驗證一般 member 403、platform readiness 含 `monitoring` control、live gate 不輸出 DSN、source 使用 documented DSN OR contract，並用 dry-run 證明無 DSN=blocked、server/public DSN 任一存在=pass。此項完成「方案或 release blocker」要求；若部署環境未設定 DSN，readiness gate 仍會正確保持 monitoring blocked，不宣稱 production provider ingestion 已完成。
+
 範圍外：不宣稱 full public production，除非 LCH-001-LCH-008 與 operator blockers 全部解除。
 
 ---
@@ -270,7 +272,7 @@
 - Theater Route B 尚未 migration；若用 legacy Theater，只能標 staging demo。
 - ECPay credentials、callback domain、CheckMacValue、notification/query API、refund/void process 尚未完成。
 - Super admin platform auth/MFA/staging access 仍需 operator。
-- Production monitoring 尚未完成；privacy/terms/AI disclaimer 與 backup/rollback 已有 private beta draft，但仍需正式 legal/compliance/operator sign-off。
+- Production monitoring runbook/env contract 已完成；public production 仍需 operator 設定 Sentry/等價 DSN、alert route 與不含 secret 的 sample ingestion proof。privacy/terms/AI disclaimer 與 backup/rollback 已有 private beta draft，但仍需正式 legal/compliance/operator sign-off。
 
 ---
 

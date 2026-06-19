@@ -8,6 +8,31 @@
 
 ## Open Issues
 
+### IQ-035 - LCH-009 monitoring readiness runbook 已落地
+
+- 狀態：Resolved
+- 發現日期：2026-06-19
+- 解決日期：2026-06-19
+- 影響 batch：`LCH-009`
+- 背景：
+  - `LCH-009` 剩餘未勾選項是 Sentry 或等價錯誤監控方案；目前 repo 已有 readiness gate，但缺 env contract、operator checklist 與可重跑 QA。
+  - 若沒有正式 DSN，不應把 monitoring gate 假裝轉綠，也不應在 repo/report 輸出 DSN 或 private payload。
+- 解法：
+  - 新增 `ACC-009_release-monitoring-setup-runbook.md`，定義 `SENTRY_DSN` / `NEXT_PUBLIC_SENTRY_DSN` contract、operator checklist、alert/incident owner、sample ingestion proof 與 PII/cookie/authorization/prompt 禁止規則。
+  - 新增 `pnpm monitoring:readiness-qa`，驗證一般 member 403、platform readiness 含 `monitoring` control、live gate 不輸出 DSN、source 使用 DSN OR contract，並 dry-run 證明無 DSN blocked、server/public DSN 任一存在 pass。
+  - `LCH-009` 的「建立監控方案；若暫不接，寫入 release blocker」已可驗收；若部署環境未設定 DSN，readiness gate 仍維持 blocked。
+- 需要使用者決策：
+  - 無；本輪只建立 Sentry/等價 monitoring 的 readiness contract 與 blocker proof。
+- production approval：
+  - Public production 前需要核可 monitoring provider/project、alert route、incident owner 與不含 secret 的 sample ingestion proof。
+- operator 手動處理：
+  - 設定 `SENTRY_DSN` 或 `NEXT_PUBLIC_SENTRY_DSN` 到 staging/production runtime；不得提交 DSN 到 repo。
+  - 觸發 staging sample error，確認 monitoring dashboard 收到事件，且 event 不含 cookie、authorization header、raw request body、客戶 email/phone/policy number、AI prompt/response 原文。
+- session / seed data / env / external service：
+  - QA 需要 local dev server、demo seed、DB URL 與 platform demo user；不需要真 production DSN。
+- 已不再阻擋：
+  - `LCH-009` monitoring readiness/runbook 不再是無文件狀態；剩餘是 operator 對 production/staging provider 的實際接入與 approval。
+
 ### IQ-034 - LCH-009 full smoke pack 已落地
 
 - 狀態：Resolved

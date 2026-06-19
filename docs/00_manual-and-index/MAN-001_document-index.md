@@ -64,3 +64,4 @@
 | `ACC-006` | 驗收與 QA | 誠問 AI Interview × Theater Dual Agent Acceptance Framework v1.0 | [08_acceptance-and-qa/ACC-006_interview-theater-dual-agent-acceptance-framework-v1.0.md](../08_acceptance-and-qa/ACC-006_interview-theater-dual-agent-acceptance-framework-v1.0.md) | `(generated)` |
 | `ACC-007` | 驗收與 QA | 誠問 AI Release Rollback And Backup Runbook | [08_acceptance-and-qa/ACC-007_release-rollback-and-backup-runbook.md](../08_acceptance-and-qa/ACC-007_release-rollback-and-backup-runbook.md) | `(generated)` |
 | `ACC-008` | 驗收與 QA | 誠問 AI ECPay Test Flow Checklist | [08_acceptance-and-qa/ACC-008_ecpay-test-flow-checklist.md](../08_acceptance-and-qa/ACC-008_ecpay-test-flow-checklist.md) | `(generated)` |
+| `ACC-009` | 驗收與 QA | 誠問 AI Release Monitoring Setup Runbook | [08_acceptance-and-qa/ACC-009_release-monitoring-setup-runbook.md](../08_acceptance-and-qa/ACC-009_release-monitoring-setup-runbook.md) | `(generated)` |
