@@ -128,21 +128,27 @@ async function runBrowserProof() {
       waitUntil: "networkidle",
       timeout: 60000,
     });
-    await page.getByRole("heading", { name: "拜訪作戰台" }).waitFor({ timeout: 30000 });
+    await page.getByRole("heading", { name: /拜訪準備包/ }).waitFor({ timeout: 30000 });
 
     const detailChecks = await page.evaluate((stamp) => {
       const text = document.body.innerText;
       return {
-        hasTitle: text.includes("拜訪作戰台"),
+        hasTitle: text.includes("拜訪準備包"),
+        hasProjectContext: text.includes("專案情境"),
+        hasPriorityQuestions: text.includes("核心問題清單"),
+        hasDecisionMap: text.includes("決策地圖"),
         hasClientName: text.includes("王大明") || text.includes("客戶"),
         hasObjectiveStamp: text.includes(stamp),
-        hasReasoning: text.includes("推論") && text.includes("保單缺口"),
+        hasReasoning: text.includes("推論依據") && text.includes("保單缺口"),
         hasTheaterAction: text.includes("建立劇場舞台") || text.includes("帶入劇場建場"),
         horizontalOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
       };
     }, qaStamp);
 
     push(detailChecks.hasTitle, "browser renders pre-visit detail title");
+    push(detailChecks.hasProjectContext, "browser renders project-context prep package shell");
+    push(detailChecks.hasPriorityQuestions, "browser renders priority question list");
+    push(detailChecks.hasDecisionMap, "browser renders relationship decision map");
     push(detailChecks.hasClientName || Boolean(selectedClientName), "browser renders client context", `client=${selectedClientName}`);
     push(detailChecks.hasObjectiveStamp, "browser renders persisted objective stamp");
     push(detailChecks.hasReasoning, "browser renders question reasoning evidence");
@@ -177,7 +183,7 @@ async function runBrowserProof() {
       waitUntil: "networkidle",
       timeout: 60000,
     });
-    await page.getByRole("heading", { name: "拜訪作戰台" }).waitFor({ timeout: 30000 });
+    await page.getByRole("heading", { name: /拜訪準備包/ }).waitFor({ timeout: 30000 });
     const mobileOverflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1);
     push(!mobileOverflow, "pre-visit detail mobile has no horizontal overflow");
     await page.screenshot({

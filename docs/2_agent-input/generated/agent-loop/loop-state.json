@@ -64,11 +64,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 3,
+    "normalLoopsSinceLastWholeProductReview": 4,
     "lastWholeProductReviewAt": "2026-06-20",
     "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-20_lv3-whole-product-gap-review-route-b-runtime.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "LV3 previsit preparation package redesign. Scope: honor the user preference for research-backed restructuring, review current meeting/pre-call prep patterns, then reshape /pre-visit/[planId] into a project/relationship-aware preparation package with question list, evidence, inference/unknown labels, advisor-confirmation controls, and a clear theater handoff CTA. Keep server-owned VisitPlan BFF and /api/ai/visit provider contracts intact. If UI scope is too wide, fallback to ITA-003e Route B guarded interaction write shell with provider still disabled.",
+    "nextRecommendedImplementationSlice": "Cadence has reached 4 normal loops since the last whole-product review. Next loop should read and execute docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md before resuming implementation. Review focus: client -> relationship graph -> previsit package -> theater continuity after the previsit preparation package redesign, with special attention to onboarding clarity, provider/AiUsageLog boundaries, and Route B interaction blockers.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {

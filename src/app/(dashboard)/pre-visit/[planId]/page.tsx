@@ -92,6 +92,16 @@ type EvidenceBucket = {
   items: VisitQuestionEvidence[];
 };
 
+type DecisionSignal = {
+  id: string;
+  name: string;
+  role: string;
+  profile: string;
+  influence: string;
+  evidenceStatus: VisitQuestionEvidenceStatus;
+  statusLabel: string;
+};
+
 type VisitTheaterUiStatus = "READY" | "NEEDS_MORE_INFO" | "BLOCKED_SENSITIVE";
 
 function normalizeParam(value: string | string[] | undefined) {
@@ -263,6 +273,9 @@ function VisitPlanDetailContent() {
   const openEvidenceItems = evidenceBuckets.find((bucket) => bucket.status === "unknown")?.items.length ?? 0;
   const handoffStatus = theaterHandoff?.status ?? "NEEDS_MORE_INFO";
   const theaterBlocked = handoffStatus === "BLOCKED_SENSITIVE";
+  const priorityQuestions = getPriorityQuestions(plan.spinQuestions);
+  const decisionSignals = buildDecisionSignals(client);
+  const relationshipFocus = getRelationshipFocusCopy(client);
 
   const applyQuickstartFixture = () => {
     const fixture = getQuickstartVisitFixture();
@@ -389,9 +402,9 @@ function VisitPlanDetailContent() {
               </span>
             ) : null}
           </div>
-          <h1 className="mt-4 text-3xl font-semibold text-ink sm:text-4xl">拜訪作戰台</h1>
+          <h1 className="mt-4 text-3xl font-semibold text-ink sm:text-4xl">拜訪準備包</h1>
           <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground">
-            {client.name} 的目標、關係脈絡、推論依據、提問節奏與劇場建場資料集中在這裡。
+            {client.name} 的專案情境、決策地圖、核心問題、推論依據與劇場建場資料集中在這裡。
           </p>
         </div>
         <div className="flex flex-wrap gap-2 lg:justify-end">
@@ -428,7 +441,7 @@ function VisitPlanDetailContent() {
             <div>
               <h2 className="text-base font-semibold text-ink">{generationError ? "準備包尚未生成成功" : "先生成可執行的準備包"}</h2>
               <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
-                {generationError ?? "生成後會補齊目標、提問、疑慮、材料與劇場建場素材。"}
+                {generationError ?? "生成後會補齊專案目標、核心問題、推論依據、異議、材料與劇場建場素材。"}
               </p>
             </div>
           </div>
@@ -443,15 +456,18 @@ function VisitPlanDetailContent() {
         <section className="rounded-lg bg-ink p-5 text-paper sm:p-6">
           <div className="flex flex-wrap items-center gap-2 text-sm text-paper/70">
             <Target className="h-4 w-4" />
-            <span>{PURPOSE_LABELS[plan.purpose]}任務</span>
+            <span>專案情境</span>
+            <span aria-hidden="true">/</span>
+            <span>{PURPOSE_LABELS[plan.purpose]}拜訪</span>
             <span aria-hidden="true">/</span>
             <span>{client.status === "ACTIVE" ? "既有客戶" : client.status === "PROSPECT" ? "潛在客戶" : "已結案客戶"}</span>
           </div>
           <h2 className="mt-4 max-w-3xl text-2xl font-semibold leading-tight sm:text-3xl">
             {objectiveLead?.description ?? `${client.name} 的拜訪資料尚待整理`}
           </h2>
-          <div className="mt-6 grid gap-3 md:grid-cols-3">
+          <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             <BriefFact icon={<BadgeCheck className="h-4 w-4" />} label="成功判準" value={objectiveLead?.successCriteria ?? "生成後補齊"} />
+            <BriefFact icon={<Users className="h-4 w-4" />} label="決策地圖" value={relationshipFocus} />
             <BriefFact icon={<CircleHelp className="h-4 w-4" />} label="第一個問題" value={firstQuestion?.question ?? "尚未建立 SPIN 題組"} />
             <BriefFact icon={<PanelRightOpen className="h-4 w-4" />} label="下一步" value={isReady ? "建立劇場舞台或進 SPIN 澄清" : "先生成準備包"} />
           </div>
@@ -476,12 +492,15 @@ function VisitPlanDetailContent() {
         <PrepMetric icon={<Check className="h-4 w-4" />} label="材料完成" value={`${checkedMaterials}/${plan.materials.length || 0}`} helper="拜訪前確認" />
       </section>
 
+      <section className="grid gap-5 xl:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
+        <PriorityQuestionBoard questions={priorityQuestions} />
+        <DecisionMapPanel client={client} signals={decisionSignals} />
+      </section>
+
       <main className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
         <div className="space-y-5">
-          <RelationshipSnapshot client={client} />
-
           <section data-tour="plan-spin" className="rounded-lg border border-hairline bg-card">
-            <SectionHeader icon={<MessageSquare className="h-4 w-4" />} title="提問跑道" summary={`${plan.spinQuestions.length} 題・按 S/P/I/N 進場`} />
+            <SectionHeader icon={<MessageSquare className="h-4 w-4" />} title="完整 SPIN 問題庫" summary={`${plan.spinQuestions.length} 題・按 S/P/I/N 進場`} />
             {plan.spinQuestions.length ? (
               <div className="space-y-5 border-t border-hairline p-4">
                 {groupedQuestions.map(({ type, questions }) =>
@@ -623,19 +642,94 @@ function PrepMetric({ helper, icon, label, value }: { helper: string; icon: Reac
   );
 }
 
-function RelationshipSnapshot({ client }: { client: Client }) {
-  const family = client.family.slice(0, 6);
+function PriorityQuestionBoard({ questions }: { questions: SpinQuestion[] }) {
+  return (
+    <section className="rounded-lg border border-hairline bg-card">
+      <SectionHeader icon={<Lightbulb className="h-4 w-4" />} title="核心問題清單" summary={`${questions.length ? `優先 ${questions.length} 題` : "等待生成"}・含推論依據`} />
+      <div className="grid gap-3 border-t border-hairline p-4 lg:grid-cols-3">
+        {questions.length ? (
+          questions.map((question, index) => <PriorityQuestionCard key={question.id} index={index} question={question} />)
+        ) : (
+          <div className="lg:col-span-3">
+            <EmptyPrepCopy copy="生成準備包後，這裡會先抽出最值得現場驗證的 3 個問題，並標示已知、推論與待確認依據。" />
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function PriorityQuestionCard({ index, question }: { index: number; question: SpinQuestion }) {
+  const evidence = question.reasoning?.evidence ?? [];
+  const confirmedCount = countEvidenceByStatus(question, "confirmed");
+  const inferenceCount = countEvidenceByStatus(question, "inference");
+  const unknownCount = countEvidenceByStatus(question, "unknown");
+
+  return (
+    <article className="rounded-lg border border-hairline bg-background p-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-ink text-xs font-semibold tabular-nums text-paper">
+          {index + 1}
+        </span>
+        <Badge variant="outline" className="rounded-md">
+          {SPIN_LABELS[question.type]}
+        </Badge>
+        <Badge variant="outline" className="rounded-md">
+          {getQuestionFocusLabel(question)}
+        </Badge>
+      </div>
+      <p className="mt-4 text-sm font-semibold leading-6 text-ink">{question.question}</p>
+      <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+        <MiniStat label="已知" value={String(confirmedCount)} />
+        <MiniStat label="推論" value={String(inferenceCount)} />
+        <MiniStat label="待確認" value={String(unknownCount)} />
+      </div>
+      <div className="mt-4 rounded-lg bg-muted/30 p-3">
+        <div className="flex items-center gap-2 text-xs font-semibold text-ink">
+          <Brain className="h-3.5 w-3.5" />
+          推論依據
+        </div>
+        <p className="mt-2 text-xs leading-5 text-muted-foreground">
+          {question.reasoning?.summary ?? "尚無推論摘要；可先用 SPIN 澄清補齊。"}
+        </p>
+        {evidence.length ? (
+          <div className="mt-3 grid gap-2">
+            {evidence.slice(0, 2).map((item) => (
+              <EvidenceLine key={item.id} item={item} />
+            ))}
+          </div>
+        ) : null}
+        {question.reasoning?.confirmationPrompt ? (
+          <p className="mt-3 border-l border-hairline pl-3 text-xs leading-5 text-muted-foreground">
+            現場確認：{question.reasoning.confirmationPrompt}
+          </p>
+        ) : null}
+      </div>
+    </article>
+  );
+}
+
+function DecisionMapPanel({ client, signals }: { client: Client; signals: DecisionSignal[] }) {
+  const [primarySignal, ...relationshipSignals] = signals;
 
   return (
     <section className="rounded-lg border border-hairline bg-card">
-      <SectionHeader icon={<Users className="h-4 w-4" />} title="關係圖摘要" summary={`${client.name}・${client.occupation || "職業待補"}・${formatCurrency(client.annualIncome)}`} />
-      <div className="grid gap-4 border-t border-hairline p-4 lg:grid-cols-[240px_minmax(0,1fr)]">
+      <SectionHeader icon={<Users className="h-4 w-4" />} title="決策地圖" summary="職位、年薪、狀態、關係脈絡" />
+      <div className="space-y-3 border-t border-hairline p-4">
         <div className="rounded-lg border border-hairline bg-background p-4">
-          <p className="text-sm font-semibold text-ink">{client.name}</p>
-          <div className="mt-3 grid gap-2 text-sm text-muted-foreground">
-            <span>{client.occupation || "職業待補"}</span>
-            <span>{formatCurrency(client.annualIncome)}</span>
-            <span>KYC：{client.kycStatus}</span>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold text-ink">{client.name}</p>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground">{primarySignal?.profile}</p>
+            </div>
+            <Badge variant="outline" className="rounded-md">
+              {client.kycStatus}
+            </Badge>
+          </div>
+          <div className="mt-4 grid gap-2 text-sm text-muted-foreground">
+            <span>職位：{client.occupation || "待補"}</span>
+            <span>年薪：{formatCurrency(client.annualIncome)}</span>
+            <span>狀態：{getClientStatusLabel(client.status)}</span>
           </div>
           <div className="mt-4 flex flex-wrap gap-2">
             {client.aiTags.slice(0, 3).map((tag) => (
@@ -645,29 +739,34 @@ function RelationshipSnapshot({ client }: { client: Client }) {
             ))}
           </div>
         </div>
-        <div className="grid gap-3 sm:grid-cols-2">
-          {family.length ? (
-            family.map((member) => <FamilyNode key={member.id} member={member} />)
-          ) : (
-            <EmptyPrepCopy copy="尚未建立關係節點；可回客戶頁補上家庭或決策關係。" />
-          )}
-        </div>
+        {relationshipSignals.length ? (
+          <div className="grid gap-2">
+            {relationshipSignals.map((signal) => (
+              <DecisionSignalRow key={signal.id} signal={signal} />
+            ))}
+          </div>
+        ) : (
+          <EmptyPrepCopy copy="尚未建立關係節點；可回客戶頁補上家庭、共同決策人或影響者。" />
+        )}
       </div>
     </section>
   );
 }
 
-function FamilyNode({ member }: { member: FamilyMember }) {
+function DecisionSignalRow({ signal }: { signal: DecisionSignal }) {
   return (
     <div className="rounded-lg border border-hairline bg-background p-3">
       <div className="flex items-center justify-between gap-3">
-        <p className="text-sm font-semibold text-ink">{member.name}</p>
+        <p className="text-sm font-semibold text-ink">{signal.name}</p>
         <Badge variant="outline" className="rounded-md">
-          {member.relation}
+          {getEvidenceStatusLabel(signal.evidenceStatus)}
         </Badge>
       </div>
       <p className="mt-2 text-xs leading-5 text-muted-foreground">
-        {member.age ? `${member.age} 歲` : "年齡待補"}・{inferRelationshipInfluence(member.relation)}
+        {signal.role}・{signal.profile}
+      </p>
+      <p className="mt-2 border-l border-hairline pl-3 text-xs leading-5 text-muted-foreground">
+        {signal.statusLabel}；{signal.influence}
       </p>
     </div>
   );
@@ -898,6 +997,79 @@ function countQuestionEvidence(questions: SpinQuestion[]) {
   return questions.reduce((count, question) => count + (question.reasoning?.evidence.length ?? 0), 0);
 }
 
+function countEvidenceByStatus(question: SpinQuestion, status: VisitQuestionEvidenceStatus) {
+  return (question.reasoning?.evidence ?? []).filter((item) => item.status === status).length;
+}
+
+function getPriorityQuestions(questions: SpinQuestion[]) {
+  return [...questions]
+    .sort((left, right) => getQuestionPriorityScore(right) - getQuestionPriorityScore(left))
+    .slice(0, 3);
+}
+
+function getQuestionPriorityScore(question: SpinQuestion) {
+  const typeWeight: Record<SpinQuestion["type"], number> = {
+    S: 1,
+    P: 3,
+    I: 4,
+    N: 2,
+  };
+
+  return (
+    countEvidenceByStatus(question, "unknown") * 5 +
+    countEvidenceByStatus(question, "inference") * 3 +
+    countEvidenceByStatus(question, "confirmed") +
+    typeWeight[question.type]
+  );
+}
+
+function getQuestionFocusLabel(question: SpinQuestion) {
+  if (countEvidenceByStatus(question, "unknown") > 0) return "待確認優先";
+  if (countEvidenceByStatus(question, "inference") > 0) return "推論驗證";
+  if (question.type === "I") return "風險深化";
+  if (question.type === "N") return "下一步承諾";
+  return "現況校準";
+}
+
+function buildDecisionSignals(client: Client): DecisionSignal[] {
+  const primary: DecisionSignal = {
+    id: client.id,
+    name: client.name,
+    role: "主客戶",
+    profile: `${client.occupation || "職位待補"}・${formatCurrency(client.annualIncome)}・${getClientStatusLabel(client.status)}`,
+    influence: "本次拜訪的主要需求、限制與承諾來源。",
+    evidenceStatus: "confirmed",
+    statusLabel: "已知主客戶資料",
+  };
+
+  return [primary, ...client.family.slice(0, 5).map(buildFamilyDecisionSignal)];
+}
+
+function buildFamilyDecisionSignal(member: FamilyMember): DecisionSignal {
+  return {
+    id: member.id,
+    name: member.name,
+    role: member.relation,
+    profile: `${member.age ? `${member.age} 歲` : "年齡待補"}・${member.linkedClientId ? "已連結客戶" : "未連結客戶"}`,
+    influence: inferRelationshipInfluence(member.relation),
+    evidenceStatus: "inference",
+    statusLabel: "關係已知、決策權重待確認",
+  };
+}
+
+function getRelationshipFocusCopy(client: Client) {
+  if (!client.family.length) {
+    return "關係圖尚待補齊決策人、影響者與受益人";
+  }
+
+  const relationshipNames = client.family
+    .slice(0, 2)
+    .map((member) => `${member.name}/${member.relation}`)
+    .join("、");
+
+  return `${relationshipNames} 需確認決策權與支持度`;
+}
+
 function getEvidenceStatusLabel(status: VisitQuestionEvidenceStatus) {
   if (status === "confirmed") return "已知";
   if (status === "inference") return "推論";
@@ -928,6 +1100,12 @@ function inferRelationshipInfluence(relation: string) {
   if (relation.includes("父") || relation.includes("母")) return "照護影響";
   if (relation.includes("子") || relation.includes("女")) return "保障受益";
   return "關係脈絡";
+}
+
+function getClientStatusLabel(status: Client["status"]) {
+  if (status === "ACTIVE") return "既有客戶";
+  if (status === "PROSPECT") return "潛在客戶";
+  return "已結案客戶";
 }
 
 function formatCurrency(value: number) {
