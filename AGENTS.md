@@ -658,10 +658,12 @@ Context: 將 `RES-012` / `RES-013` 的上線差距與四介面實作研究轉成
 
 進行中註記：2026-06-19 續轉換 `/api/ai/visit` 與 `/api/ai/report`：兩條 route 改為 `requireCurrentMember()` session-scoped、server 端以 `clientId` 查 DB client、不再信任前端完整 client payload，並加入 `canUseAiModule()` quota guard；success path 寫 `AiUsageLog` 並 increment organization `monthlyAiUsed`，missing key / provider / empty / schema error path 寫 `AiUsageLog.error`。新增 `pnpm demo:ai-generation-qa`，驗證 unauth visit 401、demo member visit/report 200、response shape/markdown 正常、DB `VISIT`/`REPORT` success usage 各增加 `1→2`。`pnpm ai:usage-audit` 更新後剩餘 gaps：`/api/ai/spin`、`/api/ai/spin-suggestions`、`/api/rag`。
 
+進行中註記：2026-06-19 續轉換 `/api/ai/spin` 與 `/api/ai/spin-suggestions`：兩條 route 改為 `requireCurrentMember()` session-scoped、前端只送 `clientId`，server 端讀 DB client 組 SPIN context，不再信任前端完整 `clientContext`；加入 `canUseAiModule(session, SPIN)` quota guard，success path 寫 `AiUsageLog` 並 increment organization `monthlyAiUsed`，missing key / provider / stream / suggestions error path 寫 `AiUsageLog.error`。新增到 `pnpm demo:ai-generation-qa`：unauth SPIN 401、demo member SPIN stream 200、SPIN suggestions 200、DB `SPIN` success usage `0→2`。`pnpm ai:usage-audit` 更新後唯一 gap：`/api/rag`。
+
 ### Current Launch Blockers
 - Auth provider 已改採 Auth.js / NextAuth；production 仍需 `AUTH_SECRET`、正式 provider/email/SSO 與 callback URL。
 - Demo account relogin 尚未完成。
-- Legacy `/api/ai/spin`、`/api/ai/spin-suggestions` 缺 auth/quota/success/error `AiUsageLog`；`/api/rag` 仍是 placeholder 且缺 guard/quota。
+- `/api/rag` 仍是 placeholder 且缺 guard/quota；所有目前 OpenAI-facing AI routes 已具備 session/quota/success/error `AiUsageLog` source evidence。
 - Theater Route B 尚未 migration；若用 legacy Theater，只能標 staging demo。
 - ECPay credentials、callback domain、CheckMacValue、notification/query API、refund/void process 尚未完成。
 - Super admin platform auth/MFA/staging access 仍需 operator。

@@ -8,6 +8,32 @@
 
 ## Open Issues
 
+### IQ-032 - Legacy SPIN routes 已轉為 session/quota/usage contract
+
+- 狀態：Resolved
+- 發現日期：2026-06-19
+- 解決日期：2026-06-19
+- 影響 batch：`LCH-009`
+- 背景：
+  - `AUD-005` 剩餘真 provider gaps 是 `/api/ai/spin` 與 `/api/ai/spin-suggestions`，兩者缺 member session、quota guard、success/error `AiUsageLog`。
+  - SPIN 狀態機不可改壞；本輪只能補 route guard、server-side client lookup、usage logging 與 proof。
+- 解法：
+  - `/api/ai/spin` 與 `/api/ai/spin-suggestions` 改為 `requireCurrentMember()` session-scoped，前端只送 `clientId`，server 端用 `getClientForMember()` 讀 DB client。
+  - 保留既有 SPIN phase / mode / streaming UX，不改 SPIN domain 狀態機。
+  - 新增 `canUseAiModule(session, SPIN)` quota guard；success path 寫 `AiUsageLog` 並 increment organization `monthlyAiUsed`。
+  - missing key / provider / stream / suggestions error path 寫 `AiUsageLog.error`，不保存 raw provider payload、cookie、secret 或完整 private request body。
+  - `pnpm demo:ai-generation-qa` 已擴充 SPIN proof：unauth 401、demo member chat stream 200、suggestions 200、DB `SPIN` success usage `0→2`。
+- 需要使用者決策：
+  - 無；這是既有 launch-readiness blocker 的工程修補。
+- production approval：
+  - 無；本輪未做 production DB mutation 或 production provider setting 變更。
+- operator 手動處理：
+  - 無。
+- session / seed data / env / external service：
+  - QA 需要可用 demo member seed、DB URL、local dev server 與非 production OpenAI key；本輪只記錄 counts 與狀態碼，不保存 secret。
+- 已不再阻擋：
+  - `/api/ai/spin`、`/api/ai/spin-suggestions` 已不再列為 AI usage route audit blocker；剩餘 AI route gap 是 `/api/rag` launch posture。
+
 ### IQ-031 - Visit / report AI generation routes 已轉為 session/quota/usage contract
 
 - 狀態：Resolved

@@ -2941,3 +2941,86 @@ pnpm build
 
 1. 繼續 `LCH-009` 轉換 `/api/ai/spin` 與 `/api/ai/spin-suggestions`，或明確 production gate/retire legacy SPIN route。
 2. 處理 `/api/rag` launch posture：disabled behind guard、正式 RAG provider path，或移出 public beta route surface。
+
+## 2026-06-19 Round 040 - LCH-009 Legacy SPIN AI Usage Conversion
+
+### 本輪戰役
+
+- Workstream：Launch Readiness Implementation。
+- Batch / task：`LCH-009` Production Controls And Release QA。
+- 選擇原因：Round 039 後，AI usage audit 剩餘的真 provider gaps 是 `/api/ai/spin` 與 `/api/ai/spin-suggestions`；它們仍會呼叫 OpenAI 但缺 session、quota 與 `AiUsageLog`，是比 `/api/rag` placeholder 更直接的上線成本/權限風險。
+
+### 本輪完成
+
+- `/api/ai/spin` 改為 `requireCurrentMember()` session-scoped，前端只送 `clientId`，server 端以 `getClientForMember()` 讀 DB client 組 SPIN context，不再信任前端完整 `clientContext`。
+- `/api/ai/spin-suggestions` 同步改為 session-scoped、DB-backed client lookup、quota guarded。
+- 兩條 route 都加入 `canUseAiModule(session, SPIN)`；超限回 `429 QUOTA_EXCEEDED` 且不進 provider。
+- Success path 寫 `AiUsageLog` 並 increment organization `monthlyAiUsed`；missing key / provider / stream / suggestions error path 寫 `AiUsageLog.error`。
+- 保留 SPIN phase / mode / streaming UX；未修改 SPIN domain 狀態機。
+- `src/app/(dashboard)/spin/[sessionId]/page.tsx` 改送 `clientId`，主 chat 和 suggestions 都不再送完整 client context。
+- `pnpm demo:ai-generation-qa` 擴充 SPIN proof：unauth SPIN 401、demo member stream 200、suggestions 200、DB `SPIN` success usage `0→2`。
+- `pnpm ai:usage-audit` 更新後唯一 gap 為 `/api/rag`。
+
+### 修改檔案
+
+- `src/app/api/ai/spin/route.ts`
+- `src/app/api/ai/spin-suggestions/route.ts`
+- `src/app/(dashboard)/spin/[sessionId]/page.tsx`
+- `scripts/ai-usage-route-audit.mjs`
+- `scripts/demo-ai-generation-qa.mjs`
+- `docs/06_audits-and-reports/AUD-005_ai-usage-route-audit-v1.0.md`
+- `docs/06_audits-and-reports/RPT-003_ongoing-batch-implementation-report-v1.0.md`
+- `docs/05_execution-plans/PLN-017_launch-readiness-implementation-batch-tasks-v1.0.md`
+- `docs/07_research-and-design/RES-016_issue-question-log-v1.0.md`
+- `AGENTS.md`
+
+### DB / Prisma 操作
+
+- 是否修改 schema：否。
+- 是否執行 generate：`pnpm build` 內執行 Prisma generate，通過。
+- 是否執行 db push：否。
+- DB target 判斷：`.env` 指向可連線 Supabase dev/staging target；本輪只新增 demo/staging `AiUsageLog` proof rows 與 org monthly counter increment。
+- Seed/backfill：無。
+
+### 驗收
+
+```bash
+pnpm exec tsc --noEmit --pretty false
+pnpm exec eslint src/app/api/ai/spin/route.ts src/app/api/ai/spin-suggestions/route.ts 'src/app/(dashboard)/spin/[sessionId]/page.tsx' scripts/ai-usage-route-audit.mjs scripts/demo-ai-generation-qa.mjs
+pnpm ai:usage-audit
+DEMO_QA_BASE_URL=http://localhost:3000 pnpm demo:ai-generation-qa
+pnpm run lint:changed
+pnpm prisma:validate
+pnpm demo:runtime-audit
+pnpm demo:preflight
+pnpm build
+```
+
+結果：
+
+- TypeScript：通過。
+- Targeted ESLint：通過。
+- `pnpm ai:usage-audit`：通過執行，overall=`gaps_found`；`/api/ai/spin` 與 `/api/ai/spin-suggestions` 轉為 pass；唯一 gap route 為 `/api/rag`。
+- `pnpm demo:ai-generation-qa`：通過；unauth visit 401、unauth SPIN 401、visit/report 200、SPIN stream 200、SPIN suggestions 200；DB proof `VISIT 2→3`、`REPORT 2→3`、`SPIN 0→2`。
+- `pnpm run lint:changed`：通過。
+- `pnpm prisma:validate`：通過。
+- `pnpm demo:runtime-audit`：通過。
+- `pnpm demo:preflight`：通過；Supabase public env placeholder 仍為既有 warning，DB DNS/table/connection pass。
+- `pnpm build`：通過；Next build route list 包含 `/api/ai/spin` 與 `/api/ai/spin-suggestions`。
+
+### 失敗與風險
+
+- 本輪 QA 呼叫非 production OpenAI key 產生實際 demo/staging usage rows；未保存 raw request、provider response、cookie、secret 或 private payload。
+- `pnpm run lint:changed` 仍會列出既有未提交的 `src/components/ui/dropdown-menu.tsx`，結果通過；該檔不是本輪變更，不納入 stage。
+- `/api/rag` 仍是唯一 AI route audit gap；它目前是 placeholder，不應在 public beta route surface 中被誤宣稱為正式 RAG。
+
+### 剩餘上線 blocker
+
+- `LCH-009`：`/api/rag` launch posture、monitoring/Sentry、full smoke、release QA evidence 整包彙整。
+- `LCH-005`：production auth provider、password reset/MFA、production-safe demo/staging policy。
+- Operator / approval：`AUTH_SECRET`、正式 auth provider/email/SSO、ECPay production credentials/callback/CheckMacValue、monitoring DSN、legal/compliance sign-off。
+
+### 下一輪建議
+
+1. 處理 `/api/rag` launch posture：disabled behind guard、正式 RAG provider path，或移出 public beta route surface。
+2. 接著做 `LCH-009` full smoke pack，彙整 front office、member admin、org admin、super admin、client portal 的 API/browser evidence。

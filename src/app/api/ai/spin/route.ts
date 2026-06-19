@@ -1,7 +1,34 @@
 import OpenAI from "openai";
-import { SpinPhase, SpinMode } from "@/domains/spin/types";
+import { z } from "zod";
+import type { ChatCompletionChunk, ChatCompletionMessageParam } from "openai/resources/chat/completions";
+import { AiModule } from "@/generated/prisma/enums";
+import { canUseAiModule } from "@/lib/auth/policies";
+import { authErrorResponse, requireCurrentMember } from "@/lib/auth/current-workspace";
+import type { AppSession } from "@/lib/auth/session";
+import { getClientForMember } from "@/lib/clients/client-repository";
+import {
+  normalizeAiError,
+  persistAiGenerationFailure,
+  persistAiGenerationSuccess,
+} from "@/lib/ai/generation-usage-repository";
 
 const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const MODEL = "gpt-4o-mini";
+
+const spinRequestSchema = z.object({
+  phase: z.enum(["SITUATION", "PROBLEM", "IMPLICATION", "NEED_PAYOFF"]),
+  mode: z.enum(["SELF_CLARIFY", "QUESTION_DESIGN"]),
+  clientId: z.string().trim().min(1).max(120),
+  messages: z
+    .array(
+      z.object({
+        role: z.enum(["user", "assistant", "system"]),
+        content: z.string().trim().max(5000),
+      }),
+    )
+    .max(30)
+    .default([]),
+});
 
 const SYSTEM_PROMPT = `你是一位專業的保險銷售策略顧問，專精於 SPIN 銷售法（Situation, Problem, Implication, Need-payoff）。
 你的任務是引導保險業務員（使用者）進行訪前規劃與客戶分析。
@@ -34,16 +61,67 @@ const SYSTEM_PROMPT = `你是一位專業的保險銷售策略顧問，專精於
 - 標籤請放在回覆的末尾或段落間，不要影響閱讀。`;
 
 export async function POST(req: Request) {
+  const startedAt = Date.now();
+  let session: AppSession | undefined;
+  let scopedClientId: string | undefined;
+  let providerAttempted = false;
+
   try {
-    const { phase, mode, clientContext, messages = [] } = await req.json();
+    session = await requireCurrentMember();
+    const currentSession = session;
+    const parsedBody = spinRequestSchema.safeParse(await req.json().catch(() => null));
+
+    if (!parsedBody.success) {
+      return Response.json(
+        {
+          error: "INVALID_SPIN_INPUT",
+          issues: parsedBody.error.flatten().fieldErrors,
+        },
+        { status: 400 },
+      );
+    }
+
+    const body = parsedBody.data;
+    scopedClientId = body.clientId;
+    const quota = canUseAiModule(session, AiModule.SPIN);
+
+    if (!quota.allowed) {
+      return Response.json(
+        {
+          error: quota.code,
+          remaining: quota.remaining,
+          message: "AI 使用額度已用完，請聯絡管理員或升級方案。",
+        },
+        { status: 429 },
+      );
+    }
+
+    const clientData = await getClientForMember(session, body.clientId);
+
+    if (!clientData) {
+      return Response.json({ error: "CLIENT_NOT_FOUND" }, { status: 404 });
+    }
+
+    if (!process.env.OPENAI_API_KEY) {
+      await persistAiGenerationFailure({
+        session,
+        module: AiModule.SPIN,
+        model: MODEL,
+        clientId: scopedClientId,
+        latencyMs: Date.now() - startedAt,
+        error: "OPENAI_API_KEY is not configured",
+      });
+
+      return Response.json({ error: "OPENAI_API_KEY is not configured" }, { status: 500 });
+    }
 
     const contextInstruction = `
 【當前脈絡】
-- 客戶姓名：${clientContext.profile.name}
-- 客戶背景：${clientContext.profile.occupation}，年收入 ${clientContext.profile.income}
-- 當前 SPIN 階段：${phase}
-- 輔助模式：${mode === "SELF_CLARIFY" ? "自我釐清 (整理客戶資訊)" : "問題設計 (設計對客戶的問句)"}
-- 客戶家庭與保單：${JSON.stringify({ family: clientContext.family, policies: clientContext.policies })}
+- 客戶姓名：${clientData.name}
+- 客戶背景：${clientData.occupation || "未填寫"}，年收入 ${clientData.annualIncome}
+- 當前 SPIN 階段：${body.phase}
+- 輔助模式：${body.mode === "SELF_CLARIFY" ? "自我釐清 (整理客戶資訊)" : "問題設計 (設計對客戶的問句)"}
+- 客戶家庭與保單：${JSON.stringify({ family: clientData.family, policies: clientData.existingPolicies })}
 
 【任務重點】
 1. 如果使用者問問題，請先回答。
@@ -51,43 +129,85 @@ export async function POST(req: Request) {
 3. 如果當前階段資訊已足夠，請加上 [[PHASE_COMPLETE]]。
 `;
 
-    const openaiMessages: any[] = [
+    const openaiMessages: ChatCompletionMessageParam[] = [
       { role: "system", content: SYSTEM_PROMPT },
       { role: "system", content: contextInstruction },
-      ...messages.map((m: any) => ({
+      ...body.messages.map((m) => ({
         role: m.role,
         content: m.content,
       })),
     ];
 
+    providerAttempted = true;
     const response = await client.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: MODEL,
       messages: openaiMessages,
       stream: true,
+      stream_options: { include_usage: true },
       temperature: 0.7,
     });
 
     const stream = new ReadableStream({
       async start(controller) {
         const encoder = new TextEncoder();
-        for await (const chunk of response) {
-          const content = chunk.choices[0]?.delta?.content || "";
-          if (content) {
-            controller.enqueue(encoder.encode(content));
+        let usage: ChatCompletionChunk["usage"] | undefined;
+
+        try {
+          for await (const chunk of response) {
+            usage = chunk.usage ?? usage;
+            const content = chunk.choices[0]?.delta?.content || "";
+            if (content) {
+              controller.enqueue(encoder.encode(content));
+            }
           }
+
+          await persistAiGenerationSuccess({
+            session: currentSession,
+            module: AiModule.SPIN,
+            clientId: scopedClientId,
+            usage: {
+              model: MODEL,
+              promptTokens: usage?.prompt_tokens,
+              completionTokens: usage?.completion_tokens,
+              totalTokens: usage?.total_tokens,
+              latencyMs: Date.now() - startedAt,
+            },
+          });
+
+          controller.close();
+        } catch (error) {
+          await persistAiGenerationFailure({
+            session: currentSession,
+            module: AiModule.SPIN,
+            model: MODEL,
+            clientId: scopedClientId,
+            latencyMs: Date.now() - startedAt,
+            error: normalizeAiError(error, "SPIN stream failed"),
+          });
+          controller.error(error);
         }
-        controller.close();
       },
     });
 
     return new Response(stream, {
       headers: { "Content-Type": "text/plain; charset=utf-8" },
     });
-  } catch (error: any) {
-    console.error("SPIN AI Error:", error);
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
-    });
+  } catch (error) {
+    if (!session) {
+      return authErrorResponse(error);
+    }
+
+    if (providerAttempted) {
+      await persistAiGenerationFailure({
+        session,
+        module: AiModule.SPIN,
+        model: MODEL,
+        clientId: scopedClientId,
+        latencyMs: Date.now() - startedAt,
+        error: normalizeAiError(error, "SPIN AI failed"),
+      });
+    }
+
+    return Response.json({ error: "SPIN_AI_FAILED" }, { status: 500 });
   }
 }

@@ -25,6 +25,14 @@ try {
   });
   check(unauthVisit.status === 401, "visit requires app session", `status=${unauthVisit.status}`);
 
+  const unauthSpin = await postJson("/api/ai/spin", {
+    phase: "SITUATION",
+    mode: "SELF_CLARIFY",
+    clientId: demoClientId,
+    messages: [],
+  });
+  check(unauthSpin.status === 401, "spin requires app session", `status=${unauthSpin.status}`);
+
   const visit = await postJson(
     "/api/ai/visit",
     {
@@ -50,6 +58,39 @@ try {
   check(report.status === 200, "report generation succeeds for demo member", `status=${report.status}`);
   check(typeof report.text === "string" && report.text.includes("教育"), "report response returns markdown text");
 
+  const spin = await postJson(
+    "/api/ai/spin",
+    {
+      phase: "SITUATION",
+      mode: "SELF_CLARIFY",
+      clientId: demoClientId,
+      messages: [{ role: "user", content: "請用一句話協助我整理客戶背景。" }],
+    },
+    demoEmail,
+  );
+  check(spin.status === 200, "spin generation succeeds for demo member", `status=${spin.status}`);
+  check(typeof spin.text === "string" && spin.text.length > 20, "spin response returns streamed text");
+
+  const spinSuggestions = await postJson(
+    "/api/ai/spin-suggestions",
+    {
+      phase: "SITUATION",
+      mode: "QUESTION_DESIGN",
+      clientId: demoClientId,
+      lastUserMessage: "客戶有兩個孩子，想確認教育金缺口。",
+    },
+    demoEmail,
+  );
+  check(
+    spinSuggestions.status === 200,
+    "spin suggestions generation succeeds for demo member",
+    `status=${spinSuggestions.status}`,
+  );
+  check(
+    Array.isArray(spinSuggestions.body?.suggestions),
+    "spin suggestions response returns suggestions array",
+  );
+
   const after = await countUsage();
   check(
     after.VISIT.success >= before.VISIT.success + 1,
@@ -60,6 +101,11 @@ try {
     after.REPORT.success >= before.REPORT.success + 1,
     "REPORT success AiUsageLog increased",
     `${before.REPORT.success}->${after.REPORT.success}`,
+  );
+  check(
+    after.SPIN.success >= before.SPIN.success + 2,
+    "SPIN success AiUsageLog increased for chat and suggestions",
+    `${before.SPIN.success}->${after.SPIN.success}`,
   );
 
   printChecks();
@@ -103,17 +149,18 @@ async function countUsage() {
        count(*) FILTER (WHERE error IS NULL)::int AS success,
        count(*) FILTER (WHERE error IS NOT NULL)::int AS error
      FROM ai_usage_logs
-     WHERE module IN ('VISIT', 'REPORT')
+     WHERE module IN ('VISIT', 'REPORT', 'SPIN')
      GROUP BY module`,
   );
 
   const result = {
     VISIT: { success: 0, error: 0 },
     REPORT: { success: 0, error: 0 },
+    SPIN: { success: 0, error: 0 },
   };
 
   for (const row of rows) {
-    if (row.module === "VISIT" || row.module === "REPORT") {
+    if (row.module === "VISIT" || row.module === "REPORT" || row.module === "SPIN") {
       result[row.module] = {
         success: row.success,
         error: row.error,

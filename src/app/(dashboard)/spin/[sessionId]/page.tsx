@@ -129,11 +129,10 @@ export default function SpinConversationPage() {
 
       setIsTyping(true);
       try {
-        const clientCtx = spinService.getClientContext(session.clientId);
         const res = await fetch("/api/ai/spin", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ phase: session.phase, mode: session.mode, clientContext: clientCtx, messages: [] }),
+          body: JSON.stringify({ phase: session.phase, mode: session.mode, clientId: session.clientId, messages: [] }),
         });
         if (!res.body || cancelled) return;
 
@@ -205,13 +204,13 @@ export default function SpinConversationPage() {
     setIsTyping(true);
 
     try {
-      const clientCtx = spinService.getClientContext(session.clientId);
       const res = await fetch("/api/ai/spin", {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           phase: session.phase,
           mode: session.mode,
-          clientContext: clientCtx,
+          clientId: session.clientId,
           messages: [...messages, userMsg],
         }),
       });
@@ -296,7 +295,7 @@ export default function SpinConversationPage() {
           body: JSON.stringify({
             phase: session.phase,
             mode: session.mode,
-            clientContext: clientCtx,
+            clientId: session.clientId,
             lastUserMessage: currentInput,
           }),
         })
