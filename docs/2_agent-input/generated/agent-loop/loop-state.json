@@ -64,11 +64,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 4,
+    "normalLoopsSinceLastWholeProductReview": 0,
     "lastWholeProductReviewAt": "2026-06-20",
-    "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-20_lv3-whole-product-gap-review-theater-runtime.md",
+    "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-20_lv3-whole-product-gap-review-route-b-runtime.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "Cadence has reached 4 normal loops since the last whole-product review. Next heartbeat should run docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md before further implementation. Recommended review focus: Route B schema adapter is now additive and typed, but production DB migration, director/character/feedback provider routes, AiUsageLog runtime proof, and BFF-001 inventory still need prioritization.",
+    "nextRecommendedImplementationSlice": "ITA-003b Route B development migration + deterministic runtime BFF gate. Confirm DB target is local/development or approved staging before any additive db push; otherwise use dry-run proof and fall back to BFF-001. Scope: persist/read Route B scene/characters through the adapter, add guarded-disabled/no-provider director/character/feedback runtime route contract, prove group/private visibility and state patch boundaries, and require AiUsageLog success/error proof before enabling provider calls.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {

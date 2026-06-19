@@ -792,6 +792,8 @@ TDF-005a handoff note（2026-06-20）：Route B compatibility brief 與 handoff 
 
 ITA-003a schema adapter note（2026-06-20）：已完成 Route B additive schema / typed persistence adapter 子切片。`prisma/schema.prisma` 新增 `TheaterCharacter`、`TheaterRouteBCharacterRole`、`TheaterRouteBVisibilityScope`，並在 `TheaterSession` 保留 Route B scene/source/state/visibility metadata、在 `TheaterTurn` 加 `speakerCharacterId` / `addresseeCharacterId` / `visibilityScope` / `directorDirective` / `statePatches`。`src/lib/theater/route-b-session-repository.ts` 可把 `TheaterRouteBHandoffPacket` 轉成 typed session / character / opening turn payload，legacy `personaType` / `tension` 僅作 compatibility，不作 Route B 新主流程。`pnpm theater:route-b-schema-dry-run` 通過，證明 group/private/director/narrator visibility、private 不外洩、state patch 不寫 confirmed CRM fact、director/character/feedback 仍需 `AiUsageLog`，且 no-provider/no-DB-write。尚未完成：正式 DB push/migration rollback QA、director provider route、character provider route、feedback route、success/error `AiUsageLog` runtime proof；因此 ITA-003 整卡仍保持未完成。
 
+Whole-product review 註記（2026-06-20）：第五輪 LV3 校準確認 Route B 已跨過 handoff/schema adapter，但 immersive theater 的最大缺口已轉為 runtime proof。下一個最高槓桿子切片建議為 `ITA-003b Route B development migration + deterministic runtime BFF gate`：先確認 DB target 為 local/development/已授權 staging，做 additive migration proof 或 dry-run fallback，再補 director/character/feedback runtime route 的 guarded-disabled/no-provider 與 `AiUsageLog` success/error contract；若 DB target 不能確認，改先執行 `BFF-001` 全站資料來源盤點。
+
 ### Batch ITA-004 — 五視角質化回饋（M4）
 - [ ] 五視角 prompt：教練的耳朵 / 客戶的眼睛 / 沉默裡的需求 / 守門的良心 / 決策的橋。
 - [ ] 結束一次跑五個，可勾選、預設全部（F20/F21）；以 `TheaterFeedback` 取代數值評分。
@@ -1094,6 +1096,8 @@ Context: 將目前 partial vertical-slice BFF 推進成全站一致的 Backend-f
 - [ ] 新增或擴充 QA script，偵測 production page 直接 import `mocks.ts`、`seed-fixtures.ts` 或 browser storage business truth source。
 - [ ] 不改業務邏輯、不重寫 BFF route。
 - [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+
+Whole-product review fallback（2026-06-20）：若下一輪無法安全確認 Route B DB target 或 migration approval，BFF-001 是最高安全 fallback。盤點時要特別標出 `/reports` local store/share action、`/issues` static mock、admin demo seed、client service local write methods，以及 theater Route B runtime/source 邊界。
 
 ### Batch BFF-002 — Shared API foundation
 - [ ] 建立共用 error/response/validation/sanitize helpers。
