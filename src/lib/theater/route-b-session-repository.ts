@@ -185,6 +185,7 @@ export async function persistRouteBHandoffDraft(
     clientId?: string | null;
     spinSessionId?: string | null;
     isDemo?: boolean;
+    sessionId?: string;
   } = {},
 ): Promise<PersistRouteBHandoffDraftResult> {
   const draft = buildRouteBSessionDraft(handoff, {
@@ -194,7 +195,7 @@ export async function persistRouteBHandoffDraft(
     ownerId: session.user.id,
     spinSessionId: input.spinSessionId,
     isDemo: input.isDemo,
-  });
+  }, { sessionId: input.sessionId });
 
   await db.theaterSession.create({ data: draft.sessionData });
   await db.theaterCharacter.createMany({ data: draft.charactersData });
@@ -213,7 +214,7 @@ function buildRouteBCharacterCreateData(
   statePatches: TheaterRouteBStatePatch[],
 ): Prisma.TheaterCharacterUncheckedCreateInput {
   return {
-    id: character.id,
+    id: buildPersistedCharacterId(sessionId, character.id),
     sessionId,
     routeBCharacterId: character.id,
     role: toPrismaCharacterRole(character.role),
@@ -294,4 +295,8 @@ function stableHash(value: string): string {
     hash = (hash * 33) ^ character.charCodeAt(0);
   }
   return (hash >>> 0).toString(36);
+}
+
+function buildPersistedCharacterId(sessionId: string, routeBCharacterId: string): string {
+  return `${sessionId}_char_${stableHash(routeBCharacterId)}`.slice(0, 190);
 }
