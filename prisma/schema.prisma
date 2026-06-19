@@ -140,6 +140,21 @@ enum TheaterTurnRole {
   SYSTEM
 }
 
+enum TheaterRouteBCharacterRole {
+  FOCUS_CLIENT
+  DECISION_MAKER
+  INFLUENCER
+  DEPENDENT
+  NARRATOR
+}
+
+enum TheaterRouteBVisibilityScope {
+  GROUP
+  PRIVATE
+  DIRECTOR_ONLY
+  NARRATOR
+}
+
 enum ReportStatus {
   DRAFT
   READY
@@ -786,6 +801,11 @@ model TheaterSession {
   personaType     TheaterPersonaType  @map("persona_type")
   difficulty      TheaterDifficulty   @default(MEDIUM)
   tension         Int                 @default(0)
+  routeBEnabled   Boolean             @default(false) @map("route_b_enabled")
+  routeBSceneId   String?             @map("route_b_scene_id")
+  routeBSourcePacketId String?        @map("route_b_source_packet_id")
+  sceneState      Json?               @map("scene_state")
+  visibilityRules Json?               @map("visibility_rules")
   status          SessionStatus       @default(ACTIVE)
   score           Json?
   metadata        Json?
@@ -801,6 +821,7 @@ model TheaterSession {
   client          Client?             @relation(fields: [clientId], references: [id], onDelete: SetNull)
   owner           User?               @relation("TheaterSessionOwner", fields: [ownerId], references: [id], onDelete: SetNull)
   spinSession     SpinSession?        @relation(fields: [spinSessionId], references: [id], onDelete: SetNull)
+  characters      TheaterCharacter[]
   turns           TheaterTurn[]
   reports         Report[]
 
@@ -808,21 +829,58 @@ model TheaterSession {
   @@index([organizationId, unitId])
   @@index([clientId, createdAt])
   @@index([ownerId])
+  @@index([routeBSceneId])
   @@map("theater_sessions")
 }
 
-model TheaterTurn {
-  id             String          @id @default(cuid())
-  sessionId      String          @map("session_id")
-  role           TheaterTurnRole
-  content        String          @db.Text
-  tensionDelta   Int?            @map("tension_delta")
-  metadata       Json?
-  createdAt      DateTime        @default(now()) @map("created_at")
+model TheaterCharacter {
+  id                String                     @id @default(cuid())
+  sessionId         String                     @map("session_id")
+  routeBCharacterId String                     @map("route_b_character_id")
+  role              TheaterRouteBCharacterRole
+  displayName       String                     @map("display_name")
+  isFocus           Boolean                    @default(false) @map("is_focus")
+  publicBrief       String                     @db.Text @map("public_brief")
+  knownFacts        Json?                      @map("known_facts")
+  personaHints      Json?                      @map("persona_hints")
+  unknowns          Json?
+  exemplarLines     Json?                      @map("exemplar_lines")
+  privateState      Json?                      @map("private_state")
+  metadata          Json?
+  createdAt         DateTime                   @default(now()) @map("created_at")
+  updatedAt         DateTime                   @updatedAt @map("updated_at")
 
-  session        TheaterSession  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  session           TheaterSession             @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  speakerTurns      TheaterTurn[]              @relation("TheaterTurnSpeaker")
+  addresseeTurns    TheaterTurn[]              @relation("TheaterTurnAddressee")
+
+  @@unique([sessionId, routeBCharacterId])
+  @@index([sessionId, role])
+  @@map("theater_characters")
+}
+
+model TheaterTurn {
+  id                   String                       @id @default(cuid())
+  sessionId            String                       @map("session_id")
+  speakerCharacterId   String?                      @map("speaker_character_id")
+  addresseeCharacterId String?                      @map("addressee_character_id")
+  role                 TheaterTurnRole
+  visibilityScope      TheaterRouteBVisibilityScope?
+  directorDirective    String?                      @db.Text @map("director_directive")
+  content              String                       @db.Text
+  tensionDelta         Int?                         @map("tension_delta")
+  statePatches         Json?                        @map("state_patches")
+  metadata             Json?
+  createdAt            DateTime                     @default(now()) @map("created_at")
+
+  session              TheaterSession               @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  speakerCharacter     TheaterCharacter?            @relation("TheaterTurnSpeaker", fields: [speakerCharacterId], references: [id], onDelete: SetNull)
+  addresseeCharacter   TheaterCharacter?            @relation("TheaterTurnAddressee", fields: [addresseeCharacterId], references: [id], onDelete: SetNull)
 
   @@index([sessionId, createdAt])
+  @@index([sessionId, visibilityScope])
+  @@index([speakerCharacterId])
+  @@index([addresseeCharacterId])
   @@map("theater_turns")
 }
 

@@ -790,6 +790,8 @@ Context: 將 SPIN 問答與劇場演練重構為「訪談 Agent」「劇場 Agen
 
 TDF-005a handoff note（2026-06-20）：Route B compatibility brief 與 handoff contract 已先在 `src/domains/theater/route-b-handoff.ts`、`docs/06_audits-and-reports/AUD-007_theater-route-b-handoff-compatibility-brief-v1.0.md` 完成。後續 ITA-003 不需重寫 handoff；請以 `TheaterRouteBHandoffPacket` / `TheaterRouteBScene` / `TheaterRouteBCharacter[]` / director input / character input / visibility rules / state patches / AiUsage plan 為 migration source。尚未完成：Prisma schema、director provider route、character provider route、feedback route、success/error `AiUsageLog` proof、DB migration/rollback QA。
 
+ITA-003a schema adapter note（2026-06-20）：已完成 Route B additive schema / typed persistence adapter 子切片。`prisma/schema.prisma` 新增 `TheaterCharacter`、`TheaterRouteBCharacterRole`、`TheaterRouteBVisibilityScope`，並在 `TheaterSession` 保留 Route B scene/source/state/visibility metadata、在 `TheaterTurn` 加 `speakerCharacterId` / `addresseeCharacterId` / `visibilityScope` / `directorDirective` / `statePatches`。`src/lib/theater/route-b-session-repository.ts` 可把 `TheaterRouteBHandoffPacket` 轉成 typed session / character / opening turn payload，legacy `personaType` / `tension` 僅作 compatibility，不作 Route B 新主流程。`pnpm theater:route-b-schema-dry-run` 通過，證明 group/private/director/narrator visibility、private 不外洩、state patch 不寫 confirmed CRM fact、director/character/feedback 仍需 `AiUsageLog`，且 no-provider/no-DB-write。尚未完成：正式 DB push/migration rollback QA、director provider route、character provider route、feedback route、success/error `AiUsageLog` runtime proof；因此 ITA-003 整卡仍保持未完成。
+
 ### Batch ITA-004 — 五視角質化回饋（M4）
 - [ ] 五視角 prompt：教練的耳朵 / 客戶的眼睛 / 沉默裡的需求 / 守門的良心 / 決策的橋。
 - [ ] 結束一次跑五個，可勾選、預設全部（F20/F21）；以 `TheaterFeedback` 取代數值評分。
