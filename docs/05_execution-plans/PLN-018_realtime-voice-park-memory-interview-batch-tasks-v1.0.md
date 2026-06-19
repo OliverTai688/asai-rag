@@ -39,8 +39,8 @@
 | PIM-002 | 顧問陪談 Park memory loop | [x] | PIM-001、ITA-001 |
 | PIM-003 | 劇場場域建構 Park memory loop | [x] | PIM-001、ITA-003/Route B contract |
 | PIM-004 | `/interview` 中文語音 UX shell | [x] | PIM-000 |
-| PIM-005 | Realtime session BFF + event mirror | [ ] | PIM-004、session/quota guard |
-| PIM-006 | Prisma persistence for turns/memory/reflection | [ ] | PIM-001、DB approval |
+| PIM-005 | Realtime session BFF + event mirror | [x] | PIM-004、session/quota guard |
+| PIM-006 | Prisma persistence for turns/memory/reflection | [x] | PIM-001、DB approval |
 | PIM-007 | Reflection + planning service/routes | [ ] | PIM-006 可部分並行 |
 | PIM-008 | Confirmation card + CRM/writeback boundary | [ ] | PIM-002、PIM-006 |
 | PIM-009 | Cross-mode QA, docs sync, rollback notes | [ ] | PIM-002 to PIM-008 |
@@ -164,16 +164,18 @@
 
 目標：把訪談 turn、memory、reflection DB 化，支援重開訪談與清空 browser storage 後仍可連續。
 
-- [ ] Prisma 新增或調整 `InterviewSession`、`InterviewTurn`、`InterviewMemory`、`InterviewReflection`。
-- [ ] 所有 records 有 `organizationId`；client-bound records 有可驗證 `clientId`；必要時帶 `unitId`。
-- [ ] 建立 repository / DTO，不讓 client 直接 import Prisma/domain DB layer。
-- [ ] Backfill/seed strategy idempotent，只處理 demo 或新表，不破壞真實資料。
-- [ ] Org manager API 不回逐字稿、memory text、client detail。
-- [ ] 動 schema 跑 `pnpm prisma:validate`、`pnpm prisma:generate`、local/development `db push` 或 migration dry-run。
-- [ ] API proof：建立 session、turn、memory、reflection；重新登入/清空 storage 後可讀。
-- [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+- [x] Prisma 新增或調整 `InterviewSession`、`InterviewTurn`、`InterviewMemory`、`InterviewReflection`。
+- [x] 所有 records 有 `organizationId`；client-bound records 有可驗證 `clientId`；必要時帶 `unitId`。
+- [x] 建立 repository / DTO，不讓 client 直接 import Prisma/domain DB layer。
+- [x] Backfill/seed strategy idempotent，只處理 demo 或新表，不破壞真實資料。
+- [x] Org manager API 不回逐字稿、memory text、client detail。
+- [x] 動 schema 跑 `pnpm prisma:validate`、`pnpm prisma:generate`、local/development `db push` 或 migration dry-run。
+- [x] API proof：建立 session、turn、memory、reflection；重新登入/清空 storage 後可讀。
+- [x] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
 
 範圍外：不做 pgvector；不寫完整 RAG retrieval。
+
+完成註記：2026-06-19 已新增 `InterviewSession`、`InterviewTurn`、`InterviewMemory`、`InterviewReflection` schema 與 owner-scoped BFF routes：`POST /api/ai/interview/sessions`、`GET /api/ai/interview/sessions/[sessionId]`、`POST /turns`、`POST /reflections`。Repository/DTO 位於 `src/lib/interview/interview-persistence-repository.ts`，turn append 沿用 Park-style memory extraction，reflection supportingMemoryIds 僅接受同 session memory。DB target 為目前 `.env` Supabase Postgres development target，已執行 additive `pnpm exec prisma db push` 且無 data-loss prompt。新增 `pnpm interview:persistence-qa` 覆蓋 unauth 401、member create/turn/memory/reflection、stateless snapshot read、manager 404 privacy guard 與 no raw audio payload。驗收：`pnpm prisma:validate`、`pnpm prisma:generate`、`pnpm exec prisma db push`、`pnpm interview:persistence-qa`、四個 PIM proof、`pnpm ai:usage-audit`、`pnpm exec tsc --noEmit --pretty false`、`pnpm run lint:changed`、`pnpm build` 通過。下一張最低未完成卡為 PIM-007。
 
 ---
 

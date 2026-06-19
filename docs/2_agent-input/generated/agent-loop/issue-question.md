@@ -4,11 +4,11 @@ Last updated: 2026-06-19
 
 ## 使用者決策
 
-- 無新增。PIM-005 已完成 Realtime session BFF 與 event mirror 的安全邊界；尚未啟用 production recording 或 CRM writeback。
+- 無新增。PIM-006 已完成訪談 session/turn/memory/reflection DB persistence；尚未啟用 production recording 或 CRM writeback。
 
 ## Production Approval
 
-- 無新增。PIM-005 未改 Prisma schema、未執行 production DB mutation、未執行 production/live OpenAI Realtime provider call。
+- PIM-006 已改 Prisma schema 並對目前 `.env` development Supabase Postgres target 執行 additive `db push`；production schema migration 仍需明確 approval。
 - 後續若要做 live Realtime provider proof，需要 operator 明確允許打外部 provider，並記錄 usage/cost evidence。
 
 ## Operator 手動處理
@@ -17,7 +17,7 @@ Last updated: 2026-06-19
 
 ## Session / Seed Data / Env / External Service
 
-- PIM-006 需要明確 DB target 與 schema/db push approval，才能做 persistence proof。
+- PIM-006 已 resolved；本輪 proof 使用 `ALLOW_DEV_AUTH_HEADER=true` 的 local dev server 與 demo member/manager header。
 - PIM-007/PIM-008 若要做真實 browser WebRTC/voice transport proof，需要可用 OpenAI Realtime model、前端 WebRTC client、麥克風 permission 測試條件與 usage/cost evidence。
 
 ## 已解決 / 不再阻擋
@@ -27,3 +27,4 @@ Last updated: 2026-06-19
 - 2026-06-19 resolved: PIM-003 已新增 Theater field build outline、Park memory reflection 與 `TheaterBuildPacket` builder；fixture proof 已確認 NPC <= 4、資料不足回補問、推論不會寫入 confirmed facts。PIM-004 可接中文語音 UX shell。
 - 2026-06-19 resolved: PIM-004 已完成 `/interview` 中文語音 UX shell、mic consent、live stage、transcript correction placeholder、memory rail、文字 fallback 與中文 IME composition guard；PIM-005 可接 Realtime session BFF。
 - 2026-06-19 resolved: PIM-005 已新增 authenticated Realtime session BFF、quota guard、short-lived client secret production path、non-production dry-run proof、event mirror allowlist、raw-audio/secret reject、final transcript memory extraction 與 usage/session marker；PIM-006 可接 Prisma persistence。
+- 2026-06-19 resolved: PIM-006 已新增 `InterviewSession` / `InterviewTurn` / `InterviewMemory` / `InterviewReflection` schema、owner-scoped repository / BFF routes、development db push 與 `pnpm interview:persistence-qa`；proof 確認清空 browser storage 等價的 stateless API read 可恢復 session/memory/reflection，manager 不能讀 member 私有逐字稿/記憶。PIM-007 可接 reflection/planning service。

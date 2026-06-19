@@ -198,6 +198,87 @@ enum AiModule {
   RAG
 }
 
+enum InterviewKind {
+  ADVISOR_COMPANION
+  THEATER_FIELD_BUILD
+}
+
+enum InterviewSessionStatus {
+  DRAFT
+  ACTIVE
+  READY_TO_REVIEW
+  COMPLETED
+}
+
+enum InterviewTurnRole {
+  USER
+  ASSISTANT
+  SYSTEM
+}
+
+enum InterviewModality {
+  TEXT
+  VOICE_REALTIME
+  VOICE_TRANSCRIPT_FALLBACK
+}
+
+enum InterviewMemoryKind {
+  UTTERANCE
+  CRM_FACT
+  SYSTEM_FACT
+  CONFIRMED_FACT
+  INFERENCE
+  UNKNOWN
+  REFLECTION
+  PLAN
+  CORRECTION
+}
+
+enum InterviewMemorySource {
+  VOICE_TRANSCRIPT
+  TEXT_INPUT
+  CRM
+  POLICY
+  FAMILY_GRAPH
+  AI_REFLECTION
+  USER_CONFIRMATION
+  SYSTEM
+}
+
+enum InterviewDataClass {
+  FACT
+  CONFIRMED
+  INFERENCE
+  UNKNOWN
+  INSTRUCTION
+}
+
+enum InterviewVisibilityScope {
+  MEMBER_PRIVATE
+  CLIENT_RECORD_CANDIDATE
+  ORG_AGGREGATE_ONLY
+  THEATER_BUILD_PRIVATE
+}
+
+enum InterviewEmbeddingStatus {
+  PENDING
+  READY
+  SKIPPED
+}
+
+enum InterviewRetentionPolicy {
+  SESSION_ONLY
+  MEMBER_WORKSPACE
+  CLIENT_CANDIDATE
+  THEATER_BUILD
+}
+
+enum InterviewConfidence {
+  LOW
+  MEDIUM
+  HIGH
+}
+
 enum IssueStatus {
   OPEN
   IN_PROGRESS
@@ -321,6 +402,10 @@ model Organization {
   interactionEvents      InteractionEvent[]
   assistantConversations AssistantConversation[]
   aiUsageLogs            AiUsageLog[]
+  interviewSessions      InterviewSession[]
+  interviewTurns         InterviewTurn[]
+  interviewMemories      InterviewMemory[]
+  interviewReflections   InterviewReflection[]
   issues                 Issue[]
   subscriptionOrders     SubscriptionOrder[]
   paymentAccounts        PaymentAccount[]
@@ -386,6 +471,10 @@ model OrganizationUnit {
   interactionEvents InteractionEvent[]
   assistantConversations AssistantConversation[]
   aiUsageLogs     AiUsageLog[]
+  interviewSessions InterviewSession[]
+  interviewTurns   InterviewTurn[]
+  interviewMemories InterviewMemory[]
+  interviewReflections InterviewReflection[]
 
   @@unique([organizationId, slug])
   @@index([organizationId, type])
@@ -418,6 +507,9 @@ model User {
   interactionEvents      InteractionEvent[] @relation("EventActor")
   assistantConversations AssistantConversation[] @relation("AssistantConversationOwner")
   aiUsageLogs            AiUsageLog[]
+  interviewSessions      InterviewSession[] @relation("InterviewSessionOwner")
+  interviewTurns         InterviewTurn[] @relation("InterviewTurnActor")
+  interviewMemories      InterviewMemory[] @relation("InterviewMemoryMember")
   issuesReported         Issue[]    @relation("IssueReporter")
   issuesAssigned         Issue[]    @relation("IssueAssignee")
   platformUsers          PlatformUser[]
@@ -498,6 +590,10 @@ model Client {
   interactionEvents   InteractionEvent[]
   aiUsageLogs         AiUsageLog[]
   assistantConversations AssistantConversation[]
+  interviewSessions   InterviewSession[]
+  interviewTurns      InterviewTurn[]
+  interviewMemories   InterviewMemory[]
+  interviewReflections InterviewReflection[]
 
   @@index([organizationId, status])
   @@index([organizationId, unitId])
@@ -820,6 +916,146 @@ model InteractionEvent {
   @@index([clientId, occurredAt])
   @@index([actorId, occurredAt])
   @@map("interaction_events")
+}
+
+model InterviewSession {
+  id                String                 @id @default(cuid())
+  organizationId    String                 @map("organization_id")
+  unitId            String?                @map("unit_id")
+  clientId          String?                @map("client_id")
+  ownerId           String?                @map("owner_id")
+  interviewKind     InterviewKind          @map("interview_kind")
+  status            InterviewSessionStatus @default(ACTIVE)
+  outlineId         String                 @map("outline_id")
+  currentSegmentId  String?                @map("current_segment_id")
+  title             String?
+  metadata          Json?
+  startedAt         DateTime               @default(now()) @map("started_at")
+  completedAt       DateTime?              @map("completed_at")
+  createdAt         DateTime               @default(now()) @map("created_at")
+  updatedAt         DateTime               @updatedAt @map("updated_at")
+
+  organization      Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  unit              OrganizationUnit?      @relation(fields: [unitId], references: [id], onDelete: SetNull)
+  client            Client?                @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  owner             User?                  @relation("InterviewSessionOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  turns             InterviewTurn[]
+  memories          InterviewMemory[]
+  reflections       InterviewReflection[]
+
+  @@index([organizationId, updatedAt])
+  @@index([organizationId, unitId])
+  @@index([ownerId, updatedAt])
+  @@index([clientId, updatedAt])
+  @@index([interviewKind, status])
+  @@map("interview_sessions")
+}
+
+model InterviewTurn {
+  id                String            @id @default(cuid())
+  organizationId    String            @map("organization_id")
+  unitId            String?           @map("unit_id")
+  clientId          String?           @map("client_id")
+  sessionId         String            @map("session_id")
+  actorId           String?           @map("actor_id")
+  role              InterviewTurnRole
+  modality          InterviewModality
+  content           String            @db.Text
+  transcriptFinal   Boolean           @default(true) @map("transcript_final")
+  providerEventId   String?           @map("provider_event_id")
+  outlineSegmentId  String?           @map("outline_segment_id")
+  metadata          Json?
+  occurredAt        DateTime          @default(now()) @map("occurred_at")
+  createdAt         DateTime          @default(now()) @map("created_at")
+
+  organization      Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  unit              OrganizationUnit? @relation(fields: [unitId], references: [id], onDelete: SetNull)
+  client            Client?           @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  session           InterviewSession  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  actor             User?             @relation("InterviewTurnActor", fields: [actorId], references: [id], onDelete: SetNull)
+  memories          InterviewMemory[]
+
+  @@index([organizationId, occurredAt])
+  @@index([organizationId, unitId])
+  @@index([sessionId, occurredAt])
+  @@index([clientId, occurredAt])
+  @@index([actorId, occurredAt])
+  @@map("interview_turns")
+}
+
+model InterviewMemory {
+  id                    String                    @id
+  organizationId        String                    @map("organization_id")
+  memberId              String                    @map("member_id")
+  unitId                String?                   @map("unit_id")
+  clientId              String?                   @map("client_id")
+  sessionId             String                    @map("session_id")
+  turnId                String?                   @map("turn_id")
+  interviewKind         InterviewKind             @map("interview_kind")
+  kind                  InterviewMemoryKind
+  source                InterviewMemorySource
+  dataClass             InterviewDataClass        @map("data_class")
+  visibilityScope       InterviewVisibilityScope  @map("visibility_scope")
+  text                  String                    @db.Text
+  evidenceText          String?                   @db.Text @map("evidence_text")
+  confidence            InterviewConfidence
+  importance            Int
+  issueTags             String[]                  @map("issue_tags")
+  outlineSegmentId      String?                   @map("outline_segment_id")
+  pqQuestionIds         String[]                  @map("pq_question_ids")
+  embeddingStatus       InterviewEmbeddingStatus  @default(SKIPPED) @map("embedding_status")
+  retentionPolicy       InterviewRetentionPolicy  @map("retention_policy")
+  supersedesMemoryId    String?                   @map("supersedes_memory_id")
+  supersededByMemoryId  String?                   @map("superseded_by_memory_id")
+  createdAt             DateTime                  @default(now()) @map("created_at")
+
+  organization          Organization              @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  member                User                      @relation("InterviewMemoryMember", fields: [memberId], references: [id], onDelete: Cascade)
+  unit                  OrganizationUnit?         @relation(fields: [unitId], references: [id], onDelete: SetNull)
+  client                Client?                   @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  session               InterviewSession          @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  turn                  InterviewTurn?            @relation(fields: [turnId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, createdAt])
+  @@index([organizationId, memberId])
+  @@index([organizationId, unitId])
+  @@index([sessionId, createdAt])
+  @@index([clientId, createdAt])
+  @@index([turnId])
+  @@index([dataClass])
+  @@index([visibilityScope])
+  @@map("interview_memories")
+}
+
+model InterviewReflection {
+  id                    String          @id @default(cuid())
+  organizationId        String          @map("organization_id")
+  unitId                String?         @map("unit_id")
+  clientId              String?         @map("client_id")
+  sessionId             String          @map("session_id")
+  interviewKind         InterviewKind   @map("interview_kind")
+  segmentId             String?         @map("segment_id")
+  summary               String          @db.Text
+  confirmedFacts        String[]        @map("confirmed_facts")
+  inferredPatterns      String[]        @map("inferred_patterns")
+  unknowns              String[]
+  issueReadinessImpact  String?         @db.Text @map("issue_readiness_impact")
+  theaterBuildImpact    String?         @db.Text @map("theater_build_impact")
+  recommendedNextFocus  String          @db.Text @map("recommended_next_focus")
+  supportingMemoryIds   String[]        @map("supporting_memory_ids")
+  metadata              Json?
+  createdAt             DateTime        @default(now()) @map("created_at")
+
+  organization          Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  unit                  OrganizationUnit? @relation(fields: [unitId], references: [id], onDelete: SetNull)
+  client                Client?         @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  session               InterviewSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, createdAt])
+  @@index([organizationId, unitId])
+  @@index([sessionId, createdAt])
+  @@index([clientId, createdAt])
+  @@map("interview_reflections")
 }
 
 model AssistantConversation {
