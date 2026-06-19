@@ -24,6 +24,29 @@ import { FormattedTime } from "@/components/ui/formatted-time";
 import { AssistantInsights } from "./assistant-insights";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
+async function describeChatError(res: Response): Promise<{ message: string; shouldRelogin: boolean }> {
+  let code: string | undefined;
+  let serverMessage: string | undefined;
+  try {
+    const data = await res.json();
+    code = typeof data?.error === "string" ? data.error : undefined;
+    serverMessage = typeof data?.message === "string" ? data.message : undefined;
+  } catch {
+    // ignore non-JSON error bodies
+  }
+
+  if (res.status === 401 || code === "UNAUTHENTICATED") {
+    return { message: "登入狀態已失效，請重新登入後再使用助理。", shouldRelogin: true };
+  }
+  if (res.status === 429) {
+    return { message: serverMessage ?? "AI 使用額度已用完，請聯絡管理員或升級方案。", shouldRelogin: false };
+  }
+  if (res.status === 400) {
+    return { message: "訊息格式不正確，請重新輸入後再送出。", shouldRelogin: false };
+  }
+  return { message: serverMessage ?? "助理暫時無法回應，請稍後再試。", shouldRelogin: false };
+}
+
 export function GlobalAssistant() {
   const pathname = usePathname();
   const router = useRouter();
@@ -83,6 +106,15 @@ export function GlobalAssistant() {
     addMessage(userMsg);
     setIsTyping(true);
 
+    const assistantMsg: AssistantMessage = {
+      id: `assistant-${activeConversationId ?? "new"}-${messageIdCounter.current++}`,
+      role: 'assistant',
+      content: "",
+      createdAt: new Date().toISOString(),
+    };
+
+    addMessage({ ...assistantMsg, content: "...思考中" });
+
     try {
       const res = await fetch("/api/ai/chat", {
         method: "POST",
@@ -93,19 +125,20 @@ export function GlobalAssistant() {
         }),
       });
 
+      if (!res.ok) {
+        const { message, shouldRelogin } = await describeChatError(res);
+        useAssistantStore.getState().replaceLastMessage({ ...assistantMsg, content: message });
+        toast.error(message);
+        if (shouldRelogin) {
+          router.push("/login");
+        }
+        return;
+      }
+
       if (!res.body) throw new Error("No response body");
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
-
-      const assistantMsg: AssistantMessage = {
-        id: `assistant-${activeConversationId ?? "new"}-${messageIdCounter.current++}`,
-        role: 'assistant',
-        content: "",
-        createdAt: new Date().toISOString(),
-      };
-
-      addMessage({ ...assistantMsg, content: "...思考中" });
 
       let fullText = "";
       while (true) {
@@ -128,7 +161,9 @@ export function GlobalAssistant() {
       useAssistantStore.getState().replaceLastMessage({ ...assistantMsg, content: finalContent });
 
     } catch {
-      toast.error("助理連線失敗");
+      const message = "助理連線失敗，請稍後再試。";
+      useAssistantStore.getState().replaceLastMessage({ ...assistantMsg, content: message });
+      toast.error(message);
     } finally {
       setIsTyping(false);
     }
