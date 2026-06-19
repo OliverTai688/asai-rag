@@ -1,0 +1,133 @@
+{
+  "version": 1,
+  "createdAt": "2026-06-20",
+  "status": "ACTIVE",
+  "strategy": "asai_lv3_immersive_architecture_experience_interface_loop",
+  "productLevelDefinition": {
+    "label": "LV3 immersive advisor system",
+    "note": "In this automation, LV3 means architecture, experience, interface, and minimal onboarding maturity for the advisor workflow. It does not by itself mean Level 3 public launch readiness unless the release hardening docs and operator approvals say so.",
+    "targetExperience": [
+      "新增客戶",
+      "建立可編輯關係圖，且每個人物可附職位、年薪、狀態、關係脈絡與待確認資訊",
+      "由客戶與關係圖生成拜訪準備包",
+      "準備包以 multi-step 推論產生報告、問題清單、推論依據、待確認事項與下一步",
+      "從準備包一鍵建立 AI 劇場舞台，舞台環境來自客戶關係圖與準備包",
+      "劇場支援私聊、群聊、焦點角色、人物狀態更新與關係張力調整",
+      "AI 訪談可建立或補強客戶資料、關係圖、準備包與劇場設定",
+      "整體介面維持現代、簡約、低噪音、容易上手，但不犧牲專業深度"
+    ]
+  },
+  "currentUserPreference": {
+    "preferCodexStyleMultiStepGeneration": true,
+    "preferMinimalOperableInterfaceOverMarketingSurface": true,
+    "preferVisibleReasoningTraceWithoutExposingPrivateRawPayload": true,
+    "preferCrossSurfaceFlowOverIsolatedPagePolish": true,
+    "preferAIInterviewAsCreationAndRefinementEntry": true
+  },
+  "priorityWorkstreams": [
+    "PIM: Realtime Voice / Park-style Memory Interview",
+    "ITA: Interview x Theater Dual Agent",
+    "LCH: Launch Readiness Three AI / DB-backed Client CRUD",
+    "BFF: Full-site server-owned data contracts",
+    "MM/AIS/RAS: Minimal UI, AI-first navigation, role-aware surfaces"
+  ],
+  "candidateQueue": [
+    {
+      "id": "lv3-client-to-relationship-graph",
+      "goal": "Make client creation flow naturally continue into relationship graph editing with person metadata and compliance-safe confirmation boundaries."
+    },
+    {
+      "id": "lv3-relationship-to-previsit-package",
+      "goal": "Generate a visit preparation package from client facts, relationship graph, policies, interview memories, and explicit unknowns."
+    },
+    {
+      "id": "lv3-previsit-reasoning-trace",
+      "goal": "Show the preparation package question list with supporting evidence, inference labels, unknown gaps, and advisor-confirmation controls."
+    },
+    {
+      "id": "lv3-previsit-to-theater-stage",
+      "goal": "Create a theater stage directly from the preparation package and relationship graph, including roles, goals, tensions, and scene constraints."
+    },
+    {
+      "id": "lv3-theater-private-group-chat",
+      "goal": "Support group/private theater interaction and safe person-state updates that can change stage relationships without rewriting confirmed CRM facts."
+    },
+    {
+      "id": "lv3-interview-to-workspace-creation",
+      "goal": "Let AI interview create or enrich client profile, relationship graph, preparation package, and theater stage through confirmation/writeback cards."
+    },
+    {
+      "id": "lv3-cross-flow-onboarding-proof",
+      "goal": "Prove the entire flow is understandable from a clean browser context with low-noise UI, no raw-ID workflow, mobile safety, and API/browser evidence."
+    }
+  ],
+  "cadenceReview": {
+    "everyCompletedLoops": 5,
+    "normalLoopsSinceLastWholeProductReview": 0,
+    "lastWholeProductReviewAt": null,
+    "lastWholeProductReviewReport": null,
+    "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
+    "nextRecommendedImplementationSlice": "Score the LV3 candidate queue and choose the highest-leverage safe slice that connects at least two surfaces in the target workflow.",
+    "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
+  },
+  "stopPolicy": {
+    "stopAfterCycles": 1,
+    "stopOnProductDecisionNeeded": true,
+    "stopOnValidationFailure": true,
+    "stopOnProductionApprovalNeeded": true,
+    "stopWhenUserRequestsReport": true
+  },
+  "safetyBoundaries": [
+    "Never remove or make optional client/policy complianceChecklist, sensitivityLevel, or kycStatus.",
+    "Never break the SPIN SITUATION -> PROBLEM -> IMPLICATION -> NEED_PAYOFF state machine.",
+    "Only ITA-003/ITA-006 may perform the approved Theater Route B migration, and it must include migration, rollback/compatibility note, QA, and AiUsageLog.",
+    "Every OpenAI/Anthropic provider call must write AiUsageLog or an explicit guarded-disabled/non-provider proof.",
+    "Do not hand-edit src/generated.",
+    "Do not store raw cookies, secrets, tokens, OTP, raw provider payloads, raw private transcripts, or raw payment data in reports or evidence.",
+    "Do not perform production write, real email, real notification, real payment/refund, destructive DB operation, or remote deletion without explicit approval."
+  ],
+  "validationPolicy": {
+    "alwaysRun": [
+      "git status --short --branch at start and end",
+      "pnpm exec tsc --noEmit --pretty false",
+      "pnpm lint:changed"
+    ],
+    "runWhenRelevant": [
+      "pnpm prisma:validate",
+      "pnpm prisma:generate",
+      "pnpm exec prisma db push only when target and approval match AGENTS.md",
+      "pnpm interview:cross-mode-qa",
+      "pnpm demo:three-ai-turn-usage-qa",
+      "pnpm demo:ai-generation-qa",
+      "pnpm ai:usage-audit",
+      "targeted API/browser proof for the selected slice"
+    ]
+  },
+  "reporting": {
+    "reportDirectory": "docs/2_agent-input/generated/agent-loop/reports/",
+    "issueQuestionFile": "docs/2_agent-input/generated/agent-loop/issue-question.md",
+    "reportSections": [
+      "Scope",
+      "Candidate score",
+      "Selected slice",
+      "Changes",
+      "Validation",
+      "Evidence",
+      "DB/Prisma",
+      "Git",
+      "Blockers",
+      "Next Recommended Loop"
+    ]
+  },
+  "gitPolicy": {
+    "branchPrefix": "codex/",
+    "commitAndPushEachLoop": true,
+    "doNotStageUnrelatedChanges": true,
+    "doNotMergeToMainAutomatically": true
+  },
+  "availablePrompts": {
+    "lv3ImmersiveLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-immersive-loop.md",
+    "lv3WholeProductGapReviewLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md"
+  },
+  "updatedAt": "2026-06-20"
+}

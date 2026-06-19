@@ -1,10 +1,12 @@
 # Agent Loop Issue Questions
 
-Last updated: 2026-06-19
+Last updated: 2026-06-20
 
 ## 使用者決策
 
-- 無新增。PIM-009 已完成 cross-mode QA 與 rollback note；尚未啟用 production recording 或 live Realtime provider proof。
+- 2026-06-20 resolved: 使用者要求參考 NuvaClub automation，建立 ASAI 自動化。已定義 ASAI LV3 automation 目標為「架構、體驗、介面、容易操作簡約的沉浸式顧問系統成熟度」，不是自動宣稱 Level 3 public launch ready。
+- 2026-06-20 resolved: ASAI LV3 目標流程定案為：新增客戶 -> 建立關係圖 -> 生成拜訪準備包 -> 檢視問題清單與推論依據 -> 從準備包建立劇場舞台 -> 劇場私聊/群聊/人物狀態更新 -> AI 訪談建立或補強客戶資料、準備包與劇場。
+- PIM-009 已完成 cross-mode QA 與 rollback note；尚未啟用 production recording 或 live Realtime provider proof。
 
 ## Production Approval
 
