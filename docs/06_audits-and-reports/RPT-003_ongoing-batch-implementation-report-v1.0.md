@@ -3370,3 +3370,84 @@ POST https://asai.spinbestmdrt.com/api/auth/callback/demo-credentials
 
 1. 進 Vercel Production env 檢查 DB runtime URL 候選清單、environment scope、deployment redeploy 狀態。
 2. 檢查 custom domain `asai.spinbestmdrt.com` 是否指向 `606b499` 所屬 production deployment/project。
+
+## 2026-06-19 Round 045 - Production Vercel Supabase Pooler Fix
+
+### 本輪戰役
+
+- Workstream：Production auth / launch blocker hotfix。
+- 目標：修復正式網域 `https://asai.spinbestmdrt.com` 在 Vercel runtime 無法連 Supabase DB，導致 demo 帳號登入失敗與 DB-backed API 500。
+- 起始狀態：Vercel runtime logs 顯示 Prisma `P1001 DatabaseNotReachable`，正式 `/api/public/pricing` 與 `/api/share/demo-share-wang` 均 500。
+
+### 本輪完成
+
+- 讀取 Vercel deployment runtime logs，確認錯誤不是 `AUTH_SECRET`，而是 DB runtime connection：
+  - `P1001 DatabaseNotReachable`
+  - affected models/routes：`PlanConfig` pricing path、`ReportShare` share path。
+  - host 指向 Supabase direct/dedicated DB host `db.wwocdcicvpmbdmqvskzi.supabase.co`。
+- 讀取 Supabase Database settings：
+  - Supabase dashboard 提示 dedicated pooler 預設 IPv6，IPv4-only network 需要 IPv4 add-on。
+  - Shared pooler template 建議 Prisma 使用 shared transaction-mode pooler 作 `DATABASE_URL`。
+- DNS proof：
+  - direct host `db.wwocdcicvpmbdmqvskzi.supabase.co` 只回 IPv6 AAAA，符合 Vercel serverless 連不到 direct host 的症狀。
+- 本機只讀連線 proof：
+  - Supabase shared transaction pooler `aws-1-ap-northeast-2.pooler.supabase.com:6543` 可 `SELECT 1`。
+  - Supabase shared session pooler `aws-1-ap-northeast-2.pooler.supabase.com:5432` 可 `SELECT 1`。
+- Vercel env 修正：
+  - `DATABASE_URL` 改為 Supabase shared transaction-mode pooler（IPv4-only，`pgbouncer=true`）。
+  - `DIRECT_URL` 改為 Supabase shared session-mode pooler。
+  - 兩者 scope 皆為 Production and Preview。
+  - 未在文件或 final 回覆記錄任何 DB 密碼或完整 connection string。
+- Redeploy：
+  - Vercel deployment `3DbtCFYPqQ99VcFvGEvrkbpoqzrB` Ready。
+  - Assigned production domain 包含 `asai.spinbestmdrt.com`。
+
+### 修改檔案
+
+- `docs/06_audits-and-reports/RPT-003_ongoing-batch-implementation-report-v1.0.md`
+- `docs/07_research-and-design/RES-016_issue-question-log-v1.0.md`
+- `docs/2_agent-input/generated/agent-loop/issue-question.md`
+
+### DB / Prisma 操作
+
+- 是否修改 schema：否。
+- 是否執行 generate：否。
+- 是否執行 db push：否。
+- DB 操作：只做 read-only `SELECT 1` connection proof；未新增、更新、刪除資料。
+- Production env 操作：更新 Vercel env secret value 並 redeploy；未修改 Supabase schema/data。
+
+### 驗收
+
+```bash
+pnpm exec tsc --noEmit --pretty false
+pnpm lint:changed
+curl https://asai.spinbestmdrt.com/api/public/pricing
+curl https://asai.spinbestmdrt.com/api/share/demo-share-wang
+Headless browser: /login -> 業務員體驗 -> /dashboard
+```
+
+結果：
+
+- 正式 `/api/public/pricing`：200，response `source=database`。
+- 正式 `/api/share/demo-share-wang`：200，回 demo share payload。
+- 正式 demo member one-click login：Auth.js providers 200、csrf 200、`/api/auth/callback/demo-credentials` 200，最後進 `https://asai.spinbestmdrt.com/dashboard`。
+- Dashboard body signal：有「今日決策台」與「工作台」，無「體驗帳號登入失敗」。
+- TypeScript：通過。
+- `pnpm lint:changed`：通過。
+
+### 失敗與風險
+
+- `ALLOW_DEV_AUTH_HEADER` 雖存在於 Vercel env，但 code path `isDevAuthHeaderAllowed()` 有 `NODE_ENV !== "production"` guard，production 不會接受 dev header impersonation。
+- `NEXT_PUBLIC_SUPABASE_URL` / anon key 是否仍為舊值不影響本輪 Prisma/Auth.js DB runtime；若後續要啟用 Supabase client-side auth/provider，需另輪確認。
+- 長期 production/serverless 原則：Vercel runtime 不應使用 Supabase direct/dedicated DB host；需維持 transaction pooler 作 `DATABASE_URL`。
+
+### 剩餘上線 blocker
+
+- Build / local verification：本機 `pnpm build` 先前仍可能受 Next/Turbopack Google Font fetch/path 影響，見 `IQ-039`。
+- 正式 auth hardening：正式 provider/email/SSO、password reset/MFA、production-safe demo/staging policy。
+- Monitoring / legal / payment：正式 monitoring ingestion proof、ECPay production credentials/callback/CheckMacValue/refund process、legal/compliance sign-off。
+
+### 下一輪建議
+
+1. 處理 `IQ-039` Next/Turbopack Google Font build blocker，讓本機 production build 與 Vercel build strategy 一致。
+2. 回到 `LCH-005` 正式 auth hardening，移除或降級 production demo policy 前補齊正式登入/邀請/email provider。

@@ -884,7 +884,7 @@
 
 ### IQ-038 - Production demo login 失敗已定位為 DB runtime path
 
-- 狀態：Open until production redeploy proof
+- 狀態：Resolved 2026-06-19
 - 發現日期：2026-06-19
 - 影響 batch：`LCH-005`、production demo/staging access
 - 背景：
@@ -896,11 +896,13 @@
   - `src/lib/prisma.ts` runtime Prisma connection string 改為依序讀取 `DATABASE_URL`、`POSTGRES_PRISMA_URL`、`POSTGRES_URL`、`DIRECT_URL`、`POSTGRES_URL_NON_POOLING`。
   - Auth health 加入 `runtimeDatabaseConfigured`，release readiness 加入 `runtime_database` gate。
   - `demo:release-readiness-qa` required controls 已同步。
-- 仍需 operator / deployment proof：
-  - Post-deploy proof：`606b499` 的 GitHub/Vercel status 回 `success Deployment has completed`，但正式 `/api/public/pricing`、`/api/share/demo-share-wang`、demo one-click login 仍失敗。
-  - 檢查 Vercel Production env 是否有可用 runtime DB URL 候選，並確認設定在 Production scope 且已 redeploy。
-  - 檢查 custom domain `asai.spinbestmdrt.com` 是否指向 `606b499` 所屬 deployment/project。
-  - 長期 production/serverless 仍建議使用 transaction pooler `DATABASE_URL` / `POSTGRES_PRISMA_URL`；direct/non-pooling fallback 只作 controlled demo/staging hotfix。
+- Resolution / deployment proof：
+  - Vercel runtime logs 確認正式 500 來自 Prisma `P1001 DatabaseNotReachable`，host 為 Supabase direct/dedicated DB host `db.wwocdcicvpmbdmqvskzi.supabase.co`。
+  - DNS proof：direct DB host 只回 IPv6 AAAA；Supabase dashboard 亦提示 Dedicated pooler 預設 IPv6，IPv4-only network 需 IPv4 add-on。
+  - 已將 Vercel Production/Preview `DATABASE_URL` 改為 Supabase shared transaction-mode pooler（IPv4-only，`aws-1-ap-northeast-2.pooler.supabase.com:6543` + `pgbouncer=true`）。
+  - 已將 Vercel Production/Preview `DIRECT_URL` 改為 Supabase shared session-mode pooler（`aws-1-ap-northeast-2.pooler.supabase.com:5432`）。
+  - Redeploy `3DbtCFYPqQ99VcFvGEvrkbpoqzrB` Ready；正式 `/api/public/pricing` 200 且 `source=database`，`/api/share/demo-share-wang` 200，demo member one-click login callback 200 並進 `/dashboard`。
+  - 長期 production/serverless 原則：runtime 必須使用 transaction pooler `DATABASE_URL` / `POSTGRES_PRISMA_URL`；不要用 direct/dedicated DB host 當 Vercel serverless runtime 主連線。
 
 ### IQ-039 - Next/Turbopack Google Font build blocker
 

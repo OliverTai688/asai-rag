@@ -13,7 +13,6 @@ Last updated: 2026-06-19
 
 ## Operator 手動處理
 
-- Production demo login hotfix：operator 已確認有 `AUTH_SECRET`；本輪定位為正式 DB-backed runtime path 失敗。`606b499` 的 GitHub/Vercel status 已顯示 deployment success，但正式 `/api/public/pricing`、`/api/share/demo-share-wang`、demo one-click login 仍失敗。請檢查 Vercel Production env 是否有可用 runtime DB URL（`DATABASE_URL`、`POSTGRES_PRISMA_URL`、`POSTGRES_URL`、`DIRECT_URL`、`POSTGRES_URL_NON_POOLING`）、設定是否在 Production scope、以及 custom domain `asai.spinbestmdrt.com` 是否指向同一個 deployment/project。
 - Build blocker：`pnpm build` 目前卡在 Next/Turbopack Google Font path（`[next]/internal/font/google/*` / `@vercel/turbopack-next/internal/font/google/font`）。需另輪處理自託管字體或 Next 16 font build 設定後重跑 production build。
 
 ## Session / Seed Data / Env / External Service
@@ -22,7 +21,7 @@ Last updated: 2026-06-19
 - PIM-008 已 resolved；browser writeback proof 使用 demo member header 與自動建立 demo client 完成。
 - PIM-009 已 resolved；cross-mode QA 使用 local dev server、demo member/manager header、development Supabase DB proof 與 headless browser desktop/mobile proof 完成。
 - 後續若要做真實 browser WebRTC/voice transport proof，需要可用 OpenAI Realtime model、前端 WebRTC client、麥克風 permission 測試條件與 usage/cost evidence。
-- Production demo login：read-only DB proof 確認目前 Supabase target 內 demo users / password hashes / memberships 正常；正式站部署前 `/api/public/pricing` 與 `/api/share/demo-share-wang` 仍 500，demo credentials callback 仍 `302 /api/auth/error?error=Configuration`。
+- Production demo login runtime DB 已於 2026-06-19 resolved：Vercel Production `DATABASE_URL` 改為 Supabase shared transaction pooler，`DIRECT_URL` 改為 shared session pooler，redeploy `3DbtCFYPqQ99VcFvGEvrkbpoqzrB` 後正式 `/api/public/pricing` 200、`/api/share/demo-share-wang` 200、demo member one-click login 進 `/dashboard`。
 
 ## 已解決 / 不再阻擋
 
@@ -35,3 +34,4 @@ Last updated: 2026-06-19
 - 2026-06-19 resolved: PIM-007 已新增 deterministic reflection/planning service、generated reflection BFF、plan BFF 與 `pnpm interview:reflection-planning-qa`；proof 確認 confirmed facts / inferred patterns / unknowns 分流、supporting memory IDs 保留、plan 優先追問 unknown、不重問 confirmed fact，且 manager 不能從 member 私有記憶生成 plan。PIM-008 可接 confirmation card / CRM writeback boundary。
 - 2026-06-19 resolved: PIM-008 已新增 confirmation card / CRM writeback boundary、`GET/POST /api/ai/interview/sessions/[sessionId]/writebacks`、`pnpm interview:writeback-qa` 與 `pnpm interview:writeback-browser-qa`；proof 確認 confirmed fact + checked + 高敏感 approval 才建立 CRM candidate interaction event，inference checked 只保存為 interview insight 且 DB metadata 證明 inference CRM fact = 0，unknown 轉 follow-up task。PIM-009 可接 cross-mode QA 與 rollback notes。
 - 2026-06-19 resolved: PIM-009 已新增 `pnpm interview:cross-mode-qa`，串接 advisor/theater/voice/persistence/reflection/writeback/browser/privacy proof；並在 `PLN-018` 補 voice provider disabled、memory persistence disabled、schema rollback、CRM writeback rollback 與 manager aggregate privacy rollback note。PIM workstream 第一階段可交接；剩餘為 live Realtime provider proof、raw audio retention approval 與 production migration approval。
+- 2026-06-19 resolved: Production demo login blocker 已確認為 Vercel 使用 Supabase direct/dedicated DB host 造成 `P1001 DatabaseNotReachable`；已切到 shared IPv4 pooler 並 redeploy，正式 demo member 登入 proof 通過。
