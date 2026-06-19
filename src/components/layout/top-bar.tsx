@@ -1,6 +1,6 @@
 "use client";
 
-import { Search, Menu, User, ChevronDown } from "lucide-react";
+import { Menu, User, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -10,8 +10,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
 import { NotificationHub } from "./notification-hub";
+import { GlobalSearch } from "./global-search";
 
 export function TopBar({
   onMenuClick,
@@ -34,16 +34,7 @@ export function TopBar({
         >
           <Menu className="w-5 h-5" strokeWidth={1.5} />
         </Button>
-        <div className="relative max-w-sm w-full hidden md:block">
-          <Search
-            className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-3 z-10"
-            strokeWidth={1.5}
-          />
-          <Input
-            placeholder="搜尋客戶、對話或報告 (⌘K)"
-            className="pl-9 h-9 bg-paper-2 rounded-lg text-sm"
-          />
-        </div>
+        <GlobalSearch />
       </div>
 
       <div className="flex items-center gap-2 relative">
