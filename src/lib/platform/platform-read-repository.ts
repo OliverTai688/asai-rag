@@ -1,4 +1,5 @@
 import type { AuditAction, AuditSensitivity, OrganizationPlan, PlatformRole } from "@/generated/prisma/enums";
+import { AiModule, AiProvider } from "@/generated/prisma/enums";
 import { z } from "zod";
 import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
@@ -687,5 +688,179 @@ export async function updatePlatformPlanConfig(
       changedFields: result.changedFields,
       reason: patch.reason,
     },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Per-turn AI usage (RES-022 TAU-003)
+// ---------------------------------------------------------------------------
+
+const AI_MODULE_VALUES = new Set(Object.values(AiModule) as string[]);
+const AI_PROVIDER_VALUES = new Set(Object.values(AiProvider) as string[]);
+
+export const platformAiTurnFilterSchema = z.object({
+  module: z
+    .string()
+    .trim()
+    .refine((value) => AI_MODULE_VALUES.has(value), { message: "Unknown AI module" })
+    .optional(),
+  provider: z
+    .string()
+    .trim()
+    .refine((value) => AI_PROVIDER_VALUES.has(value), { message: "Unknown AI provider" })
+    .optional(),
+  organizationId: z.string().trim().max(80).optional(),
+  userId: z.string().trim().max(80).optional(),
+  clientId: z.string().trim().max(80).optional(),
+  errorsOnly: z.boolean().optional(),
+  sinceDays: z.coerce.number().int().min(1).max(120).optional(),
+  limit: z.coerce.number().int().min(1).max(500).optional(),
+});
+
+export type PlatformAiTurnFilters = {
+  module?: AiModule;
+  provider?: AiProvider;
+  organizationId?: string;
+  userId?: string;
+  clientId?: string;
+  errorsOnly?: boolean;
+  sinceDays?: number;
+  limit?: number;
+};
+
+export function canReadPlatformTurnUsage(session: PlatformReadSession) {
+  return PLATFORM_READ_ROLES.has(session.role);
+}
+
+type AiTurnUsageRow = {
+  id: string;
+  createdAt: Date;
+  module: AiModule;
+  provider: AiProvider;
+  model: string | null;
+  promptTokens: number | null;
+  completionTokens: number | null;
+  totalTokens: number | null;
+  latencyMs: number | null;
+  costUsd: DecimalLike;
+  requestId: string | null;
+  error: string | null;
+  traceSource: string | null;
+  assistantConversationId: string | null;
+  assistantMessageId: string | null;
+  interviewSessionId: string | null;
+  interviewTurnId: string | null;
+  theaterSessionId: string | null;
+  theaterTurnId: string | null;
+  interactionEventId: string | null;
+  organization: { id: string; name: string; slug: string | null } | null;
+  user: { id: string; name: string | null } | null;
+  unit: { id: string; name: string | null } | null;
+  client: { id: string } | null;
+};
+
+function toTurnUsageDto(log: AiTurnUsageRow) {
+  return {
+    usageLogId: log.id,
+    createdAt: log.createdAt.toISOString(),
+    organization: log.organization
+      ? { id: log.organization.id, name: log.organization.name, slug: log.organization.slug }
+      : null,
+    user: log.user ? { id: log.user.id, name: log.user.name } : null,
+    unit: log.unit ? { id: log.unit.id, name: log.unit.name } : null,
+    // Client name is private PII — expose only the id here. Content/identity replay
+    // is gated behind break-glass + AuditLog, not the default turn-usage view.
+    client: log.client ? { id: log.client.id, name: null } : null,
+    module: log.module,
+    provider: log.provider,
+    model: log.model,
+    promptTokens: log.promptTokens,
+    completionTokens: log.completionTokens,
+    totalTokens: log.totalTokens,
+    latencyMs: log.latencyMs,
+    costUsd: log.costUsd?.toString() ?? null,
+    requestId: log.requestId,
+    error: log.error,
+    trace: {
+      source: log.traceSource,
+      conversationId: log.assistantConversationId,
+      messageId: log.assistantMessageId,
+      interviewSessionId: log.interviewSessionId,
+      interviewTurnId: log.interviewTurnId,
+      theaterSessionId: log.theaterSessionId,
+      theaterTurnId: log.theaterTurnId,
+      interactionEventId: log.interactionEventId,
+    },
+    preview: {
+      // Default super-admin view shows cost/trace metadata only, never raw content.
+      redacted: true,
+    },
+  };
+}
+
+export async function getPlatformAiTurnUsage(filters: PlatformAiTurnFilters = {}) {
+  const limit = Math.min(Math.max(filters.limit ?? 100, 1), 500);
+  const since = filters.sinceDays ? daysAgo(filters.sinceDays) : monthStart();
+
+  const logs = await prisma.aiUsageLog.findMany({
+    where: {
+      createdAt: { gte: since },
+      ...(filters.module ? { module: filters.module } : {}),
+      ...(filters.provider ? { provider: filters.provider } : {}),
+      ...(filters.organizationId ? { organizationId: filters.organizationId } : {}),
+      ...(filters.userId ? { userId: filters.userId } : {}),
+      ...(filters.clientId ? { clientId: filters.clientId } : {}),
+      ...(filters.errorsOnly ? { error: { not: null } } : {}),
+    },
+    select: {
+      id: true,
+      createdAt: true,
+      module: true,
+      provider: true,
+      model: true,
+      promptTokens: true,
+      completionTokens: true,
+      totalTokens: true,
+      latencyMs: true,
+      costUsd: true,
+      requestId: true,
+      error: true,
+      traceSource: true,
+      assistantConversationId: true,
+      assistantMessageId: true,
+      interviewSessionId: true,
+      interviewTurnId: true,
+      theaterSessionId: true,
+      theaterTurnId: true,
+      interactionEventId: true,
+      organization: { select: { id: true, name: true, slug: true } },
+      user: { select: { id: true, name: true } },
+      unit: { select: { id: true, name: true } },
+      client: { select: { id: true } },
+    },
+    orderBy: { createdAt: "desc" },
+    take: limit,
+  });
+
+  const turns = logs.map(toTurnUsageDto);
+
+  return {
+    filters: {
+      module: filters.module ?? null,
+      provider: filters.provider ?? null,
+      organizationId: filters.organizationId ?? null,
+      userId: filters.userId ?? null,
+      clientId: filters.clientId ?? null,
+      errorsOnly: filters.errorsOnly ?? false,
+      since: since.toISOString(),
+      limit,
+    },
+    counts: {
+      returned: turns.length,
+      errorTurns: turns.filter((turn) => turn.error).length,
+      zeroTokenTurns: turns.filter((turn) => !turn.totalTokens).length,
+      missingTraceTurns: turns.filter((turn) => !turn.trace.source).length,
+    },
+    turns,
   };
 }

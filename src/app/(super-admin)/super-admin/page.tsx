@@ -22,6 +22,19 @@ import {
   getPlatformReleaseReadiness,
   type ReleaseGateStatus,
 } from "@/lib/platform/platform-release-readiness-repository";
+import { getPlatformAiTurnUsage } from "@/lib/platform/platform-read-repository";
+
+const TURN_TIME_FORMATTER = new Intl.DateTimeFormat("zh-TW", {
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  hour12: false,
+});
+
+function formatTurnTime(iso: string) {
+  return TURN_TIME_FORMATTER.format(new Date(iso));
+}
 
 const now = new Date("2026-06-18T10:00:00+08:00");
 const sampleDecision = evaluateImpersonationRequest({
@@ -62,6 +75,7 @@ const auditRows = [
 export default async function SuperAdminPage() {
   await requirePlatformRoute();
   const readiness = await getPlatformReleaseReadiness();
+  const turnUsage = await getPlatformAiTurnUsage({ limit: 25 });
   const maxQuotaUsage = readiness.quota.topOrganizations[0]?.usagePercent ?? 0;
   const highRiskControls = readiness.productionControls.controls.filter(
     (control) => control.status !== "pass",
@@ -329,6 +343,108 @@ export default async function SuperAdminPage() {
                   {item}
                 </div>
               ))}
+            </CardContent>
+          </Card>
+        </section>
+
+        <section>
+          <Card className="border-hairline bg-card">
+            <CardContent className="p-0">
+              <div className="flex flex-col gap-2 border-b border-hairline p-5 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <h2 className="text-base font-semibold text-ink">AI turn usage</h2>
+                  <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                    本月每一次對話輪的用量明細（model、tokens、latency、cost、trace）。預設不顯示對話內容；客戶身份僅顯示 id。
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Badge variant="outline" className="rounded-full border-hairline">
+                    {turnUsage.counts.returned} turn(s)
+                  </Badge>
+                  <Badge
+                    variant={turnUsage.counts.errorTurns > 0 ? "destructive" : "outline"}
+                    className="rounded-full"
+                  >
+                    {turnUsage.counts.errorTurns} error
+                  </Badge>
+                  <Badge
+                    variant={turnUsage.counts.missingTraceTurns > 0 ? "warning" : "outline"}
+                    className="rounded-full"
+                  >
+                    {turnUsage.counts.missingTraceTurns} untraced
+                  </Badge>
+                </div>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[860px] border-collapse text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-hairline text-[11px] uppercase tracking-normal text-muted-foreground">
+                      <th className="px-5 py-3 font-medium">Time</th>
+                      <th className="px-3 py-3 font-medium">Org</th>
+                      <th className="px-3 py-3 font-medium">Member</th>
+                      <th className="px-3 py-3 font-medium">Module</th>
+                      <th className="px-3 py-3 font-medium">Model</th>
+                      <th className="px-3 py-3 text-right font-medium">Tokens</th>
+                      <th className="px-3 py-3 text-right font-medium">Latency</th>
+                      <th className="px-3 py-3 text-right font-medium">Cost</th>
+                      <th className="px-3 py-3 font-medium">Trace</th>
+                      <th className="px-5 py-3 font-medium">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {turnUsage.turns.map((turn) => (
+                      <tr key={turn.usageLogId} className="border-b border-hairline last:border-b-0">
+                        <td className="whitespace-nowrap px-5 py-3 font-mono text-xs text-muted-foreground">
+                          {formatTurnTime(turn.createdAt)}
+                        </td>
+                        <td className="max-w-[160px] truncate px-3 py-3 text-ink">
+                          {turn.organization?.name ?? "—"}
+                        </td>
+                        <td className="max-w-[120px] truncate px-3 py-3 text-muted-foreground">
+                          {turn.user?.name ?? "—"}
+                        </td>
+                        <td className="px-3 py-3">
+                          <Badge variant="secondary" className="rounded-full text-[11px]">
+                            {turn.module}
+                          </Badge>
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-3 font-mono text-xs text-muted-foreground">
+                          {turn.model ?? "—"}
+                        </td>
+                        <td className="px-3 py-3 text-right font-mono tabular-nums text-ink">
+                          {turn.totalTokens ?? 0}
+                        </td>
+                        <td className="px-3 py-3 text-right font-mono tabular-nums text-muted-foreground">
+                          {turn.latencyMs != null ? `${turn.latencyMs}ms` : "—"}
+                        </td>
+                        <td className="px-3 py-3 text-right font-mono tabular-nums text-muted-foreground">
+                          {turn.costUsd != null ? `$${Number(turn.costUsd).toFixed(4)}` : "—"}
+                        </td>
+                        <td className="px-3 py-3">
+                          <span className="font-mono text-[11px] text-muted-foreground">
+                            {turn.trace.source ?? "untraced"}
+                          </span>
+                        </td>
+                        <td className="px-5 py-3">
+                          <Badge
+                            variant={turn.error ? "destructive" : "success"}
+                            className="rounded-full text-[11px]"
+                          >
+                            {turn.error ? "error" : "ok"}
+                          </Badge>
+                        </td>
+                      </tr>
+                    ))}
+                    {turnUsage.turns.length === 0 ? (
+                      <tr>
+                        <td colSpan={10} className="px-5 py-8 text-center text-sm text-muted-foreground">
+                          本月尚無 AI 對話輪用量紀錄。
+                        </td>
+                      </tr>
+                    ) : null}
+                  </tbody>
+                </table>
+              </div>
             </CardContent>
           </Card>
         </section>

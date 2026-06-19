@@ -1135,6 +1135,18 @@ model AiUsageLog {
   error          String?    @db.Text
   createdAt      DateTime   @default(now()) @map("created_at")
 
+  // Per-turn trace linkage (RES-022 Route B). Plain nullable scalar columns so a
+  // single AiUsageLog row can be joined back to the conversation/session/turn that
+  // produced it, without forcing inverse relations across every AI domain model.
+  traceSource             String? @map("trace_source")
+  assistantConversationId String? @map("assistant_conversation_id")
+  assistantMessageId      String? @map("assistant_message_id")
+  interviewSessionId      String? @map("interview_session_id")
+  interviewTurnId         String? @map("interview_turn_id")
+  theaterSessionId        String? @map("theater_session_id")
+  theaterTurnId           String? @map("theater_turn_id")
+  interactionEventId      String? @map("interaction_event_id")
+
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   unit           OrganizationUnit? @relation(fields: [unitId], references: [id], onDelete: SetNull)
   user           User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
@@ -1144,6 +1156,10 @@ model AiUsageLog {
   @@index([organizationId, unitId])
   @@index([userId, createdAt])
   @@index([module, createdAt])
+  @@index([assistantConversationId])
+  @@index([interviewSessionId])
+  @@index([theaterSessionId])
+  @@index([interactionEventId])
   @@map("ai_usage_logs")
 }
 

@@ -1,8 +1,17 @@
 import type { Prisma } from "@/generated/prisma/client";
-import { AiModule, AiProvider, InteractionEventType } from "@/generated/prisma/enums";
+import {
+  AiModule,
+  AiProvider,
+  InteractionEventType,
+  TheaterTurnRole,
+} from "@/generated/prisma/enums";
 import type { AppSession } from "@/lib/auth/session";
-import { writeAiUsageLogSafely } from "@/lib/ai/usage-log";
+import { writeAiUsageLogSafely, type AiUsageTrace } from "@/lib/ai/usage-log";
 import { prisma } from "@/lib/prisma";
+
+// Accept any plausible record id (cuid, seed key like `demo_theater_*`, etc.).
+// The actual DB lookup decides ownership; non-DB ids simply resolve to a fallback.
+const SESSION_ID_PATTERN = /^[a-zA-Z0-9_-]{6,120}$/;
 
 export type TheaterAiTurn = {
   role: "agent" | "client";
@@ -55,8 +64,9 @@ type TheaterFailureInput = {
 export async function persistTheaterCharacterSuccess(input: TheaterCharacterSuccessInput): Promise<void> {
   await prisma.$transaction(async (tx) => {
     const clientId = await resolveAllowedClientId(input, tx);
+    const theaterSessionId = await resolveTheaterSessionId(tx, input.session, input.body.sessionId);
 
-    await tx.interactionEvent.create({
+    const interactionEvent = await tx.interactionEvent.create({
       data: {
         organizationId: input.session.organization.id,
         unitId: input.session.membership.primaryUnitId,
@@ -68,6 +78,7 @@ export async function persistTheaterCharacterSuccess(input: TheaterCharacterSucc
         metadata: {
           source: "api/ai/theater",
           sessionId: input.body.sessionId,
+          theaterSessionId,
           personaType: input.body.personaType,
           difficulty: input.body.difficulty,
           tension: input.body.tension,
@@ -77,9 +88,31 @@ export async function persistTheaterCharacterSuccess(input: TheaterCharacterSucc
           legacyDemoGate: true,
         } as Prisma.InputJsonValue,
       },
+      select: { id: true },
     });
 
-    await writeTheaterUsage(tx, input.session, clientId, input.usage);
+    // The AI plays the client, so its reply is a CLIENT turn. Only persist when the
+    // session is a real DB TheaterSession; otherwise the row is a fallback trace.
+    let theaterTurnId: string | undefined;
+    if (theaterSessionId) {
+      const turn = await tx.theaterTurn.create({
+        data: {
+          sessionId: theaterSessionId,
+          role: TheaterTurnRole.CLIENT,
+          content: input.assistantContent,
+          metadata: { source: "api/ai/theater", requestId: input.usage.requestId } as Prisma.InputJsonValue,
+        },
+        select: { id: true },
+      });
+      theaterTurnId = turn.id;
+    }
+
+    await writeTheaterUsage(tx, input.session, clientId, input.usage, {
+      traceSource: theaterSessionId ? "theater" : "interaction_event_fallback",
+      theaterSessionId,
+      theaterTurnId,
+      interactionEventId: interactionEvent.id,
+    });
     await incrementAiCounter(tx, input.session.organization.id);
   });
 }
@@ -87,8 +120,9 @@ export async function persistTheaterCharacterSuccess(input: TheaterCharacterSucc
 export async function persistTheaterScoreSuccess(input: TheaterScoreSuccessInput): Promise<void> {
   await prisma.$transaction(async (tx) => {
     const clientId = await resolveAllowedClientId(input, tx);
+    const theaterSessionId = await resolveTheaterSessionId(tx, input.session, input.body.sessionId);
 
-    await tx.interactionEvent.create({
+    const interactionEvent = await tx.interactionEvent.create({
       data: {
         organizationId: input.session.organization.id,
         unitId: input.session.membership.primaryUnitId,
@@ -100,6 +134,7 @@ export async function persistTheaterScoreSuccess(input: TheaterScoreSuccessInput
         metadata: {
           source: "api/ai/theater/score",
           sessionId: input.body.sessionId,
+          theaterSessionId,
           personaType: input.body.personaType,
           history: input.body.history?.slice(-12) ?? [],
           score: input.score,
@@ -107,15 +142,21 @@ export async function persistTheaterScoreSuccess(input: TheaterScoreSuccessInput
           legacyDemoGate: true,
         } as Prisma.InputJsonValue,
       },
+      select: { id: true },
     });
 
-    await writeTheaterUsage(tx, input.session, clientId, input.usage);
+    await writeTheaterUsage(tx, input.session, clientId, input.usage, {
+      traceSource: theaterSessionId ? "theater" : "interaction_event_fallback",
+      theaterSessionId,
+      interactionEventId: interactionEvent.id,
+    });
     await incrementAiCounter(tx, input.session.organization.id);
   });
 }
 
 export async function persistTheaterFailure(input: TheaterFailureInput): Promise<void> {
   const clientId = await resolveAllowedClientId(input, prisma);
+  const theaterSessionId = await resolveTheaterSessionId(prisma, input.session, input.body.sessionId);
 
   await writeAiUsageLogSafely({
     organizationId: input.session.organization.id,
@@ -128,7 +169,31 @@ export async function persistTheaterFailure(input: TheaterFailureInput): Promise
     latencyMs: input.latencyMs,
     requestId: input.requestId,
     error: input.error,
+    trace: {
+      traceSource: theaterSessionId ? "theater" : "interaction_event_fallback",
+      theaterSessionId,
+    },
   });
+}
+
+async function resolveTheaterSessionId(
+  db: Pick<typeof prisma, "theaterSession">,
+  session: AppSession,
+  sessionIdCandidate: string | undefined,
+): Promise<string | undefined> {
+  if (!sessionIdCandidate || !SESSION_ID_PATTERN.test(sessionIdCandidate)) {
+    return undefined;
+  }
+
+  const dbSession = await db.theaterSession.findFirst({
+    where: {
+      id: sessionIdCandidate,
+      organizationId: session.organization.id,
+    },
+    select: { id: true },
+  });
+
+  return dbSession?.id;
 }
 
 async function resolveAllowedClientId(
@@ -158,6 +223,7 @@ async function writeTheaterUsage(
   session: AppSession,
   clientId: string | undefined,
   usage: TheaterAiUsage,
+  trace: AiUsageTrace,
 ) {
   await tx.aiUsageLog.create({
     data: {
@@ -173,6 +239,10 @@ async function writeTheaterUsage(
       totalTokens: usage.totalTokens,
       latencyMs: usage.latencyMs,
       requestId: usage.requestId,
+      traceSource: trace.traceSource,
+      theaterSessionId: trace.theaterSessionId,
+      theaterTurnId: trace.theaterTurnId,
+      interactionEventId: trace.interactionEventId,
     },
   });
 }
