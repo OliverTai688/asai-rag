@@ -37,6 +37,7 @@
     "visit:bff-qa": "node scripts/visit-bff-qa.mjs",
     "client:relationship-graph-qa": "node scripts/client-relationship-graph-qa.mjs",
     "theater:client-build-qa": "node scripts/theater-client-build-qa.mjs",
+    "theater:direct-field-qa": "node scripts/theater-direct-field-qa.mjs",
     "theater:route-b-handoff-dry-run": "node scripts/theater-route-b-handoff-dry-run.mjs",
     "demo:three-ai-turn-usage-qa": "node scripts/three-ai-turn-usage-qa.mjs",
     "rag:launch-posture-qa": "node scripts/rag-launch-posture-qa.mjs",
