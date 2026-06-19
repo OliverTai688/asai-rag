@@ -122,7 +122,7 @@ Implementation note：
 
 目標：依 operator Route B，把 legacy 單角色 Theater 一次切換成多角色、導演編排、visibility scope 的劇場 Agent。
 
-- [ ] 寫 migration/compatibility brief：legacy `personaType` / `tension` / `score` 如何轉換或廢棄、rollback 條件、seed 影響。
+- [x] 寫 migration/compatibility brief：legacy `personaType` / `tension` / `score` 如何轉換或廢棄、rollback 條件、seed 影響。
 - [ ] Prisma schema：`TheaterCharacter`（Big Five + if-then + exemplar lines）、`TheaterTurn` 加 `speaker/addressee/visibilityScope`、移除數值 `tension`。
 - [ ] 訪綱 B 配置 + 一鍵從既有資料建場；焦點客戶必在場、NPC ≤4。
 - [ ] 導演 agent 結構化輸出：選發言者、addressee、visibility、演出指令。
@@ -136,6 +136,8 @@ Implementation note：
 範圍外：不保留舊單角色 tension/score 流程當新體驗主路徑；不做 legacy Theater fallback/viewer。
 
 阻擋：需要 DB migration review；高敏感真實客戶需 audit reason；成本/quota API gate 尚未完成。
+
+TDF-005a handoff note（2026-06-20）：Route B compatibility brief 與 handoff contract 已先在 `src/domains/theater/route-b-handoff.ts`、`docs/06_audits-and-reports/AUD-007_theater-route-b-handoff-compatibility-brief-v1.0.md` 完成。後續 ITA-003 不需重寫 handoff；請以 `TheaterRouteBHandoffPacket` / `TheaterRouteBScene` / `TheaterRouteBCharacter[]` / director input / character input / visibility rules / state patches / AiUsage plan 為 migration source。尚未完成：Prisma schema、director provider route、character provider route、feedback route、success/error `AiUsageLog` proof、DB migration/rollback QA。
 
 ---
 

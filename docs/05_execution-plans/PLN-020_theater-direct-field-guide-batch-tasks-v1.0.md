@@ -36,7 +36,7 @@
 | TDF-002 | 訪綱 B TS outline + setup draft contract | [x] | TDF-000 |
 | TDF-003 | 劇場訪綱建場 prototype | [x] | TDF-001、TDF-002 |
 | TDF-004 | 客戶資料一鍵建場與合規 gate | [ ] | TDF-002、session/BFF guard |
-| TDF-005 | Route B handoff packet for multi-character Theater | [ ] | TDF-002、ITA-003 |
+| TDF-005 | Route B handoff packet for multi-character Theater | [x] | TDF-002、ITA-003 |
 | TDF-006 | Cross-state QA and docs sync | [ ] | TDF-001..TDF-004 |
 
 ---
@@ -136,18 +136,20 @@
 
 目標：把 TDF setup draft 交接到 ITA-003 Route B migration，避免入口修正與 schema 遷移混在一起。
 
-- [ ] 撰寫 migration/compatibility brief：legacy `personaType`、`tension`、`score` 與新 `TheaterCharacter` / feedback 的切換策略。
-- [ ] 定義 `TheaterSetupDraft -> TheaterScene -> TheaterCharacter[]` handoff contract。
-- [ ] 定義 director input：場景狀態、scoped history、角色卡、visibility rules、業務員 utterance。
-- [ ] 定義 character call input：角色卡、addressee、visibility scope、director directive、可見歷史。
-- [ ] 定義 AiUsageLog 策略：director call、character call、feedback call 都要可追蹤。
-- [ ] 定義 rollback note：Route B 未啟用時 `/theater` 可停在 setup draft，不宣稱 production multi-character theater。
-- [ ] 更新 `PLN-015` ITA-003 references，避免雙重任務來源互相打架。
-- [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`；若動 schema 需 Prisma。
+- [x] 撰寫 migration/compatibility brief：legacy `personaType`、`tension`、`score` 與新 `TheaterCharacter` / feedback 的切換策略。
+- [x] 定義 `TheaterSetupDraft -> TheaterScene -> TheaterCharacter[]` handoff contract。
+- [x] 定義 director input：場景狀態、scoped history、角色卡、visibility rules、業務員 utterance。
+- [x] 定義 character call input：角色卡、addressee、visibility scope、director directive、可見歷史。
+- [x] 定義 AiUsageLog 策略：director call、character call、feedback call 都要可追蹤。
+- [x] 定義 rollback note：Route B 未啟用時 `/theater` 可停在 setup draft，不宣稱 production multi-character theater。
+- [x] 更新 `PLN-015` ITA-003 references，避免雙重任務來源互相打架。
+- [x] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`；若動 schema 需 Prisma。
 
 範圍外：不在本卡直接完成 full Route B migration，除非 operator 明確指定本輪進入 ITA-003。
 
 Whole-product review 註記（2026-06-20）：第五輪校準後的下一個建議切片是 `TDF-005a Route B handoff packet and migration compatibility brief`。本切片應先完成文件/contract/proof planning，不直接改 Theater schema：定義 setup draft 到 scene/characters 的 handoff、director/character inputs、群聊/私聊 visibility scope、人物狀態更新邊界、director/character/feedback `AiUsageLog` 策略、Route B disabled rollback note，並同步 `PLN-015` ITA-003，讓後續真正進 migration 時有可 review 邊界。
+
+完成註記（2026-06-20）：`src/domains/theater/route-b-handoff.ts` 已新增 deterministic handoff contract，將 `TheaterBuildPacket` 映射成 `TheaterRouteBScene` / `TheaterRouteBCharacter[]` / visibility rules / state patches / director input / character input / AiUsage plan / runtime rollback boundary。`docs/06_audits-and-reports/AUD-007_theater-route-b-handoff-compatibility-brief-v1.0.md` 記錄 legacy `personaType`、`tension`、`score` 相容策略與 ITA-003 接手邊界。`pnpm theater:route-b-handoff-dry-run` 通過，覆蓋 NPC ≤ 4、unknown 不升格、private/group scoped history、state patch 不寫 confirmed CRM fact、director/character/feedback `AiUsageLog` 要求、Route B disabled rollback 與 no-provider proof。未動 Prisma schema、不呼叫 provider、不寫 DB；production multi-character Theater 仍需 ITA-003/ITA-006 實作。
 
 ---
 

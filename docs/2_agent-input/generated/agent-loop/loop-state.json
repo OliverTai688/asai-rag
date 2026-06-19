@@ -64,11 +64,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 0,
+    "normalLoopsSinceLastWholeProductReview": 1,
     "lastWholeProductReviewAt": "2026-06-20",
     "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-20_lv3-whole-product-gap-review-theater-runtime.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "TDF-005a Route B handoff packet and migration compatibility brief: define setup-draft -> scene/characters, director and character inputs, private/group visibility scopes, AiUsageLog strategy, rollback note, and PLN-015 ITA-003 references before touching theater schema.",
+    "nextRecommendedImplementationSlice": "ITA-003a Route B schema/runtime migration draft using TDF-005a handoff contract: consume TheaterRouteBHandoffPacket -> persisted TheaterScene/TheaterCharacter/TheaterTurn visibility scope with local Prisma validate/generate only, then add director/character provider route proof with AiUsageLog. If schema risk is deferred, run TDF-006 cross-state theater QA first.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {
