@@ -3357,15 +3357,16 @@ POST https://asai.spinbestmdrt.com/api/auth/callback/demo-credentials
 - `pnpm public:pricing-qa`：通過；local/current DB-backed pricing API source=`database`。
 - `pnpm build`：失敗；Prisma generate 通過，Next/Turbopack build 在 Google Font assets 下載/解析階段失敗，錯誤集中於 `[next]/internal/font/google/*` 與 `@vercel/turbopack-next/internal/font/google/font` module resolution。本輪未修改 `src/app/layout.tsx` 或 font stack。
 - 正式站部署前 proof 仍失敗：`/api/public/pricing` 500、`/api/share/demo-share-wang` 500、demo credentials callback `302 /api/auth/error?error=Configuration`。這是本輪定位的 production runtime 症狀，需部署本 commit 後重測。
+- Post-deploy proof：`606b499` 的 GitHub/Vercel status 回 `success Deployment has completed`，但正式網域仍回 `/api/public/pricing` 500、`/api/share/demo-share-wang` 500、demo credentials callback `302 /api/auth/error?error=Configuration`。
 
 ### 失敗與風險
 
 - Operator 已確認有 `AUTH_SECRET`；本輪不再將問題歸因為缺 `AUTH_SECRET`。
 - Build 尚未通過，阻擋原因是既有 Google Font/Turbopack build path；需另輪處理自託管字體或 build font fetch strategy。
-- 若部署本 commit 後正式站仍 500，下一步要檢查 Vercel Production 環境是否有可用的 `DATABASE_URL` / `POSTGRES_PRISMA_URL` / `POSTGRES_URL` / `DIRECT_URL` / `POSTGRES_URL_NON_POOLING`，且設定後已 redeploy。
+- 部署本 commit 後正式站仍 500；下一步要檢查 Vercel Production 環境是否有可用的 `DATABASE_URL` / `POSTGRES_PRISMA_URL` / `POSTGRES_URL` / `DIRECT_URL` / `POSTGRES_URL_NON_POOLING`，確認 secret scope 是 Production 而非 Preview/Development，且 custom domain `asai.spinbestmdrt.com` 指向同一個已完成 deployment/project。
 - Direct/non-pooling fallback 適合 controlled demo/staging hotfix；長期 production/serverless 仍建議使用 transaction pooler `DATABASE_URL` 或 `POSTGRES_PRISMA_URL`。
 
 ### 下一輪建議
 
-1. 部署本 commit 後重測正式站 `/api/public/pricing`、`/api/share/demo-share-wang` 與 demo one-click login。
-2. 若仍 500，進 Vercel Production env 檢查 DB runtime URL 候選清單與最近 deployment 是否已 redeploy。
+1. 進 Vercel Production env 檢查 DB runtime URL 候選清單、environment scope、deployment redeploy 狀態。
+2. 檢查 custom domain `asai.spinbestmdrt.com` 是否指向 `606b499` 所屬 production deployment/project。

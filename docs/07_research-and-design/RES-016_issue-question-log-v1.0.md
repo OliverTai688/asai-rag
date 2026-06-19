@@ -897,8 +897,9 @@
   - Auth health 加入 `runtimeDatabaseConfigured`，release readiness 加入 `runtime_database` gate。
   - `demo:release-readiness-qa` required controls 已同步。
 - 仍需 operator / deployment proof：
-  - 部署本 commit 後重測正式 `/api/public/pricing`、`/api/share/demo-share-wang`、demo one-click login。
-  - 若仍 500，檢查 Vercel Production env 是否有可用 runtime DB URL 候選，並確認設定後已 redeploy。
+  - Post-deploy proof：`606b499` 的 GitHub/Vercel status 回 `success Deployment has completed`，但正式 `/api/public/pricing`、`/api/share/demo-share-wang`、demo one-click login 仍失敗。
+  - 檢查 Vercel Production env 是否有可用 runtime DB URL 候選，並確認設定在 Production scope 且已 redeploy。
+  - 檢查 custom domain `asai.spinbestmdrt.com` 是否指向 `606b499` 所屬 deployment/project。
   - 長期 production/serverless 仍建議使用 transaction pooler `DATABASE_URL` / `POSTGRES_PRISMA_URL`；direct/non-pooling fallback 只作 controlled demo/staging hotfix。
 
 ### IQ-039 - Next/Turbopack Google Font build blocker
