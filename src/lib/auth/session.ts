@@ -95,7 +95,12 @@ export function getAuthHealth(): AuthHealth {
 
 export async function getAppSession(): Promise<AppSession | null> {
   const authHealth = getAuthHealth();
-  const authSession = await auth();
+  let authSession = null;
+  try {
+    authSession = await auth();
+  } catch (error) {
+    console.warn("[auth] Failed to retrieve session. The session cookie might be invalid or the AUTH_SECRET may have changed.", error);
+  }
   const nextAuthUserId = authSession?.user?.id;
   const nextAuthEmail = authSession?.user?.email?.toLowerCase();
   const devEmail = nextAuthUserId || nextAuthEmail ? null : await getDevelopmentUserEmail();
