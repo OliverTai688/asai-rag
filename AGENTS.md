@@ -1121,6 +1121,8 @@ Context: 將目前 partial vertical-slice BFF 推進成全站一致的 Backend-f
 - [ ] API/browser proof 覆蓋 refresh/new context。
 - [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
 
+Whole-product review 註記：2026-06-20 第五輪校準選定下一個最高槓桿實作切片為 `BFF-104a Visit / Pre-visit server-owned workspace`。先補 `GET/POST /api/visits`、`GET/PATCH /api/visits/[id]`、notes write path，並把 `/pre-visit` list/detail/notes 改為 BFF/cache-first；`/api/ai/visit` 保持 provider-generation route，generated preparation package 另走 deterministic save/update path。驗收需覆蓋 refresh/new context、reasoning evidence persistence、persisted `visitPlanId` theater CTA、no raw prompt/provider/private leakage。
+
 ### Batch BFF-105 — Reports / share action BFF
 - [ ] 建立 reports list/detail/update/share action BFF。
 - [ ] Report detail DTO 分 edit/share/preview mode，不把 public share DTO 與 member private DTO 混用。

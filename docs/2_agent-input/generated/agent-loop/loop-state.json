@@ -64,11 +64,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 4,
-    "lastWholeProductReviewAt": null,
-    "lastWholeProductReviewReport": null,
+    "normalLoopsSinceLastWholeProductReview": 0,
+    "lastWholeProductReviewAt": "2026-06-20",
+    "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-20_lv3-whole-product-gap-review.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "Cadence is now 4 normal loops since the last whole-product review. The next automation turn should run `docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md` before more implementation. After review, likely continuation is BFF-104 full Visit / Pre-visit BFF or TDF-004 full client-data build flow.",
+    "nextRecommendedImplementationSlice": "BFF-104a Visit / Pre-visit server-owned workspace: add member-scoped GET/POST /api/visits plus GET/PATCH /api/visits/[id] and notes write path; migrate /pre-visit list/detail/notes to BFF/cache-first; keep /api/ai/visit as provider-generation route and add deterministic save/update path for generated preparation package data; prove refresh/new context, reasoning evidence persistence, theater CTA from persisted visitPlanId, and no raw prompt/provider/private leakage.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {

@@ -153,6 +153,8 @@
 - [ ] API/browser proof 覆蓋 refresh/new context。
 - [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
 
+Whole-product review 註記（2026-06-20）：下一個 LV3 implementation loop 建議切成 `BFF-104a Visit / Pre-visit server-owned workspace`。先補 `GET/POST /api/visits`、`GET/PATCH /api/visits/[id]`、notes write path，並把 `/pre-visit` list/detail/notes 改為 BFF/cache-first；`/api/ai/visit` 保持 provider-generation route，generated preparation package 另走 deterministic save/update path，避免把 raw prompt/provider payload 當業務資料保存。驗收需證明 refresh/new context 後準備包、reasoning evidence、notes 與 persisted `visitPlanId` theater CTA 都存在。
+
 ---
 
 ## Batch BFF-105 - Reports / Share Action BFF
@@ -376,4 +378,3 @@
 - Existing realtime voice workstream 已占用 `ARC-007/PLN-018/ACC-010`，本 BFF workstream 使用 `ARC-008/PLN-019/ACC-011`。
 - 若 BFF tasks 改 route/layout/server action/cookies/session 行為，先讀 `node_modules/next/dist/docs/` 對應 Next.js 版本文件。
 - Production DB destructive operation、drop/reset/delete remote data 仍需明確 approval。
-
