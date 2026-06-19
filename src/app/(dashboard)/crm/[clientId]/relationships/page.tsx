@@ -12,6 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { buildClientRelationshipGraphReview } from "@/domains/client/relationship-graph";
 import { clientService } from "@/domains/client/service";
 import { Info, Trash2, UserPlus, Users } from "lucide-react";
+import { toast } from "sonner";
 import {
   CompactMetric,
   EmptyRelatedState,
@@ -27,6 +28,7 @@ export default function ClientRelationshipsPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogMode, setDialogMode] = useState<"child" | "parent">("child");
   const [targetNodeId, setTargetNodeId] = useState<string | null>(null);
+  const [deletingMemberId, setDeletingMemberId] = useState<string | null>(null);
   const graphReview = useMemo(
     () => (client ? buildClientRelationshipGraphReview(client) : null),
     [client],
@@ -48,6 +50,21 @@ export default function ClientRelationshipsPage() {
     setTargetNodeId(memberId);
     setDialogMode("parent");
     setDialogOpen(true);
+  }
+
+  async function handleDeleteMember(memberId: string, memberName: string) {
+    if (!confirm("確定要刪除此關係人嗎？")) return;
+
+    try {
+      setDeletingMemberId(memberId);
+      await clientService.deleteFamilyMemberRemote(clientId, memberId);
+      toast.success(`${memberName} 已刪除`);
+    } catch (error) {
+      console.error(error);
+      toast.error("刪除失敗，請稍後再試");
+    } finally {
+      setDeletingMemberId(null);
+    }
   }
 
   if (!client || !graphReview) return null;
@@ -152,11 +169,8 @@ export default function ClientRelationshipsPage() {
                         label={`刪除 ${member.name}`}
                         icon={Trash2}
                         variant="ghost"
-                        onClick={() => {
-                          if (confirm("確定要刪除此關係人嗎？")) {
-                            clientService.deleteFamilyMember(clientId, member.id);
-                          }
-                        }}
+                        disabled={deletingMemberId === member.id}
+                        onClick={() => void handleDeleteMember(member.id, member.name)}
                       />
                     </div>
                   </div>

@@ -16,6 +16,7 @@ type ClientResponse = {
 };
 
 type CreateFamilyMemberInput = Omit<FamilyMember, "id">;
+type UpdateFamilyMemberInput = Partial<Omit<FamilyMember, "id">>;
 type CreatePolicyInput = Omit<Policy, "id">;
 
 async function parseApiError(response: Response): Promise<Error> {
@@ -142,6 +143,44 @@ export const clientService = {
         "content-type": "application/json",
       },
       body: JSON.stringify(member),
+    });
+
+    if (!response.ok) {
+      throw await parseApiError(response);
+    }
+
+    const body = await response.json() as ClientResponse;
+    useClientStore.getState().setClient(body.client);
+    return body.client;
+  },
+
+  /**
+   * 透過 BFF 更新關係人；server 會驗證 current member 是否可寫此客戶。
+   */
+  updateFamilyMemberRemote: async (clientId: string, memberId: string, updates: UpdateFamilyMemberInput) => {
+    const response = await fetch(`/api/clients/${clientId}/family-members/${memberId}`, {
+      method: "PATCH",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify(updates),
+    });
+
+    if (!response.ok) {
+      throw await parseApiError(response);
+    }
+
+    const body = await response.json() as ClientResponse;
+    useClientStore.getState().setClient(body.client);
+    return body.client;
+  },
+
+  /**
+   * 透過 BFF 刪除關係人；server 會驗證 current member 是否可寫此客戶。
+   */
+  deleteFamilyMemberRemote: async (clientId: string, memberId: string) => {
+    const response = await fetch(`/api/clients/${clientId}/family-members/${memberId}`, {
+      method: "DELETE",
     });
 
     if (!response.ok) {

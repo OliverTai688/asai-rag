@@ -141,6 +141,8 @@
 
 完成註記（2026-06-20 BFF-103a）：已補關係圖 metadata/source review 子切片。新增 deterministic `ClientRelationshipGraphReview` builder、member-scoped `/api/clients/[id]/relationship-graph`、CRM relationships 頁「關係圖來源審查」面板與 `pnpm client:relationship-graph-qa`。DTO 以人物節點呈現職位、年收入、人物狀態、關係脈絡、fact/inference/unknown、source references、準備包與劇場 readiness；response 不回 email/phone/raw private sentinel。API proof：unauth 401、missing 404、member 200、manager 403；Browser proof：desktop/mobile no overflow。BFF-103 仍未完成，因 family edit/delete remote-confirmed write path 與其他 related-list BFF 尚待後續。
 
+完成註記（2026-06-20 BFF-103b）：已補 family member remote-confirmed write path 子切片。新增 `PATCH/DELETE /api/clients/[id]/family-members/[memberId]`、`updateFamilyMemberForClient`、`deleteFamilyMemberForClient`、client service remote update/delete helpers 與 `pnpm client:relationship-graph-write-qa`。API proof 覆蓋 unauth 401、member re-parent 200、self-parent/cycle 400、manager 404、delete 200、missing delete 404，並確認刪除父節點時子節點會接回 root；Browser proof 覆蓋 `/crm/[clientId]/relationships` 刪除按鈕走 remote-confirmed delete，reload 後被刪成員仍消失，desktop no overflow。此子切片不呼叫 provider，無 AiUsageLog 需求；BFF-103 仍未完成，因 client archive/update、policy/timeline/report/gap-analysis related-list 與主客戶 `parentMemberId` 持久化仍待補。
+
 ---
 
 ## Batch BFF-104 - Visit / Pre-visit BFF

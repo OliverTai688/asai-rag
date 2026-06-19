@@ -12,6 +12,7 @@ Last updated: 2026-06-20
 - 2026-06-20 resolved: TDF-004a 已完成 persisted visit package -> theater build 高敏感 gate；準備包來源審查顯示 known/inference/unknown，缺 reason/riskAccepted 會 blocked，approval 寫 `InteractionEvent` audit。Proof 不呼叫 provider；仍待 TDF-004b 補 `/theater` client selector 與越權 403 proof。
 - 2026-06-20 resolved: TDF-004b 已完成 `/theater` client selector + owner-scoped client-data build review；`/api/theater/client-builds/[clientId]` 對 manager/member 越權回 403，高敏感 client 直建場 blocked，browser proof 顯示 known/inference/unknown review。Proof 不呼叫 provider。
 - 2026-06-20 resolved: BFF-103a 已完成關係圖來源審查 DTO 與 `/api/clients/[id]/relationship-graph`；每個人物節點含職位、年收入、狀態、關係脈絡、fact/inference/unknown 與 source references，CRM 關係圖頁可見準備包/劇場 readiness。Proof 不呼叫 provider；仍待後續補 family edit/delete remote-confirmed write path。
+- 2026-06-20 resolved: BFF-103b 已完成 family member remote-confirmed write path；`PATCH/DELETE /api/clients/[id]/family-members/[memberId]` 支援關係人更新、re-parent 與刪除，會阻擋 self-parent/cycle，刪父節點時子節點接回 root，CRM 關係人清單刪除改走 remote delete。Proof 不呼叫 provider；BFF-103 仍待 client archive/update、related-list BFF 與主客戶 `parentMemberId` 持久化。
 
 ## Production Approval
 

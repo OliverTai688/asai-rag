@@ -36,6 +36,7 @@
     "visit:theater-gate-qa": "node scripts/visit-theater-gate-qa.mjs",
     "visit:bff-qa": "node scripts/visit-bff-qa.mjs",
     "client:relationship-graph-qa": "node scripts/client-relationship-graph-qa.mjs",
+    "client:relationship-graph-write-qa": "node scripts/client-relationship-graph-write-qa.mjs",
     "theater:client-build-qa": "node scripts/theater-client-build-qa.mjs",
     "theater:direct-field-qa": "node scripts/theater-direct-field-qa.mjs",
     "theater:route-b-handoff-dry-run": "node scripts/theater-route-b-handoff-dry-run.mjs",

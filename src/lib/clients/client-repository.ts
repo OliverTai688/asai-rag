@@ -25,6 +25,11 @@ export const createFamilyMemberInputSchema = z.object({
   parentMemberId: z.string().trim().optional().or(z.literal("")),
 });
 
+export const updateFamilyMemberInputSchema = createFamilyMemberInputSchema.partial().refine(
+  (value) => Object.keys(value).length > 0,
+  { message: "At least one field is required." },
+);
+
 export const createPolicyInputSchema = z.object({
   type: z.string().trim().min(1).max(80),
   provider: z.string().trim().min(1).max(120),
@@ -34,6 +39,7 @@ export const createPolicyInputSchema = z.object({
 export type CreateClientInput = z.infer<typeof createClientInputSchema>;
 export type UpdateClientInput = z.infer<typeof updateClientInputSchema>;
 export type CreateFamilyMemberInput = z.infer<typeof createFamilyMemberInputSchema>;
+export type UpdateFamilyMemberInput = z.infer<typeof updateFamilyMemberInputSchema>;
 export type CreatePolicyInput = z.infer<typeof createPolicyInputSchema>;
 
 const clientInclude = {
@@ -170,6 +176,100 @@ export async function createFamilyMemberForClient(
   return getClientForMember(session, clientId);
 }
 
+export async function updateFamilyMemberForClient(
+  session: AppSession,
+  clientId: string,
+  memberId: string,
+  input: UpdateFamilyMemberInput,
+) {
+  const current = await getWritableClientScope(session, clientId);
+
+  if (!current) {
+    return null;
+  }
+
+  const members = await prisma.familyMember.findMany({
+    where: { clientId },
+    select: { id: true, parentMemberId: true },
+  });
+  const target = members.find((member) => member.id === memberId);
+
+  if (!target) {
+    return null;
+  }
+
+  const nextParentMemberId =
+    input.parentMemberId === undefined ? undefined : input.parentMemberId.trim() || null;
+
+  if (nextParentMemberId !== undefined) {
+    if (nextParentMemberId === memberId) {
+      return { error: "FAMILY_MEMBER_PARENT_SELF" as const };
+    }
+    if (nextParentMemberId && !members.some((member) => member.id === nextParentMemberId)) {
+      return { error: "FAMILY_MEMBER_PARENT_NOT_FOUND" as const };
+    }
+    if (nextParentMemberId && wouldCreateFamilyCycle(members, memberId, nextParentMemberId)) {
+      return { error: "FAMILY_MEMBER_PARENT_CYCLE" as const };
+    }
+  }
+
+  await prisma.$transaction([
+    prisma.familyMember.update({
+      where: { id: memberId },
+      data: {
+        ...(input.name !== undefined ? { name: input.name } : {}),
+        ...(input.relation !== undefined ? { relation: input.relation } : {}),
+        ...(input.age !== undefined ? { age: input.age ?? null } : {}),
+        ...(input.phone !== undefined ? { phone: input.phone || null } : {}),
+        ...(nextParentMemberId !== undefined ? { parentMemberId: nextParentMemberId } : {}),
+      },
+    }),
+    prisma.client.update({
+      where: { id: clientId },
+      data: { lastInteractionAt: new Date() },
+    }),
+  ]);
+
+  return getClientForMember(session, clientId);
+}
+
+export async function deleteFamilyMemberForClient(
+  session: AppSession,
+  clientId: string,
+  memberId: string,
+) {
+  const current = await getWritableClientScope(session, clientId);
+
+  if (!current) {
+    return null;
+  }
+
+  const target = await prisma.familyMember.findFirst({
+    where: { id: memberId, clientId },
+    select: { id: true, parentMemberId: true },
+  });
+
+  if (!target) {
+    return null;
+  }
+
+  await prisma.$transaction([
+    prisma.familyMember.updateMany({
+      where: { clientId, parentMemberId: memberId },
+      data: { parentMemberId: target.parentMemberId ?? null },
+    }),
+    prisma.familyMember.delete({
+      where: { id: memberId },
+    }),
+    prisma.client.update({
+      where: { id: clientId },
+      data: { lastInteractionAt: new Date() },
+    }),
+  ]);
+
+  return getClientForMember(session, clientId);
+}
+
 export async function createPolicyForClient(
   session: AppSession,
   clientId: string,
@@ -213,4 +313,22 @@ async function getWritableClientScope(session: AppSession, clientId: string) {
   }
 
   return current;
+}
+
+function wouldCreateFamilyCycle(
+  members: Array<{ id: string; parentMemberId: string | null }>,
+  memberId: string,
+  proposedParentId: string,
+) {
+  let currentParentId: string | null | undefined = proposedParentId;
+  const seen = new Set<string>();
+
+  while (currentParentId) {
+    if (currentParentId === memberId) return true;
+    if (seen.has(currentParentId)) return true;
+    seen.add(currentParentId);
+    currentParentId = members.find((member) => member.id === currentParentId)?.parentMemberId;
+  }
+
+  return false;
 }
