@@ -856,3 +856,20 @@
   - Beta terms/privacy/AI disclaimer/client data consent 的人工審核 owner。
 - 建議預設：
   - 先採 invite-only、manual invite token、self-serve checkout off、production email off、少量半匿名資料優先；待 monitoring/legal/billing gate 有 proof 後再放寬。
+
+### IQ-026 - ALA-002 invite accept 已有 BFF，正式 session handoff 仍需決策
+
+- 狀態：Open
+- 發現日期：2026-06-19
+- 影響 batch：`ALA-002`
+- 已完成：
+  - 新增 `POST /api/invite/[token]/accept`，manual token 暫採 existing `OrganizationMember.id`。
+  - Endpoint 驗證 email match、`INVITED` status、14-day expiry、replay guard。
+  - 成功後啟用 user/membership、寫 `acceptedAt` 與 `AuditLog(resourceType=ORG_INVITE_ACCEPT)`。
+  - `scripts/beta-invite-accept-qa.mjs` proof 通過 invalid/wrong/valid/replay/expired/audit matrix。
+- 仍需 operator/product 決策：
+  - Invite accept 後要直接建立哪一種正式 app session？Auth.js credentials、Supabase Auth email/password、Magic Link、Google OAuth，或 staging-only manual login？
+  - Private beta 是否允許真實 invite email？若否，是否由 operator 手動傳送 invite token？
+  - `/signup` 在 private beta 是否應改為 waitlist-only，或顯示「需邀請碼」並引導 `/invite/[token]`？
+- 建議預設：
+  - 先保留 manual invite token + `/login` handoff，不自動建立 production session；等 auth provider 決策後再完成 ALA-002。

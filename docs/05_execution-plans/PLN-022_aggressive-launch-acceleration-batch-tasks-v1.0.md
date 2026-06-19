@@ -179,6 +179,8 @@ Context: 將誠問 AI 從 Level 1/2 foundation 積極推進到 Level 2 Controlle
 
 範圍外：不做 public self-serve signup、不寄 production email。
 
+進行中註記：2026-06-19 已完成 manual invite token accept BFF slice：新增 `POST /api/invite/[token]/accept`，token 暫採 existing `OrganizationMember.id`；驗證 token exists、email match、`INVITED` status、14-day expiry、replay guard。成功後更新 user/membership 為 active、寫 `acceptedAt`、必要時設 default membership，並寫 `AuditLog(resourceType=ORG_INVITE_ACCEPT)`。新增 `scripts/beta-invite-accept-qa.mjs`，API proof 通過：invalid 404、wrong email 403、valid 200、replay 409、expired 410、audit count 1。Proof report：`RPT-005_private-beta-invite-accept-proof-v1.0.md`。整卡仍未完成：尚缺 invite accept 後建立正式 app session、public signup invite-required/waitlist behavior、Browser QA、正式 provider/email/SSO 決策。
+
 ---
 
 ## Batch ALA-003 - BFF Coverage For Beta-critical Workflows
