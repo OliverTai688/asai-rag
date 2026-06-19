@@ -1,273 +1,702 @@
 "use client";
 
-import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { useEffect, useMemo, useState } from "react";
 import {
-  Settings,
-  User,
   Bell,
-  Shield,
-  Palette,
-  Globe,
-  Database,
-  ChevronRight,
+  Bot,
   Check,
-  Moon,
-  Sun,
-  Monitor,
+  ChevronRight,
+  Link2,
+  Loader2,
+  MonitorCog,
+  Shield,
+  User,
+  UserPlus,
+  type LucideIcon,
 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
-const SECTIONS = [
+type SectionId =
+  | "profile"
+  | "notifications"
+  | "ai"
+  | "integrations"
+  | "workspace"
+  | "collaborators"
+  | "security";
+
+type WorkspacePath = "/dashboard" | "/crm" | "/pre-visit" | "/reports";
+type AiTone = "balanced" | "concise" | "coaching";
+
+type MemberSettings = {
+  profile: {
+    displayName: string;
+    title: string;
+    region: string;
+    locale: "zh-TW";
+  };
+  notifications: {
+    reportOpened: boolean;
+    spinReminder: boolean;
+    teamUpdates: boolean;
+    aiDailyInsight: boolean;
+  };
+  aiPreferences: {
+    tone: AiTone;
+    dailyInsightLimit: number;
+    autoDraftVisitPlan: boolean;
+  };
+  personalIntegrations: {
+    calendarSync: boolean;
+    emailDigest: boolean;
+  };
+  defaultWorkspace: {
+    organizationId: string;
+    landingPath: WorkspacePath;
+  };
+};
+
+type MemberSettingsResponse = {
+  settings: MemberSettings;
+  user: {
+    id: string;
+    email: string;
+    name: string;
+  };
+  membership: {
+    id: string;
+    role: string;
+    title: string;
+    region: string;
+  };
+  organization: {
+    id: string;
+    name: string;
+    plan: string;
+  };
+  policy: {
+    maxCollaborators: number;
+    collaboratorEntryVisible: boolean;
+    aiDailyInsightLimitMax: number;
+    monthlyAiQuota: number;
+  };
+};
+
+const SECTIONS: Array<{ id: SectionId; label: string; icon: LucideIcon }> = [
   { id: "profile", label: "個人資料", icon: User },
-  { id: "notifications", label: "通知設定", icon: Bell },
-  { id: "appearance", label: "外觀主題", icon: Palette },
-  { id: "language", label: "語言與地區", icon: Globe },
-  { id: "security", label: "安全性", icon: Shield },
-  { id: "data", label: "資料管理", icon: Database },
+  { id: "notifications", label: "通知", icon: Bell },
+  { id: "ai", label: "AI 偏好", icon: Bot },
+  { id: "integrations", label: "個人整合", icon: Link2 },
+  { id: "workspace", label: "預設工作區", icon: MonitorCog },
+  { id: "collaborators", label: "協作者", icon: UserPlus },
+  { id: "security", label: "安全狀態", icon: Shield },
 ];
 
-const NOTIFICATION_SETTINGS = [
-  { id: "report_opened", label: "報告被開啟時通知", description: "客戶瀏覽分享報告時推送提醒", enabled: true },
-  { id: "spin_reminder", label: "SPIN 對話提醒", description: "超過 7 天未聯繫客戶時提醒", enabled: true },
-  { id: "team_updates", label: "團隊動態更新", description: "成員達成業績里程碑時通知", enabled: false },
-  { id: "ai_tips", label: "AI 每日洞察", description: "每日早上推送一則銷售建議", enabled: true },
+const NOTIFICATION_ROWS: Array<{
+  id: keyof MemberSettings["notifications"];
+  label: string;
+  description: string;
+}> = [
+  { id: "reportOpened", label: "報告被開啟時通知", description: "客戶瀏覽分享報告時推送提醒。" },
+  { id: "spinReminder", label: "SPIN 對話提醒", description: "超過 7 天未聯繫客戶時提醒。" },
+  { id: "teamUpdates", label: "團隊動態更新", description: "管理角色可接收輔導與團隊摘要。" },
+  { id: "aiDailyInsight", label: "AI 每日洞察", description: "依你的配額上限推送個人化建議。" },
+];
+
+const TONE_OPTIONS: Array<{ value: AiTone; label: string; description: string }> = [
+  { value: "balanced", label: "平衡", description: "保留完整脈絡與下一步。" },
+  { value: "concise", label: "精簡", description: "優先輸出短句與重點。" },
+  { value: "coaching", label: "教練", description: "多給話術與追問提醒。" },
+];
+
+const WORKSPACE_OPTIONS: Array<{ value: WorkspacePath; label: string; description: string }> = [
+  { value: "/dashboard", label: "今日主線", description: "登入後先看下一步。" },
+  { value: "/crm", label: "客戶管理", description: "直接進入客戶列表。" },
+  { value: "/pre-visit", label: "訪前規劃", description: "優先準備拜訪包。" },
+  { value: "/reports", label: "分析報告", description: "快速回到報告庫。" },
 ];
 
 export default function SettingsPage() {
-  const [activeSection, setActiveSection] = useState("profile");
-  const [theme, setTheme] = useState<"light" | "dark" | "system">("system");
-  const [notifications, setNotifications] = useState<Record<string, boolean>>(
-    Object.fromEntries(NOTIFICATION_SETTINGS.map((n) => [n.id, n.enabled]))
+  const [activeSection, setActiveSection] = useState<SectionId>("profile");
+  const [data, setData] = useState<MemberSettingsResponse | null>(null);
+  const [draft, setDraft] = useState<MemberSettings | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadSettings() {
+      try {
+        const response = await fetch("/api/member/settings", { cache: "no-store" });
+
+        if (!response.ok) {
+          throw new Error("MEMBER_SETTINGS_LOAD_FAILED");
+        }
+
+        const payload = (await response.json()) as MemberSettingsResponse;
+
+        if (active) {
+          setData(payload);
+          setDraft(payload.settings);
+          setErrorMessage(null);
+        }
+      } catch {
+        if (active) {
+          setErrorMessage("無法載入個人設定，請確認目前 session 或 demo header。");
+        }
+      } finally {
+        if (active) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    void loadSettings();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const activeLabel = useMemo(
+    () => SECTIONS.find((section) => section.id === activeSection)?.label ?? "個人設定",
+    [activeSection],
   );
 
-  const toggleNotification = (id: string) => {
-    setNotifications((prev) => ({ ...prev, [id]: !prev[id] }));
+  const saveSettings = async () => {
+    if (!draft) {
+      return;
+    }
+
+    setIsSaving(true);
+    setStatusMessage(null);
+    setErrorMessage(null);
+
+    try {
+      const response = await fetch("/api/member/settings", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(draft),
+      });
+
+      if (!response.ok) {
+        throw new Error("MEMBER_SETTINGS_SAVE_FAILED");
+      }
+
+      const payload = (await response.json()) as MemberSettingsResponse;
+      setData(payload);
+      setDraft(payload.settings);
+      setStatusMessage("個人設定已儲存。");
+    } catch {
+      setErrorMessage("儲存失敗，請稍後再試。");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const updateDraft = (next: (current: MemberSettings) => MemberSettings) => {
+    setDraft((current) => (current ? next(current) : current));
   };
 
   return (
     <div className="space-y-6 pb-10">
-      <div>
-        <h1 className="text-3xl font-bold">系統設定</h1>
-        <p className="text-zinc-500 font-medium">管理個人偏好、安全性與資料設定。</p>
-      </div>
+      <header className="flex flex-col gap-4 border-b border-hairline pb-6 lg:flex-row lg:items-end lg:justify-between">
+        <div className="max-w-2xl space-y-2">
+          <Badge variant="outline" className="w-fit rounded-full border-hairline text-[11px]">
+            Member preferences
+          </Badge>
+          <div>
+            <h1 className="text-3xl font-semibold tracking-tight text-ink">個人設定</h1>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+              只管理目前使用者的個人資料、通知、AI 預設與工作區偏好；組織品牌、帳務、單位與合規政策會在 org settings 管理。
+            </p>
+          </div>
+        </div>
+        <Button variant="mono" className="h-10 w-fit" onClick={saveSettings} disabled={!draft || isSaving}>
+          {isSaving ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}
+          儲存個人設定
+        </Button>
+      </header>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Sidebar Nav */}
-        <Card className="rounded-3xl border-zinc-200 dark:border-zinc-800 shadow-sm h-fit">
-          <CardContent className="p-3 space-y-1">
-            {SECTIONS.map((section) => (
-              <button
-                key={section.id}
-                onClick={() => setActiveSection(section.id)}
-                className={cn(
-                  "w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-left transition-all",
-                  activeSection === section.id
-                    ? "bg-[#EBF3FB] dark:bg-[#1A3A6B]/20 text-[#1565C0] font-semibold"
-                    : "text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100"
-                )}
-              >
-                <section.icon className="w-4 h-4 shrink-0" />
-                <span className="text-sm">{section.label}</span>
-                {activeSection === section.id && (
-                  <ChevronRight className="w-4 h-4 ml-auto" />
-                )}
-              </button>
-            ))}
+      {statusMessage ? (
+        <div className="rounded-md border border-hairline bg-paper px-4 py-3 text-sm text-ink">{statusMessage}</div>
+      ) : null}
+      {errorMessage ? (
+        <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {errorMessage}
+        </div>
+      ) : null}
+
+      <div className="grid gap-6 lg:grid-cols-[240px_minmax(0,1fr)]">
+        <Card className="border-hairline bg-card">
+          <CardContent className="p-2">
+            <nav className="grid gap-1" aria-label="個人設定分類">
+              {SECTIONS.map((section) => (
+                <button
+                  key={section.id}
+                  type="button"
+                  onClick={() => setActiveSection(section.id)}
+                  className={cn(
+                    "flex min-h-10 items-center gap-3 rounded-md px-3 text-left text-sm transition-colors",
+                    activeSection === section.id
+                      ? "bg-ink text-paper"
+                      : "text-muted-foreground hover:bg-muted hover:text-ink",
+                  )}
+                  aria-pressed={activeSection === section.id}
+                >
+                  <section.icon className="size-4 shrink-0" />
+                  {section.label}
+                </button>
+              ))}
+            </nav>
           </CardContent>
         </Card>
 
-        {/* Content Area */}
-        <div className="lg:col-span-3 space-y-6">
-          {activeSection === "profile" && (
-            <>
-              <Card className="rounded-3xl border-zinc-200 dark:border-zinc-800 shadow-sm">
-                <CardHeader>
-                  <CardTitle className="text-base">個人資料</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  {/* Avatar */}
-                  <div className="flex items-center gap-6">
-                    <div className="w-20 h-20 rounded-3xl bg-[#1A3A6B] flex items-center justify-center text-white text-2xl font-black">
-                      王
-                    </div>
-                    <div>
-                      <p className="font-bold">王小明</p>
-                      <p className="text-sm text-zinc-500">業務部 · 加值服務專員</p>
-                      <Button variant="outline" size="sm" className="mt-2 rounded-xl text-xs font-bold border-zinc-200">
-                        更換頭像
-                      </Button>
-                    </div>
-                  </div>
+        <section className="space-y-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h2 className="text-base font-semibold text-ink">{activeLabel}</h2>
+              <p className="text-sm text-muted-foreground">
+                {data ? `${data.organization.name} · ${data.membership.role}` : "讀取目前 member session"}
+              </p>
+            </div>
+          </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {[
-                      { label: "姓名", value: "王小明" },
-                      { label: "工號", value: "AG-2024-001" },
-                      { label: "所屬區域", value: "台北一區" },
-                      { label: "電子郵件", value: "wang@sincerely.ai" },
-                    ].map((field) => (
-                      <div key={field.label}>
-                        <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider block mb-1.5">
-                          {field.label}
-                        </label>
-                        <div className="h-10 px-4 flex items-center bg-zinc-50 dark:bg-zinc-800/50 rounded-xl border border-zinc-200 dark:border-zinc-700">
-                          <span className="text-sm font-medium">{field.value}</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="flex justify-end">
-                    <Button className="rounded-xl bg-[#1A3A6B] hover:bg-[#1565C0] font-bold">
-                      儲存變更
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </>
-          )}
-
-          {activeSection === "notifications" && (
-            <Card className="rounded-3xl border-zinc-200 dark:border-zinc-800 shadow-sm">
-              <CardHeader>
-                <CardTitle className="text-base">通知設定</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {NOTIFICATION_SETTINGS.map((setting) => (
-                  <div
-                    key={setting.id}
-                    className="flex items-center justify-between p-4 rounded-2xl border border-zinc-100 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors"
-                  >
-                    <div>
-                      <p className="font-bold text-sm">{setting.label}</p>
-                      <p className="text-xs text-zinc-500 font-medium mt-0.5">{setting.description}</p>
-                    </div>
-                    <button
-                      onClick={() => toggleNotification(setting.id)}
-                      className={cn(
-                        "w-11 h-6 rounded-full transition-all relative shrink-0",
-                        notifications[setting.id] ? "bg-[#1A3A6B]" : "bg-zinc-200 dark:bg-zinc-700"
-                      )}
-                    >
-                      <span
-                        className={cn(
-                          "absolute top-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-all",
-                          notifications[setting.id] ? "left-[22px]" : "left-0.5"
-                        )}
-                      />
-                    </button>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-          )}
-
-          {activeSection === "appearance" && (
-            <Card className="rounded-3xl border-zinc-200 dark:border-zinc-800 shadow-sm">
-              <CardHeader>
-                <CardTitle className="text-base">外觀主題</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <p className="text-sm text-zinc-500 font-medium">選擇您偏好的介面主題。</p>
-                <div className="grid grid-cols-3 gap-3">
-                  {([
-                    { id: "light", label: "淺色", icon: Sun },
-                    { id: "dark", label: "深色", icon: Moon },
-                    { id: "system", label: "跟隨系統", icon: Monitor },
-                  ] as const).map((t) => (
-                    <button
-                      key={t.id}
-                      onClick={() => setTheme(t.id)}
-                      className={cn(
-                        "flex flex-col items-center gap-3 p-5 rounded-2xl border-2 transition-all",
-                        theme === t.id
-                          ? "border-[#1565C0] bg-[#EBF3FB] dark:bg-[#1A3A6B]/20"
-                          : "border-zinc-100 dark:border-zinc-800 hover:border-[#90CAF9]/40"
-                      )}
-                    >
-                      <t.icon
-                        className={cn("w-6 h-6", theme === t.id ? "text-[#1565C0]" : "text-zinc-400")}
-                      />
-                      <span className={cn("text-sm font-bold", theme === t.id ? "text-[#1565C0]" : "text-zinc-500")}>
-                        {t.label}
-                      </span>
-                      {theme === t.id && (
-                        <span className="w-5 h-5 rounded-full bg-[#1A3A6B] flex items-center justify-center">
-                          <Check className="w-3 h-3 text-white" />
-                        </span>
-                      )}
-                    </button>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {activeSection === "data" && (
-            <Card className="rounded-3xl border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden">
-              <CardHeader className="bg-zinc-50/50 dark:bg-zinc-800/50 border-b border-zinc-100 dark:border-zinc-800">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Database className="w-4 h-4 text-[#1565C0]" />
-                  資料管理
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-6 space-y-8">
-                <div className="flex items-start justify-between">
-                  <div className="space-y-1">
-                    <p className="font-bold text-zinc-900 dark:text-zinc-100">清空訪談與規劃資料</p>
-                    <p className="text-sm text-zinc-500 font-medium max-w-md">
-                      此操作將刪除所有已建立的「訪前規劃」、「SPIN 對話紀錄」與「分析報告」。客戶資料將會保留。
-                    </p>
-                  </div>
-                  <Button 
-                    variant="destructive" 
-                    className="rounded-xl font-bold bg-red-50 text-red-600 border-red-100 hover:bg-red-100 hover:text-red-700"
-                    onClick={() => {
-                      if (confirm("確定要清空所有訪談規劃資料嗎？此操作無法還原。")) {
-                        import("@/domains/visit/store").then(m => m.useVisitStore.getState().clearAll());
-                        import("@/domains/spin/store").then(m => m.useSpinStore.getState().clearAll());
-                        import("@/domains/report/store").then(m => m.useReportStore.getState().clearAll());
-                        alert("資料已成功清空。");
-                        window.location.reload();
-                      }
-                    }}
-                  >
-                    立即清空
-                  </Button>
-                </div>
-
-                <div className="pt-6 border-t border-zinc-100 dark:border-zinc-800">
-                  <div className="flex items-start justify-between">
-                    <div className="space-y-1">
-                      <p className="font-bold text-zinc-900 dark:text-zinc-100">重置應用程式</p>
-                      <p className="text-sm text-zinc-500 font-medium max-w-md">
-                        清除所有本地快取，包含客戶資料與設定，恢復至初始安裝狀態。
-                      </p>
-                    </div>
-                    <Button 
-                      variant="outline" 
-                      className="rounded-xl font-bold border-zinc-200 hover:bg-zinc-50"
-                      onClick={() => {
-                        if (confirm("確定要重置整個應用程式嗎？這將刪除所有本地存儲的資料（含客戶清單）。")) {
-                          localStorage.clear();
-                          alert("應用程式已重置。");
-                          window.location.reload();
-                        }
-                      }}
-                    >
-                      完全重置
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-        </div>
+          {isLoading ? <LoadingPanel /> : null}
+          {!isLoading && draft && data && activeSection === "profile" ? (
+            <ProfilePanel data={data} draft={draft} updateDraft={updateDraft} />
+          ) : null}
+          {!isLoading && draft && activeSection === "notifications" ? (
+            <NotificationsPanel draft={draft} updateDraft={updateDraft} />
+          ) : null}
+          {!isLoading && draft && data && activeSection === "ai" ? (
+            <AiPanel data={data} draft={draft} updateDraft={updateDraft} />
+          ) : null}
+          {!isLoading && draft && activeSection === "integrations" ? (
+            <IntegrationsPanel draft={draft} updateDraft={updateDraft} />
+          ) : null}
+          {!isLoading && draft && data && activeSection === "workspace" ? (
+            <WorkspacePanel data={data} draft={draft} updateDraft={updateDraft} />
+          ) : null}
+          {!isLoading && data && activeSection === "collaborators" ? <CollaboratorsPanel data={data} /> : null}
+          {!isLoading && data && activeSection === "security" ? <SecurityPanel data={data} /> : null}
+        </section>
       </div>
     </div>
+  );
+}
+
+function LoadingPanel() {
+  return (
+    <Card className="border-hairline bg-card">
+      <CardContent className="flex min-h-40 items-center gap-3 p-5 text-sm text-muted-foreground">
+        <Loader2 className="size-4 animate-spin" />
+        正在載入個人設定
+      </CardContent>
+    </Card>
+  );
+}
+
+function ProfilePanel({
+  data,
+  draft,
+  updateDraft,
+}: {
+  data: MemberSettingsResponse;
+  draft: MemberSettings;
+  updateDraft: (next: (current: MemberSettings) => MemberSettings) => void;
+}) {
+  const initials = draft.profile.displayName.slice(0, 1) || data.user.email.slice(0, 1).toUpperCase();
+
+  return (
+    <Card className="border-hairline bg-card">
+      <CardContent className="space-y-5 p-5">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+          <div className="flex size-14 items-center justify-center rounded-full border border-hairline bg-paper text-lg font-semibold text-ink">
+            {initials}
+          </div>
+          <div>
+            <p className="font-semibold text-ink">{draft.profile.displayName}</p>
+            <p className="text-sm text-muted-foreground">{data.user.email}</p>
+          </div>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field
+            label="顯示名稱"
+            value={draft.profile.displayName}
+            onChange={(value) =>
+              updateDraft((current) => ({
+                ...current,
+                profile: { ...current.profile, displayName: value },
+              }))
+            }
+          />
+          <Field
+            label="職稱"
+            value={draft.profile.title}
+            onChange={(value) =>
+              updateDraft((current) => ({ ...current, profile: { ...current.profile, title: value } }))
+            }
+          />
+          <Field
+            label="區域"
+            value={draft.profile.region}
+            onChange={(value) =>
+              updateDraft((current) => ({ ...current, profile: { ...current.profile, region: value } }))
+            }
+          />
+          <ReadOnlyTile label="介面語言" value="繁體中文 zh-TW" />
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function NotificationsPanel({
+  draft,
+  updateDraft,
+}: {
+  draft: MemberSettings;
+  updateDraft: (next: (current: MemberSettings) => MemberSettings) => void;
+}) {
+  return (
+    <Card className="border-hairline bg-card">
+      <CardContent className="divide-y divide-hairline p-0">
+        {NOTIFICATION_ROWS.map((setting) => (
+          <div key={setting.id} className="flex items-center justify-between gap-4 p-5">
+            <div>
+              <p className="text-sm font-medium text-ink">{setting.label}</p>
+              <p className="mt-1 text-xs text-muted-foreground">{setting.description}</p>
+            </div>
+            <SwitchButton
+              checked={draft.notifications[setting.id]}
+              label={setting.label}
+              onClick={() =>
+                updateDraft((current) => ({
+                  ...current,
+                  notifications: {
+                    ...current.notifications,
+                    [setting.id]: !current.notifications[setting.id],
+                  },
+                }))
+              }
+            />
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+  );
+}
+
+function AiPanel({
+  data,
+  draft,
+  updateDraft,
+}: {
+  data: MemberSettingsResponse;
+  draft: MemberSettings;
+  updateDraft: (next: (current: MemberSettings) => MemberSettings) => void;
+}) {
+  return (
+    <div className="space-y-4">
+      <Card className="border-hairline bg-card">
+        <CardContent className="space-y-4 p-5">
+          <div>
+            <p className="text-sm font-medium text-ink">回答語氣</p>
+            <p className="mt-1 text-xs text-muted-foreground">只影響你的 AI 預設提示；組織配額與政策仍由 org admin 控制。</p>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-3">
+            {TONE_OPTIONS.map((option) => (
+              <ChoiceButton
+                key={option.value}
+                active={draft.aiPreferences.tone === option.value}
+                label={option.label}
+                description={option.description}
+                onClick={() =>
+                  updateDraft((current) => ({
+                    ...current,
+                    aiPreferences: { ...current.aiPreferences, tone: option.value },
+                  }))
+                }
+              />
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border-hairline bg-card">
+        <CardContent className="space-y-5 p-5">
+          <SettingRow
+            title="每日 AI 洞察上限"
+            description={`你的目前上限為 ${data.policy.aiDailyInsightLimitMax} 則，由方案月配額 ${data.policy.monthlyAiQuota} 推導。`}
+            value={`${draft.aiPreferences.dailyInsightLimit} 則`}
+          />
+          <input
+            type="range"
+            min={0}
+            max={data.policy.aiDailyInsightLimitMax}
+            value={draft.aiPreferences.dailyInsightLimit}
+            onChange={(event) =>
+              updateDraft((current) => ({
+                ...current,
+                aiPreferences: {
+                  ...current.aiPreferences,
+                  dailyInsightLimit: Number(event.currentTarget.value),
+                },
+              }))
+            }
+            className="w-full accent-ink"
+            aria-label="每日 AI 洞察上限"
+          />
+          <ToggleRow
+            title="自動草擬訪前準備包"
+            description="AI 顧問陪談完成後，預設產生 VisitPlan 草稿。"
+            checked={draft.aiPreferences.autoDraftVisitPlan}
+            onClick={() =>
+              updateDraft((current) => ({
+                ...current,
+                aiPreferences: {
+                  ...current.aiPreferences,
+                  autoDraftVisitPlan: !current.aiPreferences.autoDraftVisitPlan,
+                },
+              }))
+            }
+          />
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function IntegrationsPanel({
+  draft,
+  updateDraft,
+}: {
+  draft: MemberSettings;
+  updateDraft: (next: (current: MemberSettings) => MemberSettings) => void;
+}) {
+  return (
+    <Card className="border-hairline bg-card">
+      <CardContent className="divide-y divide-hairline p-0">
+        <ToggleRow
+          title="個人行事曆同步"
+          description="僅作為你的個人提醒，不會開放 org admin 讀取私人行程。"
+          checked={draft.personalIntegrations.calendarSync}
+          onClick={() =>
+            updateDraft((current) => ({
+              ...current,
+              personalIntegrations: {
+                ...current.personalIntegrations,
+                calendarSync: !current.personalIntegrations.calendarSync,
+              },
+            }))
+          }
+        />
+        <ToggleRow
+          title="Email 摘要"
+          description="每週寄送個人待辦與 AI 使用摘要；正式寄信仍待 notification workstream 接入。"
+          checked={draft.personalIntegrations.emailDigest}
+          onClick={() =>
+            updateDraft((current) => ({
+              ...current,
+              personalIntegrations: {
+                ...current.personalIntegrations,
+                emailDigest: !current.personalIntegrations.emailDigest,
+              },
+            }))
+          }
+        />
+      </CardContent>
+    </Card>
+  );
+}
+
+function WorkspacePanel({
+  data,
+  draft,
+  updateDraft,
+}: {
+  data: MemberSettingsResponse;
+  draft: MemberSettings;
+  updateDraft: (next: (current: MemberSettings) => MemberSettings) => void;
+}) {
+  return (
+    <Card className="border-hairline bg-card">
+      <CardContent className="space-y-5 p-5">
+        <ReadOnlyTile label="目前 workspace" value={data.organization.name} />
+        <div className="grid gap-3 sm:grid-cols-2">
+          {WORKSPACE_OPTIONS.map((option) => (
+            <ChoiceButton
+              key={option.value}
+              active={draft.defaultWorkspace.landingPath === option.value}
+              label={option.label}
+              description={option.description}
+              onClick={() =>
+                updateDraft((current) => ({
+                  ...current,
+                  defaultWorkspace: {
+                    organizationId: data.organization.id,
+                    landingPath: option.value,
+                  },
+                }))
+              }
+            />
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function CollaboratorsPanel({ data }: { data: MemberSettingsResponse }) {
+  return (
+    <Card className="border-hairline bg-card">
+      <CardContent className="space-y-4 p-5">
+        <SettingRow
+          title="個人協作者入口"
+          description="個人版 owner 可邀請協作者，但 invite 與上限檢查必須走 server-side plan policy。"
+          value={data.policy.collaboratorEntryVisible ? "可使用" : "此角色或方案不可用"}
+        />
+        <div className="rounded-md border border-hairline bg-paper p-4">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="text-sm font-medium text-ink">方案允許協作者</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                上限由 super admin 的 PlanConfig 控制，目前為 {data.policy.maxCollaborators} 位。
+              </p>
+            </div>
+            <Button variant="monoOutline" size="sm" disabled={!data.policy.collaboratorEntryVisible}>
+              前往邀請流程
+              <ChevronRight className="size-4" />
+            </Button>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function SecurityPanel({ data }: { data: MemberSettingsResponse }) {
+  return (
+    <Card className="border-hairline bg-card">
+      <CardContent className="space-y-4 p-5">
+        <SettingRow title="設定儲存位置" description="儲存在目前 membership 的 member-scoped settings JSON。" value="DB-backed" />
+        <SettingRow title="資料邊界" description="本頁不修改組織品牌、帳務、單位政策、client portal、AI quota 或合規預設。" value="Member only" />
+        <SettingRow title="目前角色" description={`${data.organization.name} 的目前 session role。`} value={data.membership.role} />
+      </CardContent>
+    </Card>
+  );
+}
+
+function Field({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
+  return (
+    <label className="grid gap-1.5">
+      <span className="text-xs text-muted-foreground">{label}</span>
+      <Input value={value} onChange={(event) => onChange(event.currentTarget.value)} />
+    </label>
+  );
+}
+
+function ReadOnlyTile({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-md border border-hairline bg-paper px-3 py-2">
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="mt-1 text-sm font-medium text-ink">{value}</p>
+    </div>
+  );
+}
+
+function SettingRow({ title, description, value }: { title: string; description: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between gap-4 rounded-md border border-hairline bg-paper p-4">
+      <div>
+        <p className="text-sm font-medium text-ink">{title}</p>
+        <p className="mt-1 text-xs leading-5 text-muted-foreground">{description}</p>
+      </div>
+      <Badge variant="outline" className="shrink-0 border-hairline text-[11px]">
+        {value}
+      </Badge>
+    </div>
+  );
+}
+
+function ToggleRow({
+  title,
+  description,
+  checked,
+  onClick,
+}: {
+  title: string;
+  description: string;
+  checked: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-4 p-5">
+      <div>
+        <p className="text-sm font-medium text-ink">{title}</p>
+        <p className="mt-1 text-xs leading-5 text-muted-foreground">{description}</p>
+      </div>
+      <SwitchButton checked={checked} label={title} onClick={onClick} />
+    </div>
+  );
+}
+
+function SwitchButton({ checked, onClick, label }: { checked: boolean; onClick: () => void; label: string }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      aria-pressed={checked}
+      className={cn(
+        "relative h-6 w-11 shrink-0 rounded-full border border-hairline transition-colors",
+        checked ? "bg-ink" : "bg-muted",
+      )}
+    >
+      <span
+        className={cn(
+          "absolute top-1/2 size-4 -translate-y-1/2 rounded-full bg-paper transition-transform",
+          checked ? "translate-x-5" : "translate-x-1",
+        )}
+      />
+    </button>
+  );
+}
+
+function ChoiceButton({
+  active,
+  label,
+  description,
+  onClick,
+}: {
+  active: boolean;
+  label: string;
+  description: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "rounded-md border p-4 text-left transition-colors",
+        active ? "border-ink bg-ink text-paper" : "border-hairline bg-paper text-ink hover:border-hairline-2",
+      )}
+      aria-pressed={active}
+    >
+      <p className="text-sm font-semibold">{label}</p>
+      <p className={cn("mt-1 text-xs leading-5", active ? "text-paper/75" : "text-muted-foreground")}>
+        {description}
+      </p>
+    </button>
   );
 }

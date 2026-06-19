@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   LayoutDashboard,
@@ -13,7 +14,6 @@ import {
   Users2,
   Settings,
   Sparkles,
-  Compass,
   ChevronLeft,
   ChevronRight,
   Bot,
@@ -21,19 +21,79 @@ import {
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useAssistantStore } from "@/domains/assistant/store";
 
-const navItems = [
-  { name: "總覽", href: "/dashboard", icon: LayoutDashboard },
-  { name: "體驗版", href: "/pilot", icon: Compass },
-  { name: "客戶管理", href: "/crm", icon: Users },
-  { name: "SPIN 對話", href: "/spin", icon: MessageSquare },
-  { name: "劇場演練", href: "/theater", icon: Theater },
-  { name: "訪前規劃", href: "/pre-visit", icon: CalendarDays },
-  { name: "分析報告", href: "/reports", icon: FileText },
-  { name: "團隊管理", href: "/team", icon: Users2 },
-  { name: "議題單", href: "/issues", icon: Flag },
-  { name: "系統設定", href: "/settings", icon: Settings },
+type NavItem = {
+  name: string;
+  href: string;
+  icon: LucideIcon;
+  description?: string;
+};
+
+type NavAction = {
+  name: string;
+  icon: LucideIcon;
+  description: string;
+  ariaLabel: string;
+};
+
+const assistantAction: NavAction = {
+  name: "問誠問 AI",
+  icon: Bot,
+  description: "問網站、客戶與下一步",
+  ariaLabel: "開啟誠問 AI 助手",
+};
+
+const navSections: Array<{ label: string; items: NavItem[] }> = [
+  {
+    label: "今日",
+    items: [{ name: "總覽", href: "/dashboard", icon: LayoutDashboard }],
+  },
+  {
+    label: "AI 工作台",
+    items: [
+      {
+        name: "AI 顧問陪談",
+        href: "/interview",
+        icon: MessageSquare,
+        description: "訪談業務員、整理準備",
+      },
+      {
+        name: "SPIN 舊版",
+        href: "/spin",
+        icon: MessageSquare,
+        description: "保留既有狀態機",
+      },
+      {
+        name: "AI 劇場演練",
+        href: "/theater",
+        icon: Theater,
+        description: "練異議、角色與說法",
+      },
+    ],
+  },
+  {
+    label: "客戶工作",
+    items: [
+      { name: "客戶管理", href: "/crm", icon: Users },
+      { name: "訪前規劃", href: "/pre-visit", icon: CalendarDays },
+      { name: "分析報告", href: "/reports", icon: FileText },
+      { name: "議題單", href: "/issues", icon: Flag },
+    ],
+  },
+  {
+    label: "團隊與系統",
+    items: [
+      { name: "團隊管理", href: "/team", icon: Users2 },
+      { name: "通訊處設定", href: "/team/settings", icon: Settings },
+      { name: "個人設定", href: "/settings", icon: Settings },
+    ],
+  },
 ];
 
 type SidebarProps = {
@@ -52,40 +112,47 @@ export function Sidebar({
   onNavigate,
 }: SidebarProps) {
   const pathname = usePathname();
-  const { togglePanel } = useAssistantStore();
+  const { isPanelOpen, togglePanel } = useAssistantStore();
+  const isNavItemActive = (href: string) => {
+    if (pathname === href) return true;
+    if (href === "/team" && pathname?.startsWith("/team/settings")) return false;
+    return pathname?.startsWith(`${href}/`) ?? false;
+  };
 
   return (
     <div
       id={mobile ? "mobile-sidebar" : undefined}
       className={cn(
-        "relative z-40 flex h-full shrink-0 flex-col bg-white border-r transition-all duration-300 ease-in-out",
-        "border-[#D8E1EA] dark:bg-[#0F2744] dark:border-[rgba(144,202,249,0.15)]",
+        "relative z-40 flex h-full shrink-0 flex-col bg-card border-r border-hairline transition-all duration-300 ease-in-out motion-reduce:transition-none",
         open ? "w-60" : "w-[72px]",
         className
       )}
     >
-      {/* Logo */}
-      <div className="h-16 flex items-center justify-between px-5 border-b border-[#D8E1EA] dark:border-[rgba(144,202,249,0.15)]">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-md bg-[#173762] flex items-center justify-center shrink-0 shadow-sm">
+      <div className="h-16 flex items-center justify-between px-5 border-b border-hairline">
+        <Link
+          href="/dashboard"
+          onClick={onNavigate}
+          aria-label="回到總覽"
+          className="flex items-center gap-3 rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+        >
+          <div className="w-8 h-8 rounded-md bg-[#1A3A6B] flex items-center justify-center shrink-0">
             <Sparkles className="text-[#C9A227] w-4 h-4" />
           </div>
           {open && (
             <div className="flex flex-col leading-none">
-              <span className="font-bold text-[15px] text-[#0A2342] dark:text-white whitespace-nowrap tracking-tight">
+              <span className="font-semibold text-[15px] text-ink whitespace-nowrap tracking-tight">
                 誠問 AI
               </span>
-              <span className="text-[9px] text-[#7B8B9A] dark:text-[#90CAF9] font-medium tracking-widest uppercase mt-0.5">
+              <span className="text-[9px] text-ink-3 font-medium tracking-widest uppercase mt-0.5">
                 Sincere Question
               </span>
             </div>
           )}
-        </div>
+        </Link>
         {mobile && (
           <Button
             variant="ghost"
             size="icon-sm"
-            className="text-[#5F7080] hover:text-[#0A2342] dark:text-[#90CAF9]/70 dark:hover:text-white"
             onClick={() => setOpen(false)}
             aria-label="關閉導覽選單"
           >
@@ -94,83 +161,210 @@ export function Sidebar({
         )}
       </div>
 
-      {/* Nav Items */}
-      <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-0.5">
-        {navItems.map((item) => {
-          const isActive = pathname === item.href || pathname?.startsWith(`${item.href}/`);
-          return (
-            <Link key={item.href} href={item.href} onClick={onNavigate}>
-              <div
-                className={cn(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-150 group relative",
-                  isActive
-                    ? "bg-[#F1F6FB] dark:bg-[#1A3A6B]/40 text-[#0A2342] dark:text-[#90CAF9] font-semibold"
-                    : "text-[#5F7080] dark:text-[#90CAF9]/70 hover:bg-[#F8FAFC] dark:hover:bg-[#1A3A6B]/20 hover:text-[#0A2342] dark:hover:text-white"
-                )}
-              >
-                {isActive && (
-                  <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[2px] h-5 rounded-r bg-[#1565C0] dark:bg-[#2196F3]" />
-                )}
-                <item.icon
-                  className={cn(
-                    "w-[18px] h-[18px] shrink-0 transition-colors",
-                    isActive
-                      ? "text-[#1565C0] dark:text-[#2196F3]"
-                      : "text-[#7B8B9A] dark:text-[#90CAF9]/60 group-hover:text-[#1565C0] dark:group-hover:text-[#90CAF9]"
-                  )}
-                  strokeWidth={isActive ? 2 : 1.5}
+      <nav
+        aria-label="主導覽"
+        className={cn(
+          "flex-1 overflow-y-auto py-4 px-3",
+          open ? "space-y-4" : "space-y-5"
+        )}
+      >
+        {navSections.map((section) => (
+          <div key={section.label} className="space-y-1">
+            {open && (
+              <p className="px-3 pb-1 text-[10px] font-semibold tracking-widest text-ink-3">
+                {section.label}
+              </p>
+            )}
+            <div className="space-y-0.5">
+              {section.label === "AI 工作台" && (
+                <AssistantNavButton
+                  action={assistantAction}
+                  active={isPanelOpen}
+                  open={open}
+                  mobile={mobile}
+                  setOpen={setOpen}
+                  onOpenAssistant={() => togglePanel(true)}
                 />
-                {open && (
-                  <span className="text-[13px] tracking-tight">{item.name}</span>
-                )}
-              </div>
-            </Link>
-          );
-        })}
+              )}
+              {section.items.map((item) => (
+                <SidebarNavLink
+                  key={item.href}
+                  item={item}
+                  active={isNavItemActive(item.href)}
+                  open={open}
+                  onNavigate={onNavigate}
+                />
+              ))}
+            </div>
+          </div>
+        ))}
       </nav>
 
-      {/* AI Assistant Trigger */}
-      <div className="px-3 pb-3 border-t border-[#D8E1EA] dark:border-[rgba(144,202,249,0.15)] pt-3">
-        <button
-          onClick={() => {
-            togglePanel();
-            if (mobile) {
-              setOpen(false);
-            }
-          }}
-          className={cn(
-            "w-full flex items-center justify-center gap-2 rounded-lg py-2.5 px-3 transition-all duration-150",
-            "bg-[#173762] hover:bg-[#0F2B50] text-white font-semibold text-[13px]",
-            "shadow-sm",
-            "border border-[#1565C0]/20",
-            !open && "px-0"
-          )}
-        >
-          <Bot className="w-[18px] h-[18px] shrink-0 text-[#C9A227]" strokeWidth={1.5} />
-          {open && <span>誠問 AI 助手</span>}
-        </button>
-      </div>
-
-      {/* Collapse Toggle */}
       {!mobile && (
-        <div className="p-3 border-t border-[#D8E1EA] dark:border-[rgba(144,202,249,0.15)]">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="w-full justify-center text-[#5F7080] hover:text-[#0A2342] dark:text-[#90CAF9]/60 dark:hover:text-white hover:bg-[#F3F7FB] dark:hover:bg-[#1A3A6B]/30 rounded-lg text-[12px]"
-            onClick={() => setOpen(!open)}
-          >
-            {open ? (
-              <>
-                <ChevronLeft className="w-4 h-4 mr-1.5" strokeWidth={1.5} />
-                縮小側欄
-              </>
-            ) : (
-              <ChevronRight className="w-4 h-4" strokeWidth={1.5} />
-            )}
-          </Button>
+        <div className="p-3 border-t border-hairline">
+          <SidebarCollapseButton open={open} setOpen={setOpen} />
         </div>
       )}
     </div>
+  );
+}
+
+function SidebarNavLink({
+  item,
+  active,
+  open,
+  onNavigate,
+}: {
+  item: NavItem;
+  active: boolean;
+  open: boolean;
+  onNavigate?: () => void;
+}) {
+  const Icon = item.icon;
+  const label = item.description ? `${item.name}：${item.description}` : item.name;
+  const link = (
+    <Link
+      href={item.href}
+      onClick={onNavigate}
+      aria-label={open ? undefined : label}
+      className="block rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+    >
+      <div className={navItemClasses(active)}>
+        {active && <ActiveRail />}
+        <Icon className={iconClasses(active)} strokeWidth={active ? 2 : 1.5} />
+        {open && (
+          <span className="min-w-0 text-[13px] tracking-tight">{item.name}</span>
+        )}
+      </div>
+    </Link>
+  );
+
+  if (open) {
+    return link;
+  }
+
+  return (
+    <Tooltip>
+      <TooltipTrigger render={link} />
+      <TooltipContent side="right">{label}</TooltipContent>
+    </Tooltip>
+  );
+}
+
+function AssistantNavButton({
+  action,
+  active,
+  open,
+  mobile,
+  setOpen,
+  onOpenAssistant,
+}: {
+  action: NavAction;
+  active: boolean;
+  open: boolean;
+  mobile: boolean;
+  setOpen: (open: boolean) => void;
+  onOpenAssistant: () => void;
+}) {
+  const Icon = action.icon;
+  const button = (
+    <button
+      type="button"
+      onClick={() => {
+        onOpenAssistant();
+        if (mobile) {
+          setOpen(false);
+        }
+      }}
+      aria-label={action.ariaLabel}
+      className="block w-full rounded-lg text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+    >
+      <div className={navItemClasses(active)}>
+        {active && <ActiveRail />}
+        <Icon
+          className={cn(iconClasses(active), !active && "text-[#1A3A6B]")}
+          strokeWidth={active ? 2 : 1.5}
+        />
+        {open && (
+          <span className="min-w-0 text-[13px] font-semibold tracking-tight">
+            {action.name}
+          </span>
+        )}
+      </div>
+    </button>
+  );
+
+  if (open) {
+    return button;
+  }
+
+  return (
+    <Tooltip>
+      <TooltipTrigger render={button} />
+      <TooltipContent side="right">
+        {action.name}：{action.description}
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
+function navItemClasses(active: boolean) {
+  return cn(
+    "group relative flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors duration-150 motion-reduce:transition-none",
+    active
+      ? "bg-paper-2 text-ink font-semibold"
+      : "text-ink-3 hover:bg-paper-2 hover:text-ink"
+  );
+}
+
+function iconClasses(active: boolean) {
+  return cn(
+    "w-[18px] h-[18px] shrink-0 transition-colors",
+    active ? "text-[#1A3A6B]" : "text-ink-3 group-hover:text-ink"
+  );
+}
+
+function ActiveRail() {
+  return (
+    <span className="absolute left-0 top-1/2 h-5 w-px -translate-y-1/2 rounded-r bg-[#1A3A6B]" />
+  );
+}
+
+function SidebarCollapseButton({
+  open,
+  setOpen,
+}: {
+  open: boolean;
+  setOpen: (open: boolean) => void;
+}) {
+  const label = open ? "縮小側欄" : "展開側欄";
+  const button = (
+    <Button
+      variant="ghost"
+      size="sm"
+      className="w-full justify-center rounded-lg text-[12px]"
+      onClick={() => setOpen(!open)}
+      aria-label={label}
+    >
+      {open ? (
+        <>
+          <ChevronLeft className="w-4 h-4 mr-1.5" strokeWidth={1.5} />
+          縮小側欄
+        </>
+      ) : (
+        <ChevronRight className="w-4 h-4" strokeWidth={1.5} />
+      )}
+    </Button>
+  );
+
+  if (open) {
+    return button;
+  }
+
+  return (
+    <Tooltip>
+      <TooltipTrigger render={button} />
+      <TooltipContent side="right">{label}</TooltipContent>
+    </Tooltip>
   );
 }

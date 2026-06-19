@@ -12,10 +12,9 @@ function Card({
       data-slot="card"
       data-size={size}
       className={cn(
-        "group/card flex flex-col gap-4 overflow-hidden rounded-lg bg-white text-sm text-[#0A1929]",
-        "border border-[#D8E1EA] shadow-[0_1px_2px_rgba(10,35,66,0.04)] transition-[border-color,box-shadow] duration-200",
-        "hover:border-[#C5D2DE] hover:shadow-[0_8px_24px_rgba(10,35,66,0.06)]",
-        "dark:bg-[#0F2744] dark:border-[rgba(144,202,249,0.15)] dark:text-[#E8F0FE]",
+        "group/card flex flex-col gap-4 overflow-hidden rounded-lg bg-card text-sm text-card-foreground",
+        "border border-hairline shadow-none transition-[border-color,transform] duration-150",
+        "hover:border-hairline-2 hover:-translate-y-px",
         "py-4 has-data-[slot=card-footer]:pb-0 has-[>img:first-child]:pt-0",
         "data-[size=sm]:gap-3 data-[size=sm]:py-3 data-[size=sm]:has-data-[slot=card-footer]:pb-0",
         "*:[img:first-child]:rounded-t-lg *:[img:last-child]:rounded-b-lg",
@@ -48,7 +47,7 @@ function CardTitle({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="card-title"
       className={cn(
-        "font-semibold text-[15px] leading-snug text-[#0A2342] dark:text-[#E8F0FE]",
+        "font-semibold text-[15px] leading-snug text-foreground",
         "group-data-[size=sm]/card:text-sm",
         className
       )}
@@ -61,7 +60,7 @@ function CardDescription({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="card-description"
-      className={cn("text-sm text-[#546E7A] dark:text-[#90CAF9]", className)}
+      className={cn("text-sm text-muted-foreground", className)}
       {...props}
     />
   )
@@ -95,8 +94,7 @@ function CardFooter({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="card-footer"
       className={cn(
-        "flex items-center rounded-b-lg border-t border-[#E6EDF3] bg-[#FAFCFF] p-5",
-        "dark:border-[rgba(144,202,249,0.1)] dark:bg-[#1A3A6B]/20",
+        "flex items-center rounded-b-lg border-t border-hairline bg-paper-2 p-5",
         "group-data-[size=sm]/card:p-4",
         className
       )}
@@ -105,16 +103,15 @@ function CardFooter({ className, ...props }: React.ComponentProps<"div">) {
   )
 }
 
-/* Gold accent stripe card — for CTA or highlighted sections */
+/* Gold accent stripe card — premium 特例，1px 金髮絲（金面積 < 3%） */
 function CardGold({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="card"
       className={cn(
-        "relative flex flex-col gap-4 overflow-hidden rounded-lg bg-white text-sm",
-        "border border-[#D8E1EA] shadow-[0_1px_2px_rgba(10,35,66,0.04)]",
-        "before:absolute before:left-0 before:top-0 before:h-full before:w-0.5 before:bg-[#C9A227]",
-        "dark:bg-[#0F2744] dark:border-[#C9A227]/20",
+        "relative flex flex-col gap-4 overflow-hidden rounded-lg bg-card text-card-foreground text-sm",
+        "border border-hairline shadow-none",
+        "before:absolute before:left-0 before:top-0 before:h-full before:w-px before:bg-[#C9A227]",
         "py-4",
         className
       )}

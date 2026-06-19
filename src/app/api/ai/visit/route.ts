@@ -1,6 +1,87 @@
 import OpenAI from "openai";
+import { z } from "zod";
+import { AiModule } from "@/generated/prisma/enums";
+import { canUseAiModule } from "@/lib/auth/policies";
+import { authErrorResponse, requireCurrentMember } from "@/lib/auth/current-workspace";
+import type { AppSession } from "@/lib/auth/session";
+import { getClientForMember } from "@/lib/clients/client-repository";
+import {
+  normalizeAiError,
+  persistAiGenerationFailure,
+  persistAiGenerationSuccess,
+} from "@/lib/ai/generation-usage-repository";
 
 const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const MODEL = "gpt-4o-mini";
+
+const visitPurposeSchema = z.enum(["FIRST_VISIT", "ADD_ON", "RENEWAL", "CARE", "REFERRAL"]);
+
+const visitRequestSchema = z
+  .object({
+    purpose: visitPurposeSchema,
+    clientId: z.string().trim().min(1).max(120).optional(),
+    client: z
+      .object({
+        id: z.string().trim().min(1).max(120),
+      })
+      .passthrough()
+      .optional(),
+  })
+  .transform((input) => ({
+    purpose: input.purpose,
+    clientId: input.clientId ?? input.client?.id,
+  }))
+  .refine((input) => Boolean(input.clientId), {
+    message: "clientId is required.",
+    path: ["clientId"],
+  });
+
+const visitOutputSchema = z.object({
+  objectives: z
+    .array(
+      z.object({
+        id: z.string(),
+        description: z.string(),
+        successCriteria: z.string(),
+      }),
+    )
+    .default([]),
+  spinQuestions: z
+    .array(
+      z.object({
+        id: z.string(),
+        type: z.enum(["S", "P", "I", "N"]),
+        question: z.string(),
+      }),
+    )
+    .default([]),
+  objections: z
+    .array(
+      z.object({
+        id: z.string(),
+        expectedObjection: z.string(),
+        suggestedResponse: z.string(),
+      }),
+    )
+    .default([]),
+  timeline: z
+    .array(
+      z.object({
+        label: z.string(),
+        duration: z.coerce.number(),
+      }),
+    )
+    .default([]),
+  materials: z
+    .array(
+      z.object({
+        id: z.string(),
+        name: z.string(),
+        checked: z.boolean().catch(false),
+      }),
+    )
+    .default([]),
+});
 
 const SYSTEM_PROMPT = `你是一位專業的保險銷售顧問與 AI 助手。
 請根據提供的「客戶資訊」與「拜訪目的」，生成一份詳細的「訪前規劃」。
@@ -33,23 +114,63 @@ const SYSTEM_PROMPT = `你是一位專業的保險銷售顧問與 AI 助手。
 6. 不要輸出任何 JSON 以外的文字。`;
 
 export async function POST(req: Request) {
+  const startedAt = Date.now();
+  let session: AppSession | undefined;
+  let scopedClientId: string | undefined;
+  let providerAttempted = false;
+
   try {
-    const { purpose, client: clientData } = await req.json();
+    session = await requireCurrentMember();
+    const parsedBody = visitRequestSchema.safeParse(await req.json().catch(() => null));
 
-    const userPrompt = `
-客戶資訊：
-- 姓名：${clientData.name}
-- 職業：${clientData.occupation}
-- 年收入：${clientData.annualIncome}
-- 家庭成員：${JSON.stringify(clientData.family)}
-- 現有保單：${JSON.stringify(clientData.existingPolicies)}
-- AI 標籤（需求缺口）：${clientData.aiTags.join(", ")}
+    if (!parsedBody.success) {
+      return Response.json(
+        {
+          error: "INVALID_VISIT_INPUT",
+          issues: parsedBody.error.flatten().fieldErrors,
+        },
+        { status: 400 },
+      );
+    }
 
-拜訪目的：${purpose}
-`;
+    const body = parsedBody.data;
+    scopedClientId = body.clientId;
+    const quota = canUseAiModule(session, AiModule.VISIT);
 
+    if (!quota.allowed) {
+      return Response.json(
+        {
+          error: quota.code,
+          remaining: quota.remaining,
+          message: "AI 使用額度已用完，請聯絡管理員或升級方案。",
+        },
+        { status: 429 },
+      );
+    }
+
+    const clientData = await getClientForMember(session, body.clientId ?? "");
+
+    if (!clientData) {
+      return Response.json({ error: "CLIENT_NOT_FOUND" }, { status: 404 });
+    }
+
+    if (!process.env.OPENAI_API_KEY) {
+      await persistAiGenerationFailure({
+        session,
+        module: AiModule.VISIT,
+        model: MODEL,
+        clientId: scopedClientId,
+        latencyMs: Date.now() - startedAt,
+        error: "OPENAI_API_KEY is not configured",
+      });
+
+      return Response.json({ error: "OPENAI_API_KEY is not configured" }, { status: 500 });
+    }
+
+    const userPrompt = buildVisitPrompt(body.purpose, clientData);
+    providerAttempted = true;
     const response = await client.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: MODEL,
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: userPrompt },
@@ -58,20 +179,114 @@ export async function POST(req: Request) {
       temperature: 0.7,
     });
 
-    const content = response.choices[0].message.content;
-    
+    const content = response.choices[0]?.message.content;
+
     if (!content) {
-      throw new Error("No content received from AI");
+      await persistAiGenerationFailure({
+        session,
+        module: AiModule.VISIT,
+        model: MODEL,
+        clientId: scopedClientId,
+        requestId: response.id,
+        promptTokens: response.usage?.prompt_tokens,
+        completionTokens: response.usage?.completion_tokens,
+        totalTokens: response.usage?.total_tokens,
+        latencyMs: Date.now() - startedAt,
+        error: "No content received from AI",
+      });
+
+      return Response.json({ error: "VISIT_AI_EMPTY_RESPONSE" }, { status: 502 });
     }
 
-    return new Response(content, {
-      headers: { "Content-Type": "application/json; charset=utf-8" },
+    let rawOutput: unknown;
+
+    try {
+      rawOutput = JSON.parse(content);
+    } catch {
+      await persistAiGenerationFailure({
+        session,
+        module: AiModule.VISIT,
+        model: MODEL,
+        clientId: scopedClientId,
+        requestId: response.id,
+        promptTokens: response.usage?.prompt_tokens,
+        completionTokens: response.usage?.completion_tokens,
+        totalTokens: response.usage?.total_tokens,
+        latencyMs: Date.now() - startedAt,
+        error: "AI output was not valid JSON",
+      });
+
+      return Response.json({ error: "VISIT_AI_INVALID_JSON" }, { status: 502 });
+    }
+
+    const parsedOutput = visitOutputSchema.safeParse(rawOutput);
+
+    if (!parsedOutput.success) {
+      await persistAiGenerationFailure({
+        session,
+        module: AiModule.VISIT,
+        model: MODEL,
+        clientId: scopedClientId,
+        requestId: response.id,
+        promptTokens: response.usage?.prompt_tokens,
+        completionTokens: response.usage?.completion_tokens,
+        totalTokens: response.usage?.total_tokens,
+        latencyMs: Date.now() - startedAt,
+        error: "AI output did not match the expected schema",
+      });
+
+      return Response.json({ error: "VISIT_AI_SCHEMA_MISMATCH" }, { status: 502 });
+    }
+
+    await persistAiGenerationSuccess({
+      session,
+      module: AiModule.VISIT,
+      clientId: scopedClientId,
+      usage: {
+        model: MODEL,
+        requestId: response.id,
+        promptTokens: response.usage?.prompt_tokens,
+        completionTokens: response.usage?.completion_tokens,
+        totalTokens: response.usage?.total_tokens,
+        latencyMs: Date.now() - startedAt,
+      },
     });
-  } catch (error: any) {
-    console.error("AI Generation failed:", error);
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
-    });
+
+    return Response.json(parsedOutput.data);
+  } catch (error) {
+    if (!session) {
+      return authErrorResponse(error);
+    }
+
+    if (providerAttempted) {
+      await persistAiGenerationFailure({
+        session,
+        module: AiModule.VISIT,
+        model: MODEL,
+        clientId: scopedClientId,
+        latencyMs: Date.now() - startedAt,
+        error: normalizeAiError(error, "Visit generation failed"),
+      });
+    }
+
+    return Response.json({ error: "VISIT_AI_GENERATION_FAILED" }, { status: 500 });
   }
+}
+
+function buildVisitPrompt(purpose: z.infer<typeof visitPurposeSchema>, clientData: Awaited<ReturnType<typeof getClientForMember>>) {
+  if (!clientData) {
+    return "";
+  }
+
+  return `
+客戶資訊：
+- 姓名：${clientData.name}
+- 職業：${clientData.occupation || "未提供"}
+- 年收入：${clientData.annualIncome}
+- 家庭成員：${JSON.stringify(clientData.family)}
+- 現有保單：${JSON.stringify(clientData.existingPolicies)}
+- AI 標籤（需求缺口）：${clientData.aiTags.join(", ") || "未提供"}
+
+拜訪目的：${purpose}
+`;
 }

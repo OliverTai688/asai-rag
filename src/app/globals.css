@@ -12,6 +12,7 @@
   --font-mono: var(--font-mono);
   --font-serif: var(--font-serif);
   --font-heading: var(--font-sans);
+  --font-display: var(--font-display);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -61,47 +62,62 @@
   --color-gold-mid: #C9A227;
   --color-gold-bright: #D4A017;
   --color-gold-pale: #FDF3D0;
+
+  /* ElevenLabs-grade neutral paper/ink layer (docs 018 §3.1).
+     paper/ink/hairline are theme-aware (via runtime vars → flip in .dark);
+     inverted-* are ABSOLUTE black/white for fixed .section-inverted blocks. */
+  --color-paper: var(--paper);
+  --color-paper-2: var(--paper-2);
+  --color-surface: var(--surface);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-hairline: var(--hairline);
+  --color-hairline-2: var(--hairline-2);
+  --color-inverted-bg: #0A0A0A;
+  --color-inverted-fg: #FAFAF9;
 }
 
-/* ── 誠問 AI Design System — Blue × White × Gold ── */
+/* ── 誠問 AI Design System — Paper × Ink × Navy (ElevenLabs-grade) ── */
 :root {
-  /* Semantic tokens mapped to 誠問 AI palette */
-  --background: #F8FAFC;
-  --foreground: #0A1929;
+  /* Semantic tokens — neutral paper/ink base, navy as accent anchor (docs 018 §3.2) */
+  --background: #FAFAF9;
+  --foreground: #0A0A0A;
   --card: #FFFFFF;
-  --card-foreground: #0A1929;
+  --card-foreground: #0A0A0A;
   --popover: #FFFFFF;
-  --popover-foreground: #0A1929;
+  --popover-foreground: #0A0A0A;
   --primary: #1A3A6B;
   --primary-foreground: #FFFFFF;
-  --secondary: #D6E8F8;
+  --secondary: #F4F4F2;
   --secondary-foreground: #0A2342;
-  --muted: #EBF3FB;
-  --muted-foreground: #546E7A;
-  --accent: #E8F0FE;
-  --accent-foreground: #1565C0;
+  --muted: #F4F4F2;
+  --muted-foreground: #737373;
+  --accent: #F4F4F2;
+  --accent-foreground: #1A3A6B;
   --destructive: #B71C1C;
-  --border: #D8E1EA;
-  --input: #D8E1EA;
-  --ring: #1565C0;
+  --border: #E7E5E4;
+  --input: #E7E5E4;
+  --ring: #1A3A6B;
 
-  --chart-1: #1565C0;
-  --chart-2: #1976D2;
-  --chart-3: #2196F3;
-  --chart-4: #C9A227;
-  --chart-5: #0A2342;
+  /* Chart palette — navy value scale + one restrained premium accent (docs 019 B4-02) */
+  --chart-1: #0A2342;
+  --chart-2: #1A3A6B;
+  --chart-3: #3D5F89;
+  --chart-4: #7890AA;
+  --chart-5: #C8A45D;
 
   --radius: 0.625rem;
 
-  /* Sidebar */
+  /* Sidebar — neutral chrome, navy active anchor */
   --sidebar: #FFFFFF;
-  --sidebar-foreground: #0A1929;
+  --sidebar-foreground: #0A0A0A;
   --sidebar-primary: #1A3A6B;
   --sidebar-primary-foreground: #FFFFFF;
-  --sidebar-accent: #EBF3FB;
-  --sidebar-accent-foreground: #1565C0;
-  --sidebar-border: #CFD8DC;
-  --sidebar-ring: #1565C0;
+  --sidebar-accent: #F4F4F2;
+  --sidebar-accent-foreground: #1A3A6B;
+  --sidebar-border: #E7E5E4;
+  --sidebar-ring: #1A3A6B;
 
   /* Brand colors */
   --color-navy: #0A2342;
@@ -129,6 +145,18 @@
   --color-border-blue: #90CAF9;
   --color-border-gold: #C9A227;
 
+  /* Neutral paper/ink layer (docs 018 §3.1) — light values; .dark overrides below */
+  --paper: #FAFAF9;
+  --paper-2: #F4F4F2;
+  --surface: #FFFFFF;
+  --ink: #0A0A0A;
+  --ink-2: #404040;
+  --ink-3: #737373;
+  --hairline: #E7E5E4;
+  --hairline-2: #D6D3D1;
+  --inverted-bg: #0A0A0A;
+  --inverted-fg: #FAFAF9;
+
   /* Easing functions */
   --ease-out: cubic-bezier(0, 0, 0.2, 1);
   --ease-in: cubic-bezier(0.4, 0, 1, 1);
@@ -137,32 +165,51 @@
 }
 
 .dark {
-  --background: #0A1929;
-  --foreground: #E8F0FE;
-  --card: #0F2744;
-  --card-foreground: #E8F0FE;
-  --popover: #0F2744;
-  --popover-foreground: #E8F0FE;
-  --primary: #2196F3;
-  --primary-foreground: #0A1929;
-  --secondary: #1A3A6B;
-  --secondary-foreground: #D6E8F8;
-  --muted: #1A3A6B;
-  --muted-foreground: #90CAF9;
-  --accent: #1565C0;
-  --accent-foreground: #E8F0FE;
+  /* Neutral near-black dark, consistent with light paper/ink direction (docs 018) */
+  --background: #0A0A0A;
+  --foreground: #FAFAF9;
+  --card: #161615;
+  --card-foreground: #FAFAF9;
+  --popover: #161615;
+  --popover-foreground: #FAFAF9;
+  --primary: #6B9BD1;
+  --primary-foreground: #0A0A0A;
+  --secondary: #1C1C1B;
+  --secondary-foreground: #FAFAF9;
+  --muted: #1C1C1B;
+  --muted-foreground: #A3A3A3;
+  --accent: #1C1C1B;
+  --accent-foreground: #FAFAF9;
   --destructive: #EF5350;
-  --border: rgba(144, 202, 249, 0.15);
-  --input: rgba(144, 202, 249, 0.2);
-  --ring: #2196F3;
-  --sidebar: #0F2744;
-  --sidebar-foreground: #E8F0FE;
-  --sidebar-primary: #2196F3;
-  --sidebar-primary-foreground: #0A1929;
-  --sidebar-accent: #1A3A6B;
-  --sidebar-accent-foreground: #90CAF9;
-  --sidebar-border: rgba(144, 202, 249, 0.15);
-  --sidebar-ring: #2196F3;
+  --border: rgba(250, 250, 249, 0.12);
+  --input: rgba(250, 250, 249, 0.16);
+  --ring: #6B9BD1;
+
+  /* Chart palette — same hierarchy tuned for near-black surfaces */
+  --chart-1: #D6E3F2;
+  --chart-2: #AFC4DC;
+  --chart-3: #7F9FC2;
+  --chart-4: #4F6F94;
+  --chart-5: #D6B86A;
+
+  /* Neutral layer overrides for dark — paper/ink invert, hairline goes translucent */
+  --paper: #0A0A0A;
+  --paper-2: #1C1C1B;
+  --surface: #161615;
+  --ink: #FAFAF9;
+  --ink-2: #D6D3D1;
+  --ink-3: #A3A3A3;
+  --hairline: rgba(250, 250, 249, 0.12);
+  --hairline-2: rgba(250, 250, 249, 0.18);
+
+  --sidebar: #0F0F0E;
+  --sidebar-foreground: #FAFAF9;
+  --sidebar-primary: #6B9BD1;
+  --sidebar-primary-foreground: #0A0A0A;
+  --sidebar-accent: #1C1C1B;
+  --sidebar-accent-foreground: #FAFAF9;
+  --sidebar-border: rgba(250, 250, 249, 0.12);
+  --sidebar-ring: #6B9BD1;
 }
 
 /* ── Keyframe Animations ── */
@@ -172,12 +219,12 @@
 }
 
 @keyframes page-enter {
-  from { opacity: 0; transform: translateY(16px); }
+  from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes card-stagger {
-  from { opacity: 0; transform: translateY(12px); }
+  from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 
@@ -198,13 +245,115 @@
 
 @keyframes spin-badge-in {
   0%   { opacity: 0; transform: scale(0.8); }
-  60%  { transform: scale(1.08); }
+  60%  { transform: scale(1.02); }
   100% { opacity: 1; transform: scale(1); }
+}
+
+/* ── Editorial typography scale (docs 018 §3.3) ── */
+.text-display {
+  font-family: var(--font-display), var(--font-sans);
+  font-size: clamp(48px, 6vw, 88px);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+}
+.text-h1 {
+  font-family: var(--font-display), var(--font-sans);
+  font-size: clamp(32px, 4vw, 56px);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+.text-h2 {
+  font-family: var(--font-display), var(--font-sans);
+  font-size: clamp(24px, 2.4vw, 32px);
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  line-height: 1.2;
+}
+.text-eyebrow {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--color-ink-3);
+}
+/* Tabular figures for prices, scores, metrics */
+.tabular {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+/* ── Inverted (black) focus section (docs 018 §3.4, §3.6) ── */
+.section-inverted {
+  background: var(--color-inverted-bg);
+  color: var(--color-inverted-fg);
+}
+.section-inverted .text-eyebrow,
+.section-inverted .text-muted-foreground {
+  color: rgba(250, 250, 249, 0.6);
+}
+.section-inverted [data-slot="card"],
+.section-inverted .card-hairline {
+  background: rgba(250, 250, 249, 0.04);
+  border-color: rgba(250, 250, 249, 0.14);
+  color: var(--color-inverted-fg);
+}
+.section-inverted hr,
+.section-inverted .hairline {
+  border-color: rgba(250, 250, 249, 0.14);
+}
+
+/* ── Modern depth layer (hero backdrops, product mock) — docs 018 §1.9 彩色交給 hero ── */
+/* Faint grid backdrop; ink-based so it flips in dark mode */
+.bg-grid {
+  background-image:
+    linear-gradient(to right, color-mix(in srgb, var(--ink) 5%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in srgb, var(--ink) 5%, transparent) 1px, transparent 1px);
+  background-size: 56px 56px;
+}
+/* Dotted backdrop alternative */
+.bg-dots {
+  background-image: radial-gradient(color-mix(in srgb, var(--ink) 9%, transparent) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+/* Fade a backdrop out toward edges so it never hits a hard line */
+.mask-fade-b { -webkit-mask-image: linear-gradient(to bottom, #000 0%, transparent 92%); mask-image: linear-gradient(to bottom, #000 0%, transparent 92%); }
+.mask-radial { -webkit-mask-image: radial-gradient(70% 70% at 50% 30%, #000 0%, transparent 75%); mask-image: radial-gradient(70% 70% at 50% 30%, #000 0%, transparent 75%); }
+
+/* Brand aurora glow for hero — navy belongs to the hero visual, not the chrome */
+.glow-hero {
+  background:
+    radial-gradient(48% 42% at 50% 0%, color-mix(in srgb, #1A3A6B 22%, transparent), transparent 70%),
+    radial-gradient(38% 34% at 82% 8%, color-mix(in srgb, #2196F3 14%, transparent), transparent 70%),
+    radial-gradient(36% 32% at 16% 12%, color-mix(in srgb, #C9A227 9%, transparent), transparent 72%);
+}
+.glow-inverted {
+  background:
+    radial-gradient(45% 55% at 50% 0%, color-mix(in srgb, #2196F3 26%, transparent), transparent 70%),
+    radial-gradient(40% 40% at 80% 30%, color-mix(in srgb, #C9A227 12%, transparent), transparent 72%);
+}
+
+/* Floating elevation for hero product imagery (depth allowed on hero visuals) */
+.shadow-float {
+  box-shadow:
+    0 1px 0 0 color-mix(in srgb, var(--ink) 6%, transparent) inset,
+    0 24px 60px -24px color-mix(in srgb, var(--ink) 30%, transparent),
+    0 8px 24px -16px color-mix(in srgb, var(--ink) 24%, transparent);
 }
 
 /* ── Utility Classes ── */
 .animate-page-enter {
-  animation: page-enter 350ms var(--ease-out) both;
+  animation: page-enter 320ms var(--ease-out) both;
+}
+
+/* Standard editorial entrance — 8px rise, ease-out (docs 018 §3.6) */
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-up {
+  animation: fade-up 320ms var(--ease-out) both;
 }
 
 .animate-card-stagger {
@@ -298,7 +447,7 @@
 
 /* Insight Blocks Styling */
 .insight-block {
-  @apply my-6 rounded-[24px] border p-6 relative overflow-hidden transition-all hover:shadow-lg;
+  @apply my-6 rounded-[24px] border p-6 relative overflow-hidden transition-[border-color,background-color,transform] duration-150 hover:-translate-y-px;
 }
 
 .insight-block-header {
@@ -325,12 +474,24 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-delay: 0ms !important;
+    transition-duration: 1ms !important;
+  }
+
   .animate-page-enter,
   .animate-card-stagger,
   .animate-voice-pulse,
+  .animate-fade-up,
   .gold-shimmer-text {
     animation: none;
     opacity: 1;
+    transform: none;
   }
 }
 
@@ -344,6 +505,10 @@
   }
   html {
     @apply font-sans;
+  }
+  :where(a, button, input, textarea, select, [role="button"], [tabindex]:not([tabindex="-1"])):focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
   }
 }
 
@@ -383,7 +548,11 @@
 .driver-popover.asai-tour-popover .driver-popover-progress-text {
   font-size: 11px !important;
   font-weight: 700 !important;
-  color: #78909c !important;
+  color: #546e7a !important;
+}
+
+.driver-popover.asai-tour-popover .driver-popover-footer .driver-popover-progress-text {
+  color: #546e7a !important;
 }
 
 .driver-popover.asai-tour-popover .driver-popover-next-btn,
@@ -420,8 +589,12 @@
 }
 
 .driver-popover.asai-tour-popover .driver-popover-close-btn {
-  color: #78909c !important;
+  color: #546e7a !important;
   font-size: 18px !important;
+}
+
+.driver-popover.asai-tour-popover button.driver-popover-close-btn {
+  color: #546e7a !important;
 }
 
 .driver-popover.asai-tour-popover .driver-popover-arrow-side-left.driver-popover-arrow {

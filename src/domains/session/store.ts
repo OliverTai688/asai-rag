@@ -1,7 +1,6 @@
 "use client";
 
 import { create } from "zustand";
-import { persist, createJSONStorage } from "zustand/middleware";
 
 export type UserRole = "OWNER" | "MANAGER" | "AGENT";
 
@@ -32,21 +31,13 @@ const DEFAULT_USER: User = {
   region: "台北一區",
 };
 
-export const useSessionStore = create<SessionState>()(
-  persist(
-    (set) => ({
-      user: DEFAULT_USER,
-      isAuthenticated: true,
+export const useSessionStore = create<SessionState>()((set) => ({
+  user: DEFAULT_USER,
+  isAuthenticated: true,
 
-      login: (user) => set({ user, isAuthenticated: true }),
-      logout: () => set({ user: null, isAuthenticated: false }),
-      switchRole: (role) => set((state) => ({
-        user: state.user ? { ...state.user, role } : null
-      })),
-    }),
-    {
-      name: "sincerely:v1:session",
-      storage: createJSONStorage(() => localStorage),
-    }
-  )
-);
+  login: (user) => set({ user, isAuthenticated: true }),
+  logout: () => set({ user: null, isAuthenticated: false }),
+  switchRole: (role) => set((state) => ({
+    user: state.user ? { ...state.user, role } : null,
+  })),
+}));

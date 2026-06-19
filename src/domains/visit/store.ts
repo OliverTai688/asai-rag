@@ -1,9 +1,8 @@
 "use client";
 
 import { create } from "zustand";
-import { persist, createJSONStorage } from "zustand/middleware";
-import { VisitPlan, VisitPurpose, VisitPlanStatus } from "./types";
-import { SEED_VISIT_PLANS } from "./mocks";
+import { VisitPlan, VisitPurpose } from "./types";
+import { demoSeedVisitPlans } from "@/domains/demo/seed-fixtures";
 
 interface VisitState {
   plans: VisitPlan[];
@@ -18,51 +17,43 @@ interface VisitState {
   clearAll: () => void;
 }
 
-export const useVisitStore = create<VisitState>()(
-  persist(
-    (set, get) => ({
-      plans: SEED_VISIT_PLANS,
+export const useVisitStore = create<VisitState>()((set, get) => ({
+  plans: demoSeedVisitPlans,
 
-      addPlan: (plan) => set((state) => ({ 
-        plans: [plan, ...state.plans] 
-      })),
+  addPlan: (plan) => set((state) => ({
+    plans: [plan, ...state.plans],
+  })),
 
-      updatePlan: (id, updates) => set((state) => ({
-        plans: state.plans.map((p) => p.id === id ? { ...p, ...updates, updatedAt: new Date().toISOString() } : p)
-      })),
+  updatePlan: (id, updates) => set((state) => ({
+    plans: state.plans.map((p) => p.id === id ? { ...p, ...updates, updatedAt: new Date().toISOString() } : p),
+  })),
 
-      deletePlan: (id) => set((state) => ({
-        plans: state.plans.filter((p) => p.id !== id)
-      })),
+  deletePlan: (id) => set((state) => ({
+    plans: state.plans.filter((p) => p.id !== id),
+  })),
 
-      getPlanById: (id) => get().plans.find((p) => p.id === id),
+  getPlanById: (id) => get().plans.find((p) => p.id === id),
 
-      getPlansByClientId: (clientId) => get().plans.filter((p) => p.clientId === clientId),
+  getPlansByClientId: (clientId) => get().plans.filter((p) => p.clientId === clientId),
 
-      createEmptyPlan: (clientId, purpose, visitTime) => {
-        const newId = `plan-${Date.now()}`;
-        const newPlan: VisitPlan = {
-          id: newId,
-          clientId,
-          purpose,
-          status: "DRAFT",
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          visitTime: visitTime,
-          objectives: [],
-          spinQuestions: [],
-          objections: [],
-          materials: [],
-        };
-        set((state) => ({ plans: [newPlan, ...state.plans] }));
-        return newId;
-      },
+  createEmptyPlan: (clientId, purpose, visitTime) => {
+    const newId = `plan-${Date.now()}`;
+    const newPlan: VisitPlan = {
+      id: newId,
+      clientId,
+      purpose,
+      status: "DRAFT",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      visitTime: visitTime,
+      objectives: [],
+      spinQuestions: [],
+      objections: [],
+      materials: [],
+    };
+    set((state) => ({ plans: [newPlan, ...state.plans] }));
+    return newId;
+  },
 
-      clearAll: () => set({ plans: [] })
-    }),
-    {
-      name: "sincerely:v1:visits",
-      storage: createJSONStorage(() => localStorage),
-    }
-  )
-);
+  clearAll: () => set({ plans: [] }),
+}));

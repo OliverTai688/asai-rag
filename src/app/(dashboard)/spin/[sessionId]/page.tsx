@@ -19,7 +19,6 @@ import {
   Bot,
   ArrowRight,
   RefreshCcw,
-  Settings2,
   CheckCircle2,
   FileText,
   Swords,
@@ -42,7 +41,7 @@ import {
 } from "@/components/ui/sheet";
 import { Markdown } from "@/components/ui/markdown";
 import Link from "next/link";
-import { useRouter, useParams } from "next/navigation";
+import { useRouter, useParams, useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
@@ -74,9 +73,11 @@ const SPIN_TYPE_LABEL: Record<SpinSuggestion["spinType"], string> = {
 
 export default function SpinConversationPage() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const sessionId = params.sessionId as string;
   const router = useRouter();
   const scrollRef = useRef<HTMLDivElement>(null);
+  const messageIdCounterRef = useRef(0);
 
   const { getSessionById, getMessages, addMessage, updateSession } = useSpinStore();
   const session = getSessionById(sessionId);
@@ -102,30 +103,25 @@ export default function SpinConversationPage() {
 
   // 已儲存的報告 ID（生成大綱時同步儲存）
   const [savedReportId, setSavedReportId] = useState<string | null>(null);
-  const [quickstartMode, setQuickstartMode] = useState<boolean | null>(null);
-  const isQuickstart = quickstartMode === true;
+  const isQuickstart = searchParams.get("demo") === "quickstart";
+
+  const createMessageId = (prefix: string) => {
+    messageIdCounterRef.current += 1;
+    return `${prefix}_${sessionId}_${messageIdCounterRef.current}`;
+  };
 
   useEffect(() => {
-    setQuickstartMode(new URLSearchParams(window.location.search).get("demo") === "quickstart");
-  }, []);
-
-  useEffect(() => {
-    if (quickstartMode === true && !session) {
+    if (isQuickstart && !session) {
       router.replace(`/spin?clientId=${demoQuickstart.clientId}&autoCreate=true&demo=quickstart`);
     }
-  }, [quickstartMode, router, session]);
-
-  // 同步 Zustand 訊息
-  useEffect(() => {
-    setMessages(initialMessages);
-  }, [initialMessages]);
+  }, [isQuickstart, router, session]);
 
   // AI 主動開場：新 session 沒有訊息時自動問候
   useEffect(() => {
     if (initialMessages.length > 0 || !session || session.phase === "COMPLETE") return;
 
     let cancelled = false;
-    const greetingId = `greeting_${Date.now()}`;
+    const greetingId = createMessageId("greeting");
 
     (async () => {
       await new Promise(r => setTimeout(r, 400)); // 稍作延遲，讓畫面先渲染
@@ -133,11 +129,10 @@ export default function SpinConversationPage() {
 
       setIsTyping(true);
       try {
-        const clientCtx = spinService.getClientContext(session.clientId);
         const res = await fetch("/api/ai/spin", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ phase: session.phase, mode: session.mode, clientContext: clientCtx, messages: [] }),
+          body: JSON.stringify({ phase: session.phase, mode: session.mode, clientId: session.clientId, messages: [] }),
         });
         if (!res.body || cancelled) return;
 
@@ -149,15 +144,17 @@ export default function SpinConversationPage() {
 
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
-        let fullText = "";
+        const textChunks: string[] = [];
         while (!cancelled) {
           const { done, value } = await reader.read();
           if (done) break;
-          fullText += decoder.decode(value);
+          textChunks.push(decoder.decode(value));
+          const fullText = textChunks.join("");
           setMessages([{ ...greetingMsg, content: spinService.cleanResponse(fullText) }]);
         }
         if (cancelled) return;
 
+        const fullText = textChunks.join("");
         const finalMsg = { ...greetingMsg, content: spinService.cleanResponse(fullText), isStreaming: false };
         setMessages([finalMsg]);
         addMessage(sessionId, finalMsg);
@@ -180,7 +177,7 @@ export default function SpinConversationPage() {
   if (!session) {
     return (
       <div className="p-20 text-center text-sm font-semibold text-zinc-500">
-        {quickstartMode === true || quickstartMode === null ? "載入 Quickstart SPIN 摘要..." : "對話不存在"}
+        {isQuickstart ? "載入 Quickstart AI 顧問陪談..." : "對話不存在"}
       </div>
     );
   }
@@ -189,7 +186,7 @@ export default function SpinConversationPage() {
     if (!input.trim() || isTyping) return;
 
     const userMsg: SpinMessage = {
-      id: Date.now().toString(),
+      id: createMessageId("user"),
       sessionId,
       role: "user",
       type: "CHAT",
@@ -207,13 +204,13 @@ export default function SpinConversationPage() {
     setIsTyping(true);
 
     try {
-      const clientCtx = spinService.getClientContext(session.clientId);
       const res = await fetch("/api/ai/spin", {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           phase: session.phase,
           mode: session.mode,
-          clientContext: clientCtx,
+          clientId: session.clientId,
           messages: [...messages, userMsg],
         }),
       });
@@ -224,7 +221,7 @@ export default function SpinConversationPage() {
       const decoder = new TextDecoder();
 
       const assistantMsg: SpinMessage = {
-        id: (Date.now() + 1).toString(),
+        id: createMessageId("assistant"),
         sessionId,
         role: "assistant",
         type: "CHAT",
@@ -236,18 +233,20 @@ export default function SpinConversationPage() {
 
       setMessages(prev => [...prev, assistantMsg]);
 
-      let fullText = "";
+      const textChunks: string[] = [];
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
         const chunk = decoder.decode(value);
-        fullText += chunk;
+        textChunks.push(chunk);
+        const fullText = textChunks.join("");
         setMessages(prev => {
           const last = prev[prev.length - 1];
           return [...prev.slice(0, -1), { ...last, content: spinService.cleanResponse(fullText) }];
         });
       }
 
+      const fullText = textChunks.join("");
       // 解析結構化數據
       const structuredData = spinService.parseStructuredData(fullText);
       structuredData.forEach(item => {
@@ -296,7 +295,7 @@ export default function SpinConversationPage() {
           body: JSON.stringify({
             phase: session.phase,
             mode: session.mode,
-            clientContext: clientCtx,
+            clientId: session.clientId,
             lastUserMessage: currentInput,
           }),
         })
@@ -423,10 +422,17 @@ export default function SpinConversationPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-4">
-          <Link href="/spin" className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full transition-colors">
+          <Link
+            href="/spin"
+            aria-label="回 AI 顧問陪談"
+            className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full transition-colors"
+          >
             <ChevronLeft className="w-5 h-5 text-zinc-400" />
           </Link>
           <div>
+            <p className="mb-1 text-[10px] font-black uppercase tracking-[0.14em] text-zinc-400">
+              AI 顧問陪談
+            </p>
             <div className="flex items-center gap-2">
               <h2 className="text-xl font-bold">{session.clientName}</h2>
               <Badge variant="outline" className="bg-[#EBF3FB] dark:bg-[#1A3A6B]/20 text-[#1565C0] border-none font-bold">
@@ -786,7 +792,7 @@ export default function SpinConversationPage() {
                 className="rounded-2xl font-bold gap-2 px-4"
                 onClick={() => router.push(`/theater?fromSpin=${sessionId}&clientId=${session.clientId}`)}
               >
-                <Swords className="w-4 h-4" /> 劇場演練
+                <Swords className="w-4 h-4" /> AI 劇場演練
               </Button>
             </div>
           </div>

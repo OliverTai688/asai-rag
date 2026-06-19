@@ -1,8 +1,12 @@
+import { blockMockApiInProduction } from "../../_lib/mock-api-guard";
 import { streamScriptedResponse } from "@/domains/ai-mock/stream";
 import { getMockVisitPlan } from "@/domains/ai-mock/scripts/visit";
 import { VisitPurpose } from "@/domains/visit/types";
 
 export async function POST(req: Request) {
+  const blocked = blockMockApiInProduction();
+  if (blocked) return blocked;
+
   const { purpose, clientId } = await req.json();
   
   // 依客戶 ID + 拜訪目的選擇最適合的 mock 腳本

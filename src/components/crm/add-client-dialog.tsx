@@ -50,16 +50,16 @@ export function AddClientDialog({
       status: "PROSPECT",
     },
   });
+  const isSubmitting = form.formState.isSubmitting;
 
-  function onSubmit(values: FormValues) {
+  async function onSubmit(values: FormValues) {
     try {
-      const newClient = clientService.createClient(values);
+      await clientService.createClientRemote(values);
       toast.success(`成功新增客戶: ${values.name}`);
       onOpenChange(false);
       form.reset();
       router.refresh();
-      // 在 Mock 模式下，refresh 可能不會觸發 RSC 更新，但 Zustand 會更新
-    } catch (error) {
+    } catch {
       toast.error("新增失敗，請檢查資料");
     }
   }
@@ -85,7 +85,11 @@ export function AddClientDialog({
               <label className="text-xs font-bold text-zinc-500 uppercase">狀態</label>
               <Select 
                 defaultValue={form.getValues("status")}
-                onValueChange={(val: any) => form.setValue("status", val)}
+                onValueChange={(value) => {
+                  if (value === "PROSPECT" || value === "ACTIVE" || value === "CLOSED") {
+                    form.setValue("status", value);
+                  }
+                }}
               >
                 <SelectTrigger className="h-11 rounded-xl bg-zinc-50 dark:bg-zinc-800 border-none px-4 text-left">
                   <SelectValue placeholder="選擇狀態" />
@@ -141,18 +145,18 @@ export function AddClientDialog({
               <label className="text-xs font-bold text-zinc-500 uppercase">年收入 (TWD)</label>
               <Input 
                 type="number" 
-                {...form.register("annualIncome")} 
+                {...form.register("annualIncome", { valueAsNumber: true })} 
                 className="h-11 rounded-xl bg-zinc-50 dark:bg-zinc-800 border-none px-4" 
               />
             </div>
           </div>
 
           <DialogFooter className="pt-6">
-            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)} className="rounded-full px-6">
+            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)} className="rounded-full px-6" disabled={isSubmitting}>
               取消
             </Button>
-            <Button type="submit" className="rounded-full px-8 bg-[#1A3A6B] hover:bg-[#1565C0] shadow-lg shadow-[#1565C0]/20">
-              確認新增
+            <Button type="submit" className="rounded-full px-8 bg-[#1A3A6B] hover:bg-[#1565C0] shadow-lg shadow-[#1565C0]/20" disabled={isSubmitting}>
+              {isSubmitting ? "新增中..." : "確認新增"}
             </Button>
           </DialogFooter>
         </form>

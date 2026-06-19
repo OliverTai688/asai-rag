@@ -37,7 +37,7 @@ interface AssistantState {
 
 export const useAssistantStore = create<AssistantState>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       conversations: [],
       activeConversationId: null,
       suggestions: [],
@@ -126,6 +126,7 @@ export const useAssistantStore = create<AssistantState>()(
     {
       name: "sincerely:v2:assistant",
       storage: createJSONStorage(() => localStorage),
+      partialize: (state) => ({ isPanelOpen: state.isPanelOpen }),
     }
   )
 );

@@ -51,16 +51,9 @@ export function AddRelationshipDialog({
   const [relation, setRelation] = useState("");
   const [age, setAge] = useState("");
   const [phone, setPhone] = useState("");
-  const [parentMemberId, setParentMemberId] = useState<string>("__root__");
-
-  // Sync parentMemberId whenever dialog opens
-  React.useEffect(() => {
-    if (open) {
-      setParentMemberId(
-        defaultParentMemberId == null ? "__root__" : defaultParentMemberId
-      );
-    }
-  }, [open, defaultParentMemberId]);
+  const [parentMemberId, setParentMemberId] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const selectedParentMemberId = parentMemberId ?? (defaultParentMemberId == null ? "__root__" : defaultParentMemberId);
 
   function handleClose() {
     onOpenChange(false);
@@ -68,10 +61,10 @@ export function AddRelationshipDialog({
     setRelation("");
     setAge("");
     setPhone("");
-    setParentMemberId("__root__");
+    setParentMemberId(null);
   }
 
-  function handleSubmit(e: React.SyntheticEvent) {
+  async function handleSubmit(e: React.SyntheticEvent) {
     e.preventDefault();
 
     if (!name || !relation) {
@@ -80,16 +73,17 @@ export function AddRelationshipDialog({
     }
 
     try {
+      setIsSubmitting(true);
       if (mode === "child") {
-        clientService.addFamilyMember(clientId, {
+        await clientService.createFamilyMemberRemote(clientId, {
           name,
           relation,
           age: age ? parseInt(age) : undefined,
           phone: phone || undefined,
-          parentMemberId: parentMemberId === "__root__" ? undefined : parentMemberId,
+          parentMemberId: selectedParentMemberId === "__root__" ? undefined : selectedParentMemberId,
         });
       } else {
-        // Parent mode: create new member first
+        // Parent mode remains a local graph helper until the relationship re-parent API is added.
         const newMember = clientService.addFamilyMember(clientId, {
           name,
           relation,
@@ -100,10 +94,10 @@ export function AddRelationshipDialog({
 
         if (newMember) {
           // Then update the target node's parentMemberId
-          if (parentMemberId === "__root__") {
+          if (selectedParentMemberId === "__root__") {
             clientService.updateClient(clientId, { parentMemberId: newMember.id });
           } else {
-            clientService.updateFamilyMember(clientId, parentMemberId, { parentMemberId: newMember.id });
+            clientService.updateFamilyMember(clientId, selectedParentMemberId, { parentMemberId: newMember.id });
           }
         }
       }
@@ -114,6 +108,8 @@ export function AddRelationshipDialog({
     } catch (err) {
       console.error(err);
       toast.error("新增失敗，請稍後再試");
+    } finally {
+      setIsSubmitting(false);
     }
   }
 
@@ -151,7 +147,7 @@ export function AddRelationshipDialog({
               <Label className="text-sm font-bold">關係</Label>
               <Select
                 value={relation}
-                onValueChange={(val: any) => setRelation(val ?? "")}
+                onValueChange={(value) => setRelation(value ?? "")}
               >
                 <SelectTrigger className="rounded-xl">
                   <SelectValue placeholder="請選擇" />
@@ -197,8 +193,8 @@ export function AddRelationshipDialog({
               {mode === "child" ? "連結至" : "作為此人的父母"}
             </Label>
             <Select
-              value={parentMemberId}
-              onValueChange={(val: any) => setParentMemberId(val ?? "__root__")}
+              value={selectedParentMemberId}
+              onValueChange={(value) => setParentMemberId(value ?? "__root__")}
             >
               <SelectTrigger className="rounded-xl">
                 <SelectValue placeholder="請選擇連結對象" />
@@ -216,11 +212,11 @@ export function AddRelationshipDialog({
           </div>
 
           <DialogFooter className="pt-4">
-            <Button type="button" variant="ghost" onClick={handleClose} className="rounded-xl">
+            <Button type="button" variant="ghost" onClick={handleClose} className="rounded-xl" disabled={isSubmitting}>
               取消
             </Button>
-            <Button type="submit" className="bg-[#1A3A6B] hover:bg-[#1565C0] rounded-xl px-8">
-              儲存
+            <Button type="submit" className="bg-[#1A3A6B] hover:bg-[#1565C0] rounded-xl px-8" disabled={isSubmitting}>
+              {isSubmitting ? "儲存中..." : "儲存"}
             </Button>
           </DialogFooter>
         </form>

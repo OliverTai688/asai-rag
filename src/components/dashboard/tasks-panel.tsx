@@ -24,52 +24,57 @@ const TASKS: Task[] = [
 export function TasksPanel() {
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between border-b border-[#E6EDF3] bg-white px-5 py-3.5">
+      <CardHeader className="flex flex-row items-center justify-between border-b border-hairline bg-card px-5 py-3.5">
         <div>
           <CardTitle>今日任務</CardTitle>
-          <p className="mt-1 text-[12px] text-[#7B8B9A]">依成交機會與時效排序</p>
+          <p className="mt-1 text-[12px] text-muted-foreground">依成交機會與時效排序</p>
         </div>
-        <ListTodo className="w-4 h-4 text-[#7B8B9A]" strokeWidth={1.5} />
+        <ListTodo className="w-4 h-4 text-muted-foreground" strokeWidth={1.5} />
       </CardHeader>
       <CardContent className="p-0">
-        <div className="divide-y divide-[#E6EDF3]">
+        <div className="divide-y divide-hairline">
           {TASKS.map((task) => (
             <div
               key={task.id}
-              className="group flex items-center gap-4 p-4 transition-colors hover:bg-[#FAFCFF]"
+              className="group flex items-center gap-4 p-4 transition-colors hover:bg-paper-2"
             >
               <div className="flex-1 flex items-center gap-3.5 min-w-0">
                 <Checkbox
-                  className="rounded-full border-[#D8E1EA] shrink-0 data-[state=checked]:bg-[#173762] data-[state=checked]:border-[#173762]"
+                  aria-label={`完成任務：${task.title}`}
+                  className="rounded-full border-hairline shrink-0 data-[state=checked]:bg-ink data-[state=checked]:border-ink"
                 />
                 <div className="space-y-0.5 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <p className="text-[13px] font-semibold text-[#0A2342] leading-none">{task.title}</p>
+                    <p className="text-[13px] font-semibold text-foreground leading-none">{task.title}</p>
                     <Badge
                       variant="outline"
-                      className="text-[10px] py-0 h-4 border-[#D8E1EA] text-[#5F7080] bg-white"
+                      className="text-[10px] py-0 h-4 bg-card"
                     >
                       {task.client}
                     </Badge>
                   </div>
-                  <div className="flex items-center gap-3 text-[11px] text-[#5F7080] font-medium">
+                  <div className="flex items-center gap-3 text-[11px] text-muted-foreground font-medium">
                     <span className="flex items-center gap-1">
                       <Clock className="w-3 h-3" strokeWidth={1.5} /> {task.due}
                     </span>
                     {task.type === "BIRTHDAY" && (
-                      <span className="flex items-center gap-1 text-[#B8860B]">
+                      <span className="flex items-center gap-1 text-foreground">
                         <Gift className="w-3 h-3" strokeWidth={1.5} /> 生日提醒
                       </span>
                     )}
                     {task.priority === "HIGH" && (
-                      <span className="flex items-center gap-1 text-[#E65100]">
+                      <span className="flex items-center gap-1 text-foreground">
                         <TriangleAlert className="w-3 h-3" strokeWidth={1.5} /> 高優先
                       </span>
                     )}
                   </div>
                 </div>
               </div>
-              <button className="opacity-0 group-hover:opacity-100 text-[11px] font-semibold text-[#1565C0] hover:text-[#0A2342] transition-opacity">
+              <button
+                type="button"
+                aria-label={`處理任務：${task.title}`}
+                className="opacity-100 text-[11px] font-semibold text-primary transition-opacity hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
+              >
                 去處理
               </button>
             </div>

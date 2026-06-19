@@ -1,192 +1,195 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { 
-  ChevronLeft, 
-  Save, 
-  Sparkles, 
-  Maximize2, 
-  Minimize2,
-  Target,
+import {
+  ArrowLeft,
+  CheckCircle2,
+  FileText,
   MessageSquare,
-  ShieldAlert,
-  Clock,
-  History
+  Save,
+  Target,
 } from "lucide-react";
-import { useVisitStore } from "@/domains/visit/store";
-import { useClientStore } from "@/domains/client/store";
-import { cn } from "@/lib/utils";
-import { motion, AnimatePresence } from "motion/react";
 import { toast } from "sonner";
 
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
+import { useClientStore } from "@/domains/client/store";
+import { useVisitStore } from "@/domains/visit/store";
+import type { VisitPurpose } from "@/domains/visit/types";
+
+const PURPOSE_LABELS: Record<VisitPurpose, string> = {
+  FIRST_VISIT: "初訪",
+  ADD_ON: "加保",
+  RENEWAL: "續約",
+  CARE: "關懷",
+  REFERRAL: "轉介紹",
+};
+
+function normalizeParam(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] : value;
+}
+
 export default function PostVisitNotesPage() {
-  const { planId } = useParams();
+  const params = useParams();
   const router = useRouter();
-  const { plans, updatePlan } = useVisitStore();
-  const { clients } = useClientStore();
-
-  const plan = plans.find((p) => p.id === planId);
-  const client = clients.find((c) => c.id === plan?.clientId);
-
-  const [notes, setNotes] = useState(plan?.postVisitNotes || "");
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const planId = normalizeParam(params.planId);
+  const updatePlan = useVisitStore((state) => state.updatePlan);
+  const plan = useVisitStore((state) => state.plans.find((p) => p.id === planId));
+  const client = useClientStore((state) => state.clients.find((c) => c.id === plan?.clientId));
+  const [notes, setNotes] = useState(plan?.postVisitNotes ?? "");
   const [isSaving, setIsSaving] = useState(false);
 
-  if (!plan || !client) return <div className="p-20 text-center">載入中...</div>;
+  if (!plan || !client) {
+    return (
+      <div className="mx-auto flex min-h-[50vh] max-w-md flex-col items-center justify-center px-6 text-center">
+        <h1 className="text-lg font-semibold text-ink">找不到拜訪筆記</h1>
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">請先建立或重新開啟一份拜訪準備包。</p>
+        <Button type="button" variant="mono" className="mt-5 rounded-full" onClick={() => router.push("/pre-visit")}>
+          回拜訪規劃
+        </Button>
+      </div>
+    );
+  }
+
+  const checkedMaterials = plan.materials.filter((material) => material.checked);
+  const noteLines = notes
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const summaryLine = noteLines[0] ?? "尚未記錄拜訪摘要";
+  const nextStepLine =
+    noteLines.find((line) => line.includes("下一步") || line.includes("跟進") || line.includes("追蹤")) ??
+    "下一步尚未明確";
 
   const handleSave = () => {
     setIsSaving(true);
     updatePlan(plan.id, { postVisitNotes: notes });
-    setTimeout(() => {
-      setIsSaving(false);
-      toast.success("筆記已儲存");
-    }, 800);
+    setIsSaving(false);
+    toast.success("拜訪筆記已儲存");
   };
 
   return (
-    <div className="fixed inset-0 bg-white z-50 flex overflow-hidden">
-      {/* Sidebar - Reference Panel */}
-      <AnimatePresence>
-        {isSidebarOpen && (
-          <motion.aside 
-            initial={{ width: 0, opacity: 0 }}
-            animate={{ width: 400, opacity: 1 }}
-            exit={{ width: 0, opacity: 0 }}
-            className="border-r border-zinc-100 bg-zinc-50/50 flex-shrink-0 flex flex-col"
+    <div className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8">
+      <header className="grid gap-5 border-b border-hairline pb-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+        <div>
+          <Button
+            type="button"
+            variant="ghost"
+            className="mb-4 h-10 rounded-full px-3 text-muted-foreground"
+            onClick={() => router.push(`/pre-visit/${plan.id}`)}
           >
-            <div className="p-8 border-b border-zinc-100 bg-white">
-              <p className="text-[10px] font-black text-[#1565C0] uppercase tracking-[0.2em] mb-2">拜訪對象</p>
-              <h2 className="text-2xl font-black text-zinc-900">{client.name}</h2>
-              <p className="text-sm text-zinc-500 font-medium mt-1">目的：{plan.purpose}</p>
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-8 space-y-10">
-              {/* Objectives Reference */}
-              <section className="space-y-4">
-                <h4 className="text-[11px] font-black uppercase text-orange-500 tracking-[0.2em] flex items-center gap-2">
-                  <Target className="w-3.5 h-3.5" /> 當初設定目標
-                </h4>
-                <div className="space-y-3">
-                  {plan.objectives.map((obj, i) => (
-                    <div key={obj.id} className="p-4 rounded-2xl bg-white border border-zinc-100 shadow-sm">
-                      <p className="text-xs font-bold text-zinc-700 leading-relaxed">{i+1}. {obj.description}</p>
-                    </div>
-                  ))}
-                </div>
-              </section>
-
-              {/* SPIN Reference */}
-              <section className="space-y-4">
-                <h4 className="text-[11px] font-black uppercase text-[#1565C0] tracking-[0.2em] flex items-center gap-2">
-                  <MessageSquare className="w-3.5 h-3.5" /> 關鍵提問回顧
-                </h4>
-                <div className="space-y-3">
-                  {plan.spinQuestions.slice(0, 3).map((q) => (
-                    <div key={q.id} className="p-4 rounded-2xl bg-white border border-zinc-100 shadow-sm">
-                      <p className="text-xs font-medium text-zinc-500 leading-relaxed italic">「{q.question}」</p>
-                    </div>
-                  ))}
-                </div>
-              </section>
-
-              {/* Materials Reference */}
-              <section className="space-y-4">
-                <h4 className="text-[11px] font-black uppercase text-emerald-500 tracking-[0.2em] flex items-center gap-2">
-                  <History className="w-3.5 h-3.5" /> 已提供的資料
-                </h4>
-                <div className="flex flex-wrap gap-2">
-                  {plan.materials.filter(m => m.checked).map(m => (
-                    <div key={m.id} className="px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 text-[10px] font-bold border border-emerald-100">
-                      {m.name}
-                    </div>
-                  ))}
-                </div>
-              </section>
-            </div>
-          </motion.aside>
-        )}
-      </AnimatePresence>
-
-      {/* Main Editor */}
-      <main className="flex-1 flex flex-col relative bg-white">
-        {/* Top Header */}
-        <header className="h-20 border-b border-zinc-100 flex items-center justify-between px-8 bg-white/80 backdrop-blur-md sticky top-0 z-10">
-          <div className="flex items-center gap-4">
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="rounded-full hover:bg-zinc-100"
-              onClick={() => router.back()}
-            >
-              <ChevronLeft className="w-5 h-5" />
-            </Button>
-            <h1 className="text-lg font-black tracking-tight">拜訪後深度記筆與分析</h1>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className="rounded-xl gap-2 font-bold text-zinc-400"
-              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            >
-              {isSidebarOpen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
-              {isSidebarOpen ? "隱藏參考" : "顯示參考"}
-            </Button>
-            <Button 
-              onClick={handleSave}
-              disabled={isSaving}
-              className="rounded-2xl bg-[#1A3A6B] hover:bg-[#1565C0] h-11 px-6 gap-2 shadow-lg shadow-[#90CAF9]/20"
-            >
-              {isSaving ? <Clock className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-              儲存內容
-            </Button>
-          </div>
-        </header>
-
-        {/* Editor Content */}
-        <div className="flex-1 overflow-y-auto">
-          <div className="max-w-3xl mx-auto py-20 px-8 space-y-10">
-            <div className="space-y-4">
-              <div className="flex items-center gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-[#1565C0]" />
-                <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">沉浸式筆記空間</span>
-              </div>
-              <textarea 
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="在這裡記錄拜訪中觀察到的客戶反應、痛點、或任何下一次可以跟進的線索..."
-                className="w-full min-h-[500px] text-xl font-medium leading-relaxed text-zinc-800 placeholder:text-zinc-200 border-none focus:ring-0 resize-none outline-none"
-                autoFocus
-              />
-            </div>
-
-            {/* AI Assistant Trigger */}
-            <div className="pt-20 border-t border-zinc-100">
-              <div className="p-8 rounded-[2.5rem] bg-gradient-to-br from-[#1A3A6B] to-[#0A2342] text-white space-y-6 shadow-2xl shadow-[#1A3A6B]/20">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-2xl bg-white/10 flex items-center justify-center border border-white/20">
-                    <Sparkles className="w-5 h-5 text-blue-300" />
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-lg">AI 深度洞察分析</h3>
-                    <p className="text-xs text-blue-200/70 font-medium">填寫完畢後，讓 AI 協助您分析下一步對策</p>
-                  </div>
-                </div>
-                
-                <p className="text-sm leading-relaxed text-blue-100/80">
-                  AI 將根據您的筆記，自動識別客戶的隱含需求，並為您推薦下一次拜訪的「金句」與「關鍵資料」。
-                </p>
-
-                <Button className="w-full h-14 rounded-2xl bg-white text-[#1A3A6B] font-black text-base hover:bg-blue-50 transition-all">
-                  開始 AI 洞察分析
-                </Button>
-              </div>
-            </div>
-          </div>
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            回準備包
+          </Button>
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+            {client.name}・{PURPOSE_LABELS[plan.purpose]}
+          </p>
+          <h1 className="mt-3 text-3xl font-semibold tracking-tight text-ink sm:text-4xl">拜訪後筆記</h1>
+          <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
+            先收斂摘要與下一步，再補完整觀察。這頁只保存到目前的拜訪規劃，不改報告或 AI 流程。
+          </p>
         </div>
+        <Button type="button" variant="mono" className="h-10 rounded-full" onClick={handleSave} disabled={isSaving}>
+          <Save className="mr-2 h-4 w-4" />
+          儲存筆記
+        </Button>
+      </header>
+
+      <section className="grid gap-3 lg:grid-cols-2">
+        <Card className="border-hairline shadow-none">
+          <CardContent className="p-5">
+            <div className="flex items-center gap-2">
+              <MessageSquare className="h-4 w-4 text-muted-foreground" />
+              <h2 className="text-sm font-semibold text-ink">拜訪摘要</h2>
+            </div>
+            <p className="mt-3 text-sm leading-6 text-muted-foreground">{summaryLine}</p>
+          </CardContent>
+        </Card>
+        <Card className="border-hairline shadow-none">
+          <CardContent className="p-5">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
+              <h2 className="text-sm font-semibold text-ink">下一步</h2>
+            </div>
+            <p className="mt-3 text-sm leading-6 text-muted-foreground">{nextStepLine}</p>
+          </CardContent>
+        </Card>
+      </section>
+
+      <main className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
+        <Card className="border-hairline shadow-none">
+          <CardContent className="p-5">
+            <div className="flex items-center justify-between gap-3 border-b border-hairline pb-4">
+              <div>
+                <h2 className="text-base font-semibold text-ink">完整紀錄</h2>
+                <p className="mt-1 text-sm text-muted-foreground">建議用三段：摘要、客戶反應、下一步跟進。</p>
+              </div>
+              <span className="text-xs tabular-nums text-muted-foreground">{notes.length} 字</span>
+            </div>
+            <Textarea
+              value={notes}
+              onChange={(event) => setNotes(event.target.value)}
+              placeholder={`摘要：\n客戶反應：\n下一步跟進：`}
+              className="mt-5 min-h-[460px] resize-y rounded-lg border-hairline bg-background text-base leading-7 focus-visible:ring-ring"
+              autoFocus
+            />
+          </CardContent>
+        </Card>
+
+        <aside className="space-y-4">
+          <Card className="border-hairline shadow-none">
+            <CardContent className="p-5">
+              <div className="flex items-center gap-2">
+                <Target className="h-4 w-4 text-muted-foreground" />
+                <h2 className="text-sm font-semibold text-ink">原拜訪目標</h2>
+              </div>
+              <div className="mt-4 space-y-3">
+                {plan.objectives.length ? (
+                  plan.objectives.slice(0, 3).map((objective) => (
+                    <p key={objective.id} className="rounded-lg border border-hairline p-3 text-sm leading-6 text-muted-foreground">
+                      {objective.description}
+                    </p>
+                  ))
+                ) : (
+                  <p className="text-sm leading-6 text-muted-foreground">這份準備包尚未生成目標。</p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-hairline shadow-none">
+            <CardContent className="p-5">
+              <div className="flex items-center gap-2">
+                <FileText className="h-4 w-4 text-muted-foreground" />
+                <h2 className="text-sm font-semibold text-ink">已使用材料</h2>
+              </div>
+              <div className="mt-4 flex flex-wrap gap-2">
+                {checkedMaterials.length ? (
+                  checkedMaterials.map((material) => (
+                    <span key={material.id} className="rounded-full border border-hairline px-3 py-1 text-xs font-medium text-muted-foreground">
+                      {material.name}
+                    </span>
+                  ))
+                ) : (
+                  <p className="text-sm leading-6 text-muted-foreground">尚未標記使用材料。</p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-hairline bg-muted/20 shadow-none">
+            <CardContent className="p-5">
+              <h2 className="text-sm font-semibold text-ink">記錄提示</h2>
+              <ul className="mt-3 space-y-2 text-sm leading-6 text-muted-foreground">
+                <li>客戶是否確認痛點或需求？</li>
+                <li>還缺哪份資料或誰的同意？</li>
+                <li>下一次跟進的日期與目的？</li>
+              </ul>
+            </CardContent>
+          </Card>
+        </aside>
       </main>
     </div>
   );

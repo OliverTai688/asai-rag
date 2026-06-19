@@ -4,30 +4,36 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 const buttonVariants = cva(
-  "group/button inline-flex shrink-0 items-center justify-center rounded-md border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-[background-color,border-color,color,box-shadow] duration-150 outline-none select-none focus-visible:ring-3 focus-visible:ring-[#1565C0]/20 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  "group/button inline-flex shrink-0 items-center justify-center rounded-md border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-[background-color,border-color,color,box-shadow,opacity] duration-150 outline-none select-none focus-visible:ring-3 focus-visible:ring-ring/25 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {
-        /* 主要行動按鈕 — 品牌深藍 */
+        /* 主要 CTA — 單色墨黑（ElevenLabs-grade，主行動呼籲）。pill 由 className 加 rounded-full */
+        mono:
+          "bg-ink text-paper hover:opacity-90 focus-visible:ring-ink/25",
+        /* 單色輪廓 — 髮絲線次要 CTA */
+        monoOutline:
+          "border-hairline-2 bg-transparent text-ink hover:bg-paper-2 focus-visible:border-ink",
+        /* 次要 — 品牌深藍面填（非主 CTA） */
         default:
-          "bg-[#173762] text-white hover:bg-[#0F2B50] hover:shadow-[0_6px_16px_rgba(10,35,66,0.14)] focus-visible:border-[#1565C0]",
-        /* 次要按鈕 — 藍色輪廓 */
+          "bg-[#173762] text-white hover:bg-[#0F2B50] focus-visible:border-ring",
+        /* 輪廓按鈕 — 髮絲線 */
         outline:
-          "border-[#D8E1EA] bg-white text-[#0A2342] hover:bg-[#F7FAFF] hover:border-[#B7C8D8] hover:text-[#0A2342] focus-visible:border-[#1565C0] dark:border-[rgba(144,202,249,0.3)] dark:bg-[#0F2744] dark:text-[#E8F0FE] dark:hover:bg-[#1A3A6B]/40",
+          "border-hairline bg-surface text-foreground hover:bg-paper-2 hover:border-hairline-2 focus-visible:border-ring",
         /* 次要面填 */
         secondary:
-          "bg-[#EEF4FA] text-[#0A2342] hover:bg-[#E4EDF6] focus-visible:border-[#1565C0]",
+          "bg-paper-2 text-foreground hover:bg-secondary focus-visible:border-ring",
         /* 幽靈按鈕 — 第三層級 */
         ghost:
-          "text-[#5F7080] hover:bg-[#F3F7FB] hover:text-[#0A2342] focus-visible:border-[#1565C0] dark:text-[#90CAF9] dark:hover:bg-[#1A3A6B]/30 dark:hover:text-white",
+          "text-muted-foreground hover:bg-paper-2 hover:text-foreground focus-visible:border-ring",
         /* 破壞性操作 */
         destructive:
-          "bg-[#FFEBEE] text-[#B71C1C] hover:bg-red-100 border-[#FFCDD2] focus-visible:ring-red-500/20",
-        /* 金色 CTA 按鈕 — 謹慎使用，最重要行動呼籲 */
+          "bg-[#FFEBEE] text-[#B71C1C] hover:bg-red-100 border-[#FFCDD2] focus-visible:ring-red-500/20 dark:bg-[#B71C1C]/15 dark:text-[#EF9A9A]",
+        /* 金色 CTA — 特例，僅單一最高優先 premium 場景（金面積 < 3%） */
         gold:
           "bg-[#F6E8B8] text-[#0A2342] font-semibold hover:bg-[#EFD889] focus-visible:ring-[#C9A227]/30 border-[#D7BE65]/50",
         /* 文字連結 */
-        link: "text-[#1565C0] underline-offset-4 hover:underline",
+        link: "text-primary underline-offset-4 hover:underline",
       },
       size: {
         default:

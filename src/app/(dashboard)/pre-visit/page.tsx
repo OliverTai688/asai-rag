@@ -1,41 +1,44 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { 
-  Plus, 
-  CalendarDays, 
-  ChevronRight, 
-  Clock, 
-  User, 
-  CheckCircle2,
-  AlertCircle
+import {
+  CalendarDays,
+  ChevronRight,
+  Clock,
+  ListFilter,
+  Plus,
+  Search,
+  User,
 } from "lucide-react";
-import { useVisitStore } from "@/domains/visit/store";
-import { useClientStore } from "@/domains/client/store";
-import { VisitPurpose } from "@/domains/visit/types";
-import { FormattedTime } from "@/components/ui/formatted-time";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { FormattedTime } from "@/components/ui/formatted-time";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
 } from "@/components/ui/select";
-import { QuickstartGuide } from "@/components/demo/quickstart-guide";
-import { demoQuickstart, getQuickstartStep } from "@/domains/demo/quickstart";
 import { SpotlightTour } from "@/components/demo/spotlight-tour";
+import { demoQuickstart, getQuickstartStep } from "@/domains/demo/quickstart";
 import { previsitTourSteps } from "@/domains/demo/tour-steps";
+import { useClientStore } from "@/domains/client/store";
+import { type Client } from "@/domains/client/types";
+import { useVisitStore } from "@/domains/visit/store";
+import { type VisitPlan, type VisitPlanStatus, type VisitPurpose } from "@/domains/visit/types";
 import { cn } from "@/lib/utils";
 
 const PURPOSE_LABELS: Record<VisitPurpose, string> = {
@@ -46,18 +49,44 @@ const PURPOSE_LABELS: Record<VisitPurpose, string> = {
   REFERRAL: "轉介紹",
 };
 
+const STATUS_LABELS: Record<VisitPlanStatus, string> = {
+  DRAFT: "待準備",
+  READY: "可拜訪",
+  COMPLETED: "已完成",
+};
+
+const STATUS_FILTER_LABELS: Record<StatusFilter, string> = {
+  ALL: "全部狀態",
+  DRAFT: STATUS_LABELS.DRAFT,
+  READY: STATUS_LABELS.READY,
+  COMPLETED: STATUS_LABELS.COMPLETED,
+};
+
+const SORT_LABELS: Record<SortMode, string> = {
+  TIME_ASC: "時間最近",
+  UPDATED_DESC: "最近更新",
+};
+
+type ViewMode = "ALL" | "UPCOMING";
+type StatusFilter = "ALL" | VisitPlanStatus;
+type SortMode = "TIME_ASC" | "UPDATED_DESC";
+
 function PreVisitListContent() {
   const router = useRouter();
-  const { plans, createEmptyPlan } = useVisitStore();
-  const { clients } = useClientStore();
-  
   const searchParams = useSearchParams();
   const isQuickstart = searchParams.get("demo") === "quickstart";
+  const { plans, createEmptyPlan } = useVisitStore();
+  const { clients } = useClientStore();
+
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [viewMode, setViewMode] = useState<"LIST" | "CALENDAR">("LIST");
+  const [viewMode, setViewMode] = useState<ViewMode>("ALL");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
+  const [sortMode, setSortMode] = useState<SortMode>("TIME_ASC");
+  const [query, setQuery] = useState("");
   const [newPlanClientId, setNewPlanClientId] = useState("");
   const [newPlanPurpose, setNewPlanPurpose] = useState<VisitPurpose>("FIRST_VISIT");
   const [newPlanTime, setNewPlanTime] = useState("");
+
   const selectedClientId = newPlanClientId || (isQuickstart ? demoQuickstart.clientId : "");
   const selectedPurpose = newPlanClientId
     ? newPlanPurpose
@@ -65,57 +94,63 @@ function PreVisitListContent() {
       ? (demoQuickstart.purpose as VisitPurpose)
       : newPlanPurpose;
   const selectedClient = clients.find((client) => client.id === selectedClientId);
-  const dialogOpen = isDialogOpen || isQuickstart;
-
-  const isUrgent = (time?: string) => {
-    if (!time) return false;
-    const visitDate = new Date(time);
-    const now = new Date();
-    const diffHours = (visitDate.getTime() - now.getTime()) / (1000 * 60 * 60);
-    return diffHours > 0 && diffHours < 24; // Less than 24 hours away
-  };
-
-  const sortedPlans = [...plans].sort((a, b) => {
-    // 1. Urgency first (visits within 24h)
-    const aUrgent = isUrgent(a.visitTime);
-    const bUrgent = isUrgent(b.visitTime);
-    if (aUrgent && !bUrgent) return -1;
-    if (!aUrgent && bUrgent) return 1;
-
-    // 2. Then by visit time (ascending)
-    if (a.visitTime && b.visitTime) {
-      return new Date(a.visitTime).getTime() - new Date(b.visitTime).getTime();
-    }
-    if (a.visitTime) return -1;
-    if (b.visitTime) return 1;
-
-    // 3. Finally by creation time (descending)
-    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-  });
 
   useEffect(() => {
     const autoCreate = searchParams.get("autoCreate");
     const clientId = searchParams.get("clientId");
-    
+
     if (autoCreate === "true" && clientId) {
       const planId = createEmptyPlan(clientId, "FIRST_VISIT");
       router.replace(`/pre-visit/${planId}${isQuickstart ? "?demo=quickstart" : ""}`);
     }
   }, [searchParams, createEmptyPlan, router, isQuickstart]);
 
+  const planRows = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+
+    return [...plans]
+      .filter((plan) => {
+        const client = clients.find((candidate) => candidate.id === plan.clientId);
+        const matchesStatus = statusFilter === "ALL" || plan.status === statusFilter;
+        const matchesView =
+          viewMode === "ALL" ||
+          (Boolean(plan.visitTime) && plan.status !== "COMPLETED");
+        const matchesQuery =
+          !normalizedQuery ||
+          client?.name.toLowerCase().includes(normalizedQuery) ||
+          PURPOSE_LABELS[plan.purpose].toLowerCase().includes(normalizedQuery);
+
+        return matchesStatus && matchesView && matchesQuery;
+      })
+      .sort((a, b) => {
+        if (sortMode === "UPDATED_DESC") {
+          return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+        }
+
+        if (a.visitTime && b.visitTime) {
+          return new Date(a.visitTime).getTime() - new Date(b.visitTime).getTime();
+        }
+        if (a.visitTime) return -1;
+        if (b.visitTime) return 1;
+        return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+      });
+  }, [clients, plans, query, sortMode, statusFilter, viewMode]);
+
+  const activePlans = plans.filter((plan) => plan.status !== "COMPLETED").length;
+  const readyPlans = plans.filter((plan) => plan.status === "READY").length;
+  const draftPlans = plans.filter((plan) => plan.status === "DRAFT").length;
+  const nextPlan = [...plans]
+    .filter((plan) => plan.visitTime && plan.status !== "COMPLETED")
+    .sort((a, b) => new Date(a.visitTime ?? 0).getTime() - new Date(b.visitTime ?? 0).getTime())[0];
+
   const handleCreatePlan = () => {
     if (!selectedClientId) return;
     const planId = createEmptyPlan(selectedClientId, selectedPurpose, newPlanTime || undefined);
     setIsDialogOpen(false);
+    setNewPlanClientId("");
+    setNewPlanPurpose("FIRST_VISIT");
+    setNewPlanTime("");
     router.push(`/pre-visit/${planId}${isQuickstart ? "?demo=quickstart" : ""}`);
-  };
-
-  const getClientName = (id: string) => clients.find(c => c.id === id)?.name || "未知客戶";
-  const handleDialogOpenChange = (open: boolean) => {
-    setIsDialogOpen(open);
-    if (!open && isQuickstart) {
-      router.replace("/pre-visit");
-    }
   };
 
   if (isQuickstart) {
@@ -129,286 +164,342 @@ function PreVisitListContent() {
   }
 
   return (
-    <div className="space-y-8 pb-10">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">訪前規劃管理</h1>
-          <p className="text-zinc-500 font-medium">
-            建立與查看您的 AI 輔助拜訪計畫，讓每一次成交都源於完美準備。
+    <div className="space-y-5 pb-10">
+      <div className="flex flex-col gap-4 border-b border-hairline pb-5 lg:flex-row lg:items-end lg:justify-between">
+        <div className="max-w-2xl space-y-2">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+            Visit planning
+          </p>
+          <h1 className="text-3xl font-semibold tracking-tight text-foreground">訪前規劃</h1>
+          <p className="text-sm leading-6 text-muted-foreground">
+            先選客戶、目的與時間，快速建立 AI 準備包；列表只保留客戶、目的、時間、狀態與下一步。
           </p>
         </div>
-        
-        <Dialog open={dialogOpen} onOpenChange={handleDialogOpenChange}>
-          <DialogTrigger className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-[#1A3A6B] px-4 text-sm font-bold text-white shadow-sm transition-colors hover:bg-[#1565C0] active:scale-[0.99] sm:h-12 sm:px-5">
-            <Plus className="w-5 h-5" /> 新增規劃
-          </DialogTrigger>
-          <DialogContent className="max-h-[calc(100dvh-24px)] w-[calc(100vw-24px)] max-w-[560px] overflow-hidden rounded-xl border border-[#D7DFE7] bg-white p-0 shadow-xl sm:rounded-2xl">
-            <div className="bg-[#102B52] p-5 text-white sm:p-7">
-              <DialogHeader>
-                <DialogTitle className="text-xl font-bold text-white sm:text-2xl">建立新拜訪規劃</DialogTitle>
-                <DialogDescription className="mt-2 text-sm font-medium leading-6 text-[#D6E8F8]">
-                  選擇客戶與拜訪目的，AI 將為您生成專屬的對話劇本。
-                </DialogDescription>
-              </DialogHeader>
-            </div>
-            
-            <div className="max-h-[calc(100dvh-220px)] space-y-5 overflow-y-auto p-5 sm:p-7">
-              {isQuickstart && (
-                <div className="rounded-lg border border-[#D6E8F8] bg-[#F7FAFF] p-3">
-                  <p className="text-xs font-bold text-[#1565C0]">Quickstart Demo</p>
-                  <p className="mt-1 text-sm font-semibold text-[#0A2342]">
-                    已帶入 {demoQuickstart.clientName} 與「{demoQuickstart.purposeLabel}」情境。
-                  </p>
-                </div>
-              )}
 
-              <div className="space-y-3">
-                <label className="text-sm font-bold text-zinc-700 flex items-center gap-2">
-                  <div className="h-1.5 w-1.5 rounded-full bg-[#2196F3]" />
-                  選擇客戶
-                </label>
-                <Select 
-                  onValueChange={(val) => setNewPlanClientId(val ?? "")} 
-                  value={selectedClientId}
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <Link
+            href="/pre-visit?demo=quickstart"
+            className="inline-flex h-9 items-center justify-center rounded-full border border-hairline bg-surface px-4 text-sm font-medium text-foreground transition-colors hover:bg-paper-2 hover:border-hairline-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+          >
+            試跑示範
+          </Link>
+          <CreatePlanDialog
+            clients={clients}
+            open={isDialogOpen}
+            onOpenChange={setIsDialogOpen}
+            selectedClient={selectedClient}
+            selectedClientId={selectedClientId}
+            selectedPurpose={selectedPurpose}
+            newPlanTime={newPlanTime}
+            onClientChange={setNewPlanClientId}
+            onPurposeChange={setNewPlanPurpose}
+            onTimeChange={setNewPlanTime}
+            onCreate={handleCreatePlan}
+          />
+        </div>
+      </div>
+
+      <section className="grid gap-3 md:grid-cols-4">
+        <MetricCard label="待處理" value={`${activePlans} 件`} helper="尚未完成" />
+        <MetricCard label="可拜訪" value={`${readyPlans} 件`} helper="準備包已就緒" />
+        <MetricCard label="草稿" value={`${draftPlans} 件`} helper="需要補內容" />
+        <MetricCard
+          label="下一次"
+          value={nextPlan?.visitTime ? formatVisitDate(nextPlan.visitTime) : "--"}
+          helper={nextPlan ? getClientName(clients, nextPlan.clientId) : "尚未排程"}
+        />
+      </section>
+
+      <Card>
+        <CardContent className="space-y-4 p-4">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div className="inline-flex rounded-lg border border-hairline bg-card p-1">
+              {[
+                { value: "ALL", label: "全部" },
+                { value: "UPCOMING", label: "即將拜訪" },
+              ].map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => setViewMode(option.value as ViewMode)}
+                  className={cn(
+                    "h-8 rounded-md px-3 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+                    viewMode === option.value
+                      ? "bg-paper-2 text-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
                 >
-                  <SelectTrigger className="h-12 rounded-lg border-[#D7DFE7] bg-white px-4 shadow-none sm:h-14">
-                    {selectedClient ? (
-                      <span className="min-w-0 flex-1 text-left">
-                        <span className="block truncate text-sm font-bold text-[#0A2342]">
-                          {selectedClient.name}
-                        </span>
-                        <span className="block truncate text-xs font-medium text-[#546E7A]">
-                          {selectedClient.occupation}
-                        </span>
-                      </span>
-                    ) : (
-                      <span className="flex-1 text-left text-sm font-medium text-zinc-400">
-                        搜尋或選擇客戶...
-                      </span>
-                    )}
-                  </SelectTrigger>
-                  <SelectContent className="rounded-lg border-[#D7DFE7] shadow-lg">
-                    {clients.map((client) => (
-                      <SelectItem key={client.id} value={client.id} className="mx-1 rounded-md py-3">
-                        <div className="flex flex-col">
-                          <span className="font-bold text-zinc-900">{client.name}</span>
-                          <span className="text-xs text-zinc-500">{client.occupation}</span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-                <div className="space-y-3">
-                  <label className="text-sm font-bold text-zinc-700 flex items-center gap-2">
-                    <div className="h-1.5 w-1.5 rounded-full bg-[#2196F3]" />
-                    拜訪目的
-                  </label>
-                  <Select 
-                    onValueChange={(val) => setNewPlanPurpose(val as VisitPurpose)} 
-                    value={selectedPurpose}
-                  >
-                    <SelectTrigger className="h-12 rounded-lg border-[#D7DFE7] bg-white px-4 text-sm shadow-none sm:h-14">
-                      <span className="flex-1 text-left font-bold text-[#0A2342]">
-                        {PURPOSE_LABELS[selectedPurpose]}
-                      </span>
-                    </SelectTrigger>
-                    <SelectContent className="rounded-lg border-[#D7DFE7] shadow-lg">
-                      {Object.entries(PURPOSE_LABELS).map(([value, label]) => (
-                        <SelectItem key={value} value={value} className="mx-1 rounded-md py-2.5">
-                          <span className="font-bold text-sm">{label}</span>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-3">
-                  <label className="text-sm font-bold text-zinc-700 flex items-center gap-2">
-                    <div className="h-1.5 w-1.5 rounded-full bg-[#2196F3]" />
-                    拜訪時間
-                  </label>
-                  <input 
-                    type="datetime-local"
-                    value={newPlanTime}
-                    onChange={(e) => setNewPlanTime(e.target.value)}
-                    className="h-12 w-full rounded-lg border border-[#D7DFE7] bg-white px-4 text-sm font-medium shadow-none transition-all focus:outline-none focus:ring-2 focus:ring-[#1A3A6B]/20 sm:h-14"
-                  />
-                </div>
-              </div>
+                  {option.label}
+                </button>
+              ))}
             </div>
 
-            <div className="border-t border-[#EDF1F5] bg-white p-5 sm:p-7">
-              <Button 
-                onClick={handleCreatePlan}
-                className="h-12 w-full rounded-lg bg-[#1A3A6B] text-base font-bold text-white shadow-sm transition-colors hover:bg-[#1565C0] active:scale-[0.99] disabled:opacity-50 sm:h-14"
-                disabled={!selectedClientId}
+            <div className="grid gap-2 sm:grid-cols-[minmax(180px,1fr)_150px_150px]">
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder="搜尋客戶或目的"
+                  className="pl-9"
+                />
+              </div>
+              <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as StatusFilter)}>
+                <SelectTrigger size="sm" aria-label="篩選狀態">
+                  <ListFilter className="h-3.5 w-3.5 text-muted-foreground" strokeWidth={1.5} />
+                  <span className="flex-1 text-left">{STATUS_FILTER_LABELS[statusFilter]}</span>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">全部狀態</SelectItem>
+                  <SelectItem value="DRAFT">待準備</SelectItem>
+                  <SelectItem value="READY">可拜訪</SelectItem>
+                  <SelectItem value="COMPLETED">已完成</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={sortMode} onValueChange={(value) => setSortMode(value as SortMode)}>
+                <SelectTrigger size="sm" aria-label="排序">
+                  <span className="flex-1 text-left">{SORT_LABELS[sortMode]}</span>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="TIME_ASC">時間最近</SelectItem>
+                  <SelectItem value="UPDATED_DESC">最近更新</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {plans.length === 0 ? (
+            <EmptyPlansState onCreate={() => setIsDialogOpen(true)} />
+          ) : planRows.length === 0 ? (
+            <div className="rounded-lg border border-dashed border-hairline bg-paper-2/40 px-5 py-12 text-center">
+              <p className="font-semibold text-foreground">沒有符合條件的拜訪規劃</p>
+              <p className="mt-1 text-sm text-muted-foreground">調整搜尋、狀態或視圖後再試一次。</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-hairline rounded-lg border border-hairline">
+              {planRows.map((plan) => (
+                <PlanRow
+                  key={plan.id}
+                  plan={plan}
+                  clientName={getClientName(clients, plan.clientId)}
+                  onOpen={() => router.push(`/pre-visit/${plan.id}`)}
+                />
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function CreatePlanDialog({
+  clients,
+  open,
+  onOpenChange,
+  selectedClient,
+  selectedClientId,
+  selectedPurpose,
+  newPlanTime,
+  onClientChange,
+  onPurposeChange,
+  onTimeChange,
+  onCreate,
+}: {
+  clients: Client[];
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  selectedClient?: Client;
+  selectedClientId: string;
+  selectedPurpose: VisitPurpose;
+  newPlanTime: string;
+  onClientChange: (clientId: string) => void;
+  onPurposeChange: (purpose: VisitPurpose) => void;
+  onTimeChange: (time: string) => void;
+  onCreate: () => void;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogTrigger className="inline-flex h-9 items-center justify-center gap-1.5 rounded-full bg-ink px-4 text-sm font-medium text-paper transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
+        <Plus className="h-4 w-4" strokeWidth={1.5} />
+        新增規劃
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-[540px]">
+        <DialogHeader>
+          <DialogTitle className="text-lg">建立拜訪規劃</DialogTitle>
+          <DialogDescription>
+            三個欄位即可建立準備包，後續細節會在計畫頁整理。
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="grid gap-4 py-2">
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-foreground">客戶</label>
+            <Select value={selectedClientId} onValueChange={(value) => onClientChange(value ?? "")}>
+              <SelectTrigger>
+                {selectedClient ? (
+                  <span className="min-w-0 flex-1 text-left">
+                    <span className="block truncate text-sm font-semibold text-foreground">
+                      {selectedClient.name}
+                    </span>
+                    <span className="block truncate text-xs text-muted-foreground">
+                      {selectedClient.occupation}
+                    </span>
+                  </span>
+                ) : (
+                  <span className="flex-1 text-left text-sm text-muted-foreground">選擇客戶</span>
+                )}
+              </SelectTrigger>
+              <SelectContent>
+                {clients.map((client) => (
+                  <SelectItem key={client.id} value={client.id}>
+                    <span className="font-semibold">{client.name}</span>
+                    <span className="ml-1.5 text-xs text-muted-foreground">{client.occupation}</span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-foreground">拜訪目的</label>
+              <Select
+                value={selectedPurpose}
+                onValueChange={(value) => onPurposeChange(value as VisitPurpose)}
               >
-                {isQuickstart ? "下一步：生成準備包" : "開始規劃"}
-              </Button>
+                <SelectTrigger>
+                  <span className="flex-1 text-left">{PURPOSE_LABELS[selectedPurpose]}</span>
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(PURPOSE_LABELS).map(([value, label]) => (
+                    <SelectItem key={value} value={value}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-          </DialogContent>
-        </Dialog>
-      </div>
 
-      <QuickstartGuide
-        currentStepId="pre-visit"
-        nextHref="/pre-visit?demo=quickstart"
-        nextLabel="下一步：選擇示範客戶"
-      />
-
-      {/* Stats Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="rounded-3xl border-zinc-200 shadow-sm overflow-hidden bg-white">
-          <CardContent className="p-6 flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-[#EBF3FB] flex items-center justify-center">
-              <CalendarDays className="w-6 h-6 text-[#1565C0]" />
+            <div className="space-y-2">
+              <label htmlFor="visitTime" className="text-sm font-semibold text-foreground">
+                拜訪時間
+              </label>
+              <Input
+                id="visitTime"
+                type="datetime-local"
+                value={newPlanTime}
+                onChange={(event) => onTimeChange(event.target.value)}
+                className="h-11"
+              />
             </div>
-            <div>
-              <p className="text-sm font-medium text-zinc-500">本週待辦</p>
-              <p className="text-2xl font-bold">{plans.filter(p => p.status !== "COMPLETED").length}</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="rounded-3xl border-zinc-200 shadow-sm overflow-hidden bg-white">
-          <CardContent className="p-6 flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-emerald-50 flex items-center justify-center">
-              <CheckCircle2 className="w-6 h-6 text-emerald-600" />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-zinc-500">已完成拜訪</p>
-              <p className="text-2xl font-bold">{plans.filter(p => p.status === "COMPLETED").length}</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="rounded-3xl border-zinc-200 shadow-sm overflow-hidden bg-white">
-          <CardContent className="p-6 flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-amber-50 flex items-center justify-center">
-              <AlertCircle className="w-6 h-6 text-amber-600" />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-zinc-500">草稿中</p>
-              <p className="text-2xl font-bold">{plans.filter(p => p.status === "DRAFT").length}</p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Plan List Header & View Toggle */}
-      <div className="space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <h2 className="text-xl font-bold">拜訪規劃行程</h2>
-          <div className="flex items-center gap-2 bg-zinc-100 p-1 rounded-2xl">
-            <Button 
-              variant={viewMode === "LIST" ? "secondary" : "ghost"} 
-              size="sm" 
-              className={cn("rounded-xl h-9 px-4 font-bold text-xs", viewMode === "LIST" && "bg-white shadow-sm")}
-              onClick={() => setViewMode("LIST")}
-            >
-              列表視圖
-            </Button>
-            <Button 
-              variant={viewMode === "CALENDAR" ? "secondary" : "ghost"} 
-              size="sm" 
-              className={cn("rounded-xl h-9 px-4 font-bold text-xs", viewMode === "CALENDAR" && "bg-white shadow-sm")}
-              onClick={() => setViewMode("CALENDAR")}
-            >
-              日曆視圖
-            </Button>
           </div>
         </div>
 
-        {plans.length === 0 ? (
-          <div className="text-center py-20 bg-zinc-50 rounded-3xl border-2 border-dashed border-zinc-200">
-            <p className="text-zinc-400 font-medium">目前還沒有拜訪規劃，點擊右上角「新增規劃」開始吧！</p>
-          </div>
-        ) : viewMode === "LIST" ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {sortedPlans.map((plan) => (
-              <Card 
-                key={plan.id}
-                className={cn(
-                  "rounded-3xl border-zinc-200 hover:border-[#90CAF9]/40 transition-all cursor-pointer group overflow-hidden relative",
-                  isUrgent(plan.visitTime) && "border-orange-200 bg-orange-50/10 shadow-lg shadow-orange-100/20"
-                )}
-                onClick={() => router.push(`/pre-visit/${plan.id}`)}
-              >
-                {isUrgent(plan.visitTime) && (
-                  <div className="absolute top-0 left-0 right-0 h-1 bg-orange-400" />
-                )}
-                <CardContent className="p-0">
-                  <div className="p-6 space-y-4">
-                    <div className="flex items-start justify-between">
-                      <div className="w-10 h-10 rounded-xl bg-zinc-100 flex items-center justify-center group-hover:bg-[#EBF3FB] transition-colors">
-                        <User className="w-5 h-5 text-zinc-600 group-hover:text-[#1565C0]" />
-                      </div>
-                      <div className="flex flex-col items-end gap-1.5">
-                        <Badge className={cn(
-                          "rounded-full px-3 py-1 font-bold text-[10px] border-none",
-                          plan.status === "READY" ? "bg-emerald-100 text-emerald-700" :
-                          plan.status === "COMPLETED" ? "bg-zinc-100 text-zinc-600" :
-                          "bg-amber-100 text-amber-700"
-                        )}>
-                          {plan.status === "READY" ? "READY" : 
-                           plan.status === "COMPLETED" ? "已完成" : "草稿"}
-                        </Badge>
-                        {isUrgent(plan.visitTime) && (
-                          <Badge className="bg-orange-500 text-white border-none rounded-full px-2 py-0.5 text-[9px] font-black animate-pulse">
-                            火速準備
-                          </Badge>
-                        )}
-                      </div>
-                    </div>
-                    
-                    <div>
-                      <p className="font-bold text-lg">{getClientName(plan.clientId)}</p>
-                      <p className="text-sm text-zinc-500 font-medium">
-                        目的：{PURPOSE_LABELS[plan.purpose]}
-                      </p>
-                    </div>
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            取消
+          </Button>
+          <Button type="button" variant="mono" onClick={onCreate} disabled={!selectedClientId}>
+            開始規劃
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
-                    <div className="flex flex-col gap-2 pt-2">
-                      <div className={cn(
-                        "flex items-center gap-2 p-2.5 rounded-2xl text-[11px] font-bold",
-                        plan.visitTime ? "bg-zinc-50 text-zinc-600" : "bg-zinc-50 text-zinc-400"
-                      )}>
-                        <Clock className={cn("w-3.5 h-3.5", isUrgent(plan.visitTime) && "text-orange-500")} />
-                        {plan.visitTime ? (
-                          <span>拜訪：<FormattedTime isoString={plan.visitTime} format="full" /></span>
-                        ) : (
-                          <span>尚未設定拜訪時間</span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="bg-zinc-50 px-6 py-3 border-t border-zinc-100 flex items-center justify-between group-hover:bg-[#EBF3FB]/50 transition-colors">
-                    <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">查看與生成規劃</span>
-                    <ChevronRight className="w-4 h-4 text-zinc-300 group-hover:text-[#2196F3] group-hover:translate-x-1 transition-all" />
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+function MetricCard({ label, value, helper }: { label: string; value: string; helper: string }) {
+  return (
+    <div className="rounded-lg border border-hairline bg-card p-4">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+        {label}
+      </p>
+      <p className="mt-2 text-2xl font-semibold tracking-tight text-foreground tabular-nums">{value}</p>
+      <p className="mt-1 text-sm text-muted-foreground">{helper}</p>
+    </div>
+  );
+}
+
+function PlanRow({
+  plan,
+  clientName,
+  onOpen,
+}: {
+  plan: VisitPlan;
+  clientName: string;
+  onOpen: () => void;
+}) {
+  const nextStep = getNextStep(plan);
+
+  return (
+    <article className="grid gap-3 px-4 py-4 transition-colors hover:bg-paper-2/60 md:grid-cols-[minmax(0,1.2fr)_120px_190px_110px_112px] md:items-center">
+      <div className="flex min-w-0 items-center gap-3">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-hairline bg-paper-2">
+          <User className="h-4 w-4 text-primary" strokeWidth={1.5} />
+        </div>
+        <div className="min-w-0">
+          <p className="truncate text-sm font-semibold text-foreground">{clientName}</p>
+          <p className="text-xs text-muted-foreground">更新於 {formatVisitDate(plan.updatedAt)}</p>
+        </div>
+      </div>
+
+      <div>
+        <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+          目的
+        </p>
+        <p className="mt-1 text-sm font-semibold text-foreground">{PURPOSE_LABELS[plan.purpose]}</p>
+      </div>
+
+      <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+        <Clock className="h-4 w-4 text-primary" strokeWidth={1.5} />
+        {plan.visitTime ? (
+          <FormattedTime isoString={plan.visitTime} format="full" />
         ) : (
-          <div className="bg-white rounded-[2rem] border border-zinc-200 p-8 min-h-[400px] flex flex-col items-center justify-center text-center space-y-4 shadow-sm">
-            <div className="w-20 h-20 rounded-full bg-zinc-50 flex items-center justify-center">
-              <CalendarDays className="w-10 h-10 text-zinc-300" />
-            </div>
-            <div>
-              <h3 className="font-bold text-zinc-700">日曆視圖開發中</h3>
-              <p className="text-sm text-zinc-400 max-w-xs mt-1 font-medium">
-                我們正在努力將 FullCalendar 整合進來，讓您可以更直覺地管理拜訪行程。目前請先使用列表視圖。
-              </p>
-            </div>
-            <Button variant="outline" className="rounded-xl" onClick={() => setViewMode("LIST")}>
-              回到列表視圖
-            </Button>
-          </div>
+          <span>尚未排程</span>
         )}
       </div>
+
+      <div>
+        <StatusBadge status={plan.status} />
+      </div>
+
+      <Button variant="ghost" size="sm" onClick={onOpen} className="justify-start md:justify-center">
+        {nextStep}
+        <ChevronRight className="h-3.5 w-3.5" strokeWidth={1.5} />
+      </Button>
+    </article>
+  );
+}
+
+function StatusBadge({ status }: { status: VisitPlanStatus }) {
+  const variants: Record<VisitPlanStatus, "warning" | "success" | "outline"> = {
+    DRAFT: "warning",
+    READY: "success",
+    COMPLETED: "outline",
+  };
+
+  return (
+    <Badge variant={variants[status]} className="h-6 text-[11px]">
+      {STATUS_LABELS[status]}
+    </Badge>
+  );
+}
+
+function EmptyPlansState({ onCreate }: { onCreate: () => void }) {
+  return (
+    <div className="rounded-lg border border-dashed border-hairline bg-paper-2/40 px-5 py-14 text-center">
+      <div className="mx-auto mb-4 flex h-11 w-11 items-center justify-center rounded-md border border-hairline bg-card">
+        <CalendarDays className="h-5 w-5 text-primary" strokeWidth={1.5} />
+      </div>
+      <p className="font-semibold text-foreground">目前還沒有拜訪規劃</p>
+      <p className="mx-auto mt-1 max-w-md text-sm leading-6 text-muted-foreground">
+        先建立一筆客戶、目的與時間，下一頁會生成可帶去拜訪的準備包。
+      </p>
+      <Button variant="outline" className="mt-4 rounded-full" onClick={onCreate}>
+        <Plus className="h-4 w-4" strokeWidth={1.5} />
+        建立第一筆規劃
+      </Button>
     </div>
   );
 }
@@ -428,42 +519,38 @@ function QuickstartPreVisitStart({
     <div className="mx-auto max-w-3xl space-y-4 pb-28">
       <SpotlightTour steps={previsitTourSteps} />
 
-      <section className="rounded-lg border border-[#D7DFE7] bg-white p-5 shadow-sm">
+      <section className="rounded-lg border border-hairline bg-card p-5">
         <div className="mb-3 flex items-center justify-between gap-3">
-          <Badge variant="blue" className="h-6 rounded-full text-[11px]">
+          <Badge variant="secondary" className="h-6 rounded-full text-[11px]">
             Step 2 / {demoQuickstart.steps.length}
           </Badge>
-          <span className="text-xs font-bold text-[#78909C]">Quickstart</span>
+          <span className="text-xs font-semibold text-muted-foreground">Quickstart</span>
         </div>
-        <h1 className="text-2xl font-bold tracking-tight text-[#0A2342]">
-          {step.screenTitle}
-        </h1>
-        <p className="mt-2 text-sm font-medium leading-6 text-[#546E7A]">
-          {step.bodyCopy}
-        </p>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">{step.screenTitle}</h1>
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">{step.bodyCopy}</p>
       </section>
 
-      <Card className="border-[#E2EAF1] shadow-sm">
+      <Card>
         <CardContent className="space-y-3 p-4">
-          <div data-tour="client-info" className="rounded-lg border border-[#E2EAF1] bg-[#F7FAFF] p-4">
-            <p className="text-[11px] font-black uppercase tracking-[0.12em] text-[#78909C]">
+          <div data-tour="client-info" className="rounded-lg border border-hairline bg-paper-2 p-4">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
               客戶
             </p>
-            <p className="mt-1 text-lg font-bold text-[#0A2342]">{clientName}</p>
-            <p className="mt-1 text-xs font-medium text-[#546E7A]">{occupation}</p>
+            <p className="mt-1 text-lg font-semibold text-foreground">{clientName}</p>
+            <p className="mt-1 text-sm text-muted-foreground">{occupation}</p>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
-            <div className="rounded-lg border border-[#E2EAF1] bg-white p-4">
-              <p className="text-[11px] font-black uppercase tracking-[0.12em] text-[#78909C]">
+            <div className="rounded-lg border border-hairline bg-card p-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
                 拜訪目的
               </p>
-              <p className="mt-1 text-base font-bold text-[#0A2342]">{demoQuickstart.purposeLabel}</p>
+              <p className="mt-1 text-base font-semibold text-foreground">{demoQuickstart.purposeLabel}</p>
             </div>
-            <div className="rounded-lg border border-[#E2EAF1] bg-white p-4">
-              <p className="text-[11px] font-black uppercase tracking-[0.12em] text-[#78909C]">
+            <div className="rounded-lg border border-hairline bg-card p-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
                 體驗方式
               </p>
-              <p className="mt-1 text-base font-bold text-[#0A2342]">一直按下一步</p>
+              <p className="mt-1 text-base font-semibold text-foreground">一直按下一步</p>
             </div>
           </div>
         </CardContent>
@@ -472,18 +559,36 @@ function QuickstartPreVisitStart({
       <Button
         data-tour="previsit-cta"
         onClick={onStart}
-        className="h-12 w-full rounded-lg bg-[#1A3A6B] text-base font-bold text-white shadow-sm hover:bg-[#1565C0]"
+        variant="mono"
+        className="h-12 w-full rounded-full text-base"
       >
         {step.primaryCta}
-        <ChevronRight className="h-4 w-4" />
+        <ChevronRight className="h-4 w-4" strokeWidth={1.5} />
       </Button>
     </div>
   );
 }
 
+function getClientName(clients: Client[], id: string) {
+  return clients.find((client) => client.id === id)?.name || "未知客戶";
+}
+
+function getNextStep(plan: VisitPlan) {
+  if (plan.status === "COMPLETED") return "查看紀錄";
+  if (plan.status === "READY") return "檢視準備包";
+  return "生成準備包";
+}
+
+function formatVisitDate(value: string) {
+  return new Intl.DateTimeFormat("zh-TW", {
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date(value));
+}
+
 export default function PreVisitListPage() {
   return (
-    <Suspense fallback={<div className="p-10 text-center">載入中...</div>}>
+    <Suspense fallback={<div className="p-10 text-center text-sm text-muted-foreground">載入中...</div>}>
       <PreVisitListContent />
     </Suspense>
   );

@@ -1,3 +1,4 @@
+import { blockMockApiInProduction } from "../../_lib/mock-api-guard";
 import { type SpinSession } from "@/domains/spin/types";
 
 interface OutlineRequest {
@@ -12,6 +13,9 @@ interface OutlineRequest {
 }
 
 export async function POST(req: Request) {
+  const blocked = blockMockApiInProduction();
+  if (blocked) return blocked;
+
   const { session, clientInfo } = (await req.json()) as OutlineRequest;
 
   const name = clientInfo?.name ?? session.clientName ?? "客戶";

@@ -1,0 +1,290 @@
+#!/usr/bin/env node
+import { existsSync, readFileSync } from "node:fs";
+import { Client } from "pg";
+
+loadEnvFile(".env");
+
+const baseUrl = process.env.CLIENT_PORTAL_QA_BASE_URL ?? process.env.DEMO_QA_BASE_URL ?? process.argv[2] ?? "http://localhost:3000";
+const token = process.env.CLIENT_PORTAL_QA_TOKEN ?? "demo-share-wang";
+const expiredToken = process.env.CLIENT_PORTAL_QA_EXPIRED_TOKEN ?? "demo-share-wang-expired";
+const dbUrl = process.env.DIRECT_URL ?? process.env.DATABASE_URL;
+const checks = [];
+
+if (!dbUrl) {
+  console.error("Missing DIRECT_URL or DATABASE_URL.");
+  process.exit(1);
+}
+
+const db = new Client({ connectionString: dbUrl });
+await db.connect();
+
+try {
+  await ensureExpiredShare(token, expiredToken);
+
+  const before = await getResponseCounts(token);
+  const unauthorized = await get("/api/client-portal/bootstrap");
+  push(unauthorized.status === 401, "Client portal bootstrap rejects missing client session", `status=${unauthorized.status}`);
+
+  const workspace = await get("/api/workspace/bootstrap", { "x-asai-client-token": token });
+  push(workspace.status === 401, "Client token cannot enter member/org workspace bootstrap", `status=${workspace.status}`);
+
+  const bootstrap = await get("/api/client-portal/bootstrap", { "x-asai-client-token": token });
+  const bootstrapText = JSON.stringify(bootstrap.body);
+  push(bootstrap.status === 200, "GET /api/client-portal/bootstrap returns authorized scope", `status=${bootstrap.status}`);
+  push(bootstrap.body?.session?.type === "client", "Bootstrap uses client session type", bootstrap.body?.session?.type ?? "missing");
+  push(bootstrap.body?.client?.displayName === "王大明", "Bootstrap returns client display name only", bootstrap.body?.client?.displayName ?? "missing");
+  push(Array.isArray(bootstrap.body?.report?.sections), "Bootstrap returns authorized report sections");
+  push((bootstrap.body?.report?.sections?.length ?? 0) > 0, "Bootstrap includes at least one client-safe section");
+
+  const forbidden = [
+    "internalSections",
+    "內部摘要",
+    "演練回饋",
+    "performance",
+    "policy_number",
+    "insured_amount",
+    "annualIncome",
+    "phone",
+    "email",
+    "actorUserId",
+    "ownerId",
+  ];
+  const leaked = forbidden.filter((value) => bootstrapText.includes(value));
+  push(
+    leaked.length === 0,
+    "Bootstrap omits internal/client-private fields",
+    leaked.length === 0 ? `${forbidden.length} sentinels checked` : `leaked=${leaked.join(", ")}`,
+  );
+
+  const session = await post("/api/client-portal/session", { token });
+  const setCookie = session.headers.get("set-cookie") ?? "";
+  const cookieHeader = toCookieHeader(setCookie);
+  push(session.status === 200, "POST /api/client-portal/session sets client session", `status=${session.status}`);
+  push(session.body?.session?.type === "client", "Client portal session endpoint returns client session type", session.body?.session?.type ?? "missing");
+  push(setCookie.includes("HttpOnly"), "Client portal cookie is HttpOnly");
+  push(setCookie.toLowerCase().includes("samesite=lax"), "Client portal cookie uses SameSite=Lax");
+  push(Boolean(cookieHeader), "Client portal Set-Cookie can be replayed for browser-style proof");
+
+  const cookieBootstrap = await get("/api/client-portal/bootstrap", { Cookie: cookieHeader });
+  push(cookieBootstrap.status === 200, "Cookie client session can read portal bootstrap", `status=${cookieBootstrap.status}`);
+  push(cookieBootstrap.body?.client?.id === bootstrap.body?.client?.id, "Cookie bootstrap stays in same client scope", cookieBootstrap.body?.client?.id ?? "missing");
+
+  const cookieWorkspace = await get("/api/workspace/bootstrap", { Cookie: cookieHeader });
+  push(cookieWorkspace.status === 401, "Cookie client session cannot enter member/org workspace", `status=${cookieWorkspace.status}`);
+
+  const invalidSession = await post("/api/client-portal/session", { token: "not-a-real-share-token" });
+  push(invalidSession.status === 404, "Invalid client portal session token is rejected", `status=${invalidSession.status}`);
+
+  const expiredSession = await post("/api/client-portal/session", { token: expiredToken });
+  push(expiredSession.status === 404, "Expired client portal session token is rejected", `status=${expiredSession.status}`);
+
+  const expiredBootstrap = await get("/api/client-portal/bootstrap", { "x-asai-client-token": expiredToken });
+  push(expiredBootstrap.status === 401, "Expired client token cannot read portal bootstrap", `status=${expiredBootstrap.status}`);
+
+  const expiredWorkspace = await get("/api/workspace/bootstrap", { "x-asai-client-token": expiredToken });
+  push(expiredWorkspace.status === 401, "Expired client token cannot enter member/org workspace", `status=${expiredWorkspace.status}`);
+
+  const response = await post(
+    "/api/client-portal/responses",
+    {
+      type: "BOOKING_INTENT",
+      message: "我想約下週二下午確認醫療險缺口，請顧問聯絡我。",
+      payload: {
+        preferredTime: "next Tuesday afternoon",
+        contactMethod: "phone",
+        topic: "medical coverage gap",
+        unsafeRawPrivatePayload: "must-not-persist",
+      },
+    },
+    { "x-asai-client-token": token },
+  );
+  push(response.status === 201, "POST /api/client-portal/responses stores client response", `status=${response.status}`);
+  push(Boolean(response.body?.response?.id), "Client response returns event id", response.body?.response?.id ?? "missing");
+
+  const invalid = await post(
+    "/api/client-portal/responses",
+    { type: "UNSAFE", message: "bad" },
+    { "x-asai-client-token": token },
+  );
+  push(invalid.status === 400, "Client response validates type contract", `status=${invalid.status}`);
+
+  const after = await getResponseCounts(token);
+  push(after.response_events > before.response_events, "InteractionEvent count increments for client response", `${before.response_events}->${after.response_events}`);
+  push(after.private_payload_events === 0, "Client response metadata does not persist unsafe private keys", `count=${after.private_payload_events}`);
+
+  console.log(
+    JSON.stringify(
+      {
+        token,
+        expiredToken,
+        before,
+        after,
+        bootstrap: {
+          client: bootstrap.body?.client,
+          reportId: bootstrap.body?.report?.id,
+          sections: bootstrap.body?.report?.sections?.length ?? 0,
+        },
+      },
+      null,
+      2,
+    ),
+  );
+} finally {
+  await db.end();
+}
+
+for (const check of checks) {
+  const icon = check.status === "pass" ? "PASS" : "FAIL";
+  console.log(`${icon} ${check.label}${check.detail ? ` — ${check.detail}` : ""}`);
+}
+
+if (checks.some((check) => check.status === "fail")) {
+  process.exitCode = 1;
+}
+
+async function getResponseCounts(shareToken) {
+  const result = await db.query(
+    `SELECT
+       rs.id AS share_id,
+       r.id AS report_id,
+       r.client_id,
+       (
+         SELECT COUNT(*)::int
+         FROM interaction_events ie
+         WHERE ie.organization_id = rs.organization_id
+           AND ie.client_id = r.client_id
+           AND ie.metadata->>'source' = 'client_portal'
+           AND ie.metadata->>'shareId' = rs.id
+       ) AS response_events,
+       (
+         SELECT COUNT(*)::int
+         FROM interaction_events ie
+         WHERE ie.organization_id = rs.organization_id
+           AND ie.client_id = r.client_id
+           AND ie.metadata ? 'unsafeRawPrivatePayload'
+       ) AS private_payload_events
+     FROM report_shares rs
+     JOIN reports r ON r.id = rs.report_id
+     WHERE rs.token = $1
+     LIMIT 1`,
+    [shareToken],
+  );
+
+  const row = result.rows[0];
+
+  if (!row) {
+    throw new Error(`Share token not found: ${shareToken}. Run pnpm demo:seed:reset first.`);
+  }
+
+  return row;
+}
+
+async function ensureExpiredShare(validToken, targetToken) {
+  const result = await db.query(
+    `INSERT INTO report_shares (
+       id,
+       organization_id,
+       unit_id,
+       report_id,
+       token,
+       expires_at,
+       access_count,
+       cta_config,
+       is_demo,
+       demo_seed_key,
+       demo_scenario,
+       demo_seed_version,
+       created_at,
+       updated_at
+     )
+     SELECT
+       'demo_expired_share_wang',
+       organization_id,
+       unit_id,
+       report_id,
+       $2,
+       now() - interval '1 day',
+       0,
+       cta_config,
+       true,
+       'quickstart-insurance-advisor:share:wang:expired:v1',
+       'quickstart-insurance-advisor',
+       1,
+       now(),
+       now()
+     FROM report_shares
+     WHERE token = $1
+     LIMIT 1
+     ON CONFLICT (demo_seed_key) DO UPDATE SET
+       token = EXCLUDED.token,
+       report_id = EXCLUDED.report_id,
+       unit_id = EXCLUDED.unit_id,
+       expires_at = EXCLUDED.expires_at,
+       cta_config = EXCLUDED.cta_config,
+       is_demo = true,
+       updated_at = now()
+     RETURNING token`,
+    [validToken, targetToken],
+  );
+
+  if (!result.rows[0]) {
+    throw new Error(`Valid share token not found: ${validToken}. Run pnpm demo:seed:reset first.`);
+  }
+}
+
+async function get(path, headers = {}) {
+  const response = await fetch(`${baseUrl}${path}`, { headers });
+  return parseResponse(response);
+}
+
+async function post(path, body, headers = {}) {
+  const response = await fetch(`${baseUrl}${path}`, {
+    method: "POST",
+    headers: { "content-type": "application/json", ...headers },
+    body: JSON.stringify(body),
+  });
+  return parseResponse(response);
+}
+
+async function parseResponse(response) {
+  const text = await response.text();
+  let body = null;
+
+  try {
+    body = JSON.parse(text);
+  } catch {
+    body = text;
+  }
+
+  return { status: response.status, body, headers: response.headers };
+}
+
+function push(condition, label, detail = "") {
+  checks.push({ status: condition ? "pass" : "fail", label, detail });
+}
+
+function toCookieHeader(setCookie) {
+  const [pair] = setCookie.split(";");
+  return pair ?? "";
+}
+
+function loadEnvFile(path) {
+  if (!existsSync(path)) return;
+
+  const contents = readFileSync(path, "utf8");
+
+  for (const line of contents.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+
+    const separatorIndex = trimmed.indexOf("=");
+    if (separatorIndex === -1) continue;
+
+    const key = trimmed.slice(0, separatorIndex).trim();
+    const rawValue = trimmed.slice(separatorIndex + 1).trim();
+
+    if (!key || process.env[key] !== undefined) continue;
+
+    process.env[key] = rawValue.replace(/^["']|["']$/g, "");
+  }
+}

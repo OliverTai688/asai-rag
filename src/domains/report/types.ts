@@ -19,6 +19,30 @@ export interface ShareMeta {
   expiresAt?: string;
   accessCount: number;
   lastAccessedAt?: string;
+  branding?: ShareBranding;
+  portal?: SharePortalConfig;
+  ctaConfig?: ShareCtaConfig;
+}
+
+export interface ShareBranding {
+  organizationName: string;
+  unitName?: string;
+  logoUrl?: string;
+  brandColor?: string;
+  poweredByLabel?: string;
+}
+
+export interface SharePortalConfig {
+  enabled: boolean;
+  loginHref: string;
+  visibleScopes: string[];
+}
+
+export interface ShareCtaConfig {
+  primaryLabel: string;
+  primaryHref: string;
+  secondaryLabel?: string;
+  secondaryHref?: string;
 }
 
 export interface Report {

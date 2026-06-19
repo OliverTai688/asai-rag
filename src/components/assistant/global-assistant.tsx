@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useAssistantStore } from "@/domains/assistant/store";
 import { assistantService } from "@/domains/assistant/service";
 import { AssistantMessage } from "@/domains/assistant/types";
@@ -33,8 +33,6 @@ export function GlobalAssistant() {
     conversations,
     activeConversationId,
     addMessage,
-    updateLastMessage,
-    replaceLastMessage,
     createConversation,
     switchConversation,
     deleteConversation,
@@ -44,12 +42,16 @@ export function GlobalAssistant() {
     setSuggestions
   } = useAssistantStore();
 
-  const messages = conversations.find(c => c.id === activeConversationId)?.messages ?? [];
+  const messages = useMemo(
+    () => conversations.find(c => c.id === activeConversationId)?.messages ?? [],
+    [activeConversationId, conversations]
+  );
 
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [activeTab, setActiveTab] = useState("insights");
   const [showHistory, setShowHistory] = useState(false);
+  const messageIdCounter = useRef(0);
 
   useEffect(() => {
     const context = { route: pathname };
@@ -70,7 +72,7 @@ export function GlobalAssistant() {
     setShowHistory(false);
 
     const userMsg: AssistantMessage = {
-      id: Date.now().toString(),
+      id: `user-${activeConversationId ?? "new"}-${messageIdCounter.current++}`,
       role: 'user',
       content: text.trim(),
       createdAt: new Date().toISOString(),
@@ -87,7 +89,7 @@ export function GlobalAssistant() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           messages: [...currentMessages, userMsg],
-          context: { route: pathname }
+          context: { route: pathname, conversationId: activeConversationId ?? undefined }
         }),
       });
 
@@ -97,7 +99,7 @@ export function GlobalAssistant() {
       const decoder = new TextDecoder();
 
       const assistantMsg: AssistantMessage = {
-        id: (Date.now() + 1).toString(),
+        id: `assistant-${activeConversationId ?? "new"}-${messageIdCounter.current++}`,
         role: 'assistant',
         content: "",
         createdAt: new Date().toISOString(),
@@ -125,7 +127,7 @@ export function GlobalAssistant() {
       const finalContent = assistantService.cleanResponse(fullText);
       useAssistantStore.getState().replaceLastMessage({ ...assistantMsg, content: finalContent });
 
-    } catch (err) {
+    } catch {
       toast.error("助理連線失敗");
     } finally {
       setIsTyping(false);
@@ -170,6 +172,7 @@ export function GlobalAssistant() {
               variant="ghost"
               size="icon"
               onClick={handleHistoryToggle}
+              aria-label={showHistory ? "關閉對話歷史" : "開啟對話歷史"}
               className={cn("rounded-xl w-8 h-8 text-[#546E7A] hover:text-[#1565C0] hover:bg-[#EBF3FB]", showHistory && "bg-[#EBF3FB] text-[#1565C0]")}
               title="對話歷史"
             >
@@ -179,6 +182,7 @@ export function GlobalAssistant() {
               variant="ghost"
               size="icon"
               onClick={handleNewChat}
+              aria-label="開始新對話"
               className="rounded-xl w-8 h-8 text-[#546E7A] hover:text-[#1565C0] hover:bg-[#EBF3FB]"
               title="新對話"
             >
@@ -188,6 +192,7 @@ export function GlobalAssistant() {
               variant="ghost"
               size="icon"
               onClick={() => togglePanel(false)}
+              aria-label="關閉誠問 AI 助手"
               className="rounded-xl w-8 h-8 text-[#546E7A] hover:text-[#0A2342] hover:bg-[#EBF3FB]"
             >
               <X className="w-3.5 h-3.5" strokeWidth={1.5} />
@@ -229,11 +234,21 @@ export function GlobalAssistant() {
                     </div>
                   ) : (
                     conversations.map(conv => (
-                      <button
+                      <div
                         key={conv.id}
+                        role="button"
+                        tabIndex={0}
+                        aria-label={`切換到對話：${conv.title}`}
                         onClick={() => { switchConversation(conv.id); setShowHistory(false); }}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter" || event.key === " ") {
+                            event.preventDefault();
+                            switchConversation(conv.id);
+                            setShowHistory(false);
+                          }
+                        }}
                         className={cn(
-                          "w-full text-left p-3 rounded-xl border transition-all group",
+                          "w-full cursor-pointer text-left p-3 rounded-xl border transition-all group focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
                           conv.id === activeConversationId
                             ? "bg-[#EBF3FB] border-[#90CAF9]/40 dark:bg-[#1A3A6B]/40"
                             : "border-[#CFD8DC] dark:border-[rgba(144,202,249,0.15)] hover:bg-[#F7FAFF] dark:hover:bg-[#1A3A6B]/20"
@@ -244,8 +259,10 @@ export function GlobalAssistant() {
                             {conv.title}
                           </p>
                           <button
+                            type="button"
+                            aria-label={`刪除對話：${conv.title}`}
                             onClick={(e) => { e.stopPropagation(); deleteConversation(conv.id); }}
-                            className="opacity-0 group-hover:opacity-100 text-[#546E7A] hover:text-[#B71C1C] transition-opacity flex-shrink-0 mt-0.5"
+                            className="opacity-100 text-[#546E7A] hover:text-[#B71C1C] transition-opacity flex-shrink-0 mt-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
                           >
                             <Trash2 className="w-3.5 h-3.5" strokeWidth={1.5} />
                           </button>
@@ -253,7 +270,7 @@ export function GlobalAssistant() {
                         <p className="text-[10px] text-[#546E7A] mt-1">
                           {conv.messages.length} 則訊息 · <FormattedTime isoString={conv.updatedAt} />
                         </p>
-                      </button>
+                      </div>
                     ))
                   )}
                 </div>
@@ -329,6 +346,10 @@ export function GlobalAssistant() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => {
+                if (e.nativeEvent.isComposing || e.key === "Process") {
+                  return;
+                }
+
                 if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault();
                   handleSend();
@@ -337,6 +358,7 @@ export function GlobalAssistant() {
             />
             <Button
               size="icon"
+              aria-label="送出誠問 AI 助手訊息"
               className={cn(
                 "absolute right-2 bottom-2 w-8 h-8 rounded-xl transition-all",
                 input.trim() ? "bg-[#1A3A6B] text-white scale-100 hover:bg-[#1565C0]" : "scale-0 bg-[#EBF3FB]"

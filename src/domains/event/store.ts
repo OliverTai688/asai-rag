@@ -1,9 +1,8 @@
 "use client";
 
 import { create } from "zustand";
-import { persist, createJSONStorage } from "zustand/middleware";
 import { InteractionEvent } from "./types";
-import { SEED_EVENTS } from "./mocks";
+import { demoSeedEvents } from "@/domains/demo/seed-fixtures";
 
 interface EventState {
   events: InteractionEvent[];
@@ -14,28 +13,20 @@ interface EventState {
   getLatestEvents: (limit: number) => InteractionEvent[];
 }
 
-export const useEventStore = create<EventState>()(
-  persist(
-    (set, get) => ({
-      events: SEED_EVENTS,
+export const useEventStore = create<EventState>()((set, get) => ({
+  events: demoSeedEvents,
 
-      addEvent: (event) => set((state) => ({ 
-        events: [event, ...state.events] 
-      })),
+  addEvent: (event) => set((state) => ({
+    events: [event, ...state.events],
+  })),
 
-      getEventsByClientId: (clientId) => {
-        return get().events.filter((e) => e.clientId === clientId);
-      },
+  getEventsByClientId: (clientId) => {
+    return get().events.filter((e) => e.clientId === clientId);
+  },
 
-      getLatestEvents: (limit) => {
-        return [...get().events]
-          .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-          .slice(0, limit);
-      },
-    }),
-    {
-      name: "sincerely:v1:events",
-      storage: createJSONStorage(() => localStorage),
-    }
-  )
-);
+  getLatestEvents: (limit) => {
+    return [...get().events]
+      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+      .slice(0, limit);
+  },
+}));

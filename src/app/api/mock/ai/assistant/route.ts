@@ -1,6 +1,10 @@
+import { blockMockApiInProduction } from "../../_lib/mock-api-guard";
 import { streamScriptedResponse } from "@/domains/ai-mock/stream";
 
 export async function POST(req: Request) {
+  const blocked = blockMockApiInProduction();
+  if (blocked) return blocked;
+
   const { messages, context } = await req.json();
   const lastUserMsg = messages[messages.length - 1]?.content || "";
 
