@@ -37,11 +37,11 @@ import { Button } from "@/components/ui/button";
 import { FormattedTime } from "@/components/ui/formatted-time";
 import type { Client, FamilyMember } from "@/domains/client/types";
 import { resolveClientFromList, resolveClientIdAlias } from "@/domains/client/id-aliases";
-import { clientService } from "@/domains/client/service";
 import { useClientStore } from "@/domains/client/store";
 import { demoQuickstart, getQuickstartVisitFixture } from "@/domains/demo/quickstart";
 import { planTourSteps } from "@/domains/demo/tour-steps";
 import { buildVisitTheaterHandoff } from "@/domains/theater/visit-handoff";
+import { VisitService } from "@/domains/visit/service";
 import { useVisitStore } from "@/domains/visit/store";
 import type {
   ObjectionHandling,
@@ -167,6 +167,8 @@ function VisitPlanDetailContent() {
   const isQuickstart = searchParams.get("demo") === "quickstart";
   const seededRef = useRef(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isLoadingPlan, setIsLoadingPlan] = useState(!isQuickstart);
+  const [planLoadError, setPlanLoadError] = useState<string | null>(null);
   const [generationError, setGenerationError] = useState<string | null>(null);
   const groupedQuestions = useMemo(() => {
     const questions = plan?.spinQuestions ?? [];
@@ -204,12 +206,41 @@ function VisitPlanDetailContent() {
   }, [isQuickstart, plan, updatePlan]);
 
   useEffect(() => {
-    if (isQuickstart) return;
+    if (isQuickstart || !planId) return;
 
-    void clientService.fetchClients().catch((error: unknown) => {
-      console.error("Pre-visit client refresh failed", error);
-    });
-  }, [isQuickstart]);
+    let cancelled = false;
+    const targetPlanId = planId;
+
+    async function loadPlan() {
+      try {
+        setIsLoadingPlan(true);
+        setPlanLoadError(null);
+        await VisitService.fetchPlanByIdRemote(targetPlanId);
+      } catch (error) {
+        if (!cancelled) {
+          setPlanLoadError(error instanceof Error ? error.message : "VISIT_PLAN_LOAD_FAILED");
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoadingPlan(false);
+        }
+      }
+    }
+
+    void loadPlan();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isQuickstart, planId]);
+
+  if (isLoadingPlan) {
+    return <PlanLoadingState />;
+  }
+
+  if (planLoadError) {
+    return <PlanMissingState onBack={() => router.push("/pre-visit")} error={planLoadError} />;
+  }
 
   if (!plan || !client) {
     return <PlanMissingState onBack={() => router.push("/pre-visit")} />;
@@ -272,8 +303,7 @@ function VisitPlanDetailContent() {
       }
 
       const generatedData = payload;
-      updatePlan(plan.id, {
-        clientId: apiClientId,
+      await VisitService.updatePlanRemote(plan.id, {
         objectives: generatedData.objectives,
         spinQuestions: generatedData.spinQuestions,
         objections: generatedData.objections,
@@ -306,10 +336,20 @@ function VisitPlanDetailContent() {
   };
 
   const toggleMaterial = (materialId: string) => {
-    updatePlan(plan.id, {
-      materials: plan.materials.map((material) =>
-        material.id === materialId ? { ...material, checked: !material.checked } : material,
-      ),
+    const nextMaterials = plan.materials.map((material) =>
+      material.id === materialId ? { ...material, checked: !material.checked } : material,
+    );
+
+    updatePlan(plan.id, { materials: nextMaterials });
+
+    if (isQuickstart) {
+      return;
+    }
+
+    void VisitService.updatePlanRemote(plan.id, { materials: nextMaterials }).catch((error: unknown) => {
+      updatePlan(plan.id, { materials: plan.materials });
+      const message = error instanceof Error ? error.message : "MATERIAL_UPDATE_FAILED";
+      toast.error("材料狀態同步失敗", { description: message });
     });
   };
 
@@ -359,7 +399,7 @@ function VisitPlanDetailContent() {
             type="button"
             variant="outline"
             className="h-10 rounded-lg"
-            onClick={() => router.push(`/pre-visit/${plan.id}/notes`)}
+            onClick={() => router.push(`/pre-visit/${plan.id}/notes${isQuickstart ? "?demo=quickstart" : ""}`)}
           >
             <NotebookPen className="mr-2 h-4 w-4" />
             拜訪筆記
@@ -500,7 +540,7 @@ function VisitPlanDetailContent() {
         <aside className="space-y-4">
           <EvidenceBoard buckets={evidenceBuckets} />
           <TimeBox totalMinutes={totalMinutes} />
-          <NotesBox notes={plan.postVisitNotes} onOpen={() => router.push(`/pre-visit/${plan.id}/notes`)} />
+          <NotesBox notes={plan.postVisitNotes} onOpen={() => router.push(`/pre-visit/${plan.id}/notes${isQuickstart ? "?demo=quickstart" : ""}`)} />
         </aside>
       </main>
     </div>
@@ -822,14 +862,16 @@ function EmptyPrepCopy({ copy }: { copy: string }) {
   );
 }
 
-function PlanMissingState({ onBack }: { onBack: () => void }) {
+function PlanMissingState({ error, onBack }: { error?: string; onBack: () => void }) {
   return (
     <div className="mx-auto flex min-h-[50vh] max-w-md flex-col items-center justify-center px-6 text-center">
       <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-hairline">
         <PackageCheck className="h-5 w-5 text-muted-foreground" />
       </div>
       <h1 className="mt-5 text-lg font-semibold text-ink">找不到這份準備包</h1>
-      <p className="mt-2 text-sm leading-6 text-muted-foreground">可能尚未建立，或本機 demo 資料已被清除。</p>
+      <p className="mt-2 text-sm leading-6 text-muted-foreground">
+        {error ? `同步失敗：${error}` : "可能尚未建立，或本機 demo 資料已被清除。"}
+      </p>
       <Button type="button" variant="mono" className="mt-5 rounded-lg" onClick={onBack}>
         回拜訪規劃
       </Button>

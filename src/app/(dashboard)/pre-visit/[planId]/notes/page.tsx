@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
   CheckCircle2,
@@ -15,9 +15,11 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
+import type { Client } from "@/domains/client/types";
 import { useClientStore } from "@/domains/client/store";
+import { VisitService } from "@/domains/visit/service";
 import { useVisitStore } from "@/domains/visit/store";
-import type { VisitPurpose } from "@/domains/visit/types";
+import type { VisitPlan, VisitPurpose } from "@/domains/visit/types";
 
 const PURPOSE_LABELS: Record<VisitPurpose, string> = {
   FIRST_VISIT: "初訪",
@@ -34,18 +36,59 @@ function normalizeParam(value: string | string[] | undefined) {
 export default function PostVisitNotesPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const planId = normalizeParam(params.planId);
   const updatePlan = useVisitStore((state) => state.updatePlan);
   const plan = useVisitStore((state) => state.plans.find((p) => p.id === planId));
   const client = useClientStore((state) => state.clients.find((c) => c.id === plan?.clientId));
-  const [notes, setNotes] = useState(plan?.postVisitNotes ?? "");
-  const [isSaving, setIsSaving] = useState(false);
+  const isQuickstart = searchParams.get("demo") === "quickstart";
+  const [isLoadingPlan, setIsLoadingPlan] = useState(!isQuickstart);
+  const [planLoadError, setPlanLoadError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isQuickstart || !planId) return;
+
+    let cancelled = false;
+    const targetPlanId = planId;
+
+    async function loadPlan() {
+      try {
+        setIsLoadingPlan(true);
+        setPlanLoadError(null);
+        await VisitService.fetchPlanByIdRemote(targetPlanId);
+      } catch (error) {
+        if (!cancelled) {
+          setPlanLoadError(error instanceof Error ? error.message : "VISIT_PLAN_LOAD_FAILED");
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoadingPlan(false);
+        }
+      }
+    }
+
+    void loadPlan();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isQuickstart, planId]);
+
+  if (isLoadingPlan) {
+    return (
+      <div className="p-10 text-center text-sm font-medium text-muted-foreground">
+        載入拜訪筆記...
+      </div>
+    );
+  }
 
   if (!plan || !client) {
     return (
       <div className="mx-auto flex min-h-[50vh] max-w-md flex-col items-center justify-center px-6 text-center">
         <h1 className="text-lg font-semibold text-ink">找不到拜訪筆記</h1>
-        <p className="mt-2 text-sm leading-6 text-muted-foreground">請先建立或重新開啟一份拜訪準備包。</p>
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">
+          {planLoadError ? `同步失敗：${planLoadError}` : "請先建立或重新開啟一份拜訪準備包。"}
+        </p>
         <Button type="button" variant="mono" className="mt-5 rounded-full" onClick={() => router.push("/pre-visit")}>
           回拜訪規劃
         </Button>
@@ -53,6 +96,31 @@ export default function PostVisitNotesPage() {
     );
   }
 
+  return (
+    <PostVisitNotesWorkspace
+      key={plan.id}
+      client={client}
+      isQuickstart={isQuickstart}
+      plan={plan}
+      updatePlan={updatePlan}
+    />
+  );
+}
+
+function PostVisitNotesWorkspace({
+  client,
+  isQuickstart,
+  plan,
+  updatePlan,
+}: {
+  client: Client;
+  isQuickstart: boolean;
+  plan: VisitPlan;
+  updatePlan: (id: string, updates: Partial<VisitPlan>) => void;
+}) {
+  const router = useRouter();
+  const [notes, setNotes] = useState(plan.postVisitNotes ?? "");
+  const [isSaving, setIsSaving] = useState(false);
   const checkedMaterials = plan.materials.filter((material) => material.checked);
   const noteLines = notes
     .split("\n")
@@ -63,11 +131,21 @@ export default function PostVisitNotesPage() {
     noteLines.find((line) => line.includes("下一步") || line.includes("跟進") || line.includes("追蹤")) ??
     "下一步尚未明確";
 
-  const handleSave = () => {
+  const handleSave = async () => {
     setIsSaving(true);
-    updatePlan(plan.id, { postVisitNotes: notes });
-    setIsSaving(false);
-    toast.success("拜訪筆記已儲存");
+    try {
+      if (isQuickstart || plan.id.startsWith("plan-")) {
+        updatePlan(plan.id, { postVisitNotes: notes });
+      } else {
+        await VisitService.updatePlanRemote(plan.id, { postVisitNotes: notes });
+      }
+      toast.success("拜訪筆記已儲存");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "POST_VISIT_NOTES_SAVE_FAILED";
+      toast.error("拜訪筆記儲存失敗", { description: message });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -78,7 +156,7 @@ export default function PostVisitNotesPage() {
             type="button"
             variant="ghost"
             className="mb-4 h-10 rounded-full px-3 text-muted-foreground"
-            onClick={() => router.push(`/pre-visit/${plan.id}`)}
+            onClick={() => router.push(`/pre-visit/${plan.id}${isQuickstart ? "?demo=quickstart" : ""}`)}
           >
             <ArrowLeft className="mr-2 h-4 w-4" />
             回準備包

@@ -64,11 +64,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 0,
+    "normalLoopsSinceLastWholeProductReview": 1,
     "lastWholeProductReviewAt": "2026-06-20",
     "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-20_lv3-whole-product-gap-review.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "BFF-104a Visit / Pre-visit server-owned workspace: add member-scoped GET/POST /api/visits plus GET/PATCH /api/visits/[id] and notes write path; migrate /pre-visit list/detail/notes to BFF/cache-first; keep /api/ai/visit as provider-generation route and add deterministic save/update path for generated preparation package data; prove refresh/new context, reasoning evidence persistence, theater CTA from persisted visitPlanId, and no raw prompt/provider/private leakage.",
+    "nextRecommendedImplementationSlice": "TDF-004a Persisted visit package -> theater build gate: add full theater build selector/review UI for persisted visitPlanId, high-sensitive reason + riskAccepted controls, stage source summary with fact/inference/unknown boundaries, and browser/API proof that READY visits can create a theater draft while highly sensitive visits remain blocked until explicit risk acceptance.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {

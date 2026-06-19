@@ -8,6 +8,8 @@ interface VisitState {
   plans: VisitPlan[];
   
   // Actions
+  setPlans: (plans: VisitPlan[]) => void;
+  setPlan: (plan: VisitPlan) => void;
   addPlan: (plan: VisitPlan) => void;
   updatePlan: (id: string, updates: Partial<VisitPlan>) => void;
   deletePlan: (id: string) => void;
@@ -19,6 +21,18 @@ interface VisitState {
 
 export const useVisitStore = create<VisitState>()((set, get) => ({
   plans: demoSeedVisitPlans,
+
+  setPlans: (plans) => set({ plans }),
+
+  setPlan: (plan) => set((state) => {
+    const exists = state.plans.some((item) => item.id === plan.id);
+
+    return {
+      plans: exists
+        ? state.plans.map((item) => item.id === plan.id ? plan : item)
+        : [plan, ...state.plans],
+    };
+  }),
 
   addPlan: (plan) => set((state) => ({
     plans: [plan, ...state.plans],

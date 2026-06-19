@@ -1,4 +1,9 @@
-import { VisitPlanStatus as DbVisitPlanStatus } from "@/generated/prisma/enums";
+import { z } from "zod";
+import {
+  ClientStatus,
+  VisitPlanStatus as DbVisitPlanStatus,
+  VisitPurpose as DbVisitPurpose,
+} from "@/generated/prisma/enums";
 import type { Prisma, VisitPlan as DbVisitPlan } from "@/generated/prisma/client";
 import type { Client } from "@/domains/client/types";
 import type {
@@ -11,7 +16,7 @@ import type {
   VisitQuestionEvidenceSource,
   VisitQuestionEvidenceStatus,
 } from "@/domains/visit/types";
-import { canReadClientDetail } from "@/lib/auth/policies";
+import { canReadClientDetail, canWriteClient } from "@/lib/auth/policies";
 import type { AppSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
 import { toClientDto, type ClientRecord } from "@/lib/clients/client-dto";
@@ -40,15 +45,109 @@ const visitPlanInclude = {
 } as const;
 
 const SPIN_TYPES: SpinQuestion["type"][] = ["S", "P", "I", "N"];
-const EVIDENCE_SOURCES = new Set<VisitQuestionEvidenceSource>([
+const VISIT_PURPOSES = ["FIRST_VISIT", "ADD_ON", "RENEWAL", "CARE", "REFERRAL"] as const;
+const VISIT_PLAN_STATUSES = ["DRAFT", "READY", "COMPLETED"] as const;
+const EVIDENCE_SOURCE_VALUES = [
   "client_profile",
   "relationship_graph",
   "policy",
   "ai_tag",
   "visit_purpose",
   "unknown",
-]);
-const EVIDENCE_STATUSES = new Set<VisitQuestionEvidenceStatus>(["confirmed", "inference", "unknown"]);
+] as const;
+const EVIDENCE_STATUS_VALUES = ["confirmed", "inference", "unknown"] as const;
+const EVIDENCE_SOURCES = new Set<VisitQuestionEvidenceSource>(EVIDENCE_SOURCE_VALUES);
+const EVIDENCE_STATUSES = new Set<VisitQuestionEvidenceStatus>(EVIDENCE_STATUS_VALUES);
+
+const visitTimeInputSchema = z
+  .string()
+  .trim()
+  .max(80)
+  .refine((value) => !value || !Number.isNaN(new Date(value).getTime()), {
+    message: "INVALID_VISIT_TIME",
+  })
+  .optional()
+  .or(z.literal(""));
+
+const visitQuestionEvidenceInputSchema = z.object({
+  id: z.string().trim().min(1).max(80),
+  source: z.enum(EVIDENCE_SOURCE_VALUES),
+  status: z.enum(EVIDENCE_STATUS_VALUES),
+  label: z.string().trim().min(1).max(120),
+  detail: z.string().trim().min(1).max(600),
+});
+
+const visitQuestionReasoningInputSchema = z.object({
+  summary: z.string().trim().min(1).max(800),
+  evidence: z.array(visitQuestionEvidenceInputSchema).max(20).default([]),
+  confirmationPrompt: z.string().trim().max(500).optional().or(z.literal("")),
+});
+
+const visitObjectiveInputSchema = z.object({
+  id: z.string().trim().min(1).max(80),
+  description: z.string().trim().min(1).max(600),
+  successCriteria: z.string().trim().min(1).max(600),
+});
+
+const spinQuestionInputSchema = z.object({
+  id: z.string().trim().min(1).max(80),
+  type: z.enum(["S", "P", "I", "N"]),
+  question: z.string().trim().min(1).max(800),
+  reasoning: visitQuestionReasoningInputSchema.optional(),
+});
+
+const objectionInputSchema = z.object({
+  id: z.string().trim().min(1).max(80),
+  expectedObjection: z.string().trim().min(1).max(600),
+  suggestedResponse: z.string().trim().min(1).max(1000),
+});
+
+const materialInputSchema = z.object({
+  id: z.string().trim().min(1).max(80),
+  name: z.string().trim().min(1).max(160),
+  checked: z.boolean().default(false),
+  fileUrl: z.string().trim().max(1000).optional().or(z.literal("")),
+  sentAt: z.string().trim().max(80).optional().or(z.literal("")),
+});
+
+export const createVisitPlanInputSchema = z.object({
+  clientId: z.string().trim().min(1).max(120),
+  purpose: z.enum(VISIT_PURPOSES).default("FIRST_VISIT"),
+  visitTime: visitTimeInputSchema,
+});
+
+export const updateVisitPlanInputSchema = z.object({
+  purpose: z.enum(VISIT_PURPOSES).optional(),
+  status: z.enum(VISIT_PLAN_STATUSES).optional(),
+  visitTime: visitTimeInputSchema,
+  objectives: z.array(visitObjectiveInputSchema).max(20).optional(),
+  spinQuestions: z.array(spinQuestionInputSchema).max(40).optional(),
+  objections: z.array(objectionInputSchema).max(20).optional(),
+  materials: z.array(materialInputSchema).max(40).optional(),
+  postVisitNotes: z.string().max(20_000).optional().or(z.literal("")),
+  postVisitAnalysis: z.string().max(20_000).optional().or(z.literal("")),
+});
+
+export type CreateVisitPlanInput = z.infer<typeof createVisitPlanInputSchema>;
+export type UpdateVisitPlanInput = z.infer<typeof updateVisitPlanInputSchema>;
+
+export async function listVisitPlansForMember(session: AppSession): Promise<VisitPlanWithClient[]> {
+  const records = await prisma.visitPlan.findMany({
+    where: {
+      organizationId: session.organization.id,
+      status: { not: DbVisitPlanStatus.ARCHIVED },
+    },
+    include: visitPlanInclude,
+    orderBy: [{ scheduledAt: "asc" }, { updatedAt: "desc" }],
+  });
+
+  return records
+    .filter((record) => canReadClientDetail(session, record.client))
+    .map((record) => ({
+      client: toClientDto(record.client),
+      visitPlan: toVisitPlanDto(record),
+    }));
+}
 
 export async function getVisitPlanForMember(
   session: AppSession,
@@ -66,6 +165,92 @@ export async function getVisitPlanForMember(
   if (!record || !canReadClientDetail(session, record.client)) {
     return null;
   }
+
+  return {
+    client: toClientDto(record.client),
+    visitPlan: toVisitPlanDto(record),
+  };
+}
+
+export async function createVisitPlanForMember(
+  session: AppSession,
+  input: CreateVisitPlanInput,
+): Promise<VisitPlanWithClient | null> {
+  const clientScope = await getWritableClientScope(session, input.clientId);
+
+  if (!clientScope) {
+    return null;
+  }
+
+  const record = await prisma.visitPlan.create({
+    data: {
+      organizationId: session.organization.id,
+      unitId: session.membership.primaryUnitId ?? clientScope.unitId,
+      ownerId: session.user.id,
+      clientId: input.clientId,
+      purpose: input.purpose as DbVisitPurpose,
+      status: DbVisitPlanStatus.DRAFT,
+      scheduledAt: parseVisitDate(input.visitTime),
+      objectives: [],
+      spinQuestions: [],
+      objections: [],
+      materials: [],
+      isDemo: clientScope.isDemo,
+      demoScenario: clientScope.demoScenario,
+      demoSeedVersion: clientScope.demoSeedVersion,
+    },
+    include: visitPlanInclude,
+  });
+
+  return {
+    client: toClientDto(record.client),
+    visitPlan: toVisitPlanDto(record),
+  };
+}
+
+export async function updateVisitPlanForMember(
+  session: AppSession,
+  visitPlanId: string,
+  input: UpdateVisitPlanInput,
+): Promise<VisitPlanWithClient | null> {
+  const current = await prisma.visitPlan.findFirst({
+    where: {
+      id: visitPlanId,
+      organizationId: session.organization.id,
+      status: { not: DbVisitPlanStatus.ARCHIVED },
+    },
+    select: {
+      client: {
+        select: {
+          organizationId: true,
+          unitId: true,
+          ownerId: true,
+        },
+      },
+    },
+  });
+
+  if (!current || !canWriteClient(session, current.client)) {
+    return null;
+  }
+
+  const data: Prisma.VisitPlanUpdateInput = {
+    ...(input.purpose !== undefined ? { purpose: input.purpose as DbVisitPurpose } : {}),
+    ...(input.status !== undefined ? { status: toDbStatus(input.status) } : {}),
+    ...(input.visitTime !== undefined ? { scheduledAt: parseVisitDate(input.visitTime) } : {}),
+    ...(input.objectives !== undefined ? { objectives: toInputJson(input.objectives) } : {}),
+    ...(input.spinQuestions !== undefined ? { spinQuestions: toInputJson(input.spinQuestions) } : {}),
+    ...(input.objections !== undefined ? { objections: toInputJson(input.objections) } : {}),
+    ...(input.materials !== undefined ? { materials: toInputJson(input.materials) } : {}),
+    ...(input.postVisitNotes !== undefined ? { postVisitNotes: input.postVisitNotes || null } : {}),
+    ...(input.postVisitAnalysis !== undefined ? { postVisitAnalysis: input.postVisitAnalysis || null } : {}),
+  };
+
+  const record = await prisma.visitPlan.update({
+    where: { id: visitPlanId },
+    data,
+    include: visitPlanInclude,
+  });
 
   return {
     client: toClientDto(record.client),
@@ -92,10 +277,30 @@ function toVisitPlanDto(record: VisitPlanRecord): VisitPlan {
   };
 }
 
+function toDbStatus(status: VisitPlan["status"]): DbVisitPlanStatus {
+  if (status === "READY") return DbVisitPlanStatus.READY;
+  if (status === "COMPLETED") return DbVisitPlanStatus.COMPLETED;
+  return DbVisitPlanStatus.DRAFT;
+}
+
 function toDomainStatus(status: DbVisitPlanStatus): VisitPlan["status"] {
   if (status === DbVisitPlanStatus.READY) return "READY";
   if (status === DbVisitPlanStatus.COMPLETED) return "COMPLETED";
   return "DRAFT";
+}
+
+function parseVisitDate(value: string | undefined | null): Date | null {
+  const normalized = value?.trim();
+
+  if (!normalized) {
+    return null;
+  }
+
+  return new Date(normalized);
+}
+
+function toInputJson<T>(value: T): Prisma.InputJsonValue {
+  return value as unknown as Prisma.InputJsonValue;
 }
 
 function parseObjectives(value: Prisma.JsonValue | null): VisitObjective[] {
@@ -241,4 +446,28 @@ function readEvidenceStatus(value: unknown): VisitQuestionEvidenceStatus {
   }
 
   return "unknown";
+}
+
+async function getWritableClientScope(session: AppSession, clientId: string) {
+  const current = await prisma.client.findFirst({
+    where: {
+      id: clientId,
+      organizationId: session.organization.id,
+      status: { not: ClientStatus.ARCHIVED },
+    },
+    select: {
+      organizationId: true,
+      unitId: true,
+      ownerId: true,
+      isDemo: true,
+      demoScenario: true,
+      demoSeedVersion: true,
+    },
+  });
+
+  if (!current || !canWriteClient(session, current)) {
+    return null;
+  }
+
+  return current;
 }

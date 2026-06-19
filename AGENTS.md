@@ -1114,14 +1114,16 @@ Context: 將目前 partial vertical-slice BFF 推進成全站一致的 Backend-f
 - [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
 
 ### Batch BFF-104 — Visit / pre-visit BFF
-- [ ] 建立 visit list/detail/create/update/notes BFF。
-- [ ] DTO 回準備包、checklist、source client summary、status、updatedAt，不回 raw prompt/provider payload。
-- [ ] `/pre-visit`、`/pre-visit/[planId]`、notes 頁改 BFF/cache-first。
-- [ ] 與 `/api/ai/visit` AI generation contract 分清。
-- [ ] API/browser proof 覆蓋 refresh/new context。
-- [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+- [x] 建立 visit list/detail/create/update/notes BFF。
+- [x] DTO 回準備包、checklist、source client context、status、updatedAt，不回 raw prompt/provider payload。
+- [x] `/pre-visit`、`/pre-visit/[planId]`、notes 頁改 BFF/cache-first。
+- [x] 與 `/api/ai/visit` AI generation contract 分清。
+- [x] API/browser proof 覆蓋 refresh/new context。
+- [x] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
 
 Whole-product review 註記：2026-06-20 第五輪校準選定下一個最高槓桿實作切片為 `BFF-104a Visit / Pre-visit server-owned workspace`。先補 `GET/POST /api/visits`、`GET/PATCH /api/visits/[id]`、notes write path，並把 `/pre-visit` list/detail/notes 改為 BFF/cache-first；`/api/ai/visit` 保持 provider-generation route，generated preparation package 另走 deterministic save/update path。驗收需覆蓋 refresh/new context、reasoning evidence persistence、persisted `visitPlanId` theater CTA、no raw prompt/provider/private leakage。
+
+完成註記：2026-06-20 新增 `GET/POST /api/visits`、`GET/PATCH /api/visits/[id]`、`VisitService` remote cache helpers 與 `pnpm visit:bff-qa`。`/pre-visit` list/create/autoCreate、`/pre-visit/[planId]` detail/generate save/material toggle、`/pre-visit/[planId]/notes` save/reload 均改為 member-scoped BFF/cache-first；Quickstart demo branch 保留 local fixture。Proof：`DEMO_QA_BASE_URL=http://localhost:3001 pnpm visit:bff-qa` 通過，覆蓋 unauth 401、demo create/patch/reload、reasoning evidence persistence、notes reload、persisted `visitPlanId` theater handoff、raw private sentinel 0、desktop/mobile no overflow。此 proof 不呼叫 `/api/ai/visit` 或 provider，無 AiUsageLog 需求；DB 僅新增/更新可辨識 demo `VisitPlan` evidence，無 schema/Prisma 變更。
 
 ### Batch BFF-105 — Reports / share action BFF
 - [ ] 建立 reports list/detail/update/share action BFF。

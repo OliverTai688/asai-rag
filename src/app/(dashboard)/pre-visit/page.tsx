@@ -40,6 +40,7 @@ import { resolveClientFromList } from "@/domains/client/id-aliases";
 import { clientService } from "@/domains/client/service";
 import { useClientStore } from "@/domains/client/store";
 import { type Client } from "@/domains/client/types";
+import { VisitService } from "@/domains/visit/service";
 import { useVisitStore } from "@/domains/visit/store";
 import { type VisitPlan, type VisitPlanStatus, type VisitPurpose } from "@/domains/visit/types";
 import { cn } from "@/lib/utils";
@@ -84,8 +85,9 @@ function PreVisitListContent() {
   const preselectedClientParamRef = useRef<string | null>(null);
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [isLoadingClients, setIsLoadingClients] = useState(!isQuickstart);
-  const [clientLoadError, setClientLoadError] = useState<string | null>(null);
+  const [isLoadingWorkspace, setIsLoadingWorkspace] = useState(!isQuickstart);
+  const [workspaceLoadError, setWorkspaceLoadError] = useState<string | null>(null);
+  const [isCreatingPlan, setIsCreatingPlan] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("ALL");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
   const [sortMode, setSortMode] = useState<SortMode>("TIME_ASC");
@@ -107,23 +109,26 @@ function PreVisitListContent() {
 
     let cancelled = false;
 
-    async function loadClients() {
+    async function loadWorkspace() {
       try {
-        setIsLoadingClients(true);
-        setClientLoadError(null);
-        await clientService.fetchClients();
+        setIsLoadingWorkspace(true);
+        setWorkspaceLoadError(null);
+        await Promise.all([
+          clientService.fetchClients(),
+          VisitService.fetchPlansRemote(),
+        ]);
       } catch (error) {
         if (!cancelled) {
-          setClientLoadError(error instanceof Error ? error.message : "CLIENT_LOAD_FAILED");
+          setWorkspaceLoadError(error instanceof Error ? error.message : "VISIT_WORKSPACE_LOAD_FAILED");
         }
       } finally {
         if (!cancelled) {
-          setIsLoadingClients(false);
+          setIsLoadingWorkspace(false);
         }
       }
     }
 
-    void loadClients();
+    void loadWorkspace();
 
     return () => {
       cancelled = true;
@@ -157,9 +162,25 @@ function PreVisitListContent() {
 
     if (!resolvedClient) return;
 
+    const targetClient = resolvedClient;
     autoCreatedRef.current = true;
-    const planId = createEmptyPlan(resolvedClient.id, "FIRST_VISIT");
-    router.replace(`/pre-visit/${planId}${isQuickstart ? "?demo=quickstart" : ""}`);
+    async function createAutoPlan() {
+      try {
+        const planId = isQuickstart
+          ? createEmptyPlan(targetClient.id, "FIRST_VISIT")
+          : (await VisitService.createPlanRemote({
+              clientId: targetClient.id,
+              purpose: "FIRST_VISIT",
+            })).id;
+
+        router.replace(`/pre-visit/${planId}${isQuickstart ? "?demo=quickstart" : ""}`);
+      } catch (error) {
+        autoCreatedRef.current = false;
+        setWorkspaceLoadError(error instanceof Error ? error.message : "VISIT_PLAN_CREATE_FAILED");
+      }
+    }
+
+    void createAutoPlan();
   }, [clients, createEmptyPlan, isQuickstart, router, searchParams]);
 
   const planRows = useMemo(() => {
@@ -200,14 +221,29 @@ function PreVisitListContent() {
     .filter((plan) => plan.visitTime && plan.status !== "COMPLETED")
     .sort((a, b) => new Date(a.visitTime ?? 0).getTime() - new Date(b.visitTime ?? 0).getTime())[0];
 
-  const handleCreatePlan = () => {
+  const handleCreatePlan = async () => {
     if (!selectedClientId) return;
-    const planId = createEmptyPlan(selectedClientId, selectedPurpose, newPlanTime || undefined);
-    setIsDialogOpen(false);
-    setNewPlanClientId("");
-    setNewPlanPurpose("FIRST_VISIT");
-    setNewPlanTime("");
-    router.push(`/pre-visit/${planId}${isQuickstart ? "?demo=quickstart" : ""}`);
+
+    setIsCreatingPlan(true);
+    try {
+      const planId = isQuickstart
+        ? createEmptyPlan(selectedClientId, selectedPurpose, newPlanTime || undefined)
+        : (await VisitService.createPlanRemote({
+            clientId: selectedClientId,
+            purpose: selectedPurpose,
+            visitTime: newPlanTime || undefined,
+          })).id;
+
+      setIsDialogOpen(false);
+      setNewPlanClientId("");
+      setNewPlanPurpose("FIRST_VISIT");
+      setNewPlanTime("");
+      router.push(`/pre-visit/${planId}${isQuickstart ? "?demo=quickstart" : ""}`);
+    } catch (error) {
+      setWorkspaceLoadError(error instanceof Error ? error.message : "VISIT_PLAN_CREATE_FAILED");
+    } finally {
+      setIsCreatingPlan(false);
+    }
   };
 
   if (isQuickstart) {
@@ -220,12 +256,12 @@ function PreVisitListContent() {
     );
   }
 
-  if (isLoadingClients) {
+  if (isLoadingWorkspace) {
     return <PreVisitLoadingState />;
   }
 
-  if (clientLoadError) {
-    return <PreVisitClientLoadError error={clientLoadError} />;
+  if (workspaceLoadError) {
+    return <PreVisitClientLoadError error={workspaceLoadError} />;
   }
 
   return (
@@ -260,6 +296,7 @@ function PreVisitListContent() {
             onPurposeChange={setNewPlanPurpose}
             onTimeChange={setNewPlanTime}
             onCreate={handleCreatePlan}
+            isCreating={isCreatingPlan}
           />
         </div>
       </div>
@@ -370,6 +407,7 @@ function CreatePlanDialog({
   onPurposeChange,
   onTimeChange,
   onCreate,
+  isCreating,
 }: {
   clients: Client[];
   open: boolean;
@@ -381,7 +419,8 @@ function CreatePlanDialog({
   onClientChange: (clientId: string) => void;
   onPurposeChange: (purpose: VisitPurpose) => void;
   onTimeChange: (time: string) => void;
-  onCreate: () => void;
+  onCreate: () => void | Promise<void>;
+  isCreating: boolean;
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -465,8 +504,9 @@ function CreatePlanDialog({
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
             取消
           </Button>
-          <Button type="button" variant="mono" onClick={onCreate} disabled={!selectedClientId}>
-            開始規劃
+          <Button type="button" variant="mono" onClick={onCreate} disabled={!selectedClientId || isCreating}>
+            {isCreating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+            {isCreating ? "建立中" : "開始規劃"}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -573,8 +613,8 @@ function PreVisitLoadingState() {
   return (
     <div className="flex min-h-[360px] flex-col items-center justify-center rounded-lg border border-hairline bg-card px-6 text-center">
       <Loader2 className="mb-4 h-7 w-7 animate-spin text-muted-foreground" />
-      <p className="text-sm font-semibold text-foreground">正在同步客戶資料</p>
-      <p className="mt-1 text-sm text-muted-foreground">準備可生成 AI 準備包的客戶清單。</p>
+      <p className="text-sm font-semibold text-foreground">正在同步拜訪工作區</p>
+      <p className="mt-1 text-sm text-muted-foreground">載入客戶、準備包與可接續的拜訪任務。</p>
     </div>
   );
 }
@@ -585,7 +625,7 @@ function PreVisitClientLoadError({ error }: { error: string }) {
       <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-md border border-hairline bg-paper-2 text-muted-foreground">
         <CalendarDays className="h-6 w-6" strokeWidth={1.5} />
       </div>
-      <h2 className="text-base font-semibold text-foreground">無法同步客戶資料</h2>
+      <h2 className="text-base font-semibold text-foreground">無法同步拜訪工作區</h2>
       <p className="mt-2 text-sm text-muted-foreground">請確認登入狀態後重新整理。錯誤代碼：{error}</p>
     </div>
   );

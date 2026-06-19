@@ -145,15 +145,17 @@
 
 目標：讓 `/pre-visit` list/detail/notes/create/update 走 member-scoped BFF。
 
-- [ ] 建立 `GET/POST /api/visits` 或現有命名等價 route。
-- [ ] 建立 `GET/PATCH /api/visits/[id]` 與 notes write path。
-- [ ] DTO 回準備包、checklist、source client summary、status、updatedAt，不回 raw prompt/provider payload。
-- [ ] `/pre-visit`、`/pre-visit/[planId]`、notes 頁改 BFF/cache-first。
-- [ ] 與 `/api/ai/visit` 的 AI generation contract 分清：planning CRUD 不等於 provider call。
-- [ ] API/browser proof 覆蓋 refresh/new context。
-- [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+- [x] 建立 `GET/POST /api/visits` 或現有命名等價 route。
+- [x] 建立 `GET/PATCH /api/visits/[id]` 與 notes write path。
+- [x] DTO 回準備包、checklist、source client context、status、updatedAt，不回 raw prompt/provider payload。
+- [x] `/pre-visit`、`/pre-visit/[planId]`、notes 頁改 BFF/cache-first。
+- [x] 與 `/api/ai/visit` 的 AI generation contract 分清：planning CRUD 不等於 provider call。
+- [x] API/browser proof 覆蓋 refresh/new context。
+- [x] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
 
 Whole-product review 註記（2026-06-20）：下一個 LV3 implementation loop 建議切成 `BFF-104a Visit / Pre-visit server-owned workspace`。先補 `GET/POST /api/visits`、`GET/PATCH /api/visits/[id]`、notes write path，並把 `/pre-visit` list/detail/notes 改為 BFF/cache-first；`/api/ai/visit` 保持 provider-generation route，generated preparation package 另走 deterministic save/update path，避免把 raw prompt/provider payload 當業務資料保存。驗收需證明 refresh/new context 後準備包、reasoning evidence、notes 與 persisted `visitPlanId` theater CTA 都存在。
+
+完成註記（2026-06-20）：`BFF-104a` 已落地。新增 `src/app/api/visits/route.ts`、`src/app/api/visits/[id]/route.ts`、`src/lib/visits/visit-plan-repository.ts` create/list/update schemas 與 repository 方法、`VisitService` remote cache helpers，並把 `/pre-visit` list/detail/notes 接到 BFF。`pnpm visit:bff-qa` 以 demo member proof 驗證 401 guard、create/patch/reload、reasoning evidence、notes reload、persisted visitPlanId theater handoff、no raw private sentinel、desktop/mobile no overflow；腳本不呼叫 provider route。
 
 ---
 

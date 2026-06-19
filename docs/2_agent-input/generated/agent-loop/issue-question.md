@@ -8,6 +8,7 @@ Last updated: 2026-06-20
 - 2026-06-20 resolved: ASAI LV3 目標流程定案為：新增客戶 -> 建立關係圖 -> 生成拜訪準備包 -> 檢視問題清單與推論依據 -> 從準備包建立劇場舞台 -> 劇場私聊/群聊/人物狀態更新 -> AI 訪談建立或補強客戶資料、準備包與劇場。
 - 2026-06-20 resolved: 使用者要求「先不用 git push」。後續 ASAI LV3 automation 每輪仍需驗收、stage 與建立本地 commit，但不得 push；report/final 寫明 `push skipped by user instruction`。待使用者明確恢復 push 後再重新開啟。
 - PIM-009 已完成 cross-mode QA 與 rollback note；尚未啟用 production recording 或 live Realtime provider proof。
+- 2026-06-20 resolved: BFF-104a 已完成 Visit / Pre-visit server-owned workspace；`/pre-visit` list/detail/notes/create/update 改走 member-scoped BFF，`/api/ai/visit` 仍只負責 provider generation，deterministic save/update 另走 `/api/visits`。Proof 不呼叫 provider，僅做 demo `VisitPlan` 非破壞性新增/更新 evidence。
 
 ## Production Approval
 
