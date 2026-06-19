@@ -1,7 +1,7 @@
 # 誠問 AI Realtime Voice × Park-style Interview Memory Batch Tasks v1.0
 
 > 建立日期：2026-06-19  
-> 狀態：進行中（PIM-002 完成）  
+> 狀態：進行中（PIM-003 完成）  
 > 架構依據：`ARC-007_realtime-voice-and-park-memory-interview-architecture-v1.0.md`  
 > 研究依據：`RES-017_chinese-realtime-voice-and-park-memory-interview-research-v1.0.md`  
 > 既有雙 Agent 依據：`ARC-004_interview-theater-dual-agent-design-v1.1.md`、`PLN-015_interview-theater-dual-agent-batch-tasks-v1.0.md`  
@@ -37,7 +37,7 @@
 | PIM-000 | 架構文件與 workstream 登錄 | [x] | `RES-017` |
 | PIM-001 | Memory domain contracts + pure services | [x] | PIM-000 |
 | PIM-002 | 顧問陪談 Park memory loop | [x] | PIM-001、ITA-001 |
-| PIM-003 | 劇場場域建構 Park memory loop | [ ] | PIM-001、ITA-003/Route B contract |
+| PIM-003 | 劇場場域建構 Park memory loop | [x] | PIM-001、ITA-003/Route B contract |
 | PIM-004 | `/interview` 中文語音 UX shell | [ ] | PIM-000 |
 | PIM-005 | Realtime session BFF + event mirror | [ ] | PIM-004、session/quota guard |
 | PIM-006 | Prisma persistence for turns/memory/reflection | [ ] | PIM-001、DB approval |
@@ -106,16 +106,18 @@
 
 目標：讓 `THEATER_FIELD_BUILD` 訪綱 B 使用同一 memory architecture，產生 Theater Route B 可消費的 build packet。
 
-- [ ] 萃取或補齊 theater field outline runtime entry，使用 `InterviewKind.THEATER_FIELD_BUILD`。
-- [ ] 將場景、角色、關係、異議、敏感資料與未知缺口轉成 memory candidates。
-- [ ] Reflection 判斷焦點客戶、NPC 必要性、已知/推論/未知、旁白 NPC 需補問項。
-- [ ] 產生 `TheaterBuildPacket`，只把 confirmed facts 當事實，inferred persona 保持推論語氣。
-- [ ] 若資料不足，不生成可演練劇場；改回補問或旁白 NPC question list。
-- [ ] 不改 Theater legacy enum/scoring；若要接 Route B schema，需依 ITA-003/ITA-006 migration note。
-- [ ] API/source-level proof：build packet 不含未確認 fact leakage，NPC <= 4。
-- [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`；動 schema 才跑 Prisma。
+- [x] 萃取或補齊 theater field outline runtime entry，使用 `InterviewKind.THEATER_FIELD_BUILD`。
+- [x] 將場景、角色、關係、異議、敏感資料與未知缺口轉成 memory candidates。
+- [x] Reflection 判斷焦點客戶、NPC 必要性、已知/推論/未知、旁白 NPC 需補問項。
+- [x] 產生 `TheaterBuildPacket`，只把 confirmed facts 當事實，inferred persona 保持推論語氣。
+- [x] 若資料不足，不生成可演練劇場；改回補問或旁白 NPC question list。
+- [x] 不改 Theater legacy enum/scoring；若要接 Route B schema，需依 ITA-003/ITA-006 migration note。
+- [x] API/source-level proof：build packet 不含未確認 fact leakage，NPC <= 4。
+- [x] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`；動 schema 才跑 Prisma。
 
 範圍外：不實作完整多角色劇場 session；不保存 raw transcript 給 org manager。
+
+完成註記：2026-06-19 已新增 `src/domains/interview/outlines/theater-field-build.ts`、`src/domains/interview/theater-build.ts` 與 `TheaterBuildPacket` contract，並以 `pnpm interview:theater-build-dry-run` 驗證 READY / NEEDS_MORE_INFO、NPC 上限、未知缺口旁白補問與 inference-to-fact leakage guard。驗收：`pnpm interview:theater-build-dry-run`、`pnpm interview:park-loop-dry-run`、`pnpm interview:memory-dry-run`、`pnpm exec tsc --noEmit --pretty false`、`pnpm run lint:changed`、新增檔案 ESLint、`pnpm build` 通過。下一張最低未完成卡為 PIM-004。
 
 ---
 

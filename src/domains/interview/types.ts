@@ -193,6 +193,61 @@ export interface InterviewMicroPlan {
   supportingMemoryIds?: string[];
 }
 
+export type TheaterBuildReadiness = "READY" | "NEEDS_MORE_INFO";
+
+export type TheaterBuildPersonaConfidence = "CONFIRMED" | "INFERRED" | "UNKNOWN";
+
+export interface TheaterBuildCharacterSeed {
+  id: string;
+  displayName: string;
+  role: "FOCUS_CLIENT" | "DECISION_MAKER" | "INFLUENCER" | "ADVISOR" | "NARRATOR";
+  isFocus: boolean;
+  knownFacts: string[];
+  inferences: string[];
+  unknowns: string[];
+  personaHints: {
+    label: string;
+    confidence: TheaterBuildPersonaConfidence;
+    evidenceMemoryIds: string[];
+  }[];
+  exemplarLines: string[];
+}
+
+export interface TheaterBuildReflection {
+  focusClient?: string;
+  scenario?: string;
+  confirmedFacts: string[];
+  inferredPatterns: string[];
+  unknowns: string[];
+  necessaryNpcRoles: string[];
+  narratorQuestions: string[];
+  supportingMemoryIds: string[];
+}
+
+export interface TheaterBuildPacket {
+  id: string;
+  interviewSessionId: string;
+  interviewKind: "THEATER_FIELD_BUILD";
+  readiness: TheaterBuildReadiness;
+  focusClient?: string;
+  scenario?: string;
+  characters: TheaterBuildCharacterSeed[];
+  relationships: string[];
+  objections: string[];
+  sensitiveNotes: string[];
+  confirmedFacts: string[];
+  inferredPersona: string[];
+  unknowns: string[];
+  narratorQuestions: string[];
+  supportingMemoryIds: string[];
+  routeBCompatibility: {
+    npcCount: number;
+    maxNpcCount: 4;
+    canStartSimulation: boolean;
+    migrationNote: string;
+  };
+}
+
 export interface SegmentProgress {
   segment: InterviewSegment;
   answeredCoreQuestionIds: string[];

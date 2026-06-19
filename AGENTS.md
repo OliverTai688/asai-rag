@@ -883,14 +883,16 @@ Context: 將兩個 AI 訪談（顧問陪談訪綱 A、劇場場域建構訪綱 B
 完成註記：2026-06-19 已新增 `src/domains/interview/park-loop.ts`，讓 `/api/ai/interview` 與 `/api/ai/interview/outputs` 共用 session-local memory stream、retrieval partition、micro-plan 與 evidence IDs。UI 於 `/interview` 顯示「下一題計畫」與 supporting memory IDs。驗收：`pnpm interview:park-loop-dry-run`、`pnpm interview:memory-dry-run`、`pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`、`pnpm build` 通過；Browser proof desktop/mobile console error 0、無水平 overflow，且合成回答送出後顯示 plan evidence。截圖：`docs/06_audits-and-reports/screenshots/pim/pim-002-interview-desktop.png`、`docs/06_audits-and-reports/screenshots/pim/pim-002-interview-mobile.png`。下一張最低未完成卡為 PIM-003。
 
 ### Batch PIM-003 — 劇場場域建構 Park memory loop
-- [ ] 萃取或補齊 theater field outline runtime entry，使用 `InterviewKind.THEATER_FIELD_BUILD`。
-- [ ] 將場景、角色、關係、異議、敏感資料與未知缺口轉成 memory candidates。
-- [ ] Reflection 判斷焦點客戶、NPC 必要性、已知/推論/未知、旁白 NPC 需補問項。
-- [ ] 產生 `TheaterBuildPacket`，只把 confirmed facts 當事實，inferred persona 保持推論語氣。
-- [ ] 若資料不足，不生成可演練劇場；改回補問或旁白 NPC question list。
-- [ ] 不改 Theater legacy enum/scoring；若要接 Route B schema，需依 ITA-003/ITA-006 migration note。
-- [ ] API/source-level proof：build packet 不含未確認 fact leakage，NPC <= 4。
-- [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`；動 schema 才跑 Prisma。
+- [x] 萃取或補齊 theater field outline runtime entry，使用 `InterviewKind.THEATER_FIELD_BUILD`。
+- [x] 將場景、角色、關係、異議、敏感資料與未知缺口轉成 memory candidates。
+- [x] Reflection 判斷焦點客戶、NPC 必要性、已知/推論/未知、旁白 NPC 需補問項。
+- [x] 產生 `TheaterBuildPacket`，只把 confirmed facts 當事實，inferred persona 保持推論語氣。
+- [x] 若資料不足，不生成可演練劇場；改回補問或旁白 NPC question list。
+- [x] 不改 Theater legacy enum/scoring；若要接 Route B schema，需依 ITA-003/ITA-006 migration note。
+- [x] API/source-level proof：build packet 不含未確認 fact leakage，NPC <= 4。
+- [x] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`；動 schema 才跑 Prisma。
+
+完成註記：2026-06-19 已新增 `theaterFieldBuildOutline`、`TheaterBuildPacket` contract 與 `src/domains/interview/theater-build.ts`，可將劇場場景/角色/關係/異議/敏感點/未知缺口轉為 Park memory stream、reflection 與 Route B build packet。`pnpm interview:theater-build-dry-run` 覆蓋 READY packet、資料不足 `NEEDS_MORE_INFO`、NPC <= 4、推論不混入 confirmed facts、未知缺口轉 narrator questions。驗收：`pnpm interview:theater-build-dry-run`、`pnpm interview:park-loop-dry-run`、`pnpm interview:memory-dry-run`、`pnpm exec tsc --noEmit --pretty false`、`pnpm run lint:changed`、針對新增檔案 ESLint、`pnpm build` 通過。下一張最低未完成卡為 PIM-004。
 
 ### Batch PIM-004 — `/interview` 中文語音 UX shell
 - [ ] `/interview` 新增 mode toggle：文字訪談 / 中文語音訪談 Beta。
