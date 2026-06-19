@@ -30,7 +30,7 @@
 | 卡片 | 範圍 | 狀態 | 依賴 |
 | --- | --- | --- | --- |
 | ALA-000 | 文件與 AGENTS workstream 登錄 | ☐ | `RES-021` |
-| ALA-001 | Launch scope lock and risk register | ☐ | ALA-000 |
+| ALA-001 | Launch scope lock and risk register | [x] | ALA-000 |
 | ALA-002 | Private beta account and onboarding path | ☐ | ALA-001, LCH-001 |
 | ALA-003 | BFF coverage for beta-critical workflows | ☐ | ALA-001, BFF/RAS context |
 | ALA-004 | AI governance and kill-switch hardening | ☐ | LCH-004 |
@@ -151,14 +151,16 @@ Context: 將誠問 AI 從 Level 1/2 foundation 積極推進到 Level 2 Controlle
 
 目標：先鎖定 beta 可承諾與不可承諾的範圍，避免「積極上線」變成無邊界地打開 production risk。
 
-- [ ] 建立 private beta launch scope lock：advisor SaaS only，不含網路投保/正式商品建議。
-- [ ] 建立 beta risk register，至少覆蓋 tenant leak、AI cost、AI advice misuse、client token abuse、billing half-enable、monitoring missing、super admin break-glass。
-- [ ] 將 `ACC-014` Gate 1-7 寫入 platform readiness 或 report checklist。
-- [ ] 更新 `RES-016` issue-question，記錄 scope、billing、real user invite、real data policy 的 operator 決策項。
-- [ ] 若有 UI 文案或 public page 暗示正式保險建議，改成 beta-safe wording 或記 blocker。
-- [ ] 跑 `pnpm exec tsc --noEmit --pretty false` 與 `pnpm lint:changed`。
+- [x] 建立 private beta launch scope lock：advisor SaaS only，不含網路投保/正式商品建議。
+- [x] 建立 beta risk register，至少覆蓋 tenant leak、AI cost、AI advice misuse、client token abuse、billing half-enable、monitoring missing、super admin break-glass。
+- [x] 將 `ACC-014` Gate 1-7 寫入 platform readiness 或 report checklist。
+- [x] 更新 `RES-016` issue-question，記錄 scope、billing、real user invite、real data policy 的 operator 決策項。
+- [x] 若有 UI 文案或 public page 暗示正式保險建議，改成 beta-safe wording 或記 blocker。
+- [x] 跑 `pnpm exec tsc --noEmit --pretty false` 與 `pnpm lint:changed`。
 
 範圍外：不開 signup、不開 payment、不改 AI prompt。
+
+完成註記：2026-06-19 新增 `RPT-004_private-beta-launch-scope-risk-register-v1.0.md`，明確鎖定 Level 2 Controlled Private Beta 為 advisor SaaS only，不含網路投保/網路保險服務、不承諾正式保險商品建議、不開 public signup、不啟用 production payment/email/notification/raw audio。風險表覆蓋 tenant leak、AI cost、AI advice misuse、client token abuse、billing half-enable、monitoring missing、super admin break-glass 等 P0/P1；`ACC-014` Gate 1-7 已轉成 report checklist。已更新 `RES-016` 新增 IQ-025 operator decisions。UI wording scan 未發現需立即改動的 public UI 高風險承諾；ALA-006 仍需補 beta UI/flow disclaimer 可見驗收。
 
 ---
 
@@ -278,4 +280,3 @@ Context: 將誠問 AI 從 Level 1/2 foundation 積極推進到 Level 2 Controlle
 - Production email/notification/payment/refund、production DB destructive operation、raw audio retention、網路投保範圍擴張需明確 approval。
 - ECPay production MerchantID/HashKey/HashIV/callback domain 與 production payment approval 尚未提供。
 - 若 `AGENTS.md` 已有 unrelated dirty changes，先以 `PLN-022` 為單一任務真相，待工作樹可安全同步再更新 AGENTS。
-

@@ -837,3 +837,22 @@
   - 新增 `ACC-008_ecpay-test-flow-checklist.md`：ECPay test credentials、CheckMacValue、callback/query、order audit 與 production enablement gate。
   - 更新 `demo:release-readiness-qa`，驗證 `legal_pages`、`backup_restore`、`ecpay_checklist` 為 pass，且 `/privacy`、`/terms` 回 200 並包含 AI disclaimer。
   - 剩餘：正式 legal/compliance sign-off、ECPay production credentials/callback/CheckMacValue/refund process、monitoring DSN、AI route usage audit 與 full smoke。
+
+### IQ-025 - ALA-001 private beta scope lock 與 operator 決策事項
+
+- 狀態：Open
+- 發現日期：2026-06-19
+- 影響 batch：`ALA-001`、`ALA-002`、`ALA-005`、`ALA-006`、`ALA-007`
+- 背景：
+  - `RES-021` 將下一個積極上線目標定義為 Level 2 Controlled Private Beta，而不是直接 Level 3 Public Launch。
+  - `ALA-001` 已建立 `RPT-004_private-beta-launch-scope-risk-register-v1.0.md`，鎖定 beta 範圍為 advisor SaaS only，不含網路投保/網路保險服務、不承諾正式保險商品建議、不開 public signup、不啟用 production payment/email/notification/raw audio。
+- 需要 operator 決策：
+  - 第一批 private beta 是否允許輸入真實客戶資料，或僅允許半匿名資料？
+  - 第一批外部 beta 人數、通訊處數量與白名單名單。
+  - Private beta auth provider：Auth.js credentials invite flow、Supabase Auth email/password、Magic Link、Google OAuth，或其他 provider？
+  - 是否允許 staging/private beta 寄出真實 invite email？若否，`ALA-002` 應採人工傳送 invite token。
+  - Private beta billing：完全免費、人工合約、或只開 ECPay test mode？
+  - Monitoring provider：是否提供 Sentry DSN 或等價 provider 給 staging/private beta？
+  - Beta terms/privacy/AI disclaimer/client data consent 的人工審核 owner。
+- 建議預設：
+  - 先採 invite-only、manual invite token、self-serve checkout off、production email off、少量半匿名資料優先；待 monitoring/legal/billing gate 有 proof 後再放寬。
