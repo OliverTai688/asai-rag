@@ -151,7 +151,7 @@ function VisitPlanDetailContent() {
       const response = await fetch("/api/ai/visit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ purpose: plan.purpose, client }),
+        body: JSON.stringify({ purpose: plan.purpose, clientId: client.id }),
       });
 
       if (!response.ok) {

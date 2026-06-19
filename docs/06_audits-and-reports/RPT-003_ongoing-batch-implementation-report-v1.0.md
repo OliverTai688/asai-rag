@@ -2856,3 +2856,88 @@ pnpm demo:runtime-audit
 
 1. 先轉換 `/api/ai/visit` 與 `/api/ai/report`：補 `requireCurrentMember()`、`canUseAiModule()`、success/error `AiUsageLog`、BFF DTO 與 API proof。
 2. 或先做 monitoring blocker：若沒有 Sentry DSN，建立 monitoring setup doc + readiness gate operator action，讓 LCH-009 blockers 繼續收斂。
+
+## 2026-06-19 Round 039 - LCH-009 Visit Report AI Usage Conversion
+
+### 本輪戰役
+
+- Workstream：Launch Readiness Implementation。
+- Batch / task：`LCH-009` Production Controls And Release QA。
+- 選擇原因：Round 038 的 AI usage audit 已把 legacy gaps 具體化；其中 `/api/ai/visit` 與 `/api/ai/report` 是 demo member 常用的訪前規劃/報告生成路徑，最接近 private beta 實際使用且可在同一輪完成 session guard、quota guard、usage log、client DTO 與 API proof。
+
+### 本輪完成
+
+- `/api/ai/visit` 與 `/api/ai/report` 改為 session-scoped：使用 `requireCurrentMember()`，server 端以 `clientId` 讀 DB client，不再信任前端送完整 client payload。
+- 兩條 route 加上 `canUseAiModule()` quota guard；missing key、provider error、empty output、schema mismatch 都寫 `AiUsageLog.error`。
+- success path 共用 `persistAiGenerationSuccess()`：寫 `AiUsageLog` 並 increment organization `monthlyAiUsed`。
+- 前端訪前規劃與 CRM report generator 改送 `clientId`，降低 private client payload 暴露面。
+- 新增 `pnpm demo:ai-generation-qa`，驗證 unauth 401、demo member visit/report 200、response shape/markdown 正常、DB `VISIT`/`REPORT` success usage count 增加。
+- 更新 `AUD-005`、`PLN-017`、`AGENTS.md` 與 `RES-016`：`/api/ai/visit`、`/api/ai/report` 從 AI usage blocker 移除；剩餘 gaps 為 `/api/ai/spin`、`/api/ai/spin-suggestions`、`/api/rag`。
+
+### 修改檔案
+
+- `src/lib/ai/generation-usage-repository.ts`
+- `src/app/api/ai/visit/route.ts`
+- `src/app/api/ai/report/route.ts`
+- `src/app/(dashboard)/pre-visit/[planId]/page.tsx`
+- `src/app/(dashboard)/crm/[clientId]/reports/page.tsx`
+- `scripts/ai-usage-route-audit.mjs`
+- `scripts/demo-ai-generation-qa.mjs`
+- `package.json`
+- `docs/06_audits-and-reports/AUD-005_ai-usage-route-audit-v1.0.md`
+- `docs/06_audits-and-reports/RPT-003_ongoing-batch-implementation-report-v1.0.md`
+- `docs/05_execution-plans/PLN-017_launch-readiness-implementation-batch-tasks-v1.0.md`
+- `docs/07_research-and-design/RES-016_issue-question-log-v1.0.md`
+- `AGENTS.md`
+
+### DB / Prisma 操作
+
+- 是否修改 schema：否。
+- 是否執行 generate：`pnpm build` 內執行 Prisma generate，通過。
+- 是否執行 db push：否。
+- DB target 判斷：`.env` 指向可連線 Supabase dev/staging target；本輪只新增 demo proof 用的 `AiUsageLog` / org counter rows，不做 schema mutation。
+- Seed/backfill：無。
+
+### 驗收
+
+```bash
+pnpm exec tsc --noEmit --pretty false
+pnpm exec eslint src/lib/ai/generation-usage-repository.ts src/app/api/ai/visit/route.ts src/app/api/ai/report/route.ts 'src/app/(dashboard)/pre-visit/[planId]/page.tsx' 'src/app/(dashboard)/crm/[clientId]/reports/page.tsx' scripts/ai-usage-route-audit.mjs scripts/demo-ai-generation-qa.mjs
+pnpm ai:usage-audit
+pnpm run lint:changed
+pnpm prisma:validate
+pnpm demo:runtime-audit
+pnpm demo:preflight
+DEMO_QA_BASE_URL=http://localhost:3000 pnpm demo:ai-generation-qa
+pnpm build
+```
+
+結果：
+
+- TypeScript：通過。
+- Targeted ESLint：通過。
+- `pnpm ai:usage-audit`：通過執行，overall=`gaps_found`；`/api/ai/visit`、`/api/ai/report` 轉為 pass；剩餘 gap routes：`/api/ai/spin`、`/api/ai/spin-suggestions`、`/api/rag`。
+- `pnpm run lint:changed`：通過。
+- `pnpm prisma:validate`：通過。
+- `pnpm demo:runtime-audit`：通過。
+- `pnpm demo:preflight`：通過；Supabase public env placeholder 仍為既有 warning，DB DNS/table/connection pass。
+- `pnpm demo:ai-generation-qa`：通過；unauth visit 401，demo member visit/report 200，`VISIT` success count `1→2`，`REPORT` success count `1→2`。
+- `pnpm build`：通過；Next build route list 包含 `/api/ai/visit` 與 `/api/ai/report`。
+
+### 失敗與風險
+
+- 本輪 QA 呼叫非 production OpenAI key 產生實際 demo/staging usage rows；沒有保存 raw request、provider response、cookie、secret 或 private payload。
+- Provider error path 已有 source-level route logic，missing key / provider / empty / schema error 都會寫 failure log；本輪的 live QA 主要覆蓋 success path 與 unauth guard。
+- `pnpm run lint:changed` 也檢查到既有未提交的 `src/components/ui/dropdown-menu.tsx`，結果通過；該檔非本輪變更，未納入本輪 stage 範圍。
+
+### 剩餘上線 blocker
+
+- `LCH-009`：monitoring/Sentry、full smoke、release QA evidence 整包彙整。
+- Legacy AI routes：`/api/ai/spin`、`/api/ai/spin-suggestions` 需改造或 production gate；`/api/rag` 需關閉、guard 或補正式 provider/vector path + `AiUsageLog`。
+- `LCH-005`：production auth provider、password reset/MFA、production-safe demo/staging policy。
+- Operator / approval：`AUTH_SECRET`、正式 auth provider/email/SSO、ECPay production credentials/callback/CheckMacValue、monitoring DSN、legal/compliance sign-off。
+
+### 下一輪建議
+
+1. 繼續 `LCH-009` 轉換 `/api/ai/spin` 與 `/api/ai/spin-suggestions`，或明確 production gate/retire legacy SPIN route。
+2. 處理 `/api/rag` launch posture：disabled behind guard、正式 RAG provider path，或移出 public beta route surface。

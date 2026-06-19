@@ -8,6 +8,31 @@
 
 ## Open Issues
 
+### IQ-031 - Visit / report AI generation routes 已轉為 session/quota/usage contract
+
+- 狀態：Resolved
+- 發現日期：2026-06-19
+- 解決日期：2026-06-19
+- 影響 batch：`LCH-009`
+- 背景：
+  - `AUD-005` 指出 `/api/ai/visit` 與 `/api/ai/report` 仍直接接收前端 client payload 並呼叫 OpenAI，缺 member session、quota guard、success/error `AiUsageLog`。
+  - 這兩條是 demo member 常用的訪前規劃與報告生成路徑，比 legacy SPIN route 更接近 private beta 使用面。
+- 解法：
+  - `/api/ai/visit` 與 `/api/ai/report` 改為 `requireCurrentMember()` session-scoped，server 端用 `clientId` 讀 DB client 並檢查 member 可見性。
+  - 新增 `canUseAiModule()` quota guard；success path 寫 `AiUsageLog` 並 increment organization `monthlyAiUsed`。
+  - missing key / provider / empty / schema error path 寫 `AiUsageLog.error`，且不儲存 raw provider payload 或 private request body。
+  - 新增 `pnpm demo:ai-generation-qa`，驗證 unauth 401、demo member visit/report 200、DB `VISIT`/`REPORT` success usage count 增加。
+- 需要使用者決策：
+  - 無；這是既有 launch-readiness blocker 的工程修補。
+- production approval：
+  - 無；本輪未做 production DB mutation 或 production provider setting 變更。
+- operator 手動處理：
+  - 無。
+- session / seed data / env / external service：
+  - QA 需要可用 demo member seed、DB URL、local dev server 與非 production OpenAI key；本輪只記錄 counts 與狀態碼，不保存 secret。
+- 已不再阻擋：
+  - `/api/ai/visit`、`/api/ai/report` 已不再列為 AI usage route audit blocker；剩餘工程 gap 是 `/api/ai/spin`、`/api/ai/spin-suggestions`、`/api/rag`。
+
 ### IQ-030 - AI usage route audit 已完成，legacy route gap 轉為工程 blocker
 
 - 狀態：Resolved

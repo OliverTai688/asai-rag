@@ -74,8 +74,8 @@ const routeManifest = [
     provider: "OPENAI",
     expectedAuth: true,
     expectedQuota: true,
-    successEvidence: ["AiUsageLog", "aiUsageLog.create", "writeAiUsageLog"],
-    errorEvidence: ["writeAiUsageLogSafely", "writeAiUsageLog"],
+    successEvidence: ["persistAiGenerationSuccess", "aiUsageLog.create", "writeAiUsageLog"],
+    errorEvidence: ["persistAiGenerationFailure", "writeAiUsageLogSafely", "writeAiUsageLog"],
   },
   {
     route: "/api/ai/visit",
@@ -84,8 +84,8 @@ const routeManifest = [
     provider: "OPENAI",
     expectedAuth: true,
     expectedQuota: true,
-    successEvidence: ["AiUsageLog", "aiUsageLog.create", "writeAiUsageLog"],
-    errorEvidence: ["writeAiUsageLogSafely", "writeAiUsageLog"],
+    successEvidence: ["persistAiGenerationSuccess", "aiUsageLog.create", "writeAiUsageLog"],
+    errorEvidence: ["persistAiGenerationFailure", "writeAiUsageLogSafely", "writeAiUsageLog"],
   },
   {
     route: "/api/ai/report",
@@ -94,8 +94,8 @@ const routeManifest = [
     provider: "OPENAI",
     expectedAuth: true,
     expectedQuota: true,
-    successEvidence: ["AiUsageLog", "aiUsageLog.create", "writeAiUsageLog"],
-    errorEvidence: ["writeAiUsageLogSafely", "writeAiUsageLog"],
+    successEvidence: ["persistAiGenerationSuccess", "aiUsageLog.create", "writeAiUsageLog"],
+    errorEvidence: ["persistAiGenerationFailure", "writeAiUsageLogSafely", "writeAiUsageLog"],
   },
   {
     route: "/api/rag",

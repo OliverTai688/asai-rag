@@ -59,7 +59,7 @@ export default function ClientReportsPage() {
       const response = await fetch("/api/ai/report", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: reportPrompt, client }),
+        body: JSON.stringify({ prompt: reportPrompt, clientId: client.id }),
       });
 
       if (!response.ok) throw new Error("生成失敗");
