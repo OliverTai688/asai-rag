@@ -2700,3 +2700,84 @@ pnpm build
 
 1. 繼續 `LCH-009`，先補 backup/restore + migration rollback runbook 與 ECPay test checklist，讓 readiness gate 的 blocker 可逐項轉綠。
 2. 接著做 OpenAI/Anthropic route audit report，列 module/provider/success/error `AiUsageLog` evidence 與缺口。
+
+## 2026-06-19 Round 037 - LCH-009 Release Blocker Docs And Legal Pages
+
+### 本輪戰役
+
+- Workstream：Launch Readiness Implementation。
+- Batch / task：`LCH-009` Production Controls And Release QA。
+- 選擇原因：上一輪 readiness gate 已能偵測 blocker，但 `legal_pages`、`backup_restore`、`ecpay_checklist` 仍因缺實際文件/頁面保持 blocked；本輪把這三項轉成可審查、可驗收的 private beta draft。
+
+### 本輪完成
+
+- 新增 `/privacy` public page：private beta 隱私揭露、資料使用、access/audit 邊界與 AI 使用責任邊界。
+- 新增 `/terms` public page：private beta 條款、AI disclaimer、付款與正式啟用限制。
+- 新增 `ACC-007` release rollback and backup runbook：DB backup、migration rollback、feature flag emergency stop、release smoke。
+- 新增 `ACC-008` ECPay test flow checklist：test credentials、CheckMacValue、callback/query、order audit、production enablement gate。
+- 更新 `demo:release-readiness-qa`：驗證 `legal_pages`、`backup_restore`、`ecpay_checklist` 為 pass，並確認 `/privacy`、`/terms` 200 且含 AI disclaimer。
+
+### 修改檔案
+
+- `src/app/(public)/privacy/page.tsx`
+- `src/app/(public)/terms/page.tsx`
+- `docs/08_acceptance-and-qa/ACC-007_release-rollback-and-backup-runbook.md`
+- `docs/08_acceptance-and-qa/ACC-008_ecpay-test-flow-checklist.md`
+- `scripts/demo-release-readiness-qa.mjs`
+- `AGENTS.md`
+- `docs/05_execution-plans/PLN-017_launch-readiness-implementation-batch-tasks-v1.0.md`
+- `docs/00_manual-and-index/MAN-000_docs-usage-manual.md`
+- `docs/00_manual-and-index/MAN-001_document-index.md`
+- `docs/07_research-and-design/RES-016_issue-question-log-v1.0.md`
+- `docs/06_audits-and-reports/RPT-003_ongoing-batch-implementation-report-v1.0.md`
+- `docs/06_audits-and-reports/screenshots/launch-readiness/lch-009/privacy-page.png`
+- `docs/06_audits-and-reports/screenshots/launch-readiness/lch-009/terms-page.png`
+
+### DB / Prisma 操作
+
+- 是否修改 schema：否。
+- 是否執行 generate：`pnpm build` 內執行 Prisma generate，通過。
+- 是否執行 db push：否。
+- DB target 判斷：`.env` 仍指向 Supabase dev/staging target；本輪無 DB mutation。
+- Seed/backfill：無；`demo:release-readiness-qa` 仍使用既有 idempotent platform demo user proof。
+
+### 驗收
+
+```bash
+pnpm exec tsc --noEmit --pretty false
+pnpm exec eslint src/app/'(public)'/privacy/page.tsx src/app/'(public)'/terms/page.tsx scripts/demo-release-readiness-qa.mjs
+pnpm run lint:changed
+pnpm prisma:validate
+pnpm demo:preflight
+pnpm demo:runtime-audit
+DEMO_QA_BASE_URL=http://localhost:3000 pnpm demo:release-readiness-qa
+pnpm build
+```
+
+結果：
+
+- TypeScript：通過。
+- Targeted ESLint：通過。
+- `pnpm run lint:changed`：通過。
+- `pnpm prisma:validate`：通過。
+- `pnpm demo:preflight`：通過；Supabase public env placeholder 仍為既有 warning。
+- `pnpm demo:runtime-audit`：通過。
+- `pnpm demo:release-readiness-qa`：通過；`legal_pages` / `backup_restore` / `ecpay_checklist` 為 pass，readiness blocker count 5→2（剩 `auth_secret`、`monitoring`），`/privacy` / `/terms` 回 200 且含 AI disclaimer，super-admin / privacy / terms Playwright screenshots 成功，console error 0、無水平 overflow。
+- `pnpm build`：通過；route list 包含 `/privacy` 與 `/terms`。
+
+### 失敗與風險
+
+- 本輪頁面與 ACC 文件是 private beta draft，不代表 legal/compliance 已完成正式 sign-off。
+- ECPay checklist 只完成測試流程定義；production credentials、callback/query API、CheckMacValue implementation、refund/void process 與 production payment approval 仍未完成。
+- Monitoring/Sentry 仍未接；readiness gate 仍正確保持 blocked。
+
+### 剩餘上線 blocker
+
+- `LCH-009`：AI route usage audit、monitoring/Sentry、full smoke、release QA evidence 整包彙整。
+- `LCH-004`：Theater Route B 與三 AI error-path / quota UI proof。
+- `LCH-005`：production auth provider、password reset/MFA、production-safe demo/staging policy。
+
+### 下一輪建議
+
+1. 繼續 `LCH-009`：建立 OpenAI/Anthropic route usage audit report，列出每條 route 的 module/provider/success/error `AiUsageLog` evidence 與缺口。
+2. 或先接 Sentry/等價 monitoring blocker：若無 DSN，至少建立 monitoring setup doc + readiness gate operator action。

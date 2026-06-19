@@ -15,6 +15,10 @@ const demoPlatformEmail = process.env.DEMO_PLATFORM_QA_EMAIL ?? "demo.platform@a
 const dbUrl = process.env.DIRECT_URL ?? process.env.DATABASE_URL;
 const screenshotPath =
   "docs/06_audits-and-reports/screenshots/launch-readiness/lch-009/release-readiness-super-admin.png";
+const privacyScreenshotPath =
+  "docs/06_audits-and-reports/screenshots/launch-readiness/lch-009/privacy-page.png";
+const termsScreenshotPath =
+  "docs/06_audits-and-reports/screenshots/launch-readiness/lch-009/terms-page.png";
 const checks = [];
 
 if (!dbUrl) {
@@ -40,6 +44,9 @@ try {
   const platformReadiness = await request("GET", "/api/platform/release-readiness", demoPlatformEmail);
   const readiness = platformReadiness.body?.readiness;
   const controlKeys = readiness?.productionControls?.controls?.map((control) => control.key) ?? [];
+  const controlStatus = Object.fromEntries(
+    readiness?.productionControls?.controls?.map((control) => [control.key, control.status]) ?? [],
+  );
   const requiredControls = [
     "ai_quota",
     "mock_api",
@@ -60,6 +67,9 @@ try {
   push(Boolean(readiness?.quota), "Release readiness returns AI quota guard summary");
   push(Boolean(readiness?.aiUsage), "Release readiness returns AI usage cost summary");
   push(missingControls.length === 0, "Release readiness includes all required control gates", missingControls.join(", "));
+  push(controlStatus.legal_pages === "pass", "Legal pages release gate is pass", `${controlStatus.legal_pages ?? "missing"}`);
+  push(controlStatus.backup_restore === "pass", "Backup/restore runbook release gate is pass", `${controlStatus.backup_restore ?? "missing"}`);
+  push(controlStatus.ecpay_checklist === "pass", "ECPay checklist release gate is pass", `${controlStatus.ecpay_checklist ?? "missing"}`);
 
   const readinessText = JSON.stringify(platformReadiness.body);
   const forbiddenFieldNames = [
@@ -94,11 +104,20 @@ try {
   );
 
   const browserResult = await runBrowserProof();
+  const privacyPage = await requestPublic("/privacy");
+  const termsPage = await requestPublic("/terms");
+
   push(browserResult.pageLoaded, "Super admin page renders with platform dev header");
   push(browserResult.hasReleaseReadiness, "Super admin page shows release readiness panel");
   push(browserResult.hasAiQuotaWarning, "Super admin page shows AI quota warning panel");
-  push(browserResult.consoleErrors === 0, "Super admin browser proof has no console errors", `${browserResult.consoleErrors}`);
-  push(!browserResult.horizontalOverflow, "Super admin browser proof has no horizontal overflow");
+  push(browserResult.hasPrivacyDisclaimer, "Privacy page browser proof shows AI usage disclaimer section");
+  push(browserResult.hasTermsDisclaimer, "Terms page browser proof shows AI disclaimer section");
+  push(browserResult.consoleErrors === 0, "Release browser proof has no console errors", `${browserResult.consoleErrors}`);
+  push(!browserResult.horizontalOverflow, "Release browser proof has no horizontal overflow");
+  push(privacyPage.status === 200, "Public privacy page returns 200", `status=${privacyPage.status}`);
+  push(privacyPage.text.includes("AI 使用與責任邊界"), "Privacy page includes AI usage disclaimer section");
+  push(termsPage.status === 200, "Public terms page returns 200", `status=${termsPage.status}`);
+  push(termsPage.text.includes("AI disclaimer"), "Terms page includes AI disclaimer section");
 
   console.log(
     JSON.stringify(
@@ -111,13 +130,21 @@ try {
           platformReadiness: {
             status: platformReadiness.status,
             overall: readiness?.overall,
-            controls: controlKeys,
+            controls: controlStatus,
             aiRequests: readiness?.aiUsage?.requests,
             quotaWarnings: readiness?.quota?.organizationsAtWarning,
           },
+          publicPages: {
+            privacy: { status: privacyPage.status },
+            terms: { status: termsPage.status },
+          },
         },
         forbiddenSentinelsChecked: forbidden.length,
-        screenshot: screenshotPath,
+        screenshots: {
+          superAdmin: screenshotPath,
+          privacy: privacyScreenshotPath,
+          terms: termsScreenshotPath,
+        },
       },
       null,
       2,
@@ -161,14 +188,30 @@ async function runBrowserProof() {
 
     mkdirSync(dirname(screenshotPath), { recursive: true });
     await page.screenshot({ path: screenshotPath, fullPage: true });
+    await page.goto(`${baseUrl}/privacy`, { waitUntil: "networkidle" });
+    const hasPrivacyDisclaimer = await page.getByText("AI 使用與責任邊界").first().isVisible().catch(() => false);
+    const privacyOverflow = await page.evaluate(
+      () => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
+    );
+    await page.screenshot({ path: privacyScreenshotPath, fullPage: true });
+
+    await page.goto(`${baseUrl}/terms`, { waitUntil: "networkidle" });
+    const hasTermsDisclaimer = await page.getByText("AI disclaimer").first().isVisible().catch(() => false);
+    const termsOverflow = await page.evaluate(
+      () => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
+    );
+    await page.screenshot({ path: termsScreenshotPath, fullPage: true });
+
     await context.close();
 
     return {
       pageLoaded: Boolean(response?.ok()),
       hasReleaseReadiness,
       hasAiQuotaWarning,
+      hasPrivacyDisclaimer,
+      hasTermsDisclaimer,
       consoleErrors: consoleErrors.length,
-      horizontalOverflow,
+      horizontalOverflow: horizontalOverflow || privacyOverflow || termsOverflow,
     };
   } finally {
     await browser.close();
@@ -313,6 +356,11 @@ async function request(method, path, email) {
   } catch {
     return { status: response.status, body: { raw: text } };
   }
+}
+
+async function requestPublic(path) {
+  const response = await fetch(`${baseUrl}${path}`);
+  return { status: response.status, text: await response.text() };
 }
 
 function push(condition, label, detail = "") {

@@ -643,23 +643,25 @@ Context: 將 `RES-012` / `RES-013` 的上線差距與四介面實作研究轉成
 - [ ] 對所有 OpenAI/Anthropic routes 做 `AiUsageLog` audit evidence。
 - [x] 關閉 production-like env `/api/mock/*`。
 - [ ] 建立 Sentry 或等價錯誤監控方案；若暫不接，寫 release blocker。
-- [ ] 建立 DB backup/restore 與 migration rollback note。
-- [ ] 建立 privacy / terms / AI disclaimer 最小頁面或 release blocker。
-- [ ] 建立 ECPay test flow checklist；正式收費開關預設關閉。
+- [x] 建立 DB backup/restore 與 migration rollback note。
+- [x] 建立 privacy / terms / AI disclaimer 最小頁面或 release blocker。
+- [x] 建立 ECPay test flow checklist；正式收費開關預設關閉。
 - [ ] Full smoke：front office、member admin、org admin、super admin、client portal。
 - [ ] 保存 release QA evidence。
 - [ ] 跑 `pnpm lint:changed`、`pnpm exec tsc --noEmit --pretty false`、`pnpm prisma:validate`、`pnpm demo:preflight`、`pnpm demo:runtime-audit`。
 
 進行中註記：2026-06-19 新增 `GET /api/platform/release-readiness`、`src/lib/platform/platform-release-readiness-repository.ts`、super-admin `Release readiness` / `AI quota warning` 面板與 `pnpm demo:release-readiness-qa`。Readiness API 只允許 platform user 讀取，一般 app session 403；回傳 current-month `AiUsageLog` aggregate、organization quota usage、pending/failed billing order count、mock/email/notification/billing/auth/monitoring/legal/backup/ECPay control gate。QA 通過 API 200/403、required controls、private seeded sentinel 0 leak、super-admin desktop Playwright screenshot、console error 0、無水平 overflow。此切片只完成 AI quota/cost alert 與 production controls visibility；Sentry/backup/legal/ECPay/full smoke 仍為 LCH-009 blocker。
 
+進行中註記：2026-06-19 續補 release blocker 文檔與 public legal pages。新增 `/privacy`、`/terms`，兩頁皆標明 private beta 最小揭露、AI 輔助不構成保險/法律/稅務建議、正式公開上線前仍需法務/合規核可。新增 `ACC-007_release-rollback-and-backup-runbook.md` 與 `ACC-008_ecpay-test-flow-checklist.md`，readiness gate 的 legal_pages、backup_restore、ecpay_checklist 可由檔案存在與 QA 驗證轉為 pass；production monitoring、AI route usage audit、full smoke、正式 ECPay credentials/callback/CheckMacValue 與 production payment approval 仍是 blocker。
+
 ### Current Launch Blockers
 - Auth provider 已改採 Auth.js / NextAuth；production 仍需 `AUTH_SECRET`、正式 provider/email/SSO 與 callback URL。
 - Demo account relogin 尚未完成。
 - 多數 AI routes 尚未完成 `AiUsageLog` success/error 實寫驗證。
 - Theater Route B 尚未 migration；若用 legacy Theater，只能標 staging demo。
-- ECPay credentials、callback domain、CheckMacValue、notification/query API 尚未完成。
+- ECPay credentials、callback domain、CheckMacValue、notification/query API、refund/void process 尚未完成。
 - Super admin platform auth/MFA/staging access 仍需 operator。
-- Production monitoring、privacy/terms/AI disclaimer、backup/rollback 尚未完成。
+- Production monitoring 尚未完成；privacy/terms/AI disclaimer 與 backup/rollback 已有 private beta draft，但仍需正式 legal/compliance/operator sign-off。
 
 ---
 

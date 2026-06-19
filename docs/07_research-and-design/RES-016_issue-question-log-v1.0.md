@@ -672,3 +672,20 @@
   - Super admin 控制台新增 `Release readiness` 與 `AI quota warning` 面板。
   - QA：`demo:release-readiness-qa` 通過 API 403/200、required controls、private seeded sentinel 0 leak、super-admin screenshot、console error 0、無水平 overflow。
   - 剩餘：Sentry/等價監控、backup/restore runbook、privacy/terms/AI disclaimer、ECPay checklist、AI route usage audit 與 full smoke 仍為 LCH-009 blocker。
+
+### IQ-024 - LCH-009 release blocker 文件與 legal pages 已落地
+
+- 狀態：Resolved
+- 發現日期：2026-06-19
+- 解決日期：2026-06-19
+- 影響 batch：`LCH-009`
+- 背景：
+  - Readiness gate 已能偵測 legal pages、backup/restore runbook 與 ECPay checklist，但前一輪仍缺實際文件/頁面，導致這些 controls 保持 blocked。
+  - 這些事項可由系統先補 private beta draft 與 QA；正式法務、付款、production approval 仍需人工核可。
+- 解法：
+  - 新增 `/privacy`：private beta 隱私揭露、資料使用、access/audit 邊界與 AI 使用責任邊界。
+  - 新增 `/terms`：private beta 條款、AI disclaimer、付款與正式啟用限制。
+  - 新增 `ACC-007_release-rollback-and-backup-runbook.md`：DB backup、migration rollback、feature flag emergency stop 與 release smoke。
+  - 新增 `ACC-008_ecpay-test-flow-checklist.md`：ECPay test credentials、CheckMacValue、callback/query、order audit 與 production enablement gate。
+  - 更新 `demo:release-readiness-qa`，驗證 `legal_pages`、`backup_restore`、`ecpay_checklist` 為 pass，且 `/privacy`、`/terms` 回 200 並包含 AI disclaimer。
+  - 剩餘：正式 legal/compliance sign-off、ECPay production credentials/callback/CheckMacValue/refund process、monitoring DSN、AI route usage audit 與 full smoke。
