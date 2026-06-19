@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertCircle,
   CheckCircle2,
@@ -131,7 +131,7 @@ export default function InterviewPage() {
   const [liveTranscript, setLiveTranscript] = useState("");
   const [transcriptCorrection, setTranscriptCorrection] = useState("");
   const [correctionDrafts, setCorrectionDrafts] = useState<string[]>([]);
-  const [isComposingDraft, setIsComposingDraft] = useState(false);
+  const isComposingDraftRef = useRef(false);
   const [crmClients, setCrmClients] = useState<ClientOption[]>([]);
   const [selectedClientId, setSelectedClientId] = useState("");
   const [persistentSessionId, setPersistentSessionId] = useState<string | null>(null);
@@ -249,7 +249,7 @@ export default function InterviewPage() {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (isComposingDraft) return;
+    if (isComposingDraftRef.current) return;
     const content = draft.trim();
     if (!activeSession || !content || isStreaming) return;
 
@@ -706,11 +706,26 @@ export default function InterviewPage() {
               <Textarea
                 value={draft}
                 onChange={(event) => setDraft(event.target.value)}
-                onCompositionStart={() => setIsComposingDraft(true)}
-                onCompositionEnd={() => setIsComposingDraft(false)}
+                onCompositionStart={() => {
+                  isComposingDraftRef.current = true;
+                }}
+                onCompositionEnd={() => {
+                  isComposingDraftRef.current = false;
+                }}
                 onKeyDown={(event) => {
-                  if (event.key === "Enter" && (event.nativeEvent.isComposing || isComposingDraft)) {
+                  const isImeComposing =
+                    event.nativeEvent.isComposing ||
+                    event.nativeEvent.keyCode === 229 ||
+                    isComposingDraftRef.current;
+
+                  if (event.key === "Enter" && isImeComposing) {
                     event.stopPropagation();
+                    return;
+                  }
+
+                  if (event.key === "Enter" && !event.shiftKey) {
+                    event.preventDefault();
+                    event.currentTarget.form?.requestSubmit();
                   }
                 }}
                 placeholder={activeSession ? "輸入業務員的回答..." : "請先開始陪談"}
