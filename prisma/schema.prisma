@@ -916,9 +916,12 @@ model Issue {
 }
 
 model SystemSettings {
-  id             String   @id @default("default")
-  trialDays      Int      @default(14) @map("trial_days")
-  updatedAt      DateTime @updatedAt @map("updated_at")
+  id              String   @id @default("default")
+  trialDays       Int      @default(14) @map("trial_days")
+  featureFlags    Json?    @map("feature_flags")
+  providerPolicy  Json?    @map("provider_policy")
+  supportPolicy   Json?    @map("support_policy")
+  updatedAt       DateTime @updatedAt @map("updated_at")
 
   @@map("system_settings")
 }

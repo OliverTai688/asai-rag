@@ -466,6 +466,24 @@
   - QA：`demo:platform-break-glass-qa` 通過 missing reason 400、missing risk 400、expiry too long 403、FINANCE 403、SUPPORT 201、audit `0→1`、audit query 可查同一 id。
   - 剩餘：platform settings surface；正式 platform auth/MFA 仍是 production blocker。
 
+### IQ-021 - LCH-008 platform settings surface 已落地
+
+- 狀態：Resolved
+- 發現日期：2026-06-19
+- 解決日期：2026-06-19
+- 影響 batch：`LCH-008`
+- 背景：
+  - Platform feature flags、provider policy、support policy 若只能靠文件或環境變數，super admin/support 行為邊界難以 audit。
+  - Settings update 屬於高風險 platform action，必須有 role guard、reason、risk acceptance 與 audit。
+- 解法：
+  - `SystemSettings` 新增 `featureFlags`、`providerPolicy`、`supportPolicy` JSON 欄位，API 會 idempotent upsert `default` row。
+  - 新增 `GET /api/platform/settings`：`SUPER_ADMIN` / `SUPPORT` / `FINANCE` 可讀。
+  - 新增 `PATCH /api/platform/settings`：僅 `SUPER_ADMIN` 可寫，必填 `reason` 與 `riskAccepted:true`。
+  - Provider/support policy schema 禁止透過此 API 啟用 production email/notification、raw sensitive payload、關閉 reason/risk acceptance。
+  - 成功 PATCH 寫 `AuditLog(action=SUPPORT_NOTE,sensitivity=HIGH,resourceType=PLATFORM_SETTINGS)`；audit query 仍只回 `metadataKeys`。
+  - QA：`demo:platform-settings-qa` 通過 FINANCE read 200/write 403、SUPER_ADMIN missing reason 400、update/restore DB row、audit `0→1→2`。
+  - 剩餘：正式 platform auth/MFA 仍是 production blocker；若後續需要更精細 audit reporting，可新增 `AuditAction.PLATFORM_SETTINGS_UPDATE`。
+
 ### IQ-014 - LCH-004 interview agent 仍信任前端 scope 且缺 output evidence
 
 - 狀態：Resolved

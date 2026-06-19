@@ -37,7 +37,7 @@
 | LCH-005 | Demo account relogin QA | [ ] | LCH-001、LCH-002、LCH-004 |
 | LCH-006 | Front office / share / client portal | [ ] | LCH-001、LCH-002 |
 | LCH-007 | Org admin aggregate and org settings APIs | [x] | LCH-001、LCH-002、LCH-003 |
-| LCH-008 | Super admin / audit / impersonation | [ ] | LCH-001、PSA-009 |
+| LCH-008 | Super admin / audit / impersonation | [x] | LCH-001、PSA-009 |
 | LCH-009 | Production controls and release QA | [ ] | LCH-001-LCH-008 |
 
 ---
@@ -219,10 +219,10 @@
 - [x] 所有 impersonated read/write 寫 `AuditLog` 並帶 `impersonationSessionId`。
 - [x] 建立 `POST /api/platform/break-glass`，敏感內容查詢需 reason、scope、expiry、audit。
 - [x] 建立 `GET /api/platform/audit-logs`，支援 tenant/action/sensitivity filter。
-- [ ] 建立 platform settings 區塊：feature flags、provider policy、support policy；敏感改動寫 audit。
-- [ ] 跑 `pnpm lint:changed`；動 schema 跑 Prisma 驗收。
+- [x] 建立 platform settings 區塊：feature flags、provider policy、support policy；敏感改動寫 audit。
+- [x] 跑 `pnpm lint:changed`；動 schema 跑 Prisma 驗收。
 
-進行中註記：2026-06-19 完成 platform read-only summary slice。新增 platform repository、organizations summary/detail、cross-tenant AI usage aggregate、audit log query 與 `demo:platform-read-qa`；一般 app session 403，platform user 200；private seeded sentinels 與 forbidden field names 0 leak。2026-06-19 續補 `PATCH /api/platform/plan-configs/[plan]` 與 `demo:platform-plan-config-qa`；FINANCE 403、SUPER_ADMIN invalid input 400、SUPER_ADMIN 可更新並還原 STARTER quota，兩次寫 PLAN_UPDATE audit。2026-06-19 續補 impersonation start/end/revoke API 與 `demo:platform-impersonation-qa`；FINANCE start 403、缺 reason 400、超時 403、SUPER_ADMIN start/end/revoke 寫 BREAK_GLASS audit。2026-06-19 續補 impersonated read/write audit context：`read-proof` 只讀 tenant summary 並寫 `IMPERSONATED_READ`；`support-note` 只寫 audit metadata、不修改租戶業務資料並寫 `IMPERSONATED_WRITE`；兩者均驗證 active/expiry/actor/scope 且帶 `impersonationSessionId`。2026-06-19 續補 break-glass API：`POST /api/platform/break-glass` 要求 reason/scope/expiresAt/riskAccepted，FINANCE 403、expiry 上限 30 分鐘、SUPPORT 成功只回 counts-only proof 並寫 BREAK_GLASS audit。尚未完成 platform settings。
+進行中註記：2026-06-19 完成 platform read-only summary slice。新增 platform repository、organizations summary/detail、cross-tenant AI usage aggregate、audit log query 與 `demo:platform-read-qa`；一般 app session 403，platform user 200；private seeded sentinels 與 forbidden field names 0 leak。2026-06-19 續補 `PATCH /api/platform/plan-configs/[plan]` 與 `demo:platform-plan-config-qa`；FINANCE 403、SUPER_ADMIN invalid input 400、SUPER_ADMIN 可更新並還原 STARTER quota，兩次寫 PLAN_UPDATE audit。2026-06-19 續補 impersonation start/end/revoke API 與 `demo:platform-impersonation-qa`；FINANCE start 403、缺 reason 400、超時 403、SUPER_ADMIN start/end/revoke 寫 BREAK_GLASS audit。2026-06-19 續補 impersonated read/write audit context：`read-proof` 只讀 tenant summary 並寫 `IMPERSONATED_READ`；`support-note` 只寫 audit metadata、不修改租戶業務資料並寫 `IMPERSONATED_WRITE`；兩者均驗證 active/expiry/actor/scope 且帶 `impersonationSessionId`。2026-06-19 續補 break-glass API：`POST /api/platform/break-glass` 要求 reason/scope/expiresAt/riskAccepted，FINANCE 403、expiry 上限 30 分鐘、SUPPORT 成功只回 counts-only proof 並寫 BREAK_GLASS audit。2026-06-19 續補 platform settings：`SystemSettings` 增加 feature flags/provider policy/support policy，`GET/PATCH /api/platform/settings` 僅 SUPER_ADMIN 可寫，PATCH 要 reason/riskAccepted，寫 `SUPPORT_NOTE/HIGH` audit；`demo:platform-settings-qa` 通過 FINANCE read-only、SUPER_ADMIN update/restore、DB row 與 audit query metadataKeys proof。LCH-008 已完成；正式 platform auth/MFA 仍為 production blocker。
 
 範圍外：不讓 support 無限制讀客戶內容；不接正式金流前不得宣稱 billing production complete。
 

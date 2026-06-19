@@ -2398,3 +2398,85 @@ pnpm build
 
 1. 完成 `LCH-008` 最後一塊：platform settings surface，至少提供 feature flags、provider policy、support policy 的 read/update API 或最小 super-admin UI，敏感改動寫 audit。
 2. 若先做 API slice，建議新增 `GET/PATCH /api/platform/settings` 與 `demo:platform-settings-qa`，驗證 FINANCE read-only/forbidden update、SUPER_ADMIN update with reason/riskAccepted、audit query。
+
+## 2026-06-19 Round 033 - LCH-008 Platform Settings Surface
+
+### 本輪戰役
+
+- Workstream：Launch Readiness Implementation。
+- Batch / task：`LCH-008` Super Admin / Audit / Impersonation - platform settings surface。
+- 選擇原因：break-glass 已具備 reason/scope/expiry/audit；LCH-008 最後一個上線缺口是 platform-level feature flags、provider policy、support policy 不能只存在文件，必須有 platform-only read/update API、reason/risk acceptance 與 audit proof。
+
+### 本輪完成
+
+- 擴充 `SystemSettings`：新增 `featureFlags`、`providerPolicy`、`supportPolicy` JSON 欄位。
+- 新增 `src/lib/platform/platform-settings-repository.ts`：集中 default settings、Zod patch schema、read/write role policy、safe diff 與 audit write。
+- 新增 `GET /api/platform/settings`：`SUPER_ADMIN` / `SUPPORT` / `FINANCE` 可讀，只回 settings DTO 與 scope。
+- 新增 `PATCH /api/platform/settings`：僅 `SUPER_ADMIN` 可寫，必填 `reason` 與 `riskAccepted:true`，且至少一個 settings 欄位。
+- Provider/support policy 明確禁止在此 API 啟用 production email/notification、raw sensitive payload、關閉 reason/risk acceptance 等危險狀態。
+- 成功 PATCH 寫 `AuditLog(action=SUPPORT_NOTE,sensitivity=HIGH,resourceType=PLATFORM_SETTINGS,resourceId=default)`，metadata 只保存 changedFields 與安全 before/after snapshot。
+- 新增 `pnpm demo:platform-settings-qa`，驗證 FINANCE read 200/write 403、SUPER_ADMIN 缺 reason 400、update/restore DB row 與 audit count、audit query 只回 metadataKeys。
+- `AGENTS.md` 與 `PLN-017` 已將 LCH-008 platform settings 與 lint/Prisma 驗收勾選完成。
+
+### 修改檔案
+
+- `prisma/schema.prisma`
+- `src/lib/platform/platform-settings-repository.ts`
+- `src/app/api/platform/settings/route.ts`
+- `scripts/demo-platform-settings-qa.mjs`
+- `package.json`
+- `AGENTS.md`
+- `docs/05_execution-plans/PLN-017_launch-readiness-implementation-batch-tasks-v1.0.md`
+- `docs/06_audits-and-reports/RPT-003_ongoing-batch-implementation-report-v1.0.md`
+- `docs/07_research-and-design/RES-016_issue-question-log-v1.0.md`
+
+### DB / Prisma 操作
+
+- 是否修改 schema：是；`system_settings` 增加 nullable JSON 欄位 `feature_flags`、`provider_policy`、`support_policy`。
+- 是否執行 generate：是；`pnpm prisma:generate` 通過，`pnpm build` 內也再次 generate 通過。
+- 是否執行 db push：是；`pnpm exec prisma db push` 已同步到 Supabase Postgres，無 data-loss 提示。
+- DB target 判斷：`pnpm demo:preflight` 通過，`.env` 指向遠端 Supabase Postgres `db.wwocdcicvpmbdmqvskzi.supabase.co`。
+- Seed/backfill：未新增 destructive seed；`GET /api/platform/settings` 會 idempotent upsert `system_settings.id=default` 與安全預設 JSON。
+- DB proof：`pnpm demo:platform-settings-qa` 以 API 暫改 `trialDays 14→15` 與 `featureFlags.clientPortalEnabled`，確認 DB `system_settings.trial_days=15`，再以同 API 還原 `15→14`。
+
+### 驗收
+
+```bash
+pnpm prisma:validate
+pnpm prisma:generate
+pnpm exec prisma db push
+pnpm exec eslint src/lib/platform/platform-settings-repository.ts src/app/api/platform/settings/route.ts scripts/demo-platform-settings-qa.mjs
+pnpm exec tsc --noEmit --pretty false
+pnpm demo:preflight
+ALLOW_DEV_AUTH_HEADER=true pnpm dev
+DEMO_QA_BASE_URL=http://localhost:3000 pnpm demo:platform-settings-qa
+pnpm run lint:changed
+pnpm build
+```
+
+結果：
+
+- Prisma validate/generate/db push：通過；schema 已同步到 Supabase。
+- Targeted ESLint：通過。
+- TypeScript：通過。
+- `pnpm demo:preflight`：通過；Supabase public env placeholder 仍為 warning。
+- `pnpm demo:platform-settings-qa`：通過；FINANCE read 200、FINANCE PATCH 403、SUPER_ADMIN missing reason 400、SUPER_ADMIN update 200、DB row updated、`SUPPORT_NOTE/HIGH` audit `0→1`、restore 200、audit `1→2`、audit query filter 200 且只回 `metadataKeys`。
+- `pnpm run lint:changed`：通過。
+- `pnpm build`：通過；Next route list 包含 `/api/platform/settings`。
+
+### 失敗與風險
+
+- 初次 QA 打到舊的 localhost:3000 dev server，導致 route 不存在且 settings row 未建立；已重啟同 repo Next dev server 後重跑通過。
+- `AuditAction` 目前沒有專屬 `PLATFORM_SETTINGS_UPDATE` enum；本輪使用既有 `SUPPORT_NOTE` + `sensitivity=HIGH` + `resourceType=PLATFORM_SETTINGS` 形成可查 audit。若後續需要更精細報表，可新增 enum migration。
+- Platform auth/MFA 仍是 production blocker；本輪只驗證 repo 內 platform guard 與 demo auth header。
+
+### 剩餘上線 blocker
+
+- `LCH-008`：已完成。
+- `LCH-009`：production controls、AI quota/cost alert、backup/rollback、privacy/terms/disclaimer、ECPay test checklist、full smoke。
+- `LCH-004`：Theater Route B 與三 AI error-path / quota UI proof 仍未收完。
+
+### 下一輪建議
+
+1. 進入 `LCH-009`，先做 production controls/readiness API：AI quota/cost alert 或 blocker、production email/notification/payment disabled policy proof、release smoke checklist。
+2. 若要先消技術債，可新增 `AuditAction.PLATFORM_SETTINGS_UPDATE` enum migration，但需同步 repository、QA 與 rollback note。

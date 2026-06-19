@@ -24,6 +24,7 @@
     "demo:platform-plan-config-qa": "node scripts/demo-platform-plan-config-qa.mjs",
     "demo:platform-impersonation-qa": "node scripts/demo-platform-impersonation-qa.mjs",
     "demo:platform-break-glass-qa": "node scripts/demo-platform-break-glass-qa.mjs",
+    "demo:platform-settings-qa": "node scripts/demo-platform-settings-qa.mjs",
     "demo:runtime-audit": "node scripts/demo-runtime-audit.mjs",
     "mock:production-guard-qa": "node scripts/mock-production-guard-qa.mjs",
     "share:token-qa": "node scripts/share-token-qa.mjs",
