@@ -29,7 +29,7 @@ export function DemoLoginForm({
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  function useAccount(account: DemoAccount) {
+  function selectAccount(account: DemoAccount) {
     setEmail(account.email);
     setPassword(account.password);
     setError(null);
@@ -80,7 +80,7 @@ export function DemoLoginForm({
                     "rounded-lg border border-hairline bg-paper px-3 py-2 text-left transition-colors hover:border-[#1A3A6B]",
                     isSelected && "border-[#1A3A6B] bg-[#1A3A6B]/5"
                   )}
-                  onClick={() => useAccount(account)}
+                  onClick={() => selectAccount(account)}
                   aria-label={`使用${account.label}帳號`}
                 >
                   <span className="flex items-center justify-between gap-3">

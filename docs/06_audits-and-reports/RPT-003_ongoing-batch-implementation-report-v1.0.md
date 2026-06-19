@@ -2620,3 +2620,83 @@ curl http://localhost:3000/api/auth/providers
 
 1. 繼續 `LCH-005` 正式 auth provider 接入：Supabase/Auth.js production provider、password reset、MFA/session expiry、production-safe demo/staging account policy。
 2. 或回到 `LCH-009`，補 production readiness panel 與 release blocker checklist。
+
+## 2026-06-19 Round 036 - LCH-009 Release Readiness Gate
+
+### 本輪戰役
+
+- Workstream：Launch Readiness Implementation。
+- Batch / task：`LCH-009` Production Controls And Release QA。
+- 選擇原因：LCH-008 platform guard/audit/settings 已完成，下一個上線阻擋是 production controls、AI quota/cost visibility 與 release blocker 能否被 platform user/QA 直接看見。
+
+### 本輪完成
+
+- 新增 `GET /api/platform/release-readiness` read-only API，僅 platform user 可讀；一般 app session 403。
+- 新增 platform release readiness repository，彙總 current-month `AiUsageLog` requests/tokens/cost/error、module aggregate、organization monthly quota usage、pending/failed billing order count。
+- 建立 production control gates：AI quota、mock API、production email、production notification、billing checkout、Auth secret、monitoring、legal pages、backup/restore、ECPay checklist。
+- Super admin 控制台新增 `Release readiness` 與 `AI quota warning` 面板，顯示 blocker/warning/AI cost、control status 與最高 quota usage org。
+- 新增 `pnpm demo:release-readiness-qa`：API 403/200、required control keys、private sentinel leak scan、Playwright super-admin screenshot、console error / horizontal overflow proof。
+
+### 修改檔案
+
+- `src/lib/platform/platform-release-readiness-repository.ts`
+- `src/app/api/platform/release-readiness/route.ts`
+- `src/app/(super-admin)/super-admin/page.tsx`
+- `src/app/(auth)/login/demo-login-form.tsx`
+- `scripts/demo-release-readiness-qa.mjs`
+- `package.json`
+- `AGENTS.md`
+- `docs/05_execution-plans/PLN-017_launch-readiness-implementation-batch-tasks-v1.0.md`
+- `docs/07_research-and-design/RES-016_issue-question-log-v1.0.md`
+- `docs/06_audits-and-reports/RPT-003_ongoing-batch-implementation-report-v1.0.md`
+- `docs/06_audits-and-reports/screenshots/launch-readiness/lch-009/release-readiness-super-admin.png`
+
+### DB / Prisma 操作
+
+- 是否修改 schema：否。
+- 是否執行 generate：否。
+- 是否執行 db push：否。
+- DB target 判斷：使用 `.env` 的 `DIRECT_URL`/`DATABASE_URL` 做 QA seed upsert platform demo user 與 read-only proof；未做 schema mutation 或 production mutation。
+- Seed/backfill：`demo:release-readiness-qa` idempotent upsert demo platform user `demo.platform@asai.local` 作 platform guard proof。
+
+### 驗收
+
+```bash
+pnpm exec tsc --noEmit --pretty false
+pnpm exec eslint src/lib/platform/platform-release-readiness-repository.ts src/app/api/platform/release-readiness/route.ts src/app/'(super-admin)'/super-admin/page.tsx scripts/demo-release-readiness-qa.mjs
+pnpm run lint:changed
+pnpm prisma:validate
+pnpm demo:preflight
+pnpm demo:runtime-audit
+DEMO_QA_BASE_URL=http://localhost:3000 pnpm demo:release-readiness-qa
+pnpm build
+```
+
+結果：
+
+- TypeScript：通過。
+- Targeted ESLint：通過。
+- `pnpm run lint:changed`：通過。
+- `pnpm prisma:validate`：通過。
+- `pnpm demo:preflight`：通過；Supabase public env placeholder 仍為既有 warning。
+- `pnpm demo:runtime-audit`：通過。
+- `pnpm demo:release-readiness-qa`：通過；regular app session 403、platform user 200、required controls complete、private seeded sentinels 0 leak、super-admin desktop screenshot 成功、console error 0、無水平 overflow。
+- `pnpm build`：通過；route list 包含 `/api/platform/release-readiness`，Turbopack tracing warning 已以 scoped ignore comment 清除。
+
+### 失敗與風險
+
+- 初次 `pnpm run lint:changed` 抓到上一輪 demo login form 將 event handler 命名為 `useAccount` 觸發 React hooks rule；已改名為 `selectAccount`，行為不變。
+- 本輪沒有接入 Sentry/等價監控、privacy/terms/AI disclaimer 實頁、backup/restore runbook、ECPay checklist；readiness gate 會將這些維持為 blocker。
+- `AUTH_SECRET`、正式 platform auth/MFA、ECPay credentials/callback/CheckMacValue 仍需 operator/production approval。
+- Readiness API 是 aggregate/control proof；尚未完成所有 OpenAI/Anthropic route 的 success/error `AiUsageLog` evidence audit。
+
+### 剩餘上線 blocker
+
+- `LCH-009`：AI route usage audit、monitoring、backup/rollback、legal pages/disclaimer、ECPay checklist、full smoke、release QA evidence。
+- `LCH-004`：Theater Route B 與三 AI error-path / quota UI proof 仍未收完。
+- `LCH-005`：production auth provider、password reset/MFA、production-safe demo/staging policy。
+
+### 下一輪建議
+
+1. 繼續 `LCH-009`，先補 backup/restore + migration rollback runbook 與 ECPay test checklist，讓 readiness gate 的 blocker 可逐項轉綠。
+2. 接著做 OpenAI/Anthropic route audit report，列 module/provider/success/error `AiUsageLog` evidence 與缺口。

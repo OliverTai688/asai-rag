@@ -234,7 +234,7 @@
 
 目標：讓受控 staging demo 進入 private beta 前，有基本成本、錯誤、合規與回滾控制。
 
-- [ ] 建立 AI quota/cost alert：至少 DB counter + UI quota warning；若導入 Redis rate limit 需文件化。
+- [x] 建立 AI quota/cost alert：至少 DB counter + UI quota warning；若導入 Redis rate limit 需文件化。
 - [ ] 對所有 OpenAI/Anthropic routes 做 audit，列出 module、provider、success/error `AiUsageLog` evidence。
 - [x] 關閉 production-like env 的 `/api/mock/*`，保留 dev/test guard。
 - [ ] 建立 Sentry 或等價錯誤監控方案；若暫不接，寫入 release blocker。
@@ -244,6 +244,8 @@
 - [ ] 做 full smoke：front office、member admin、org admin、super admin、client portal。
 - [ ] 保存 release QA evidence：desktop/mobile screenshots、console error、API status、AiUsageLog count、demo relogin result。
 - [ ] 跑 `pnpm lint:changed`、`pnpm exec tsc --noEmit --pretty false`、`pnpm prisma:validate`、`pnpm demo:preflight`、`pnpm demo:runtime-audit`。
+
+進行中註記：2026-06-19 新增 `GET /api/platform/release-readiness`、`src/lib/platform/platform-release-readiness-repository.ts`、super-admin `Release readiness` / `AI quota warning` 面板與 `pnpm demo:release-readiness-qa`。Readiness API 只允許 platform user 讀取，一般 app session 403；回傳 current-month `AiUsageLog` aggregate、organization quota usage、pending/failed billing order count、mock/email/notification/billing/auth/monitoring/legal/backup/ECPay control gate。QA 通過 API 200/403、required controls、private seeded sentinel 0 leak、super-admin desktop Playwright screenshot、console error 0、無水平 overflow。此切片只完成 AI quota/cost alert 與 production controls visibility；Sentry/backup/legal/ECPay/full smoke 仍為 LCH-009 blocker。
 
 範圍外：不宣稱 full public production，除非 LCH-001-LCH-008 與 operator blockers 全部解除。
 

@@ -5,6 +5,7 @@ import {
   CreditCard,
   FileSearch,
   LockKeyhole,
+  ServerCog,
   ShieldCheck,
   UserRoundCog,
 } from "lucide-react";
@@ -17,6 +18,10 @@ import {
   evaluateImpersonationRequest,
 } from "@/domains/platform/impersonation";
 import { requirePlatformRoute } from "@/lib/auth/route-guards";
+import {
+  getPlatformReleaseReadiness,
+  type ReleaseGateStatus,
+} from "@/lib/platform/platform-release-readiness-repository";
 
 const now = new Date("2026-06-18T10:00:00+08:00");
 const sampleDecision = evaluateImpersonationRequest({
@@ -29,13 +34,6 @@ const sampleDecision = evaluateImpersonationRequest({
   startsAt: now.toISOString(),
   expiresAt: new Date(now.getTime() + 30 * 60 * 1000).toISOString(),
 });
-
-const metrics = [
-  { label: "Active orgs", value: "132", helper: "不含 archived", icon: Activity },
-  { label: "AI usage", value: "64%", helper: "本月 quota 使用率", icon: FileSearch },
-  { label: "Billing queue", value: "7", helper: "待通知/手動審核", icon: CreditCard },
-  { label: "Audit alerts", value: "3", helper: "高敏感事件", icon: AlertTriangle },
-];
 
 const auditRows = [
   {
@@ -63,6 +61,37 @@ const auditRows = [
 
 export default async function SuperAdminPage() {
   await requirePlatformRoute();
+  const readiness = await getPlatformReleaseReadiness();
+  const maxQuotaUsage = readiness.quota.topOrganizations[0]?.usagePercent ?? 0;
+  const highRiskControls = readiness.productionControls.controls.filter(
+    (control) => control.status !== "pass",
+  );
+  const metrics = [
+    {
+      label: "Active orgs",
+      value: String(readiness.organizations.active),
+      helper: `${readiness.organizations.demo} demo / ${readiness.organizations.total} total`,
+      icon: Activity,
+    },
+    {
+      label: "AI usage",
+      value: `${maxQuotaUsage}%`,
+      helper: `${readiness.aiUsage.requests} request(s), ${readiness.aiUsage.errorCount} error(s)`,
+      icon: FileSearch,
+    },
+    {
+      label: "Billing queue",
+      value: String(readiness.productionControls.pendingBillingOrders),
+      helper: "pending / failed orders",
+      icon: CreditCard,
+    },
+    {
+      label: "Release blockers",
+      value: String(readiness.overall.blockerCount),
+      helper: `${readiness.overall.warningCount} warning(s)`,
+      icon: AlertTriangle,
+    },
+  ];
 
   return (
     <main className="min-h-screen bg-paper text-ink">
@@ -106,6 +135,88 @@ export default async function SuperAdminPage() {
               </CardContent>
             </Card>
           ))}
+        </section>
+
+        <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
+          <Card className="border-hairline bg-card">
+            <CardContent className="space-y-5 p-5">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <ServerCog className="size-4 text-muted-foreground" />
+                    <h2 className="text-base font-semibold text-ink">Release readiness</h2>
+                  </div>
+                  <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                    Production controls are read-only here. Blocked items stay visible until operator approval
+                    or release evidence is complete.
+                  </p>
+                </div>
+                <ReadinessBadge status={readiness.overall.status} label={readiness.overall.label} />
+              </div>
+              <div className="grid gap-3 md:grid-cols-3">
+                <ReadinessMetric label="Blockers" value={String(readiness.overall.blockerCount)} />
+                <ReadinessMetric label="Warnings" value={String(readiness.overall.warningCount)} />
+                <ReadinessMetric label="AI cost" value={`$${readiness.aiUsage.estimatedCostUsd.toFixed(4)}`} />
+              </div>
+              <div className="divide-y divide-hairline rounded-lg border border-hairline">
+                {readiness.productionControls.controls.map((control) => (
+                  <div
+                    key={control.key}
+                    className="grid gap-3 p-4 md:grid-cols-[150px_minmax(0,1fr)] md:items-start"
+                  >
+                    <ReadinessBadge status={control.status} label={control.status} compact />
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-ink">{control.label}</p>
+                      <p className="mt-1 text-xs leading-5 text-muted-foreground">{control.detail}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-hairline bg-card">
+            <CardContent className="space-y-5 p-5">
+              <div>
+                <h2 className="text-base font-semibold text-ink">AI quota warning</h2>
+                <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                  Organizations at or above 80% monthly quota require operator review before expanding beta access.
+                </p>
+              </div>
+              <div className="space-y-3">
+                {readiness.quota.topOrganizations.map((organization) => (
+                  <div key={organization.id} className="rounded-lg border border-hairline p-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="truncate text-sm font-medium text-ink">{organization.name}</p>
+                      <Badge
+                        variant={organization.usagePercent >= 100 ? "destructive" : organization.usagePercent >= 80 ? "warning" : "outline"}
+                        className="rounded-full"
+                      >
+                        {organization.usagePercent}%
+                      </Badge>
+                    </div>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {organization.monthlyAiUsed} / {organization.monthlyAiQuota} monthly AI unit(s)
+                    </p>
+                  </div>
+                ))}
+                {readiness.quota.topOrganizations.length === 0 ? (
+                  <p className="rounded-lg border border-hairline p-3 text-sm text-muted-foreground">
+                    No organization quota records yet.
+                  </p>
+                ) : null}
+              </div>
+              {highRiskControls.length > 0 ? (
+                <div className="rounded-lg border border-hairline bg-muted/20 p-3">
+                  <p className="text-xs font-semibold uppercase tracking-normal text-muted-foreground">
+                    Next release blocker
+                  </p>
+                  <p className="mt-1 text-sm leading-6 text-ink">{highRiskControls[0].label}</p>
+                  <p className="mt-1 text-xs leading-5 text-muted-foreground">{highRiskControls[0].detail}</p>
+                </div>
+              ) : null}
+            </CardContent>
+          </Card>
         </section>
 
         <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
@@ -241,5 +352,32 @@ function PolicyTile({
       <p className="mt-3 text-xs text-muted-foreground">{label}</p>
       <p className="mt-1 text-sm font-semibold text-ink">{value}</p>
     </div>
+  );
+}
+
+function ReadinessMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg border border-hairline p-4">
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="mt-2 font-mono text-2xl font-semibold tabular-nums text-ink">{value}</p>
+    </div>
+  );
+}
+
+function ReadinessBadge({
+  status,
+  label,
+  compact = false,
+}: {
+  status: ReleaseGateStatus;
+  label: string;
+  compact?: boolean;
+}) {
+  const variant = status === "pass" ? "success" : status === "warning" ? "warning" : "destructive";
+
+  return (
+    <Badge variant={variant} className={`rounded-full ${compact ? "capitalize" : ""}`}>
+      {label}
+    </Badge>
   );
 }

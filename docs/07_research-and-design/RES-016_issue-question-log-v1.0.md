@@ -655,3 +655,20 @@
   - `getAppSession()` 僅在 NextAuth user id 為 UUID 時加入 `supabaseAuthId` 條件；demo seed id 走 `id/email` lookup。
   - Browser proof：`/login` 顯示三組帳密；demo member 登入後 `/dashboard` 200 且顯示「今日決策台」。
   - 剩餘：正式 production auth provider、MFA、password reset、production-safe demo/staging account policy。
+
+### IQ-023 - LCH-009 release readiness gate 與 AI quota warning 已落地
+
+- 狀態：Resolved
+- 發現日期：2026-06-19
+- 解決日期：2026-06-19
+- 影響 batch：`LCH-009`
+- 背景：
+  - Private beta 前需要把 production controls、AI quota/cost、mock/email/notification/payment disablement 與 release blockers 變成 platform 可讀、QA 可驗，而不是只存在文件。
+  - 此事項不需要使用者決策；可先交付 read-only aggregate gate，不接 production email/notification/payment。
+- 解法：
+  - 新增 `GET /api/platform/release-readiness`：一般 app session 403，platform user 可讀 aggregate readiness。
+  - Readiness repository 彙總 current-month `AiUsageLog` requests/tokens/cost/error、organization monthly quota usage、pending/failed billing orders。
+  - 建立 control gates：AI quota、mock API、production email、production notification、billing checkout、Auth secret、monitoring、legal pages、backup/restore、ECPay checklist。
+  - Super admin 控制台新增 `Release readiness` 與 `AI quota warning` 面板。
+  - QA：`demo:release-readiness-qa` 通過 API 403/200、required controls、private seeded sentinel 0 leak、super-admin screenshot、console error 0、無水平 overflow。
+  - 剩餘：Sentry/等價監控、backup/restore runbook、privacy/terms/AI disclaimer、ECPay checklist、AI route usage audit 與 full smoke 仍為 LCH-009 blocker。
