@@ -322,7 +322,7 @@ Context: 將 dashboard shell 側邊欄從單層功能清單改為凸顯三個核
 - [x] 新增 `AI 工作台` section，順序為：`問誠問 AI`、`AI 顧問陪談`、`AI 劇場演練`。
 - [x] 將 AI 助手 trigger 從底部 CTA 移入 `AI 工作台` section；底部只保留 collapse/layout control。
 - [x] `客戶工作` section 包含：客戶管理、訪前規劃、分析報告、議題單。
-- [x] `團隊與系統` section 包含：團隊管理、體驗版、系統設定。
+- [x] `團隊與系統` section 包含：團隊管理、通訊處設定、個人設定；`體驗版` 依 IQ-028 只在未登入 / onboarding / public trial 情境顯示。
 - [x] 視覺符合 ARC-003：paper/ink/hairline、1px navy active rail、無滿版藍底、無重陰影、gold 只作稀有小訊號。
 - [x] 不改 SPIN 狀態機、不改 Theater enum、不改 assistant store / API 行為。
 - [x] 跑 `pnpm lint:changed`；保存 desktop 展開態截圖。
@@ -361,11 +361,21 @@ Context: 將 dashboard shell 側邊欄從單層功能清單改為凸顯三個核
 
 完成註記：Browser DOM/console QA 通過，`/spin`、`/theater`、`/crm` 新錯誤 0 且無水平溢出；In-app Browser `Page.captureScreenshot` timeout 改以 headless Chrome 保存最終截圖與 force-dark 備援截圖。
 
+### Batch AIS-005 — Issue-question decision sync
+- [x] 記錄三個 AI 模組命名、sidebar 分組、AI 助手雙入口、`體驗版` 未登入顯示、headless Chrome 截圖備援等決策到 `RES-016`。
+- [x] 從已登入 sidebar 移除 `體驗版`，保留 `/pilot` route 與未登入 / onboarding 入口。
+- [x] 保留 `問誠問 AI` 在 `AI 工作台` 第一入口；底部/浮動 CTA 可作為輔助入口，不取代主導覽。
+- [x] 新增 Next 16 / React 19 runtime 技術債 issue，後續以獨立 batch 盤點。
+- [x] 跑 `pnpm lint:changed`。
+
+完成註記：operator 決策已同步到 `RES-016`；目前 repo 已出現 `/interview` 與 `/spin` 並存，下一輪 AI-first 結構調整需先研究 `/interview` 與 legacy SPIN 的導覽關係，再決定是否保留 `SPIN 舊版` 在主 sidebar。
+
 ### Current Sidebar Blockers
 - 無 operator/DB 阻擋（本 workstream 不動 schema）。
 - 若要改 route/layout 行為，需先讀 Next.js bundled docs。
 - 若實作時發現現有 assistant panel 無 tooltip primitive 或 mobile 行為缺口，優先做局部 UI 修補，不改 assistant domain/store。
 - In-app Browser 對 `/spin`、`/theater` active state 截圖仍會 `Page.captureScreenshot` timeout；已用 headless Chrome 補存截圖，若後續要做互動錄影再重開 Browser session。
+- `/interview` 與 `/spin` 並存的 IA 關係需另開 AI-first 結構研究與 batch，不在 AIS-005 直接合併。
 
 ---
 

@@ -2480,3 +2480,73 @@ pnpm build
 
 1. 進入 `LCH-009`，先做 production controls/readiness API：AI quota/cost alert 或 blocker、production email/notification/payment disabled policy proof、release smoke checklist。
 2. 若要先消技術債，可新增 `AuditAction.PLATFORM_SETTINGS_UPDATE` enum migration，但需同步 repository、QA 與 rollback note。
+
+## 2026-06-19 Round 034 - AIS-005 Sidebar Decision Sync Baseline
+
+### 本輪戰役
+
+- Workstream：AI-first Sidebar Navigation。
+- Batch / task：`AIS-005` Issue-question decision sync。
+- 選擇原因：啟動檢查時工作區已有未提交的 sidebar IA 決策同步切片；若直接進 LCH-009 會混入不相關 UI/docs 變更。先把既有 AIS-005 驗收、補 proof/report 並 commit/push，清出乾淨基線。
+
+### 本輪完成
+
+- 同步 operator 對 AI-first sidebar 的決策：三個 AI 模組命名、sidebar 分組、AI 助手雙入口、`體驗版` 僅未登入/onboarding/public trial 顯示、headless Chrome 截圖備援。
+- 已登入 sidebar 的 `團隊與系統` 移除 `體驗版`，保留 `團隊管理`、`通訊處設定`、`個人設定`。
+- 保留 `問誠問 AI` 作為 `AI 工作台` 第一入口；底部/浮動 CTA 可作輔助入口。
+- 新增 Next 16 / React 19 client runtime 技術債 issue，提醒後續獨立盤點 `useSearchParams`、Suspense、`useMounted` 與 React 19 lint 紅線。
+- 補 AIS-005 desktop/mobile sidebar proof 截圖。
+
+### 修改檔案
+
+- `src/components/layout/sidebar.tsx`
+- `AGENTS.md`
+- `docs/05_execution-plans/PLN-014_ai-first-sidebar-navigation-batch-tasks-v1.0.md`
+- `docs/07_research-and-design/RES-016_issue-question-log-v1.0.md`
+- `docs/06_audits-and-reports/RPT-003_ongoing-batch-implementation-report-v1.0.md`
+- `docs/06_audits-and-reports/screenshots/modern-ui/sidebar-ai-first/ais-005-desktop.png`
+- `docs/06_audits-and-reports/screenshots/modern-ui/sidebar-ai-first/ais-005-mobile.png`
+
+### DB / Prisma 操作
+
+- 是否修改 schema：否。
+- 是否執行 generate：`pnpm build` 內執行 Prisma generate，通過。
+- 是否執行 db push：否。
+- DB target 判斷：`.env` 仍含 `DATABASE_URL` / `DIRECT_URL`，本輪不做 DB mutation。
+- Seed/backfill：無。
+
+### 驗收
+
+```bash
+pnpm exec tsc --noEmit --pretty false
+pnpm run lint:changed
+pnpm prisma:validate
+ALLOW_DEV_AUTH_HEADER=true pnpm dev
+Headless Chrome sidebar proof for /dashboard desktop/mobile
+pnpm build
+```
+
+結果：
+
+- TypeScript：通過。
+- `pnpm run lint:changed`：通過。
+- `pnpm prisma:validate`：通過。
+- Browser/in-app check：直接開 `/dashboard` 無 demo header 會 307 到 `/login`，符合 guard；登入態 proof 改用 headless Chrome + demo auth header。
+- Headless proof：desktop/mobile 皆通過；`AI 工作台`、`問誠問 AI`、`AI 顧問陪談`、`AI 劇場演練` 可見；已登入 sidebar 不顯示 `體驗版`；無水平 overflow；console error 0。
+- `pnpm build`：通過。
+
+### 失敗與風險
+
+- 首次 mobile proof 未打開 drawer，因此 AI 工作台不可見；調整 proof 先開啟 mobile nav 後重跑通過。
+- `/interview` 與 `/spin` 目前並存，且 sidebar 仍有 `AI 顧問陪談` 與 `SPIN 舊版` 兩個相近入口；已在 `RES-016` / `PLN-014` 記錄為後續 AI-first IA 研究與 batch，不在 AIS-005 直接合併。
+
+### 剩餘上線 blocker
+
+- `LCH-009`：production controls、AI quota/cost alert、backup/rollback、privacy/terms/disclaimer、ECPay test checklist、full smoke。
+- `LCH-004`：Theater Route B 與 quota UI proof 仍未完全收尾。
+- Platform auth/MFA、production monitoring、正式 ECPay credentials 仍需 operator/production approval。
+
+### 下一輪建議
+
+1. 回到 `LCH-009`，先做 production controls/readiness API 與 release blocker panel：AI quota/cost alert、production email/notification/payment disabled policy、backup/rollback/disclaimer/ECPay checklist。
+2. 另開 AI-first IA cleanup batch，研究 `/interview` 與 legacy `/spin` 的主導覽關係，再決定是否移除 `SPIN 舊版` 主 sidebar 入口。

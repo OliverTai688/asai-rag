@@ -14,7 +14,6 @@ import {
   Users2,
   Settings,
   Sparkles,
-  Compass,
   ChevronLeft,
   ChevronRight,
   Bot,
@@ -92,7 +91,6 @@ const navSections: Array<{ label: string; items: NavItem[] }> = [
     items: [
       { name: "團隊管理", href: "/team", icon: Users2 },
       { name: "通訊處設定", href: "/team/settings", icon: Settings },
-      { name: "體驗版", href: "/pilot", icon: Compass },
       { name: "個人設定", href: "/settings", icon: Settings },
     ],
   },

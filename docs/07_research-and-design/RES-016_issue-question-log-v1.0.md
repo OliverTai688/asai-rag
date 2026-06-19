@@ -8,6 +8,45 @@
 
 ## Open Issues
 
+### IQ-028 - AI-first sidebar 決策與後續 IA 原則
+
+- 狀態：Resolved
+- 發現日期：2026-06-19
+- 解決日期：2026-06-19
+- 影響 batch：`AIS-*`、後續 AI-first page structure workstream
+- 使用者決策：
+  - 三個 AI 模組命名定案：`問誠問 AI`、`AI 顧問陪談`、`AI 劇場演練`。
+  - Sidebar 分組定案：`今日`、`AI 工作台`、`客戶工作`、`團隊與系統`。
+  - `問誠問 AI` 同時保留在 `AI 工作台` 第一個入口，且可保留底部/浮動 CTA 類型入口；兩者服務不同使用情境。
+  - `/spin` 對外 UI 可全面使用 `AI 顧問陪談`，但內部 domain、route、SPIN 狀態機與專業語彙保留。
+  - `/theater` 對外 UI 可全面使用 `AI 劇場演練`，但內部 domain、Theater enum 與 scoring 邏輯保留。
+  - `體驗版` 只在未登入 / onboarding / public trial 情境顯示，不放在已登入 sidebar。
+  - 後續每次開發以 AI-first 優先；每張 batch task 都要先深入研究結構調整方向，再實作。
+  - Browser screenshot timeout 接受以 headless Chrome 作截圖備援。
+  - AI-first sidebar 相關變更可整理為正式 PR/commit scope。
+- 已執行：
+  - `src/components/layout/sidebar.tsx` 已移除已登入 sidebar 的 `體驗版` 項目；`/pilot` route 與未登入/體驗入口不刪除。
+  - `AGENTS.md` 與 `PLN-014` 需保留決策紀錄，避免後續 agent 把 `體驗版` 加回已登入 sidebar。
+- 後續注意：
+  - 目前 repo 已出現 `/interview` 與 `/spin` 並存：`AI 顧問陪談` 指向 `/interview`，`SPIN 舊版` 指向 `/spin`。下一輪 AI-first 結構調整需研究 `/interview` 與 legacy SPIN 的導覽關係，避免主 sidebar 出現兩個相近入口稀釋核心 AI 模組。
+
+### IQ-029 - Next 16 / React 19 client runtime 技術債需要獨立追蹤
+
+- 狀態：Open
+- 發現日期：2026-06-19
+- 影響 batch：後續 technical debt / framework compatibility workstream
+- 背景：
+  - AIS QA 期間發現 `/spin/[sessionId]` 有既有 React 19 lint 紅線：effect 內同步 setState、render path `Date.now()` purity、stream buffer mutation。
+  - AIS QA 期間也發現 `useMounted()` 以 effect setState 實作，會在 dev runtime 造成 maximum update depth / console error 風險。
+  - `/spin`、`/theater` 在 Next 16 client page + Suspense/query handling 下曾停在 fallback；本輪以 URL snapshot 與移除不必要 Suspense 修補。
+- 已修補：
+  - `/spin/[sessionId]` 改用 ref counter 產生 message id、chunks array 累積 stream 內容，並移除 effect 內同步 message state sync。
+  - `src/lib/hooks/use-mounted.ts` 改用 `useSyncExternalStore`，避免 effect setState。
+  - `/spin`、`/theater` query 讀取改為 client URL snapshot pattern，避免 `useSearchParams` / page prop promise 在目前 app 狀態下造成 fallback 卡住。
+- 待開發：
+  - 建議新增一張 framework compatibility batch：盤點全 repo `useSearchParams`、client page Suspense、`useMounted` 類型 hook、React 19 lint suppression。
+  - 每個修補都需讀 `node_modules/next/dist/docs/` 對應文件並跑 `pnpm lint:changed`。
+
 ### IQ-027 - Org settings 必須和 member settings 分離，且 manager 只能 read-only
 
 - 狀態：Resolved
