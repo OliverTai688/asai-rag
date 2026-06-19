@@ -2,7 +2,7 @@
 
 日期：2026-06-19  
 範圍：只研究三個登入後核心 AI 演示的可玩性、正確性、完整性，以及 super admin 查看每一次對話輪 AI 用量的資料與介面缺口。  
-三個 AI：`問誠問 AI`、`AI 顧問陪談`、`AI 劇場演練`。  
+三個 AI：`問誠問 AI`、`AI 了解客戶`、`AI 劇場演練`。  
 不在本研究處理：SPIN 狀態機改寫、Theater persona enum 任意遷移、production 金流/通知/email、刪除或重置遠端資料。
 
 ---
@@ -40,10 +40,10 @@
 - `AiUsageLog` 沒有 `conversationId` / `messageId` / `turnId` 欄位；只能靠 `requestId`、時間與 metadata 人工推測。
 - 前端 local store conversation id 與 DB conversation id 不一致，super admin 很難把「畫面上的第 N 輪」對回某筆 usage。
 
-### 2.2 AI 顧問陪談
+### 2.2 AI 了解客戶
 
 入口：
-- Sidebar `AI 工作台` 的 `AI 顧問陪談`，目前 href 為 `/interview`。
+- Sidebar `AI 工作台` 的 `AI 了解客戶`，目前 href 為 `/interview`。
 
 主要 API：
 - `POST /api/ai/interview`
@@ -190,36 +190,38 @@ type PlatformAiTurnUsage = {
 
 ## 6. 下一輪批次建議
 
+> 實作狀態（2026-06-19，commit `a54f114`）：採 Route B（plain nullable scalar trace 欄位，避免跨模型 inverse relation）。已執行 `pnpm prisma:validate` / `prisma:generate` / additive `prisma db push`，並以 `pnpm demo:three-ai-turn-usage-qa`（24/24 PASS）驗收。Chat conversation-reuse 的 route/repo 與 `/interview` page clientId/sessionId 已實作並 live 驗證（兩輪同 conversationId → 1 conversation、2 linked usage rows），但因 working tree 與其他進行中 workstream（assistant function-calling SYSTEM_PROMPT 在同一 POST handler、voice interview UI）co-mingle 在同檔，暫不併入本輪 commit，待該 workstream merge 後落地。
+
 ### Batch TAU-001 — Turn usage contract and schema
 
-- [ ] 定義 `AiUsageLog` turn trace 欄位策略，建議 Route B。
-- [ ] Prisma migration：補 nullable trace FK 或 `trace Json`。
-- [ ] 更新 `writeAiUsageLog` / generation repository input types。
-- [ ] 跑 `pnpm prisma:validate`、`pnpm prisma:generate`。
+- [x] 定義 `AiUsageLog` turn trace 欄位策略，採 Route B。
+- [x] Prisma migration：補 nullable trace 欄位（`traceSource` + assistant/interview/theater session/turn + `interactionEventId` + indexes）。
+- [x] 更新 `writeAiUsageLog` / generation repository input types（`AiUsageTrace` + `aiUsageTraceColumns`）。
+- [x] 跑 `pnpm prisma:validate`、`pnpm prisma:generate`。
 
 ### Batch TAU-002 — 三 AI persistence 對齊
 
-- [ ] Chat success path append/reuse DB conversation，usage log 關聯 conversation/message。
-- [ ] `/interview` UI 呼叫 `/api/ai/interview` 時送 `clientId` 與 DB `persistentSessionId`。
-- [ ] Interview AI 回覆寫入 `InterviewTurn(role=ASSISTANT)`，usage log 關聯 session/turn。
-- [ ] Theater demo 起點可從 DB seeded completed SPIN/theater source 或明確 quickstart fixture 開始，不再只依賴 localStorage。
-- [ ] Theater AI 回覆與 score 關聯 DB theater session/turn 或標記 fallback trace。
+- [~] Chat success path append/reuse DB conversation，usage log 關聯 conversation/message。（實作＋live 驗證；commit 待 chat function-calling workstream merge）
+- [~] `/interview` UI 呼叫 `/api/ai/interview` 時送 `clientId` 與 DB `persistentSessionId`。（已改；commit 待 voice UI workstream merge）
+- [x] Interview AI 回覆寫入 `InterviewTurn(role=ASSISTANT)`，usage log 關聯 session/turn。
+- [ ] Theater demo 起點可從 DB seeded completed SPIN/theater source 或明確 quickstart fixture 開始，不再只依賴 localStorage。（本輪只補 server trace，UI 起點未改）
+- [x] Theater AI 回覆與 score 關聯 DB theater session/turn 或標記 fallback trace。
 
 ### Batch TAU-003 — Super admin turn usage view
 
-- [ ] 新增 `GET /api/platform/ai-usage/turns`，支援 date/module/org/user/client/error filters。
-- [ ] 回傳 normalized `PlatformAiTurnUsage[]`，預設只含 snippets 或 no content。
-- [ ] `/super-admin` 新增「AI turn usage」read-only table。
-- [ ] 明確標示 error rows、zero token rows、stream usage missing rows。
-- [ ] 若需要看完整 conversation content，另走 break-glass 並寫 `AuditLog`。
+- [x] 新增 `GET /api/platform/ai-usage/turns`，支援 date/module/org/user/client/error filters。
+- [x] 回傳 normalized `PlatformAiTurnUsage[]`，預設只含 snippets 或 no content（client name redacted、no raw content、`preview.redacted=true`）。
+- [x] `/super-admin` 新增「AI turn usage」read-only table。
+- [x] 明確標示 error rows、zero token rows、stream usage missing rows（counts: errorTurns / zeroTokenTurns / missingTraceTurns）。
+- [ ] 若需要看完整 conversation content，另走 break-glass 並寫 `AuditLog`。（本輪預設 redacted，不開放內容回放）
 
 ### Batch TAU-004 — Demo QA
 
-- [ ] 建立 `pnpm demo:three-ai-turn-usage-qa`。
-- [ ] 以 demo member 依序呼叫：chat 1 輪、interview 1 輪、theater 1 輪、theater score 1 次。
-- [ ] 驗證 `AiUsageLog` 逐筆增加，且每筆有 trace。
-- [ ] 以 platform user 呼叫 turn usage API，確認能看到剛才每一輪。
-- [ ] Browser 檢查 `/dashboard` assistant、`/interview`、`/theater`、`/super-admin` 無 console error、無水平 overflow。
+- [x] 建立 `pnpm demo:three-ai-turn-usage-qa`。
+- [x] 以 demo member 依序呼叫：chat 1 輪、interview 1 輪、theater 1 輪、theater score 1 次。
+- [x] 驗證 `AiUsageLog` 逐筆增加，且每筆有 trace。
+- [x] 以 platform user 呼叫 turn usage API，確認能看到剛才每一輪。
+- [~] Browser 檢查 `/dashboard` assistant、`/interview`、`/theater`、`/super-admin` 無 console error、無水平 overflow。（`/super-admin` server-render 驗證 200 + 三模組；完整 headless console/overflow 待補）
 
 ---
 
