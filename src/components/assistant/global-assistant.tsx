@@ -346,6 +346,10 @@ export function GlobalAssistant() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => {
+                if (e.nativeEvent.isComposing || e.key === "Process") {
+                  return;
+                }
+
                 if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault();
                   handleSend();
