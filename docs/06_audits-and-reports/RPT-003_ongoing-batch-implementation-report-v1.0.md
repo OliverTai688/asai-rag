@@ -2322,3 +2322,79 @@ pnpm demo:platform-impersonation-qa
 
 1. 繼續 `LCH-008`，建立 `POST /api/platform/break-glass`：reason、scope、expiry、riskAccepted/audit required；只回最小 sensitive proof，不回 raw private payload。
 2. 同輪補 `demo:platform-break-glass-qa`，驗證 missing reason/scope/expiry 拒絕、FINANCE 403、SUPER_ADMIN/SUPPORT 成功寫 BREAK_GLASS audit、expired/revoked session 不可用。
+
+## 2026-06-19 Round 032 - LCH-008 Platform Break Glass API
+
+### 本輪戰役
+
+- Workstream：Launch Readiness Implementation。
+- Batch / task：`LCH-008` Super Admin / Audit / Impersonation - break-glass API 與 counts-only sensitive proof。
+- 選擇原因：impersonation read/write audit 已具備；下一個最接近上線阻擋的是敏感內容查詢必須有 reason、scope、expiry、risk acceptance 與 audit，避免 support/super admin 成為無痕敏感讀取入口。
+
+### 本輪完成
+
+- 新增 `src/lib/platform/platform-break-glass-repository.ts`。
+- 新增 `POST /api/platform/break-glass`：必填 `targetOrgId`、`reason`、`scope`、`expiresAt`、`riskAccepted:true`；`targetUserId` 可選但若提供需屬於 target org active member。
+- Break-glass 僅允許 `SUPER_ADMIN` / `SUPPORT`；`FINANCE` 回 403。
+- Expiry 必須在未來且最多 30 分鐘。
+- Scope 限定 `SENSITIVE_CLIENT_READ` / `SENSITIVE_REPORT_READ`；response 只回 counts-only proof，不回 email/phone/policy/report body/internal sections/transcript/raw metadata。
+- 成功 path 寫 `AuditLog(action=BREAK_GLASS,sensitivity=BREAK_GLASS,resourceType=PLATFORM_BREAK_GLASS)`。
+- 新增 `pnpm demo:platform-break-glass-qa`，驗證缺 reason、缺 `riskAccepted`、expiry too long、FINANCE forbidden、SUPPORT success、audit count、audit query。
+- `AGENTS.md` 與 `PLN-017` 已將 break-glass API 勾選完成；LCH-008 剩 platform settings。
+
+### 修改檔案
+
+- `src/lib/platform/platform-break-glass-repository.ts`
+- `src/app/api/platform/break-glass/route.ts`
+- `scripts/demo-platform-break-glass-qa.mjs`
+- `package.json`
+- `AGENTS.md`
+- `docs/05_execution-plans/PLN-017_launch-readiness-implementation-batch-tasks-v1.0.md`
+- `docs/06_audits-and-reports/RPT-003_ongoing-batch-implementation-report-v1.0.md`
+- `docs/07_research-and-design/RES-016_issue-question-log-v1.0.md`
+
+### DB / Prisma 操作
+
+- 是否修改 schema：否。
+- 是否執行 generate：`pnpm build` 內執行 `prisma generate`，通過。
+- 是否執行 db push：否。
+- DB target 判斷：`pnpm demo:preflight` 通過，`.env` 指向遠端 Supabase Postgres。
+- DB 寫入摘要：`pnpm demo:platform-break-glass-qa` upsert demo support/finance/platform users，並新增一筆 `BREAK_GLASS` audit evidence；本輪 proof 為 `BREAK_GLASS 0→1`。
+
+### 驗收
+
+```bash
+pnpm exec tsc --noEmit --pretty false
+pnpm exec eslint src/lib/platform/platform-break-glass-repository.ts src/app/api/platform/break-glass/route.ts scripts/demo-platform-break-glass-qa.mjs
+pnpm demo:preflight
+pnpm run lint:changed
+ALLOW_DEV_AUTH_HEADER=true pnpm dev
+pnpm demo:platform-break-glass-qa
+pnpm build
+```
+
+結果：
+
+- TypeScript：初次發現 Prisma Client model 使用 `sensitivity/complianceChecklist.kycStatus`，已修正 counts-only query 後通過。
+- Targeted ESLint：通過。
+- `pnpm demo:preflight`：通過；Supabase public env placeholder 仍為 warning。
+- `pnpm run lint:changed`：通過。
+- `pnpm demo:platform-break-glass-qa`：通過；missing reason 400、missing riskAccepted 400、expiry too long 403、FINANCE 403、SUPPORT 201、response `rawPayloadReturned=false`、client/report proof counts-only、`BREAK_GLASS 0→1`、audit query 可查到同一 audit id。
+- `pnpm build`：通過；Next route list 包含 `/api/platform/break-glass`。
+
+### 失敗與風險
+
+- 無未修復驗收失敗。
+- Break-glass 目前是 counts-only sensitive proof，不回 raw private payload；若後續要開放特定 raw sensitive reads，必須逐 route 增加更細 resource selector、redaction policy、reason/scope/audit guard 與 operator approval。
+- Platform auth/MFA 仍是正式上線 blocker；本輪只驗證 repo 內 platform guard 與 demo auth header。
+
+### 剩餘上線 blocker
+
+- `LCH-008` 剩餘：platform settings surface。
+- `LCH-009`：production controls、AI usage route audit、backup/rollback、privacy/terms/disclaimer、ECPay test checklist、full smoke。
+- `LCH-004`：Theater Route B 與三 AI error-path / quota UI proof 仍未收完。
+
+### 下一輪建議
+
+1. 完成 `LCH-008` 最後一塊：platform settings surface，至少提供 feature flags、provider policy、support policy 的 read/update API 或最小 super-admin UI，敏感改動寫 audit。
+2. 若先做 API slice，建議新增 `GET/PATCH /api/platform/settings` 與 `demo:platform-settings-qa`，驗證 FINANCE read-only/forbidden update、SUPER_ADMIN update with reason/riskAccepted、audit query。

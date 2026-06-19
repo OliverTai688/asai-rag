@@ -449,6 +449,23 @@
   - QA：`demo:platform-impersonation-qa` 通過；read proof 200、write proof 200、scope mismatch 403、audit query 只回 `metadataKeys`。
   - 剩餘：正式 break-glass API 與 platform settings surface。
 
+### IQ-020 - LCH-008 break-glass API 已落地
+
+- 狀態：Resolved
+- 發現日期：2026-06-19
+- 解決日期：2026-06-19
+- 影響 batch：`LCH-008`
+- 背景：
+  - Platform sensitive access 需要明確 reason、scope、expiry、risk acceptance 與 audit；否則 support/super admin 可能成為無痕敏感資料入口。
+  - 此事項不需要新的使用者決策；可先交付 counts-only proof，避免 raw private payload。
+- 解法：
+  - 新增 `POST /api/platform/break-glass`，必填 `targetOrgId`、`reason`、`scope`、`expiresAt`、`riskAccepted:true`。
+  - `FINANCE` 403；`SUPER_ADMIN` / `SUPPORT` 可在 30 分鐘 expiry 內執行。
+  - Scope 限定 `SENSITIVE_CLIENT_READ` / `SENSITIVE_REPORT_READ`，response 只回 counts-only proof 且 `rawPayloadReturned=false`。
+  - 成功 path 寫 `AuditLog(action=BREAK_GLASS,sensitivity=BREAK_GLASS)`。
+  - QA：`demo:platform-break-glass-qa` 通過 missing reason 400、missing risk 400、expiry too long 403、FINANCE 403、SUPPORT 201、audit `0→1`、audit query 可查同一 id。
+  - 剩餘：platform settings surface；正式 platform auth/MFA 仍是 production blocker。
+
 ### IQ-014 - LCH-004 interview agent 仍信任前端 scope 且缺 output evidence
 
 - 狀態：Resolved
