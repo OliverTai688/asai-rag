@@ -10,6 +10,7 @@ interface ReportState {
   
   // Actions
   addReport: (report: Report) => void;
+  upsertReports: (reports: Report[]) => void;
   updateReport: (id: string, updates: Partial<Report>) => void;
   updateSection: (reportId: string, sectionId: string, content: string) => void;
   generateShareToken: (reportId: string) => string;
@@ -24,6 +25,15 @@ export const useReportStore = create<ReportState>()((set, get) => ({
 
   addReport: (report) => {
     set((state) => ({ reports: [report, ...state.reports] }));
+  },
+
+  // Merge DB-backed reports into the cache without dropping in-session reports.
+  upsertReports: (incoming) => {
+    set((state) => {
+      const incomingIds = new Set(incoming.map((report) => report.id));
+      const retained = state.reports.filter((report) => !incomingIds.has(report.id));
+      return { reports: [...incoming, ...retained] };
+    });
   },
 
   updateReport: (id, updates) => {

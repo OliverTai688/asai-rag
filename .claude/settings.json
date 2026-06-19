@@ -3,7 +3,36 @@
     "allow": [
       "Bash(sips -c 720 1440 /tmp/dash-kpi.png --cropOffset 550 0 -o /tmp/dash-kpi-crop.png)",
       "Bash(xargs sed *)",
-      "Bash(./node_modules/.bin/tsc --noEmit)"
+      "Bash(./node_modules/.bin/tsc --noEmit)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" -X GET http://localhost:3000/api/org/overview -H \"x-asai-demo-user-email: demo.manager@asai.local\")",
+      "Bash(curl -s -X POST http://localhost:3000/api/ai/chat -H \"Content-Type: application/json\" -H \"x-asai-demo-user-email: demo.manager@asai.local\" -d '{\"messages\":[{\"role\":\"user\",\"content\":\"用 get_team_overview 查一下團隊目前的客戶數、報告完成率與本月 AI 使用量\"}],\"context\":{\"route\":\"/team\"}}')",
+      "Bash(curl -s -X POST http://localhost:3000/api/ai/chat -H \"Content-Type: application/json\" -H \"x-asai-demo-user-email: demo.manager@asai.local\" -d '{\"messages\":[{\"role\":\"user\",\"content\":\"目前的團隊整體目標達成率是多少？\"}],\"context\":{\"route\":\"/team\"}}')",
+      "Bash(echo \"tsc exit=$?\")",
+      "Bash(echo \"eslint exit=$?\")",
+      "Bash(pnpm ai:usage-audit)",
+      "Bash(echo \"staged exclusive files. exit=$?\")",
+      "Bash(curl -s -o /dev/null -w \"realtime-session no-auth -> %{http_code}\\\\n\" -X POST http://localhost:3000/api/ai/interview/transcribe-realtime-session)",
+      "Bash(grep -v \"^$\")",
+      "Bash(echo \"EXIT=$?\")",
+      "Bash(git restore *)",
+      "Bash(node -e ' *)",
+      "Bash(git apply *)",
+      "Bash(curl -s -w \"\\\\nHTTP=%{http_code}\\\\n\" -H \"x-asai-demo-user-email: demo.member@asai.local\" http://localhost:3000/api/clients)",
+      "Bash(git commit *)",
+      "Bash(echo \"commit exit=$?\")",
+      "Bash(echo \"push exit=$?\")",
+      "Bash(curl -s -H \"x-asai-demo-user-email: demo.member@asai.local\" http://localhost:3000/api/clients/c_wang/reports)",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('count=',len\\(d['reports']\\)\\); [print\\(' -',r['id'][:24],'|',r['clientName'],'|',r['sections'][0]['title'] if r['sections'] else 'no-sections','| interview=',r.get\\('interviewSessionId'\\)\\) for r in d['reports']]\")",
+      "Bash(curl -s -w '\\\\nHTTP=%{http_code}\\\\n' -X POST -H 'x-asai-demo-user-email: demo.member@asai.local' -H 'Content-Type: application/json' -d '{\"output\":{\"clientProfile\":{\"relationship\":\"科技業中階主管，雙薪家庭\",\"family\":\"配偶林小美、子王小明8歲\",\"workIncome\":\"年收入約180萬\",\"existingCoverage\":\"定期壽險500萬、住院醫療日額2000\",\"knownFacts\":[\"有房貸\",\"子女教育金尚未規劃\"],\"unknownsToConfirm\":[\"失能收入保障額度\"],\"likelyIssues\":[\"醫療險不足\",\"子女教育金缺口\"],\"decisionContext\":\"與配偶共同決策\",\"communicationNotes\":\"重視數字與CP值\"},\"conversationPrepCard\":{\"opening\":\"先回顧家庭責任\",\"talkTracks\":[\"量化教育金缺口\"],\"firstQuestions\":[\"若收入中斷家庭可撐多久？\"],\"landmines\":[\"避免一開始談保費\"],\"desiredNextStep\":\"安排30分鐘保障檢視\"},\"spinQuestionCandidates\":[{\"phase\":\"PROBLEM\",\"question\":\"現有醫療額度夠嗎？\"}],\"pqQuestions\":[\"最擔心的財務風險是什麼？\"],\"issueReadiness\":[{\"issueKey\":\"medical\",\"label\":\"醫療缺口\",\"level\":3,\"reason\":\"已意識到日額偏低\",\"nextStep\":\"試算實支實付\"}],\"personalityInference\":\"偏分析型，需要證據\",\"complianceNotes\":[\"不得保證報酬\"]}}' http://localhost:3000/api/clients/c_wang/reports)",
+      "Bash(python3 -c 'import sys,json; t=sys.stdin.read\\(\\); *)",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('count=',len\\(d['reports']\\)\\); [print\\(' -',r['id'][:26],'|',r['sections'][0]['title'] if r['sections'] else 'none','| sections=',len\\(r['sections']\\)\\) for r in d['reports']]\")",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('count=',len\\(d['reports']\\),'->', [r['id'] for r in d['reports']]\\)\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" -H \"x-asai-demo-user-email: demo.member@asai.local\" http://localhost:3000/api/clients)",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('total:', len\\(d['clients']\\)\\); [print\\(c['id'], c['name']\\) for c in d['clients']]\")",
+      "Bash(curl -s -H 'x-asai-demo-user-email: demo.member@asai.local' -H 'Content-Type: application/json' -X POST http://localhost:3000/api/ai/chat -d '{\"messages\":[{\"role\":\"user\",\"content\":\"張志明是誰\"}],\"context\":{\"route\":\"/crm/demo_client_chang\"}}')",
+      "Bash(curl -s -H 'x-asai-demo-user-email: demo.member@asai.local' -H 'Content-Type: application/json' -X POST http://localhost:3000/api/ai/chat -d '{\"messages\":[{\"role\":\"user\",\"content\":\"我有哪些客戶？列出全部\"}],\"context\":{\"route\":\"/crm\"}}')",
+      "Bash(curl -s -H 'x-asai-demo-user-email: demo.member@asai.local' -H 'Content-Type: application/json' -X POST http://localhost:3000/api/ai/chat -d '{\"messages\":[{\"role\":\"user\",\"content\":\"張志明是誰\"}],\"context\":{\"route\":\"/crm/demo_client_chang\",\"clientId\":\"demo_client_chang\",\"clientName\":\"張志明\"}}')",
+      "Bash(curl -s -H 'x-asai-demo-user-email: demo.member@asai.local' -H 'Content-Type: application/json' -X POST http://localhost:3000/api/ai/chat -d '{\"messages\":[{\"role\":\"user\",\"content\":\"他目前的保障缺口是什麼？\"}],\"context\":{\"route\":\"/crm/demo_client_chang\",\"clientId\":\"demo_client_chang\",\"clientName\":\"張志明\"}}')"
     ]
   }
 }

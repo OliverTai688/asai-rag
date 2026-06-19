@@ -7,7 +7,7 @@
 > 訪綱依據：`RES-003_theater-field-semi-structured-interview-guide.md`、`RES-004_advisor-companion-semi-structured-interview-guide.md`  
 > 驗收依據：`ACC-012_theater-direct-field-guide-acceptance-framework-v1.0.md`、`ACC-006_interview-theater-dual-agent-acceptance-framework-v1.0.md`
 
-本計畫把 `RES-019` 的 TDF-GAP 研究轉成 `AGENTS.md` 可逐張執行的 batch tasks。核心修正是：`AI 劇場演練` 不以「已完成 AI 顧問陪談 / SPIN 摘要」作為唯一前置條件，而是支援三種建場來源：劇場訪綱 B 直接建場、帶客戶資料建場、從既有訪談產物轉入。
+本計畫把 `RES-019` 的 TDF-GAP 研究轉成 `AGENTS.md` 可逐張執行的 batch tasks。核心修正是：`AI 劇場演練` 不以「已完成 AI 了解客戶 / SPIN 摘要」作為唯一前置條件，而是支援三種建場來源：劇場訪綱 B 直接建場、帶客戶資料建場、從既有訪談產物轉入。
 
 本 workstream 是 ITA-003 Route B 前置切片：先解除 `/theater` legacy SPIN 入口依賴、建立訪綱 B 與 setup draft contract，再進入多角色 schema / director / visibility scope 的高風險遷移。除 TDF-005 外，不改 Theater legacy enum/scoring/schema。
 
@@ -32,9 +32,9 @@
 | 卡片 | 主題 | 狀態 | 依賴 |
 | --- | --- | --- | --- |
 | TDF-000 | Workstream 文件與 AGENTS 登錄 | [x] | `RES-019` |
-| TDF-001 | Theater direct setup IA correction | [ ] | TDF-000 |
-| TDF-002 | 訪綱 B TS outline + setup draft contract | [ ] | TDF-000 |
-| TDF-003 | 劇場訪綱建場 prototype | [ ] | TDF-001、TDF-002 |
+| TDF-001 | Theater direct setup IA correction | [x] | TDF-000 |
+| TDF-002 | 訪綱 B TS outline + setup draft contract | [x] | TDF-000 |
+| TDF-003 | 劇場訪綱建場 prototype | [x] | TDF-001、TDF-002 |
 | TDF-004 | 客戶資料一鍵建場與合規 gate | [ ] | TDF-002、session/BFF guard |
 | TDF-005 | Route B handoff packet for multi-character Theater | [ ] | TDF-002、ITA-003 |
 | TDF-006 | Cross-state QA and docs sync | [ ] | TDF-001..TDF-004 |
@@ -63,7 +63,7 @@
 - [ ] 第一屏新增三入口 selector：`用劇場訪綱建場`、`帶客戶資料建場`、`從既有訪談轉入`。
 - [ ] 無 SPIN / interview material 時仍能選 `用劇場訪綱建場`，主 CTA 不 disabled。
 - [ ] 既有 `fromSpin` / `spinId` quickstart path 保持可用，不破壞 Quickstart demo flow。
-- [ ] 空狀態改為引導劇場訪綱 B，不再要求先完成 AI 顧問陪談。
+- [ ] 空狀態改為引導劇場訪綱 B，不再要求先完成 AI 了解客戶。
 - [ ] 不改 Theater legacy enum、store schema、score route。
 - [ ] Browser QA：`/theater` desktop/mobile 無水平 overflow、console error 0、三入口 accessible name 可讀。
 - [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。

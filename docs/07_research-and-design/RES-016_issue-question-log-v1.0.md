@@ -163,10 +163,10 @@
 - 解決日期：2026-06-19
 - 影響 batch：`AIS-*`、後續 AI-first page structure workstream
 - 使用者決策：
-  - 三個 AI 模組命名定案：`問誠問 AI`、`AI 顧問陪談`、`AI 劇場演練`。
+  - 三個 AI 模組命名定案：`問誠問 AI`、`AI 了解客戶`、`AI 劇場演練`。
   - Sidebar 分組定案：`今日`、`AI 工作台`、`客戶工作`、`團隊與系統`。
   - `問誠問 AI` 同時保留在 `AI 工作台` 第一個入口，且可保留底部/浮動 CTA 類型入口；兩者服務不同使用情境。
-  - `/spin` 對外 UI 可全面使用 `AI 顧問陪談`，但內部 domain、route、SPIN 狀態機與專業語彙保留。
+  - `/spin` 對外 UI 可全面使用 `AI 了解客戶`，但內部 domain、route、SPIN 狀態機與專業語彙保留。
   - `/theater` 對外 UI 可全面使用 `AI 劇場演練`，但內部 domain、Theater enum 與 scoring 邏輯保留。
   - `體驗版` 只在未登入 / onboarding / public trial 情境顯示，不放在已登入 sidebar。
   - 後續每次開發以 AI-first 優先；每張 batch task 都要先深入研究結構調整方向，再實作。
@@ -176,7 +176,7 @@
   - `src/components/layout/sidebar.tsx` 已移除已登入 sidebar 的 `體驗版` 項目；`/pilot` route 與未登入/體驗入口不刪除。
   - `AGENTS.md` 與 `PLN-014` 需保留決策紀錄，避免後續 agent 把 `體驗版` 加回已登入 sidebar。
 - 後續注意：
-  - 目前 repo 已出現 `/interview` 與 `/spin` 並存：`AI 顧問陪談` 指向 `/interview`，`SPIN 舊版` 指向 `/spin`。下一輪 AI-first 結構調整需研究 `/interview` 與 legacy SPIN 的導覽關係，避免主 sidebar 出現兩個相近入口稀釋核心 AI 模組。
+  - 目前 repo 已出現 `/interview` 與 `/spin` 並存：`AI 了解客戶` 指向 `/interview`，`SPIN 舊版` 指向 `/spin`。下一輪 AI-first 結構調整需研究 `/interview` 與 legacy SPIN 的導覽關係，避免主 sidebar 出現兩個相近入口稀釋核心 AI 模組。
 
 ### IQ-029 - Next 16 / React 19 client runtime 技術債需要獨立追蹤
 

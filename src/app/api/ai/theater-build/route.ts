@@ -1,24 +1,19 @@
 import OpenAI from "openai";
 import { z } from "zod";
 import { AiModule } from "@/generated/prisma/enums";
-import { advisorCompanionOutline } from "@/domains/interview/outlines";
-import {
-  buildAdvisorMemoryLoopContext,
-  encodeInterviewPlanHeader,
-} from "@/domains/interview/park-loop";
+import { theaterFieldBuildOutline } from "@/domains/interview/outlines";
+import { buildTheaterFieldBuildContext } from "@/domains/interview/theater-build";
 import { canUseAiModule } from "@/lib/auth/policies";
 import { authErrorResponse, requireCurrentMember } from "@/lib/auth/current-workspace";
 import {
-  persistInterviewFailure,
-  persistInterviewTurnSuccess,
-  type InterviewAiMessage,
-} from "@/lib/interview/interview-ai-repository";
-import { loadInterviewClientContext } from "@/lib/interview/interview-client-context";
+  persistTheaterBuildFailure,
+  persistTheaterBuildSuccess,
+} from "@/lib/theater/theater-build-ai-repository";
 
 const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const MODEL = "gpt-4o-mini";
 
-const interviewRequestSchema = z.object({
+const requestSchema = z.object({
   clientId: z.string().trim().max(80).optional(),
   sessionId: z.string().trim().max(120).optional(),
   currentSegmentId: z.string().trim().max(120).optional(),
@@ -31,58 +26,60 @@ const interviewRequestSchema = z.object({
     )
     .max(24)
     .default([]),
-  knownMaterials: z.array(z.string().trim().max(1200)).max(40).default([]),
+  knownMaterials: z.array(z.string().trim().max(1200)).max(60).default([]),
 });
 
-const SYSTEM_PROMPT = `你是「誠問 AI 訪談 Agent」，任務是用顧問陪談訪綱訪談保險業務員。
+const SYSTEM_PROMPT = `你是「誠問 AI 劇場導演訪談員」，任務是用劇場場域建構訪綱，訪談保險業務員，逐步建構出一個可演練的客戶劇場場域。
 
 規則：
-1. 全程使用繁體中文與白話，不提 SPIN 這個術語。
-2. 依訪綱段落順序主導訪談，不跳段。
-3. 先確認當前段落的核心題；核心題未答完時，持續用自然方式追問。
-4. 回覆要短，最多 4 句；一次只問 1 個主要問題。
-5. 區分「已知事實、合理推論、待確認」，不要把推論說成事實。
-6. 若素材不足，不要硬產出結論，請追問缺口。
-7. 不要做商品建議或保證，不要製造恐懼壓迫。
-8. 訪談後續會由系統整理成客戶輪廓表與對話準備卡，你現在只需要推進訪談。`;
+1. 全程使用繁體中文與白話。
+2. 這是一場連續、自然的訪談；依訪綱段落順序逐步帶過，不跳段，也不要因為對方只回一句就急著換段。先把目前段落的核心題用對話問清楚，對方大致回答後再自然帶到下一段。
+3. 回覆要短，最多 4 句；一次只問 1 個主要問題。
+4. 嚴格區分「已確認事實 / 合理推論 / 待確認未知」，不要把推論說成事實，也不要替業務員杜撰客戶細節。
+5. 目標是建構場域（焦點客戶、場景、陪演角色、關係張力、可能異議、敏感點），不是直接開演。
+6. 陪演角色（NPC）最多 4 位，優先保留焦點客戶與最關鍵的決策者／影響者。
+7. 資料不足時只補問缺口，不要硬生成劇情。
+8. 不做商品建議或保證，不製造恐懼壓迫。
+9. 後續系統會把訪談整理成「劇場場域建構包」，你現在只需要推進訪談。
+10. 每則回覆最後，另起一行只輸出目前聚焦段落的隱藏標記，格式 [[SEG:<段落id>]]（使用下方列出的合法段落 id）；此標記僅供系統顯示進度，請勿在對話中提到或解釋它。`;
 
 function buildOutlineContext(currentSegmentId?: string): string {
-  const currentSegment =
-    advisorCompanionOutline.segments.find((segment) => segment.id === currentSegmentId) ??
-    advisorCompanionOutline.segments[0];
+  const segments = theaterFieldBuildOutline.segments;
+  const currentIndex = Math.max(
+    0,
+    segments.findIndex((segment) => segment.id === currentSegmentId),
+  );
+
+  const segmentLines = segments.map((segment, index) => {
+    const marker = index === currentIndex ? "→ 目前段落 " : "  ";
+    return `${marker}第 ${segment.order} 段（id:${segment.id}）｜${segment.title}：${segment.coreQuestions
+      .map((question) => question.text)
+      .join(" / ")}`;
+  });
 
   return [
-    `訪綱：${advisorCompanionOutline.name}`,
-    `進行原則：${advisorCompanionOutline.principles.join("；")}`,
-    `目前段落：第 ${currentSegment.order} 段｜${currentSegment.title}`,
-    `段落目標：${currentSegment.goal}`,
-    `核心題：${currentSegment.coreQuestions.map((question) => question.text).join(" / ")}`,
-    `可用追問：${currentSegment.followUps.map((question) => question.text).join(" / ")}`,
-    currentSegment.guideNote ? `引導重點：${currentSegment.guideNote}` : "",
+    `訪綱：${theaterFieldBuildOutline.name}`,
+    `進行原則：${theaterFieldBuildOutline.principles.join("；")}`,
+    `這是一場連續訪談，請從目前段落開始，依序自然帶過下列各段（不要跳段）：`,
+    ...segmentLines,
+    `合法段落 id：${segments.map((segment) => segment.id).join(", ")}`,
   ]
     .filter(Boolean)
     .join("\n");
 }
 
-function normalizeMessages(messages: InterviewAiMessage[]): OpenAI.Chat.ChatCompletionMessageParam[] {
-  return messages.map((message) => ({
-    role: message.role,
-    content: message.content,
-  }));
-}
-
 export async function POST(req: Request) {
   const startedAt = Date.now();
-  let bodyForFailure: Partial<z.infer<typeof interviewRequestSchema>> = {};
+  let bodyForFailure: Partial<z.infer<typeof requestSchema>> = {};
 
   try {
     const session = await requireCurrentMember();
-    const parsedBody = interviewRequestSchema.safeParse(await req.json().catch(() => null));
+    const parsedBody = requestSchema.safeParse(await req.json().catch(() => null));
 
     if (!parsedBody.success) {
       return Response.json(
         {
-          error: "INVALID_INTERVIEW_INPUT",
+          error: "INVALID_THEATER_BUILD_INPUT",
           issues: parsedBody.error.flatten().fieldErrors,
         },
         { status: 400 },
@@ -91,8 +88,8 @@ export async function POST(req: Request) {
 
     const body = parsedBody.data;
     bodyForFailure = body;
-    const quota = canUseAiModule(session, AiModule.INTERVIEW);
 
+    const quota = canUseAiModule(session, AiModule.THEATER);
     if (!quota.allowed) {
       return Response.json(
         {
@@ -105,7 +102,7 @@ export async function POST(req: Request) {
     }
 
     if (!process.env.OPENAI_API_KEY) {
-      await persistInterviewFailure({
+      await persistTheaterBuildFailure({
         session,
         body,
         model: MODEL,
@@ -116,14 +113,7 @@ export async function POST(req: Request) {
       return Response.json({ error: "OPENAI_API_KEY is not configured" }, { status: 500 });
     }
 
-    // Load the selected CRM client's full record server-side so the Agent actually
-    // knows who it is talking to instead of relying on the browser's materials.
-    const clientContext = await loadInterviewClientContext(session, body.clientId);
-    const knownMaterials = clientContext.facts.length
-      ? [...clientContext.facts.map((fact) => `FACT: ${fact}`), ...body.knownMaterials]
-      : body.knownMaterials;
-
-    const memoryLoop = buildAdvisorMemoryLoopContext({
+    const buildContext = buildTheaterFieldBuildContext({
       organizationId: session.organization.id,
       memberId: session.user.id,
       unitId: session.membership.primaryUnitId,
@@ -131,20 +121,14 @@ export async function POST(req: Request) {
       sessionId: body.sessionId,
       currentSegmentId: body.currentSegmentId,
       messages: body.messages,
-      knownMaterials,
+      knownMaterials: body.knownMaterials,
     });
-    const bodyWithMemory = {
-      ...body,
-      knownMaterials,
-      memoryEvidence: memoryLoop.evidence,
-      microPlan: memoryLoop.microPlan,
-    };
+
     const promptContext = [
       buildOutlineContext(body.currentSegmentId),
-      clientContext.promptBlock,
-      memoryLoop.promptContext,
-      knownMaterials.length
-        ? `目前已整理素材：\n${knownMaterials.map((item) => `- ${item}`).join("\n")}`
+      buildContext.promptContext,
+      body.knownMaterials.length
+        ? `目前已整理素材：\n${body.knownMaterials.map((item) => `- ${item}`).join("\n")}`
         : "",
     ]
       .filter(Boolean)
@@ -154,7 +138,7 @@ export async function POST(req: Request) {
       model: MODEL,
       messages: [
         { role: "system", content: `${SYSTEM_PROMPT}\n\n${promptContext}` },
-        ...normalizeMessages(body.messages),
+        ...body.messages.map((message) => ({ role: message.role, content: message.content })),
       ],
       stream: true,
       stream_options: { include_usage: true },
@@ -187,21 +171,21 @@ export async function POST(req: Request) {
             }
           }
         } catch (error) {
-          await persistInterviewFailure({
+          await persistTheaterBuildFailure({
             session,
-            body: bodyWithMemory,
+            body,
             model: MODEL,
             requestId,
             latencyMs: Date.now() - startedAt,
-            error: error instanceof Error ? error.message : "Interview stream failed",
+            error: error instanceof Error ? error.message : "Theater build stream failed",
           });
           controller.error(error);
           return;
         }
 
-        await persistInterviewTurnSuccess({
+        await persistTheaterBuildSuccess({
           session,
-          body: bodyWithMemory,
+          body,
           assistantContent,
           usage: {
             model: MODEL,
@@ -217,27 +201,24 @@ export async function POST(req: Request) {
     });
 
     return new Response(readable, {
-      headers: {
-        "Content-Type": "text/plain; charset=utf-8",
-        "X-Interview-Micro-Plan": encodeInterviewPlanHeader(memoryLoop.microPlan),
-      },
+      headers: { "Content-Type": "text/plain; charset=utf-8" },
     });
   } catch (error) {
     try {
       const session = await requireCurrentMember();
-      await persistInterviewFailure({
+      await persistTheaterBuildFailure({
         session,
         body: bodyForFailure,
         model: MODEL,
         latencyMs: Date.now() - startedAt,
-        error: error instanceof Error ? error.message : "Interview request failed",
+        error: error instanceof Error ? error.message : "Theater build request failed",
       });
     } catch {
       return authErrorResponse(error);
     }
 
     return Response.json(
-      { error: error instanceof Error ? error.message : "Interview request failed" },
+      { error: error instanceof Error ? error.message : "Theater build request failed" },
       { status: 500 },
     );
   }

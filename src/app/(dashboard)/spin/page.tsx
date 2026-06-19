@@ -82,7 +82,7 @@ function SpinListContent() {
     <div className="space-y-6 pb-10">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold">AI 顧問陪談</h1>
+          <h1 className="text-3xl font-bold">AI 了解客戶</h1>
           <p className="text-zinc-500 font-medium">用白話陪你釐清客戶狀況，背後以 SPIN 架構整理需求與下一步。</p>
         </div>
         

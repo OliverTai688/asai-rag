@@ -121,7 +121,7 @@ Level 3 不應阻擋 Level 2 beta，但 Level 2 的 evidence 要可延伸成 Lev
 ### 4.1 Beta 必做承諾
 
 - 顧問可管理客戶基本資料、家庭/保單摘要、訪談準備與報告分享。
-- 三個 AI 模組可用：問誠問 AI、AI 顧問陪談、AI 劇場演練。
+- 三個 AI 模組可用：問誠問 AI、AI 了解客戶、AI 劇場演練。
 - AI output 是輔助建議，清楚標示 fact / inference / unknown 與免責。
 - 通訊處主管只看 aggregate/coaching，不看客戶明細。
 - 客戶只看授權分享內容與可提交回覆。

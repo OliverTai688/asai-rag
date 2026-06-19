@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useId, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -28,16 +28,20 @@ import { FormattedTime } from "@/components/ui/formatted-time";
 import { Input } from "@/components/ui/input";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { clientService } from "@/domains/client/service";
+import { useClientStore } from "@/domains/client/store";
+import type { Client } from "@/domains/client/types";
 import {
   getQuickstartSpinFixture,
   getQuickstartTheaterFixture,
 } from "@/domains/demo/quickstart";
+import { DEFAULT_REPORT_PURPOSE, REPORT_PURPOSES } from "@/domains/report/blueprints";
 import { reportService } from "@/domains/report/service";
 import { useReportStore } from "@/domains/report/store";
-import type { Report } from "@/domains/report/types";
+import type { Report, ReportPurpose } from "@/domains/report/types";
 import { useSpinStore } from "@/domains/spin/store";
 import { useTheaterStore } from "@/domains/theater/store";
 import type { SpinSession } from "@/domains/spin/types";
+import { cn } from "@/lib/utils";
 
 export default function ReportListPage() {
   return (
@@ -54,9 +58,18 @@ function ReportListContent() {
   const addReport = useReportStore((state) => state.addReport);
   const spinSessions = useSpinStore((state) => state.sessions);
   const scoresBySession = useTheaterStore((state) => state.scoresBySession);
+  const clients = useClientStore((state) => state.clients);
   const [query, setQuery] = useState("");
   const [sourceOpen, setSourceOpen] = useState(false);
+  const [purpose, setPurpose] = useState<ReportPurpose>(DEFAULT_REPORT_PURPOSE);
+  const [goal, setGoal] = useState("");
+  const blankReportIdPrefix = useId().replace(/[^a-zA-Z0-9]/g, "");
+  const blankReportCounterRef = useRef(0);
   const quickstartCreatedRef = useRef(false);
+
+  useEffect(() => {
+    void clientService.fetchClients().catch(() => undefined);
+  }, []);
 
   useEffect(() => {
     const shouldAutoCreate = searchParams.get("demo") === "quickstart" && searchParams.get("autoCreate") === "true";
@@ -102,11 +115,20 @@ function ReportListContent() {
     updated: reports[0]?.updatedAt,
   };
 
+  const sortedClients = useMemo(() => {
+    return clients.slice().sort((a, b) => a.name.localeCompare(b.name, "zh-Hant"));
+  }, [clients]);
+
+  const goalValue = goal.trim() || undefined;
+
   const handleGenerateFromSpin = (spin: SpinSession) => {
     const theaterScore = Object.values(scoresBySession)[0];
     const newReport = reportService.generateReport({
       clientId: spin.clientId,
       clientName: spin.clientName,
+      purpose,
+      goal: goalValue,
+      client: clientService.getClientById(spin.clientId),
       spinSession: spin,
       theaterScore,
     });
@@ -117,6 +139,40 @@ function ReportListContent() {
     router.push(`/reports/${newReport.id}`);
   };
 
+  const handleGenerateForClient = (client: Client) => {
+    const spin = sortedSpinSessions.find((session) => session.clientId === client.id);
+    const theaterScore = Object.values(scoresBySession)[0];
+    const newReport = reportService.generateReport({
+      clientId: client.id,
+      clientName: client.name,
+      purpose,
+      goal: goalValue,
+      client,
+      spinSession: spin,
+      theaterScore,
+    });
+
+    addReport(newReport);
+    setSourceOpen(false);
+    toast.success(`${client.name} 的報告已生成`);
+    router.push(`/reports/${newReport.id}`);
+  };
+
+  const handleGenerateBlank = () => {
+    blankReportCounterRef.current += 1;
+    const newReport = reportService.generateReport({
+      clientId: `adhoc_${blankReportIdPrefix}_${blankReportCounterRef.current}`,
+      clientName: "未命名客戶",
+      purpose,
+      goal: goalValue,
+    });
+
+    addReport(newReport);
+    setSourceOpen(false);
+    toast.success("空白報告已生成，可直接編輯");
+    router.push(`/reports/${newReport.id}`);
+  };
+
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8">
       <header className="grid gap-5 border-b border-hairline pb-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
@@ -124,7 +180,7 @@ function ReportListContent() {
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">Report library</p>
           <h1 className="mt-3 text-3xl font-semibold tracking-tight text-ink sm:text-4xl">決策報告</h1>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
-            管理由 SPIN 與劇場演練產出的客戶報告，快速進入編輯、預覽與分享流程。
+            隨時生成客戶決策報告，可從客戶資料、SPIN 對話或空白範本開始，快速進入編輯、預覽與分享流程。
           </p>
         </div>
         <Dialog open={sourceOpen} onOpenChange={setSourceOpen}>
@@ -136,29 +192,114 @@ function ReportListContent() {
             <DialogHeader>
               <DialogTitle>選擇資料來源</DialogTitle>
             </DialogHeader>
-            <div className="max-h-[420px] space-y-2 overflow-y-auto">
-              {sortedSpinSessions.length ? (
-                sortedSpinSessions.map((spin) => (
-                  <button
-                    key={spin.id}
-                    type="button"
-                    className="grid min-h-16 w-full gap-2 rounded-lg border border-hairline bg-background p-4 text-left transition hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:grid-cols-[1fr_auto] sm:items-center"
-                    onClick={() => handleGenerateFromSpin(spin)}
-                  >
-                    <span>
-                      <span className="block text-sm font-semibold text-ink">{spin.clientName}</span>
-                      <span className="mt-1 block text-xs text-muted-foreground">
-                        <FormattedTime isoString={spin.createdAt} format="date" />・{Object.values(spin.outputs).flat().length} 個 SPIN 線索
-                      </span>
-                    </span>
-                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                  </button>
-                ))
-              ) : (
-                <p className="rounded-lg border border-dashed border-hairline bg-muted/20 p-6 text-center text-sm leading-6 text-muted-foreground">
-                  請先完成一筆 SPIN 澄清，再生成客戶報告。
+            <div className="max-h-[60vh] space-y-5 overflow-y-auto pr-1">
+              <section className="space-y-2">
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                  報告用途
                 </p>
-              )}
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {REPORT_PURPOSES.map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      aria-pressed={purpose === item.id}
+                      className={cn(
+                        "rounded-lg border p-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                        purpose === item.id
+                          ? "border-ink bg-ink/[0.03] ring-1 ring-ink"
+                          : "border-hairline bg-background hover:bg-muted/30",
+                      )}
+                      onClick={() => setPurpose(item.id)}
+                    >
+                      <span className="flex items-center justify-between gap-2">
+                        <span className="text-sm font-semibold text-ink">{item.label}</span>
+                        <span className="shrink-0 text-[11px] text-muted-foreground">{item.estimatedPages}</span>
+                      </span>
+                      <span className="mt-1 block text-xs leading-5 text-muted-foreground">{item.description}</span>
+                    </button>
+                  ))}
+                </div>
+              </section>
+
+              <section className="space-y-2">
+                <label htmlFor="report-goal" className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                  報告目標（選填）
+                </label>
+                <Input
+                  id="report-goal"
+                  value={goal}
+                  onChange={(event) => setGoal(event.target.value)}
+                  placeholder="例如：為家庭新成員補足保障缺口"
+                  className="h-10 rounded-lg border-hairline"
+                />
+              </section>
+
+              <div className="border-t border-hairline pt-4">
+                <p className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                  資料來源
+                </p>
+                <Button
+                  type="button"
+                  variant="mono"
+                  className="h-11 w-full rounded-lg"
+                  onClick={handleGenerateBlank}
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  直接建立空白報告
+                </Button>
+              </div>
+
+              {sortedClients.length ? (
+                <section className="space-y-2">
+                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                    從客戶生成
+                  </p>
+                  {sortedClients.map((client) => {
+                    const linkedSpin = sortedSpinSessions.find((session) => session.clientId === client.id);
+                    return (
+                      <button
+                        key={client.id}
+                        type="button"
+                        className="grid min-h-14 w-full gap-2 rounded-lg border border-hairline bg-background p-4 text-left transition hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:grid-cols-[1fr_auto] sm:items-center"
+                        onClick={() => handleGenerateForClient(client)}
+                      >
+                        <span>
+                          <span className="block text-sm font-semibold text-ink">{client.name}</span>
+                          <span className="mt-1 block text-xs text-muted-foreground">
+                            {client.occupation || "客戶資料"}
+                            {linkedSpin ? "・已串接 SPIN 對話" : "・直接生成"}
+                          </span>
+                        </span>
+                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                      </button>
+                    );
+                  })}
+                </section>
+              ) : null}
+
+              {sortedSpinSessions.length ? (
+                <section className="space-y-2">
+                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                    從 SPIN 對話生成
+                  </p>
+                  {sortedSpinSessions.map((spin) => (
+                    <button
+                      key={spin.id}
+                      type="button"
+                      className="grid min-h-16 w-full gap-2 rounded-lg border border-hairline bg-background p-4 text-left transition hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:grid-cols-[1fr_auto] sm:items-center"
+                      onClick={() => handleGenerateFromSpin(spin)}
+                    >
+                      <span>
+                        <span className="block text-sm font-semibold text-ink">{spin.clientName}</span>
+                        <span className="mt-1 block text-xs text-muted-foreground">
+                          <FormattedTime isoString={spin.createdAt} format="date" />・{Object.values(spin.outputs).flat().length} 個 SPIN 線索
+                        </span>
+                      </span>
+                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                    </button>
+                  ))}
+                </section>
+              ) : null}
             </div>
           </DialogContent>
         </Dialog>
@@ -281,7 +422,7 @@ function EmptyReportState({ hasQuery }: { hasQuery: boolean }) {
       </div>
       <h2 className="mt-4 text-base font-semibold text-ink">{hasQuery ? "沒有符合條件的報告" : "尚無報告記錄"}</h2>
       <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-muted-foreground">
-        {hasQuery ? "調整搜尋條件後再試一次。" : "完成 SPIN 澄清後，可以從資料來源生成第一份決策報告。"}
+        {hasQuery ? "調整搜尋條件後再試一次。" : "點擊「生成報告」即可隨時建立第一份決策報告，可選客戶、SPIN 對話或空白報告。"}
       </p>
     </div>
   );

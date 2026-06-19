@@ -835,6 +835,7 @@ model Report {
   spinSessionId    String?      @map("spin_session_id")
   theaterSessionId String?      @map("theater_session_id")
   visitPlanId      String?      @map("visit_plan_id")
+  interviewSessionId String?    @map("interview_session_id")
   title            String
   status           ReportStatus @default(DRAFT)
   internalSections Json?        @map("internal_sections")
@@ -855,12 +856,14 @@ model Report {
   spinSession      SpinSession? @relation(fields: [spinSessionId], references: [id], onDelete: SetNull)
   theaterSession   TheaterSession? @relation(fields: [theaterSessionId], references: [id], onDelete: SetNull)
   visitPlan        VisitPlan?   @relation(fields: [visitPlanId], references: [id], onDelete: SetNull)
+  interviewSession InterviewSession? @relation("InterviewSessionReports", fields: [interviewSessionId], references: [id], onDelete: SetNull)
   shares           ReportShare[]
 
   @@index([organizationId, status])
   @@index([organizationId, unitId])
   @@index([clientId, createdAt])
   @@index([ownerId])
+  @@index([interviewSessionId])
   @@map("reports")
 }
 
@@ -963,6 +966,7 @@ model InterviewSession {
   turns             InterviewTurn[]
   memories          InterviewMemory[]
   reflections       InterviewReflection[]
+  reports           Report[]               @relation("InterviewSessionReports")
 
   @@index([organizationId, updatedAt])
   @@index([organizationId, unitId])

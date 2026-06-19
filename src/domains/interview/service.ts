@@ -29,16 +29,21 @@ export function createInterviewSession(params?: {
   mode?: InterviewMode;
   clientId?: string;
   visitPlanId?: string;
+  currentSegmentId?: string;
 }): InterviewSession {
   const outline = getInterviewOutline(params?.outlineId ?? advisorCompanionOutline.id) ?? advisorCompanionOutline;
   const now = new Date().toISOString();
+  const startSegmentId = params?.currentSegmentId
+    && outline.segments.some((segment) => segment.id === params.currentSegmentId)
+    ? params.currentSegmentId
+    : getFirstSegment(outline).id;
 
   return {
     id: params?.id ?? `interview_${Date.now()}`,
     outlineId: outline.id,
     mode: params?.mode ?? "INDEPENDENT",
     status: "ACTIVE",
-    currentSegmentId: getFirstSegment(outline).id,
+    currentSegmentId: startSegmentId,
     clientId: params?.clientId,
     visitPlanId: params?.visitPlanId,
     answers: [],

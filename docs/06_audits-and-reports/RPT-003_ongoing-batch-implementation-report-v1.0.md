@@ -792,7 +792,7 @@ curl -H 'x-asai-demo-user-email: demo.member@asai.local' -H 'content-type: appli
 
 - Workstream：Launch Readiness Implementation。
 - Batch / task：`LCH-004` Three AI Production Minimum - interview agent slice。
-- 選擇原因：`/api/ai/chat` 已完成，下一個最低未完成且最接近上線阻擋的是 AI 顧問陪談；它原本仍信任前端 `organizationId/userId`，且沒有 DB-backed session/material/output evidence。
+- 選擇原因：`/api/ai/chat` 已完成，下一個最低未完成且最接近上線阻擋的是 AI 了解客戶；它原本仍信任前端 `organizationId/userId`，且沒有 DB-backed session/material/output evidence。
 
 ### 本輪完成
 
@@ -827,7 +827,7 @@ curl -H 'x-asai-demo-user-email: demo.member@asai.local' -H 'content-type: appli
 - `POST /api/ai/interview`：200，回傳串流訪談追問。
 - `POST /api/ai/interview/outputs`：200，回傳結構化草稿；`knownFacts=2`、`unknowns=1`、`prepQuestions=3`、`issueReadiness=2`。
 - DB proof：`INTERVIEW usage 3→5`、success usage `1→3`、interaction events `0→2`；latest sources：`api/ai/interview/outputs`、`api/ai/interview`；latest model `gpt-4o-mini`。
-- Browser proof：`/interview` desktop 1440x1000、mobile 390x844，heading `AI 顧問陪談`，console error 0、無水平 overflow。
+- Browser proof：`/interview` desktop 1440x1000、mobile 390x844，heading `AI 了解客戶`，console error 0、無水平 overflow。
 - TypeScript、lint:changed、build：通過。
 
 ### 失敗與風險
@@ -2532,13 +2532,13 @@ pnpm build
 - `pnpm run lint:changed`：通過。
 - `pnpm prisma:validate`：通過。
 - Browser/in-app check：直接開 `/dashboard` 無 demo header 會 307 到 `/login`，符合 guard；登入態 proof 改用 headless Chrome + demo auth header。
-- Headless proof：desktop/mobile 皆通過；`AI 工作台`、`問誠問 AI`、`AI 顧問陪談`、`AI 劇場演練` 可見；已登入 sidebar 不顯示 `體驗版`；無水平 overflow；console error 0。
+- Headless proof：desktop/mobile 皆通過；`AI 工作台`、`問誠問 AI`、`AI 了解客戶`、`AI 劇場演練` 可見；已登入 sidebar 不顯示 `體驗版`；無水平 overflow；console error 0。
 - `pnpm build`：通過。
 
 ### 失敗與風險
 
 - 首次 mobile proof 未打開 drawer，因此 AI 工作台不可見；調整 proof 先開啟 mobile nav 後重跑通過。
-- `/interview` 與 `/spin` 目前並存，且 sidebar 仍有 `AI 顧問陪談` 與 `SPIN 舊版` 兩個相近入口；已在 `RES-016` / `PLN-014` 記錄為後續 AI-first IA 研究與 batch，不在 AIS-005 直接合併。
+- `/interview` 與 `/spin` 目前並存，且 sidebar 仍有 `AI 了解客戶` 與 `SPIN 舊版` 兩個相近入口；已在 `RES-016` / `PLN-014` 記錄為後續 AI-first IA 研究與 batch，不在 AIS-005 直接合併。
 
 ### 剩餘上線 blocker
 

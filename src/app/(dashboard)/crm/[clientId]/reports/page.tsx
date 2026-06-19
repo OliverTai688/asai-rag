@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { nanoid } from "nanoid";
 import { toast } from "sonner";
@@ -41,6 +41,34 @@ export default function ClientReportsPage() {
     [allReports, normalizedClientId]
   );
   const addReport = useReportStore((state) => state.addReport);
+  const upsertReports = useReportStore((state) => state.upsertReports);
+
+  // DB-backed reports (AI 了解客戶 outputs, SPIN/theater/visit reports) are the
+  // durable source of truth; hydrate them into the cache so they survive refresh.
+  useEffect(() => {
+    let ignore = false;
+
+    async function loadReports() {
+      try {
+        const response = await fetch(`/api/clients/${normalizedClientId}/reports`, {
+          cache: "no-store",
+        });
+        const payload = await response.json();
+
+        if (!ignore && response.ok && Array.isArray(payload.reports)) {
+          upsertReports(payload.reports);
+        }
+      } catch {
+        // Keep any in-session reports already in the store on fetch failure.
+      }
+    }
+
+    void loadReports();
+
+    return () => {
+      ignore = true;
+    };
+  }, [normalizedClientId, upsertReports]);
 
   const [showGenDialog, setShowGenDialog] = useState(false);
   const [reportPrompt, setReportPrompt] = useState("");

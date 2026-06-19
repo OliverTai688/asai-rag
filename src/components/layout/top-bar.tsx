@@ -1,6 +1,7 @@
 "use client";
 
-import { Menu, User, ChevronDown } from "lucide-react";
+import { useTransition } from "react";
+import { Menu, User, ChevronDown, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -11,15 +12,68 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { NotificationHub } from "./notification-hub";
+import { signOutAction, switchDemoAccountAction } from "@/lib/auth/session-actions";
 import { GlobalSearch } from "./global-search";
+
+export type TopBarViewer = {
+  name: string;
+  email: string;
+  role: string;
+  organizationName: string;
+  unitName: string | null;
+};
+
+export type TopBarSwitchAccount = {
+  email: string;
+  label: string;
+};
+
+const ROLE_LABELS: Record<string, string> = {
+  OWNER: "負責人",
+  ADMIN: "管理員",
+  MANAGER: "主管",
+  MEMBER: "業務員",
+  AGENT: "業務員",
+  COLLABORATOR: "協作者",
+};
+
+function roleLabel(role: string): string {
+  return ROLE_LABELS[role] ?? role;
+}
 
 export function TopBar({
   onMenuClick,
   mobileMenuOpen = false,
+  viewer,
+  switchAccounts = [],
 }: {
   onMenuClick: () => void;
   mobileMenuOpen?: boolean;
+  viewer?: TopBarViewer;
+  switchAccounts?: TopBarSwitchAccount[];
 }) {
+  const [isPending, startTransition] = useTransition();
+
+  const displayName = viewer?.name ?? "使用者";
+  const secondaryLine = viewer
+    ? `${viewer.unitName ?? viewer.organizationName} · ${roleLabel(viewer.role)}`
+    : "";
+  const otherAccounts = switchAccounts.filter(
+    (account) => account.email !== viewer?.email
+  );
+
+  function handleSwitch(email: string) {
+    startTransition(async () => {
+      await switchDemoAccountAction(email);
+    });
+  }
+
+  function handleSignOut() {
+    startTransition(async () => {
+      await signOutAction();
+    });
+  }
+
   return (
     <header className="relative h-16 flex items-center justify-between px-5 md:px-6 bg-paper/90 backdrop-blur-sm border-b border-hairline z-30 shrink-0">
       <div className="flex items-center gap-4 flex-1 relative">
@@ -56,8 +110,8 @@ export function TopBar({
                 <User className="text-white w-4 h-4" strokeWidth={1.5} />
               </div>
               <div className="text-left hidden sm:block">
-                <p className="text-[13px] font-semibold text-ink leading-none mb-1">王小明</p>
-                <p className="text-[11px] text-ink-3 font-medium">台北一區 · Agent</p>
+                <p className="text-[13px] font-semibold text-ink leading-none mb-1">{displayName}</p>
+                <p className="text-[11px] text-ink-3 font-medium">{secondaryLine}</p>
               </div>
               <ChevronDown className="w-3.5 h-3.5 text-ink-3" strokeWidth={1.5} />
           </DropdownMenuTrigger>
@@ -69,24 +123,43 @@ export function TopBar({
               我的身份
             </DropdownMenuLabel>
             <DropdownMenuSeparator className="bg-hairline" />
-            <DropdownMenuItem className="py-2.5 focus:bg-accent">
+            <DropdownMenuItem className="py-2.5 focus:bg-accent" disabled>
               <div className="flex flex-col">
-                <span className="font-semibold text-ink text-sm">王小明</span>
-                <span className="text-xs text-muted-foreground">業務部 | 加值服務專員</span>
+                <span className="font-semibold text-ink text-sm">{displayName}</span>
+                {viewer ? (
+                  <span className="text-xs text-muted-foreground">
+                    {viewer.email} · {roleLabel(viewer.role)}
+                  </span>
+                ) : null}
               </div>
             </DropdownMenuItem>
+
+            {otherAccounts.length > 0 ? (
+              <>
+                <DropdownMenuSeparator className="bg-hairline" />
+                <DropdownMenuLabel className="text-muted-foreground text-xs font-semibold uppercase tracking-widest">
+                  切換體驗角色
+                </DropdownMenuLabel>
+                {otherAccounts.map((account) => (
+                  <DropdownMenuItem
+                    key={account.email}
+                    className="text-sm focus:bg-accent"
+                    disabled={isPending}
+                    onClick={() => handleSwitch(account.email)}
+                  >
+                    {account.label}
+                  </DropdownMenuItem>
+                ))}
+              </>
+            ) : null}
+
             <DropdownMenuSeparator className="bg-hairline" />
-            <DropdownMenuItem className="py-2 focus:bg-accent text-muted-foreground text-sm">
-              切換角色
-            </DropdownMenuItem>
-            <DropdownMenuItem className="text-muted-foreground italic text-xs focus:bg-accent">
-              MOCK: Manager (張大壯)
-            </DropdownMenuItem>
-            <DropdownMenuItem className="text-muted-foreground italic text-xs focus:bg-accent">
-              MOCK: Owner (陳總監)
-            </DropdownMenuItem>
-            <DropdownMenuSeparator className="bg-hairline" />
-            <DropdownMenuItem className="text-[#B71C1C] text-sm focus:bg-red-50 dark:focus:bg-[#B71C1C]/15">
+            <DropdownMenuItem
+              className="text-[#B71C1C] text-sm focus:bg-red-50 dark:focus:bg-[#B71C1C]/15"
+              disabled={isPending}
+              onClick={() => handleSignOut()}
+            >
+              <LogOut className="w-4 h-4" strokeWidth={1.5} />
               登出
             </DropdownMenuItem>
           </DropdownMenuContent>

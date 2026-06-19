@@ -3,9 +3,11 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import {
+  AlertTriangle,
   BrainCircuit,
   Check,
   ChevronDown,
+  Clapperboard,
   Clock3,
   History,
   MessageSquare,
@@ -13,6 +15,7 @@ import {
   Settings2,
   Target,
   UserRound,
+  Users,
 } from "lucide-react";
 
 import { QuickstartGuide } from "@/components/demo/quickstart-guide";
@@ -21,13 +24,43 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { FormattedTime } from "@/components/ui/formatted-time";
 import { clientService } from "@/domains/client/service";
+import type { ClientSensitivityLevel } from "@/domains/client/types";
 import { getQuickstartTheaterFixture } from "@/domains/demo/quickstart";
+import { theaterFieldBuildOutline } from "@/domains/interview/outlines";
 import { useSpinStore } from "@/domains/spin/store";
 import type { SpinSession } from "@/domains/spin/types";
 import { theaterService } from "@/domains/theater/service";
 import { useTheaterStore } from "@/domains/theater/store";
 import type { TheaterDifficulty, TheaterPersonaType, TheaterSession } from "@/domains/theater/types";
 import { cn } from "@/lib/utils";
+
+type BuildMode = "outline" | "client" | "interview";
+
+const BUILD_MODES: Array<{
+  value: BuildMode;
+  label: string;
+  summary: string;
+  icon: React.ReactNode;
+}> = [
+  {
+    value: "outline",
+    label: "用劇場訪綱建場",
+    summary: "沒有客戶資料也能開始，用半結構訪綱一步步建出可演練場域。",
+    icon: <Clapperboard className="h-4 w-4" />,
+  },
+  {
+    value: "client",
+    label: "帶客戶資料建場",
+    summary: "選填。先載入既有客戶，AI 會把已知資料帶入再補問缺口。",
+    icon: <Users className="h-4 w-4" />,
+  },
+  {
+    value: "interview",
+    label: "從既有訪談轉入",
+    summary: "把先前的 AI 了解客戶 / SPIN 摘要直接轉成一場演練。",
+    icon: <MessageSquare className="h-4 w-4" />,
+  },
+];
 
 const DIFFICULTIES: Array<{
   value: TheaterDifficulty;
@@ -47,6 +80,13 @@ const GOALS = [
 
 const PERSONA_ORDER: TheaterPersonaType[] = ["SKEPTICAL", "BUSY", "EMOTIONAL", "CONSERVATIVE"];
 
+type ClientLite = {
+  id: string;
+  name: string;
+  occupation: string;
+  sensitivityLevel: ClientSensitivityLevel;
+};
+
 export default function TheaterListPage() {
   return <TheaterListContent />;
 }
@@ -64,9 +104,15 @@ function TheaterListContent() {
   const addTurn = useTheaterStore((state) => state.addTurn);
   const updateTension = useTheaterStore((state) => state.updateTension);
   const completeSession = useTheaterStore((state) => state.completeSession);
+
+  const [mode, setMode] = useState<BuildMode>("outline");
   const [selectedSpinId, setSelectedSpinId] = useState<string | null>(null);
   const [selectedGoal, setSelectedGoal] = useState(GOALS[0].id);
   const [difficulty, setDifficulty] = useState<TheaterDifficulty>("MEDIUM");
+  const [clients, setClients] = useState<ClientLite[]>([]);
+  const [clientsLoaded, setClientsLoaded] = useState(false);
+  const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
+  const [sensitiveAckClientId, setSensitiveAckClientId] = useState<string | null>(null);
   const quickstartCreatedRef = useRef(false);
 
   const completedSpinSessions = useMemo(() => {
@@ -86,12 +132,52 @@ function TheaterListContent() {
     return theaterService.derivePersona(client, selectedSpin);
   }, [selectedSpin]);
 
+  const selectedClient = useMemo(
+    () => clients.find((client) => client.id === selectedClientId) ?? null,
+    [clients, selectedClientId],
+  );
+  const sensitiveAck = Boolean(selectedClientId && sensitiveAckClientId === selectedClientId);
+
   const recentSessions = useMemo(() => {
     return theaterSessions
       .slice()
       .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
       .slice(0, 5);
   }, [theaterSessions]);
+
+  // Default to the "from interview" mode only when material already exists, so the
+  // page never *forces* an interview/SPIN prerequisite on a fresh workspace.
+  const hasMaterial = completedSpinSessions.length > 0;
+
+  useEffect(() => {
+    if (mode !== "client" || clientsLoaded) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const response = await fetch("/api/clients", { cache: "no-store" });
+        if (!response.ok) {
+          if (!cancelled) setClientsLoaded(true);
+          return;
+        }
+        const data = (await response.json()) as { clients?: ClientLite[] };
+        if (cancelled) return;
+        setClients(
+          (data.clients ?? []).map((client) => ({
+            id: client.id,
+            name: client.name,
+            occupation: client.occupation,
+            sensitivityLevel: client.sensitivityLevel,
+          })),
+        );
+        setClientsLoaded(true);
+      } catch {
+        if (!cancelled) setClientsLoaded(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [mode, clientsLoaded]);
 
   useEffect(() => {
     const shouldAutoCreate = demoParam === "quickstart" && autoCreate === "true";
@@ -127,6 +213,10 @@ function TheaterListContent() {
     router.replace(`/theater/${newSession.id}?demo=quickstart`);
   }, [addTurn, autoCreate, clientIdParam, completeSession, createSession, demoParam, router, spinIdParam, spinSessions, updateTension]);
 
+  const sensitiveBlocked = Boolean(
+    selectedClient && selectedClient.sensitivityLevel !== "NORMAL" && !sensitiveAck,
+  );
+
   const handleStartSimulation = () => {
     if (!selectedSpin) return;
 
@@ -145,6 +235,29 @@ function TheaterListContent() {
     router.push(`/theater/${newSession.id}`);
   };
 
+  const handlePrimary = () => {
+    if (mode === "interview") {
+      handleStartSimulation();
+      return;
+    }
+    if (mode === "client") {
+      if (!selectedClientId || sensitiveBlocked) return;
+      router.push(`/theater/build?clientId=${encodeURIComponent(selectedClientId)}`);
+      return;
+    }
+    router.push("/theater/build");
+  };
+
+  const primary = useMemo(() => {
+    if (mode === "interview") {
+      return { label: "開始演練", disabled: !selectedSpin };
+    }
+    if (mode === "client") {
+      return { label: "帶這位客戶建場", disabled: !selectedClientId || sensitiveBlocked };
+    }
+    return { label: "開始建場", disabled: false };
+  }, [mode, selectedSpin, selectedClientId, sensitiveBlocked]);
+
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8">
       {demoParam === "quickstart" ? <QuickstartGuide currentStepId="theater" /> : null}
@@ -154,18 +267,18 @@ function TheaterListContent() {
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">Theater practice</p>
           <h1 className="mt-3 text-3xl font-semibold tracking-tight text-ink sm:text-4xl">AI 劇場演練</h1>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
-            從一份 SPIN 摘要開始，選定演練目標與難度，再進入一場可反覆修正的客戶對話。
+            選建場方式 → 確認素材 → 開始演練。可以直接用半結構訪綱建場，客戶資料是選填，不必先完成 SPIN。
           </p>
         </div>
         <Button
           type="button"
           variant="mono"
           className="h-10 rounded-full"
-          onClick={handleStartSimulation}
-          disabled={!selectedSpin}
+          onClick={handlePrimary}
+          disabled={primary.disabled}
         >
           <Play className="mr-2 h-4 w-4 fill-current" />
-          開始演練
+          {primary.label}
         </Button>
       </header>
 
@@ -173,81 +286,147 @@ function TheaterListContent() {
         <section className="space-y-4">
           <Card className="border-hairline shadow-none">
             <CardContent className="p-5">
-              <SetupStep eyebrow="01" icon={<MessageSquare className="h-4 w-4" />} title="選資料來源" />
-              <div className="mt-4 grid gap-2">
-                {completedSpinSessions.length ? (
-                  completedSpinSessions.map((session) => (
-                    <SpinSourceRow
-                      key={session.id}
-                      selected={session.id === selectedSpin?.id}
-                      session={session}
-                      onSelect={() => setSelectedSpinId(session.id)}
-                    />
-                  ))
-                ) : (
-                  <div className="rounded-lg border border-dashed border-hairline bg-muted/20 p-5 text-sm leading-6 text-muted-foreground">
-                    尚無可用的 SPIN 摘要。先完成一筆 AI 顧問陪談後，就能把它轉成 AI 劇場演練。
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-hairline shadow-none">
-            <CardContent className="p-5">
-              <SetupStep eyebrow="02" icon={<Target className="h-4 w-4" />} title="選演練目標" />
+              <SetupStep eyebrow="01" icon={<Clapperboard className="h-4 w-4" />} title="選建場方式" />
               <div className="mt-4 grid gap-2 md:grid-cols-3">
-                {GOALS.map((goal) => (
-                  <button
-                    key={goal.id}
-                    type="button"
-                    className={cn(
-                      "min-h-24 rounded-lg border border-hairline p-4 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                      selectedGoal === goal.id ? "bg-ink text-paper" : "bg-background hover:bg-muted/30",
-                    )}
-                    onClick={() => setSelectedGoal(goal.id)}
-                  >
-                    <span className="text-sm font-semibold">{goal.label}</span>
-                    <span className={cn("mt-2 block text-sm leading-6", selectedGoal === goal.id ? "text-paper/70" : "text-muted-foreground")}>
-                      {goal.summary}
-                    </span>
-                  </button>
-                ))}
+                {BUILD_MODES.map((item) => {
+                  const active = mode === item.value;
+                  const recommended = item.value === "interview" && hasMaterial;
+                  return (
+                    <button
+                      key={item.value}
+                      type="button"
+                      className={cn(
+                        "flex min-h-32 flex-col rounded-lg border border-hairline p-4 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                        active ? "bg-ink text-paper" : "bg-background hover:bg-muted/30",
+                      )}
+                      onClick={() => setMode(item.value)}
+                      aria-pressed={active}
+                    >
+                      <span className="flex items-center gap-2">
+                        <span
+                          className={cn(
+                            "flex h-7 w-7 items-center justify-center rounded-full",
+                            active ? "bg-paper text-ink" : "bg-ink text-paper",
+                          )}
+                        >
+                          {item.icon}
+                        </span>
+                        <span className="text-sm font-semibold">{item.label}</span>
+                        {active ? <Check className="ml-auto h-4 w-4" /> : null}
+                      </span>
+                      <span className={cn("mt-3 block text-sm leading-6", active ? "text-paper/70" : "text-muted-foreground")}>
+                        {item.summary}
+                      </span>
+                      {recommended ? (
+                        <Badge
+                          variant="outline"
+                          className={cn("mt-3 w-fit rounded-full", active ? "border-paper/30 text-paper" : "")}
+                        >
+                          已有可用素材
+                        </Badge>
+                      ) : null}
+                    </button>
+                  );
+                })}
               </div>
             </CardContent>
           </Card>
 
-          <Card className="border-hairline shadow-none">
-            <CardContent className="p-5">
-              <SetupStep eyebrow="03" icon={<Settings2 className="h-4 w-4" />} title="設定難度" />
-              <div className="mt-4 grid rounded-lg border border-hairline bg-muted/20 p-1 md:grid-cols-3">
-                {DIFFICULTIES.map((item) => (
-                  <button
-                    key={item.value}
-                    type="button"
-                    className={cn(
-                      "min-h-16 rounded-md px-3 py-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                      difficulty === item.value ? "bg-background text-ink shadow-sm" : "text-muted-foreground hover:text-ink",
+          {mode === "outline" ? <OutlineModePanel /> : null}
+          {mode === "client" ? (
+            <ClientModePanel
+              clients={clients}
+              clientsLoaded={clientsLoaded}
+              selectedClientId={selectedClientId}
+              onSelect={setSelectedClientId}
+              selectedClient={selectedClient}
+              sensitiveAck={sensitiveAck}
+              onAckChange={(checked) => setSensitiveAckClientId(checked ? selectedClientId : null)}
+              onSkip={() => router.push("/theater/build")}
+            />
+          ) : null}
+
+          {mode === "interview" ? (
+            <>
+              <Card className="border-hairline shadow-none">
+                <CardContent className="p-5">
+                  <SetupStep eyebrow="02" icon={<MessageSquare className="h-4 w-4" />} title="選資料來源" />
+                  <div className="mt-4 grid gap-2">
+                    {completedSpinSessions.length ? (
+                      completedSpinSessions.map((session) => (
+                        <SpinSourceRow
+                          key={session.id}
+                          selected={session.id === selectedSpin?.id}
+                          session={session}
+                          onSelect={() => setSelectedSpinId(session.id)}
+                        />
+                      ))
+                    ) : (
+                      <div className="rounded-lg border border-dashed border-hairline bg-muted/20 p-5 text-sm leading-6 text-muted-foreground">
+                        目前沒有可轉入的 AI 了解客戶 / SPIN 摘要。你不必等它——切到「用劇場訪綱建場」就能直接開始一場演練。
+                      </div>
                     )}
-                    onClick={() => setDifficulty(item.value)}
-                    aria-pressed={difficulty === item.value}
-                  >
-                    <span className="block text-sm font-semibold">{item.label}</span>
-                    <span className="mt-1 block text-xs leading-5">{item.summary}</span>
-                  </button>
-                ))}
-              </div>
-              <details className="group mt-4 rounded-lg border border-hairline bg-background">
-                <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-medium text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
-                  <span>進階設定・AI 會依客戶資料自動選 persona</span>
-                  <ChevronDown className="h-4 w-4 text-muted-foreground transition group-open:rotate-180" />
-                </summary>
-                <div className="border-t border-hairline p-4">
-                  <PersonaPreview selectedPersona={derivedPersona} />
-                </div>
-              </details>
-            </CardContent>
-          </Card>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="border-hairline shadow-none">
+                <CardContent className="p-5">
+                  <SetupStep eyebrow="03" icon={<Target className="h-4 w-4" />} title="選演練目標" />
+                  <div className="mt-4 grid gap-2 md:grid-cols-3">
+                    {GOALS.map((goal) => (
+                      <button
+                        key={goal.id}
+                        type="button"
+                        className={cn(
+                          "min-h-24 rounded-lg border border-hairline p-4 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                          selectedGoal === goal.id ? "bg-ink text-paper" : "bg-background hover:bg-muted/30",
+                        )}
+                        onClick={() => setSelectedGoal(goal.id)}
+                      >
+                        <span className="text-sm font-semibold">{goal.label}</span>
+                        <span className={cn("mt-2 block text-sm leading-6", selectedGoal === goal.id ? "text-paper/70" : "text-muted-foreground")}>
+                          {goal.summary}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="border-hairline shadow-none">
+                <CardContent className="p-5">
+                  <SetupStep eyebrow="04" icon={<Settings2 className="h-4 w-4" />} title="設定難度" />
+                  <div className="mt-4 grid rounded-lg border border-hairline bg-muted/20 p-1 md:grid-cols-3">
+                    {DIFFICULTIES.map((item) => (
+                      <button
+                        key={item.value}
+                        type="button"
+                        className={cn(
+                          "min-h-16 rounded-md px-3 py-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                          difficulty === item.value ? "bg-background text-ink shadow-sm" : "text-muted-foreground hover:text-ink",
+                        )}
+                        onClick={() => setDifficulty(item.value)}
+                        aria-pressed={difficulty === item.value}
+                      >
+                        <span className="block text-sm font-semibold">{item.label}</span>
+                        <span className="mt-1 block text-xs leading-5">{item.summary}</span>
+                      </button>
+                    ))}
+                  </div>
+                  <details className="group mt-4 rounded-lg border border-hairline bg-background">
+                    <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-medium text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
+                      <span>進階設定・AI 會依客戶資料自動選 persona</span>
+                      <ChevronDown className="h-4 w-4 text-muted-foreground transition group-open:rotate-180" />
+                    </summary>
+                    <div className="border-t border-hairline p-4">
+                      <PersonaPreview selectedPersona={derivedPersona} />
+                    </div>
+                  </details>
+                </CardContent>
+              </Card>
+            </>
+          ) : null}
         </section>
 
         <aside className="space-y-4">
@@ -255,16 +434,28 @@ function TheaterListContent() {
             <CardContent className="p-5">
               <h2 className="text-sm font-semibold text-ink">啟動摘要</h2>
               <div className="mt-4 space-y-4">
-                <SummaryLine label="客戶" value={selectedSpin?.clientName ?? "尚未選擇"} />
-                <SummaryLine label="演練目標" value={GOALS.find((goal) => goal.id === selectedGoal)?.label ?? "異議處理"} />
-                <SummaryLine label="難度" value={DIFFICULTIES.find((item) => item.value === difficulty)?.label ?? "標準"} />
-                <SummaryLine
-                  label="Persona"
-                  value={derivedPersona ? theaterService.getPersonaDetails(derivedPersona).label : "自動判斷"}
-                />
+                <SummaryLine label="建場方式" value={BUILD_MODES.find((item) => item.value === mode)?.label ?? "用劇場訪綱建場"} />
+                {mode === "interview" ? (
+                  <>
+                    <SummaryLine label="客戶" value={selectedSpin?.clientName ?? "尚未選擇"} />
+                    <SummaryLine label="演練目標" value={GOALS.find((goal) => goal.id === selectedGoal)?.label ?? "異議處理"} />
+                    <SummaryLine label="難度" value={DIFFICULTIES.find((item) => item.value === difficulty)?.label ?? "標準"} />
+                    <SummaryLine
+                      label="Persona"
+                      value={derivedPersona ? theaterService.getPersonaDetails(derivedPersona).label : "自動判斷"}
+                    />
+                  </>
+                ) : (
+                  <SummaryLine
+                    label="客戶"
+                    value={mode === "client" ? selectedClient?.name ?? "選填・尚未選擇" : "演練中由訪綱補齊"}
+                  />
+                )}
               </div>
               <p className="mt-5 rounded-lg border border-hairline bg-muted/20 p-3 text-sm leading-6 text-muted-foreground">
-                確認設定後，使用頁首的「開始演練」進入對話。
+                {mode === "interview"
+                  ? "確認設定後，使用頁首的「開始演練」進入對話。"
+                  : "確認設定後，使用頁首的按鈕進入訪綱建場；建場完成才會進入演練。"}
               </p>
             </CardContent>
           </Card>
@@ -302,6 +493,137 @@ function TheaterListContent() {
         </aside>
       </main>
     </div>
+  );
+}
+
+function OutlineModePanel() {
+  return (
+    <Card className="border-hairline shadow-none">
+      <CardContent className="p-5">
+        <SetupStep eyebrow="02" icon={<Clapperboard className="h-4 w-4" />} title="劇場訪綱建場" />
+        <p className="mt-4 text-sm leading-6 text-muted-foreground">
+          由 AI 導演訪談員帶你跑「{theaterFieldBuildOutline.name}」訪綱，逐段建出焦點客戶、場景、陪演角色、關係與可能異議，最後產生可確認的場域建構包。資料不足時只補問，不杜撰客戶細節。
+        </p>
+        <ol className="mt-4 grid gap-2">
+          {theaterFieldBuildOutline.segments.map((segment) => (
+            <li
+              key={segment.id}
+              className="flex items-start gap-3 rounded-lg border border-hairline bg-muted/20 p-3"
+            >
+              <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-ink text-xs font-semibold tabular-nums text-paper">
+                {segment.order + 1}
+              </span>
+              <span className="min-w-0">
+                <span className="block text-sm font-semibold text-ink">{segment.title}</span>
+                <span className="mt-1 block text-sm leading-6 text-muted-foreground">{segment.goal}</span>
+              </span>
+            </li>
+          ))}
+        </ol>
+        <p className="mt-4 rounded-lg border border-hairline bg-muted/20 p-3 text-xs leading-5 text-muted-foreground">
+          使用頁首的「開始建場」進入訪綱對話。多角色演練（Route B）尚未啟用，建場完成會先停在可確認的場域建構包。
+        </p>
+      </CardContent>
+    </Card>
+  );
+}
+
+function ClientModePanel({
+  clients,
+  clientsLoaded,
+  selectedClientId,
+  onSelect,
+  selectedClient,
+  sensitiveAck,
+  onAckChange,
+  onSkip,
+}: {
+  clients: ClientLite[];
+  clientsLoaded: boolean;
+  selectedClientId: string | null;
+  onSelect: (id: string) => void;
+  selectedClient: ClientLite | null;
+  sensitiveAck: boolean;
+  onAckChange: (value: boolean) => void;
+  onSkip: () => void;
+}) {
+  return (
+    <Card className="border-hairline shadow-none">
+      <CardContent className="p-5">
+        <SetupStep eyebrow="02" icon={<Users className="h-4 w-4" />} title="選一位客戶（選填）" />
+        <p className="mt-4 text-sm leading-6 text-muted-foreground">
+          載入既有客戶後，AI 會把已確認資料帶入建場、只追問缺口；推論不會被當成事實。也可以略過，直接用訪綱建場。
+        </p>
+        <div className="mt-4 grid gap-2">
+          {!clientsLoaded ? (
+            <div className="rounded-lg border border-dashed border-hairline bg-muted/20 p-5 text-sm leading-6 text-muted-foreground">
+              載入客戶清單中…
+            </div>
+          ) : clients.length ? (
+            clients.map((client) => {
+              const selected = client.id === selectedClientId;
+              return (
+                <button
+                  key={client.id}
+                  type="button"
+                  className={cn(
+                    "grid min-h-16 gap-3 rounded-lg border border-hairline p-4 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:grid-cols-[1fr_auto] md:items-center",
+                    selected ? "bg-ink text-paper" : "bg-background hover:bg-muted/30",
+                  )}
+                  onClick={() => onSelect(client.id)}
+                  aria-pressed={selected}
+                >
+                  <span className="min-w-0">
+                    <span className="flex items-center gap-2">
+                      <UserRound className="h-4 w-4 shrink-0" />
+                      <span className="truncate text-sm font-semibold">{client.name}</span>
+                      {selected ? <Check className="h-4 w-4 shrink-0" /> : null}
+                    </span>
+                    <span className={cn("mt-2 block truncate text-sm leading-6", selected ? "text-paper/70" : "text-muted-foreground")}>
+                      {client.occupation || "未填寫職業"}
+                    </span>
+                  </span>
+                  {client.sensitivityLevel !== "NORMAL" ? (
+                    <Badge variant="outline" className={cn("rounded-full", selected ? "border-paper/30 text-paper" : "")}>
+                      {client.sensitivityLevel === "HIGHLY_SENSITIVE" ? "高敏感" : "敏感"}
+                    </Badge>
+                  ) : null}
+                </button>
+              );
+            })
+          ) : (
+            <div className="rounded-lg border border-dashed border-hairline bg-muted/20 p-5 text-sm leading-6 text-muted-foreground">
+              目前沒有可載入的客戶。可以先略過，直接用訪綱建場。
+            </div>
+          )}
+        </div>
+
+        {selectedClient && selectedClient.sensitivityLevel !== "NORMAL" ? (
+          <label className="mt-4 flex items-start gap-3 rounded-lg border border-hairline bg-muted/20 p-3 text-sm leading-6 text-ink">
+            <input
+              type="checkbox"
+              className="mt-1 h-4 w-4"
+              checked={sensitiveAck}
+              onChange={(event) => onAckChange(event.target.checked)}
+            />
+            <span className="flex items-start gap-2">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+              <span>
+                這是{selectedClient.sensitivityLevel === "HIGHLY_SENSITIVE" ? "高敏感" : "敏感"}客戶。我已確認本次僅用於內部演練準備，敏感資訊只會輕碰並先確認。
+              </span>
+            </span>
+          </label>
+        ) : null}
+
+        <button
+          type="button"
+          onClick={onSkip}
+          className="mt-4 text-sm font-medium text-muted-foreground underline-offset-4 hover:text-ink hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          略過，直接用訪綱建場 →
+        </button>
+      </CardContent>
+    </Card>
   );
 }
 

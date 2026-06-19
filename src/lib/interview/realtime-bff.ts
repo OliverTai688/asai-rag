@@ -103,6 +103,40 @@ const DISALLOWED_EVENT_KEY_PATTERNS = [
 
 const SERVER_SECRET_VALUE_PATTERNS = [/sk-[A-Za-z0-9_-]{12,}/, /OPENAI_API_KEY/i, /Bearer\s+sk-/i];
 
+// Transcription-only Realtime model for live delta events.
+export const INTERVIEW_REALTIME_TRANSCRIBE_MODEL = "gpt-realtime-whisper";
+
+/**
+ * Builds a transcription-only realtime session request. Unlike the conversational
+ * builder, the session `type` is `transcription` and there is no `create_response`,
+ * so the provider only streams back transcripts of the member's speech (no AI audio).
+ */
+export function buildOpenAIRealtimeTranscriptionSecretRequest(input?: {
+  model?: string;
+  ttlSeconds?: number;
+}) {
+  const ttlSeconds = clampTtl(input?.ttlSeconds ?? INTERVIEW_REALTIME_CLIENT_SECRET_TTL_SECONDS);
+
+  return {
+    expires_after: {
+      anchor: "created_at",
+      seconds: ttlSeconds,
+    },
+    session: {
+      type: "transcription",
+      audio: {
+        input: {
+          transcription: {
+            model: input?.model ?? INTERVIEW_REALTIME_TRANSCRIBE_MODEL,
+            language: "zh",
+          },
+          noise_reduction: { type: "near_field" },
+        },
+      },
+    },
+  };
+}
+
 export function buildOpenAIRealtimeClientSecretRequest(input: {
   instructions: string;
   model?: string;

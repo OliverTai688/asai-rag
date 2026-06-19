@@ -16,7 +16,7 @@
 1. **最上層先呈現 AI 工作流，而不是資料表清單**：SPIN、劇場、AI 助手必須形成一個視覺群組，讓使用者一進產品就知道「這是一個 AI 陪練與顧問工作台」。
 2. **AI 助手不是底部廣告式 CTA，而是全域 command layer**：它負責回答網站任何問題、跨頁引導與操作建議，應以常駐 command entry 呈現，而不是和縮小側欄控制放在同一個底部區域。
 3. **導覽應按使用情境分組**：先放「今天要做的 AI 工作」，再放「工作需要的資料」，最後放「管理與設定」。這比按開發模組或資料 domain 排列更符合保險業務員的日常。
-4. **SPIN 與劇場要被命名成任務，而非方法名**：展開態可顯示「AI 顧問陪談」與「AI 劇場演練」，副標或 badge 才補 SPIN / Role-play；降低新手理解成本，同時保留專業語彙。
+4. **SPIN 與劇場要被命名成任務，而非方法名**：展開態可顯示「AI 了解客戶」與「AI 劇場演練」，副標或 badge 才補 SPIN / Role-play；降低新手理解成本，同時保留專業語彙。
 5. **收合態必須靠群組、tooltip、active rail 維持辨識**：icon-only 狀態不能只剩一串灰色 icon；三個 AI 模組需要更強的 active / hover / tooltip 與可及名稱。
 
 一句話方向：側邊欄不應只是 sitemap，而要像「AI 銷售教練的工作台目錄」。
@@ -116,7 +116,7 @@ Brand
 
 AI 工作台
   誠問 AI 助手       問任何產品、客戶、流程問題
-  AI 顧問陪談        SPIN 對話；釐清需求與下一步
+  AI 了解客戶        SPIN 對話；釐清需求與下一步
   AI 劇場演練        Role-play；練異議與話術
 
 客戶工作
@@ -192,7 +192,7 @@ AI 工作台
 
 建議主 label：
 
-- 首選：`AI 顧問陪談`
+- 首選：`AI 了解客戶`
 - 次選：`SPIN 對話`
 - 補充 microcopy：`釐清需求與下一步`
 
@@ -257,7 +257,7 @@ AI 工作台
 - 三個 AI icon 可在 group 內相鄰，順序固定：助手、顧問陪談、劇場。
 - 每個 icon-only item 必須有 tooltip：
   - `問誠問 AI：問網站、客戶與下一步`
-  - `AI 顧問陪談：釐清需求與 SPIN 問題`
+  - `AI 了解客戶：釐清需求與 SPIN 問題`
   - `AI 劇場演練：練異議與角色反應`
 - 收合態 AI 助手不應變成難以辨識的小 bot button；可以保持與 nav item 同尺寸，但用 subtle navy icon 表示全域能力。
 
@@ -293,7 +293,7 @@ AI 工作台
 
 ### Phase 3 - Active/context states
 
-- 若 pathname 在 `/spin` 或 `/spin/[sessionId]`，AI 顧問陪談 active。
+- 若 pathname 在 `/spin` 或 `/spin/[sessionId]`，AI 了解客戶 active。
 - 若 pathname 在 `/theater` 或 `/theater/[sessionId]`，AI 劇場演練 active。
 - AI 助手沒有 route active，可在 panel open 時呈現 active-like state。
 - 未來可在 AI rows 顯示 subtle status，例如「進行中 1 場」「草稿 2 份」，但第一版先不要加，避免噪音。
@@ -304,8 +304,8 @@ Sidebar 改完後，三個 AI 頁面的 page title 也應一致：
 
 | Route | Sidebar label | Page title 建議 |
 | --- | --- | --- |
-| `/spin` | AI 顧問陪談 | AI 顧問陪談 |
-| `/spin/[sessionId]` | AI 顧問陪談 | 顧問陪談 session / 客戶名 |
+| `/spin` | AI 了解客戶 | AI 了解客戶 |
+| `/spin/[sessionId]` | AI 了解客戶 | 顧問陪談 session / 客戶名 |
 | `/theater` | AI 劇場演練 | AI 劇場演練 |
 | `/theater/[sessionId]` | AI 劇場演練 | 劇場演練 session / 客戶名 |
 | Assistant panel | 問誠問 AI | 誠問 AI 助手 |
@@ -340,7 +340,7 @@ Sidebar 改完後，三個 AI 頁面的 page title 也應一致：
 
 AI 工作台
   問誠問 AI
-  AI 顧問陪談
+  AI 了解客戶
   AI 劇場演練
 
 客戶工作
@@ -361,7 +361,7 @@ AI 工作台
 
 ```text
 我不知道下一步      → 問誠問 AI
-我需要釐清客戶需求  → AI 顧問陪談
+我需要釐清客戶需求  → AI 了解客戶
 我需要練習怎麼說    → AI 劇場演練
 ```
 

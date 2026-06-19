@@ -5,13 +5,18 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { Sidebar } from "@/components/layout/sidebar";
 import { TopBar } from "@/components/layout/top-bar";
+import type { TopBarSwitchAccount, TopBarViewer } from "@/components/layout/top-bar";
 import { GlobalAssistant } from "@/components/assistant/global-assistant";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 
 export function DashboardShell({
   children,
+  viewer,
+  switchAccounts,
 }: {
   children: React.ReactNode;
+  viewer?: TopBarViewer;
+  switchAccounts?: TopBarSwitchAccount[];
 }) {
   const [desktopSidebarOpen, setDesktopSidebarOpen] = useState(true);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
@@ -59,6 +64,7 @@ export function DashboardShell({
         <Sidebar
           open={desktopSidebarOpen}
           setOpen={setDesktopSidebarOpen}
+          role={viewer?.role}
           className="hidden lg:flex"
         />
 
@@ -72,6 +78,7 @@ export function DashboardShell({
             open
             setOpen={setMobileSidebarOpen}
             mobile
+            role={viewer?.role}
             onNavigate={() => setMobileSidebarOpen(false)}
             className="w-full border-r-0"
           />
@@ -85,6 +92,8 @@ export function DashboardShell({
           <TopBar
             mobileMenuOpen={mobileSidebarOpen}
             onMenuClick={() => setMobileSidebarOpen(true)}
+            viewer={viewer}
+            switchAccounts={switchAccounts}
           />
           <main className="flex-1 overflow-y-auto p-5 md:p-6 custom-scrollbar">
             <div className="max-w-[1320px] mx-auto space-y-6 animate-page-enter">

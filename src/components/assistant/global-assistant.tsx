@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useAssistantStore } from "@/domains/assistant/store";
+import { useClientStore } from "@/domains/client/store";
 import { assistantService } from "@/domains/assistant/service";
 import { AssistantMessage } from "@/domains/assistant/types";
 import {
@@ -70,6 +71,16 @@ export function GlobalAssistant() {
     [activeConversationId, conversations]
   );
 
+  // Surface the active client when viewing a /crm/<clientId> page so the assistant
+  // can ground questions about that specific client (incl. "X是誰" / pronoun follow-ups).
+  const crmClientId = useMemo(() => {
+    const match = pathname.match(/^\/crm\/([^/]+)/);
+    return match?.[1];
+  }, [pathname]);
+  const activeClientName = useClientStore((state) =>
+    crmClientId ? state.getClientById(crmClientId)?.name : undefined,
+  );
+
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [activeTab, setActiveTab] = useState("insights");
@@ -121,7 +132,12 @@ export function GlobalAssistant() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           messages: [...currentMessages, userMsg],
-          context: { route: pathname, conversationId: activeConversationId ?? undefined }
+          context: {
+            route: pathname,
+            conversationId: activeConversationId ?? undefined,
+            clientId: crmClientId,
+            clientName: activeClientName,
+          }
         }),
       });
 

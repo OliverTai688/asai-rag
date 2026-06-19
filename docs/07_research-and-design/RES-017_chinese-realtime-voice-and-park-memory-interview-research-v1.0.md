@@ -2,7 +2,7 @@
 
 > 建立日期：2026-06-19  
 > 對應需求：使用者希望「可以用中文語音即時的方式跟 AI 對話」；訪談希望「參考 Park 設計的記憶架構來進行訪談連續對話」。  
-> 對應 surface：`/interview`、未來 `AI 顧問陪談` 主入口、可延伸到 `AI 劇場演練`。  
+> 對應 surface：`/interview`、未來 `AI 了解客戶` 主入口、可延伸到 `AI 劇場演練`。  
 > 狀態：研究定稿；可作為後續 `ARC` / `PLN` / implementation batch 的依據。  
 > 不做事項：本文件不直接導入 production Realtime API、不執行 production recording、不改 SPIN 狀態機、不改 Theater enum。
 

@@ -175,7 +175,21 @@ function toReportSections(value: Prisma.JsonValue): ReportSection[] {
 }
 
 function toReportSectionType(value: string): ReportSectionType {
-  const allowed: ReportSectionType[] = ["situation", "problem", "implication", "recommendation", "summary", "performance"];
+  const allowed: ReportSectionType[] = [
+    "situation",
+    "problem",
+    "implication",
+    "recommendation",
+    "summary",
+    "performance",
+    "cover",
+    "methodology",
+    "analysis",
+    "family",
+    "action",
+    "compliance",
+    "appendix",
+  ];
   return allowed.includes(value as ReportSectionType) ? (value as ReportSectionType) : "recommendation";
 }
 

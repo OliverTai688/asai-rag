@@ -17,7 +17,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Bot,
-  Flag,
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -49,6 +48,11 @@ const assistantAction: NavAction = {
   ariaLabel: "開啟誠問 AI 助手",
 };
 
+// Org-management surfaces (團隊管理 / 通訊處設定) are only reachable by org
+// admins; a plain 業務員 (MEMBER/AGENT/COLLABORATOR) must not see the links.
+const ORG_ADMIN_ROLES = new Set(["OWNER", "ADMIN", "MANAGER"]);
+const TEAM_MANAGEMENT_HREFS = new Set(["/team", "/team/settings"]);
+
 const navSections: Array<{ label: string; items: NavItem[] }> = [
   {
     label: "今日",
@@ -58,16 +62,10 @@ const navSections: Array<{ label: string; items: NavItem[] }> = [
     label: "AI 工作台",
     items: [
       {
-        name: "AI 顧問陪談",
+        name: "AI 了解客戶",
         href: "/interview",
         icon: MessageSquare,
         description: "訪談業務員、整理準備",
-      },
-      {
-        name: "SPIN 舊版",
-        href: "/spin",
-        icon: MessageSquare,
-        description: "保留既有狀態機",
       },
       {
         name: "AI 劇場演練",
@@ -83,7 +81,6 @@ const navSections: Array<{ label: string; items: NavItem[] }> = [
       { name: "客戶管理", href: "/crm", icon: Users },
       { name: "訪前規劃", href: "/pre-visit", icon: CalendarDays },
       { name: "分析報告", href: "/reports", icon: FileText },
-      { name: "議題單", href: "/issues", icon: Flag },
     ],
   },
   {
@@ -102,6 +99,7 @@ type SidebarProps = {
   className?: string;
   mobile?: boolean;
   onNavigate?: () => void;
+  role?: string;
 };
 
 export function Sidebar({
@@ -110,9 +108,19 @@ export function Sidebar({
   className,
   mobile = false,
   onNavigate,
+  role,
 }: SidebarProps) {
   const pathname = usePathname();
   const { isPanelOpen, togglePanel } = useAssistantStore();
+  const canManageTeam = role ? ORG_ADMIN_ROLES.has(role) : false;
+  const visibleSections = navSections
+    .map((section) => ({
+      ...section,
+      items: section.items.filter(
+        (item) => canManageTeam || !TEAM_MANAGEMENT_HREFS.has(item.href)
+      ),
+    }))
+    .filter((section) => section.items.length > 0);
   const isNavItemActive = (href: string) => {
     if (pathname === href) return true;
     if (href === "/team" && pathname?.startsWith("/team/settings")) return false;
@@ -168,7 +176,7 @@ export function Sidebar({
           open ? "space-y-4" : "space-y-5"
         )}
       >
-        {navSections.map((section) => (
+        {visibleSections.map((section) => (
           <div key={section.label} className="space-y-1">
             {open && (
               <p className="px-3 pb-1 text-[10px] font-semibold tracking-widest text-ink-3">
@@ -176,16 +184,6 @@ export function Sidebar({
               </p>
             )}
             <div className="space-y-0.5">
-              {section.label === "AI 工作台" && (
-                <AssistantNavButton
-                  action={assistantAction}
-                  active={isPanelOpen}
-                  open={open}
-                  mobile={mobile}
-                  setOpen={setOpen}
-                  onOpenAssistant={() => togglePanel(true)}
-                />
-              )}
               {section.items.map((item) => (
                 <SidebarNavLink
                   key={item.href}
@@ -200,11 +198,17 @@ export function Sidebar({
         ))}
       </nav>
 
-      {!mobile && (
-        <div className="p-3 border-t border-hairline">
-          <SidebarCollapseButton open={open} setOpen={setOpen} />
-        </div>
-      )}
+      <div className="border-t border-hairline p-3 space-y-1">
+        <PinnedAssistantButton
+          action={assistantAction}
+          active={isPanelOpen}
+          open={open}
+          mobile={mobile}
+          setOpen={setOpen}
+          onOpenAssistant={() => togglePanel(true)}
+        />
+        {!mobile && <SidebarCollapseButton open={open} setOpen={setOpen} />}
+      </div>
     </div>
   );
 }
@@ -251,7 +255,7 @@ function SidebarNavLink({
   );
 }
 
-function AssistantNavButton({
+function PinnedAssistantButton({
   action,
   active,
   open,
@@ -267,6 +271,8 @@ function AssistantNavButton({
   onOpenAssistant: () => void;
 }) {
   const Icon = action.icon;
+  // Navy fill marks this as the site-wide assistant, distinct from the neutral
+  // nav links above it. Lives in the footer so it reads as "ask across the app".
   const button = (
     <button
       type="button"
@@ -277,20 +283,21 @@ function AssistantNavButton({
         }
       }}
       aria-label={action.ariaLabel}
-      className="block w-full rounded-lg text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+      aria-pressed={active}
+      className={cn(
+        "group flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors duration-150 motion-reduce:transition-none",
+        "bg-[#1A3A6B] text-white hover:bg-[#16315b]",
+        "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+        active && "ring-2 ring-[#1A3A6B]/40 ring-offset-1 ring-offset-card",
+        !open && "justify-center px-0"
+      )}
     >
-      <div className={navItemClasses(active)}>
-        {active && <ActiveRail />}
-        <Icon
-          className={cn(iconClasses(active), !active && "text-[#1A3A6B]")}
-          strokeWidth={active ? 2 : 1.5}
-        />
-        {open && (
-          <span className="min-w-0 text-[13px] font-semibold tracking-tight">
-            {action.name}
-          </span>
-        )}
-      </div>
+      <Icon className="h-[18px] w-[18px] shrink-0" strokeWidth={active ? 2 : 1.75} />
+      {open && (
+        <span className="min-w-0 text-[13px] font-semibold tracking-tight">
+          {action.name}
+        </span>
+      )}
     </button>
   );
 

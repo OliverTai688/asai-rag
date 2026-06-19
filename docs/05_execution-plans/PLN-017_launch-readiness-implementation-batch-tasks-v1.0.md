@@ -8,7 +8,7 @@
 
 本計畫把「距離上線還差什麼」轉成可被 agent 逐張執行的 batch tasks。目標不是一次做到完整 production，而是先達成 **Level 1 受控 Staging Demo**：
 
-> demo member 清空 browser storage 後登入仍看到 DB seed data；可新增客戶並刷新仍存在；可使用三個 AI（問誠問 AI、AI 顧問陪談、AI 劇場演練）；每次 AI 呼叫寫 `AiUsageLog`；demo manager 只看彙總；demo client 只看授權內容。
+> demo member 清空 browser storage 後登入仍看到 DB seed data；可新增客戶並刷新仍存在；可使用三個 AI（問誠問 AI、AI 了解客戶、AI 劇場演練）；每次 AI 呼叫寫 `AiUsageLog`；demo manager 只看彙總；demo client 只看授權內容。
 
 ---
 

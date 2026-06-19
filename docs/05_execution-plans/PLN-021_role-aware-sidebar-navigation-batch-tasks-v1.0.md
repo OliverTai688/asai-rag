@@ -44,7 +44,7 @@
 - [ ] 盤點目前 `src/components/layout/sidebar.tsx` 的 section、route、assistant action、active state、tooltip/aria 行為，形成 migration note。
 - [ ] 定義 `SidebarSection`、`SidebarItem`、`SidebarAction`、`SidebarBadge`、`SidebarDisabledReason` 等型別；需能表達 `href`、`action`、`visible`、`disabled`、`reason`、`badge`、`ariaLabel`。
 - [ ] 定義 `SidebarContext` input，至少包含 session type、organization role、platform role、client role、managed unit scope、plan capabilities、feature flags、demo mode。
-- [ ] 建立 member / org admin / super admin / client portal 四套 manifest draft，保留 `RES-008` 的 AI-first 命名：`問誠問 AI`、`AI 顧問陪談`、`AI 劇場演練`。
+- [ ] 建立 member / org admin / super admin / client portal 四套 manifest draft，保留 `RES-008` 的 AI-first 命名：`問誠問 AI`、`AI 了解客戶`、`AI 劇場演練`。
 - [ ] 明確標註 `SPIN 舊版` 只由 legacy feature flag 顯示，不作新使用者常駐主入口。
 - [ ] 不改 route guard、不改 business data、不改 assistant/theater/spin store。
 - [ ] 跑 `pnpm exec tsc --noEmit --pretty false` 與 `pnpm lint:changed`。
@@ -92,7 +92,7 @@
 - [ ] Sidebar renderer 改讀 RAS-003 navigation sections，保留現有 open/collapsed/mobile drawer、active rail、tooltip、aria-label、assistant action。
 - [ ] Member sidebar 第一屏保留 `今日` 與 `AI 工作台`；org admin sidebar 第一屏回答「誰需要輔導、下一步是什麼」；super admin sidebar 不混入 member routes。
 - [ ] `問誠問 AI` 可在不同 surface 顯示，但 assistant scope 文案或 payload 不跨越該 surface 的資料邊界。
-- [ ] `SPIN 舊版` 由 legacy feature flag 控制；`AI 顧問陪談` `/interview` 保持新主入口。
+- [ ] `SPIN 舊版` 由 legacy feature flag 控制；`AI 了解客戶` `/interview` 保持新主入口。
 - [ ] `團隊管理`、`通訊處設定`、`個人設定` 依 role/capability 顯示，避免所有 membership 無差別看到 org-wide 設定。
 - [ ] Mobile drawer 第一屏顯示該角色最重要 section；collapsed state 不變成無層級 icon wall。
 - [ ] 符合 ARC-003：paper/ink/hairline、1px navy active rail、無滿版藍底、無重陰影、gold 只作稀有訊號。

@@ -30,6 +30,8 @@ type PersistAssistantChatBaseInput = {
 };
 
 type PersistAssistantChatSuccessInput = PersistAssistantChatBaseInput & {
+  conversationId: string;
+  clientId?: string;
   assistantContent: string;
   promptTokens?: number;
   completionTokens?: number;
@@ -37,40 +39,97 @@ type PersistAssistantChatSuccessInput = PersistAssistantChatBaseInput & {
 };
 
 type PersistAssistantChatFailureInput = PersistAssistantChatBaseInput & {
+  conversationId?: string;
+  clientId?: string;
   error: string;
 };
 
-export async function persistAssistantChatSuccess(input: PersistAssistantChatSuccessInput): Promise<void> {
+export type EnsureAssistantConversationResult = {
+  conversationId: string;
+  clientId?: string;
+};
+
+/**
+ * Resolve the DB conversation a chat turn belongs to BEFORE streaming starts so the
+ * resulting AiUsageLog row can trace back to a first-class conversation/message.
+ *
+ * When the client supplies `context.conversationId` (its local-store conversation id)
+ * we reuse the matching DB conversation instead of creating a fresh one every turn
+ * (RES-022 §2.1), keying on `metadata.clientConversationId`.
+ */
+export async function ensureAssistantConversation(input: {
+  session: AppSession;
+  body: AssistantChatBody;
+}): Promise<EnsureAssistantConversationResult> {
+  const clientId = await resolveAllowedClientId(input, prisma);
+  const clientConversationId = input.body.context?.conversationId;
   const latestUserMessage = [...input.body.messages].reverse().find((message) => message.role === "user");
-  const title = buildConversationTitle(latestUserMessage?.content);
 
-  await prisma.$transaction(async (tx) => {
-    const clientId = await resolveAllowedClientId(input, tx);
-
-    await tx.assistantConversation.create({
-      data: {
+  if (clientConversationId) {
+    const existing = await prisma.assistantConversation.findFirst({
+      where: {
         organizationId: input.session.organization.id,
-        unitId: input.session.membership.primaryUnitId,
         ownerId: input.session.user.id,
-        clientId,
-        title,
-        routeContext: input.body.context?.route,
-        metadata: buildConversationMetadata(input.body.context) as Prisma.InputJsonValue,
-        messages: {
-          create: [
-            ...input.body.messages.slice(-12).map((message) => ({
-              role: toMessageRole(message.role),
-              content: message.content,
-              metadata: { source: "request" } as Prisma.InputJsonValue,
-            })),
-            {
-              role: MessageRole.ASSISTANT,
-              content: input.assistantContent,
-              metadata: { source: "openai", requestId: input.requestId } as Prisma.InputJsonValue,
-            },
-          ],
-        },
+        metadata: { path: ["clientConversationId"], equals: clientConversationId },
       },
+      select: { id: true },
+      orderBy: { updatedAt: "desc" },
+    });
+
+    if (existing) {
+      if (latestUserMessage) {
+        await prisma.assistantMessage.create({
+          data: {
+            conversationId: existing.id,
+            role: MessageRole.USER,
+            content: latestUserMessage.content,
+            metadata: { source: "request" } as Prisma.InputJsonValue,
+          },
+        });
+      }
+
+      return { conversationId: existing.id, clientId };
+    }
+  }
+
+  const created = await prisma.assistantConversation.create({
+    data: {
+      organizationId: input.session.organization.id,
+      unitId: input.session.membership.primaryUnitId,
+      ownerId: input.session.user.id,
+      clientId,
+      title: buildConversationTitle(latestUserMessage?.content),
+      routeContext: input.body.context?.route,
+      metadata: buildConversationMetadata(input.body.context) as Prisma.InputJsonValue,
+      messages: {
+        create: input.body.messages.slice(-12).map((message) => ({
+          role: toMessageRole(message.role),
+          content: message.content,
+          metadata: { source: "request" } as Prisma.InputJsonValue,
+        })),
+      },
+    },
+    select: { id: true },
+  });
+
+  return { conversationId: created.id, clientId };
+}
+
+export async function persistAssistantChatSuccess(input: PersistAssistantChatSuccessInput): Promise<void> {
+  await prisma.$transaction(async (tx) => {
+    const assistantMessage = await tx.assistantMessage.create({
+      data: {
+        conversationId: input.conversationId,
+        role: MessageRole.ASSISTANT,
+        content: input.assistantContent,
+        metadata: { source: "openai", requestId: input.requestId } as Prisma.InputJsonValue,
+      },
+      select: { id: true },
+    });
+
+    await tx.assistantConversation.update({
+      where: { id: input.conversationId },
+      data: { updatedAt: new Date() },
     });
 
     await tx.aiUsageLog.create({
@@ -78,7 +137,7 @@ export async function persistAssistantChatSuccess(input: PersistAssistantChatSuc
         organizationId: input.session.organization.id,
         unitId: input.session.membership.primaryUnitId,
         userId: input.session.user.id,
-        clientId,
+        clientId: input.clientId,
         provider: AiProvider.OPENAI,
         module: AiModule.CHAT,
         model: input.model,
@@ -87,6 +146,9 @@ export async function persistAssistantChatSuccess(input: PersistAssistantChatSuc
         totalTokens: input.totalTokens,
         latencyMs: input.latencyMs,
         requestId: input.requestId,
+        traceSource: "assistant",
+        assistantConversationId: input.conversationId,
+        assistantMessageId: assistantMessage.id,
       },
     });
 
@@ -100,7 +162,7 @@ export async function persistAssistantChatSuccess(input: PersistAssistantChatSuc
 }
 
 export async function persistAssistantChatFailure(input: PersistAssistantChatFailureInput): Promise<void> {
-  const clientId = await resolveAllowedClientId(input, prisma);
+  const clientId = input.clientId ?? (await resolveAllowedClientId(input, prisma));
 
   await writeAiUsageLogSafely({
     organizationId: input.session.organization.id,
@@ -113,6 +175,10 @@ export async function persistAssistantChatFailure(input: PersistAssistantChatFai
     latencyMs: input.latencyMs,
     requestId: input.requestId,
     error: input.error,
+    trace: {
+      traceSource: "assistant",
+      assistantConversationId: input.conversationId,
+    },
   });
 }
 
@@ -143,7 +209,7 @@ function buildConversationMetadata(context: AssistantChatContextInput | undefine
 }
 
 async function resolveAllowedClientId(
-  input: PersistAssistantChatBaseInput,
+  input: { session: AppSession; body: AssistantChatBody },
   db: Pick<typeof prisma, "client">,
 ): Promise<string | undefined> {
   const clientId = input.body.context?.clientId;

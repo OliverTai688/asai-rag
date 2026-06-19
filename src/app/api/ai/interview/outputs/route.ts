@@ -10,6 +10,7 @@ import {
   persistInterviewFailure,
   persistInterviewOutputSuccess,
 } from "@/lib/interview/interview-ai-repository";
+import { loadInterviewClientContext } from "@/lib/interview/interview-client-context";
 
 const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const MODEL = "gpt-4o-mini";
@@ -220,6 +221,13 @@ export async function POST(req: Request) {
       return Response.json({ error: "OPENAI_API_KEY is not configured" }, { status: 500 });
     }
 
+    // Preload the CRM client's confirmed facts so the output draft is grounded in
+    // real client data, not only in what the browser happened to send.
+    const clientContext = await loadInterviewClientContext(session, body.clientId);
+    const materials = clientContext.facts.length
+      ? [...clientContext.facts.map((fact) => `FACT: ${fact}`), ...body.materials]
+      : body.materials;
+
     const memoryLoop = buildAdvisorMemoryLoopContext({
       organizationId: session.organization.id,
       memberId: session.user.id,
@@ -227,10 +235,11 @@ export async function POST(req: Request) {
       clientId: body.clientId,
       sessionId: body.sessionId,
       messages: body.messages,
-      knownMaterials: body.materials,
+      knownMaterials: materials,
     });
     const bodyWithMemory = {
       ...body,
+      materials,
       memoryEvidence: memoryLoop.evidence,
       microPlan: memoryLoop.microPlan,
     };
@@ -244,7 +253,7 @@ export async function POST(req: Request) {
         },
         {
           role: "user",
-          content: buildOutputPrompt(body.materials, body.messages, memoryLoop.promptContext),
+          content: buildOutputPrompt(materials, body.messages, memoryLoop.promptContext),
         },
       ],
       response_format: { type: "json_object" },

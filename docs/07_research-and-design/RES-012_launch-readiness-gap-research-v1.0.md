@@ -46,7 +46,7 @@
 產品導覽已把三個核心 AI 定為：
 
 1. `問誠問 AI`：全域助理 / 導航 / 工作副駕駛
-2. `AI 顧問陪談`：訪談/顧問陪談，未來取代或包住 SPIN
+2. `AI 了解客戶`：訪談/顧問陪談，未來取代或包住 SPIN
 3. `AI 劇場演練`：情境演練、多角色 NPC、回饋
 
 ### 3.1 問誠問 AI
@@ -68,7 +68,7 @@ MVP 上線條件：
 - tool commands 有 allowlist，不允許任意路徑或危險操作。
 - quota 超限回 429，UI 顯示升級或稍後再試。
 
-### 3.2 AI 顧問陪談
+### 3.2 AI 了解客戶
 
 現況：
 - `/api/ai/interview` streaming route 已建立。
@@ -151,7 +151,7 @@ Super admin staging account 可保留內部測試，不建議給外部體驗。
 - 使用 demo member 登入。
 - 客戶、保單、訪前準備、SPIN/Interview、Theater、Report 都從 DB 出現。
 - 新增一筆客戶，刷新頁面仍存在。
-- 生成一次 AI 顧問陪談輸出，刷新頁面仍存在。
+- 生成一次 AI 了解客戶輸出，刷新頁面仍存在。
 - 生成一次 Theater 演練，刷新頁面仍存在。
 - 分享報告 token 可開啟，並寫入 share event。
 - demo manager 登入時只看到 aggregate，不看到 member 客戶明細。
@@ -290,4 +290,4 @@ Super admin staging account 可保留內部測試，不建議給外部體驗。
 
 最小成功定義：
 
-> 一個 demo member 清空 browser storage 後登入，仍可看到 DB seed data；新增客戶後刷新仍存在；能使用問誠問 AI、AI 顧問陪談、AI 劇場演練三個 AI；每次 AI 呼叫都寫 `AiUsageLog`；demo manager 只能看匯總；demo client 只能看自己的分享頁。
+> 一個 demo member 清空 browser storage 後登入，仍可看到 DB seed data；新增客戶後刷新仍存在；能使用問誠問 AI、AI 了解客戶、AI 劇場演練三個 AI；每次 AI 呼叫都寫 `AiUsageLog`；demo manager 只能看匯總；demo client 只能看自己的分享頁。

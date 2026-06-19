@@ -177,7 +177,7 @@ export default function SpinConversationPage() {
   if (!session) {
     return (
       <div className="p-20 text-center text-sm font-semibold text-zinc-500">
-        {isQuickstart ? "載入 Quickstart AI 顧問陪談..." : "對話不存在"}
+        {isQuickstart ? "載入 Quickstart AI 了解客戶..." : "對話不存在"}
       </div>
     );
   }
@@ -424,14 +424,14 @@ export default function SpinConversationPage() {
         <div className="flex items-center gap-4">
           <Link
             href="/spin"
-            aria-label="回 AI 顧問陪談"
+            aria-label="回 AI 了解客戶"
             className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full transition-colors"
           >
             <ChevronLeft className="w-5 h-5 text-zinc-400" />
           </Link>
           <div>
             <p className="mb-1 text-[10px] font-black uppercase tracking-[0.14em] text-zinc-400">
-              AI 顧問陪談
+              AI 了解客戶
             </p>
             <div className="flex items-center gap-2">
               <h2 className="text-xl font-bold">{session.clientName}</h2>

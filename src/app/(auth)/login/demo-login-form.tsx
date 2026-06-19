@@ -2,11 +2,8 @@
 
 import { useState, useTransition } from "react";
 import { signIn } from "next-auth/react";
-import { ArrowRight, CheckCircle2 } from "lucide-react";
+import { Loader2, Sparkles } from "lucide-react";
 
-import { buttonVariants } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
 type DemoAccount = {
@@ -23,26 +20,22 @@ export function DemoLoginForm({
   accounts: DemoAccount[];
   demoLoginEnabled: boolean;
 }) {
-  const defaultAccount = accounts[0];
-  const [email, setEmail] = useState(defaultAccount?.email ?? "");
-  const [password, setPassword] = useState(defaultAccount?.password ?? "");
   const [error, setError] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
+  const [pendingEmail, setPendingEmail] = useState<string | null>(null);
+  const [, startTransition] = useTransition();
 
-  function selectAccount(account: DemoAccount) {
-    setEmail(account.email);
-    setPassword(account.password);
-    setError(null);
+  if (!demoLoginEnabled || accounts.length === 0) {
+    return null;
   }
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  function login(account: DemoAccount) {
     setError(null);
+    setPendingEmail(account.email);
 
     startTransition(async () => {
       const result = await signIn("demo-credentials", {
-        email,
-        password,
+        email: account.email,
+        password: account.password,
         redirect: false,
         callbackUrl: "/dashboard",
       });
@@ -52,104 +45,57 @@ export function DemoLoginForm({
         return;
       }
 
-      setError("帳號或密碼不符合 demo 白名單，請改用下方體驗帳號。");
+      setPendingEmail(null);
+      setError("體驗帳號登入失敗，請確認 demo 資料已 seed。");
     });
   }
 
   return (
-    <Card className="bg-surface">
-      <CardHeader>
-        <CardTitle>登入誠問 AI</CardTitle>
-        <p className="text-sm leading-6 text-muted-foreground">
-          {demoLoginEnabled
-            ? "開發體驗登入已開啟，可直接使用下方三組 demo-only 帳密。"
-            : "正式 auth provider 尚未接入；目前環境未開啟 demo password login。"}
+    <div className="mt-4 rounded-xl border border-hairline bg-paper-2 p-4">
+      <div className="mb-3 flex items-center gap-2">
+        <span className="inline-flex items-center gap-1 rounded-full border border-[#1A3A6B]/20 bg-[#1A3A6B]/5 px-2.5 py-0.5 text-[11px] font-semibold text-[#1A3A6B]">
+          <Sparkles className="size-3" />
+          開發體驗
+        </span>
+        <p className="text-xs text-muted-foreground">點任一帳號即可一鍵登入</p>
+      </div>
+
+      <div className="grid gap-2 sm:grid-cols-3">
+        {accounts.map((account) => {
+          const isLoading = pendingEmail === account.email;
+
+          return (
+            <button
+              key={account.email}
+              type="button"
+              onClick={() => login(account)}
+              disabled={pendingEmail !== null}
+              aria-label={`一鍵登入${account.label}`}
+              className={cn(
+                "flex flex-col gap-0.5 rounded-lg border border-hairline bg-paper px-3 py-2.5 text-left transition-colors",
+                "hover:border-[#1A3A6B] disabled:opacity-60",
+                isLoading && "border-[#1A3A6B] bg-[#1A3A6B]/5"
+              )}
+            >
+              <span className="flex items-center justify-between gap-2">
+                <span className="text-sm font-semibold text-ink">{account.label}</span>
+                {isLoading ? (
+                  <Loader2 className="size-3.5 animate-spin text-[#1A3A6B]" />
+                ) : null}
+              </span>
+              <span className="truncate font-mono text-[11px] text-muted-foreground">
+                {account.email}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      {error ? (
+        <p className="mt-3 rounded-lg border border-destructive/20 bg-destructive/5 px-3 py-2 text-xs leading-5 text-destructive">
+          {error}
         </p>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {demoLoginEnabled ? (
-          <div className="grid gap-2">
-            {accounts.map((account) => {
-              const isSelected = email === account.email;
-
-              return (
-                <button
-                  key={account.email}
-                  type="button"
-                  className={cn(
-                    "rounded-lg border border-hairline bg-paper px-3 py-2 text-left transition-colors hover:border-[#1A3A6B]",
-                    isSelected && "border-[#1A3A6B] bg-[#1A3A6B]/5"
-                  )}
-                  onClick={() => selectAccount(account)}
-                  aria-label={`使用${account.label}帳號`}
-                >
-                  <span className="flex items-center justify-between gap-3">
-                    <span className="text-sm font-semibold text-ink">{account.label}</span>
-                    {isSelected ? <CheckCircle2 className="size-4 text-[#1A3A6B]" /> : null}
-                  </span>
-                  <span className="mt-1 block font-mono text-xs text-muted-foreground">
-                    {account.email}
-                  </span>
-                  <span className="mt-1 block font-mono text-xs text-muted-foreground">
-                    {account.password}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        ) : null}
-
-        <form className="space-y-3" onSubmit={handleSubmit}>
-          <label className="block space-y-1.5">
-            <span className="text-xs font-semibold text-muted-foreground">Email</span>
-            <Input
-              id="email"
-              name="email"
-              type="email"
-              placeholder="advisor@example.com"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              autoComplete="username"
-              aria-label="Email"
-              disabled={!demoLoginEnabled || isPending}
-            />
-          </label>
-          <label className="block space-y-1.5">
-            <span className="text-xs font-semibold text-muted-foreground">密碼</span>
-            <Input
-              id="password"
-              name="password"
-              type="password"
-              placeholder="輸入密碼"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              autoComplete="current-password"
-              aria-label="密碼"
-              disabled={!demoLoginEnabled || isPending}
-            />
-          </label>
-
-          {error ? (
-            <p className="rounded-lg border border-destructive/20 bg-destructive/5 px-3 py-2 text-xs leading-5 text-destructive">
-              {error}
-            </p>
-          ) : null}
-
-          <button
-            type="submit"
-            className={buttonVariants({ variant: "mono", size: "lg", className: "w-full" })}
-            disabled={!demoLoginEnabled || isPending}
-          >
-            {isPending ? "登入中..." : "登入工作台"}
-            <ArrowRight className="size-4" />
-          </button>
-        </form>
-
-        <div className="rounded-lg border border-hairline bg-paper-2 px-3 py-2 text-xs leading-5 text-muted-foreground">
-          客戶體驗不使用 app session；請走客戶登入並使用 share token{" "}
-          <span className="font-mono text-ink">demo-share-wang</span>。
-        </div>
-      </CardContent>
-    </Card>
+      ) : null}
+    </div>
   );
 }

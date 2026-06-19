@@ -34,7 +34,7 @@ TDF workstream 完成時必須證明：
 
 - [ ] `/theater` 第一屏可見三入口：劇場訪綱建場、帶客戶資料建場、從既有訪談轉入。
 - [ ] 無 SPIN / interview material 時，劇場訪綱建場仍可點擊。
-- [ ] 空狀態不再要求先完成 AI 顧問陪談。
+- [ ] 空狀態不再要求先完成 AI 了解客戶。
 - [ ] Quickstart legacy `spinId` / `clientId` / `autoCreate` path 不破。
 - [ ] Start CTA disabled 狀態只因必要 setup draft 不完整，不因缺 SPIN 而 disabled。
 

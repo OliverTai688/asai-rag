@@ -10,7 +10,7 @@ export const metadata = {
 const terms = [
   {
     title: "Beta 服務範圍",
-    body: "誠問 AI 目前用於受控 private beta，功能涵蓋 CRM、AI 顧問陪談、劇場演練、訪前規劃、報告與 client portal。未經 production approval，不應用於正式對外承諾、收費或不可回復的業務流程。",
+    body: "誠問 AI 目前用於受控 private beta，功能涵蓋 CRM、AI 了解客戶、劇場演練、訪前規劃、報告與 client portal。未經 production approval，不應用於正式對外承諾、收費或不可回復的業務流程。",
   },
   {
     title: "帳號與權限",

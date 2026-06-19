@@ -19,7 +19,18 @@ await db.connect();
 
 try {
   const org = await getDemoOrg();
+  const managerUserId = await getManagerUserId(org.id);
+  // 主管彙總（/api/org/overview）不得洩漏任何客戶明細 → 用全部客戶當哨兵。
   const forbidden = await getForbiddenClientDetailSentinels(org.id);
+  // 主管自己的 owner-scoped /api/clients 會合理回傳主管本人的客戶；
+  // 真正要防的是「其他成員的客戶明細」→ 排除主管本人擁有的客戶，
+  // 並扣掉與主管自有客戶共用的通用字串（如保險商品名稱），避免假性洩漏誤報。
+  const managerOwnedSentinels = new Set(
+    managerUserId ? await getOwnerClientDetailSentinels(org.id, managerUserId) : [],
+  );
+  const otherMembersForbidden = (
+    await getForbiddenClientDetailSentinels(org.id, managerUserId)
+  ).filter((value) => !managerOwnedSentinels.has(value));
   const overview = await get("/api/org/overview");
   const overviewText = JSON.stringify(overview.body);
 
@@ -47,12 +58,12 @@ try {
 
   const clients = await get("/api/clients");
   const clientsText = JSON.stringify(clients.body);
-  const clientLeaks = forbidden.filter((value) => clientsText.includes(value));
-  push(clients.status === 200, "GET /api/clients remains member-owned route for manager session", `status=${clients.status}`);
+  const clientLeaks = otherMembersForbidden.filter((value) => clientsText.includes(value));
+  push(clients.status === 200, "GET /api/clients remains owner-scoped route for manager session", `status=${clients.status}`);
   push(
     clientLeaks.length === 0,
-    "Manager member-owned clients route does not leak other members' seeded client details",
-    clientLeaks.length === 0 ? `${forbidden.length} sentinels checked` : `leaked=${redact(clientLeaks.slice(0, 4)).join(", ")}`,
+    "Manager owner-scoped clients route does not leak other members' seeded client details",
+    clientLeaks.length === 0 ? `${otherMembersForbidden.length} sentinels checked` : `leaked=${redact(clientLeaks.slice(0, 4)).join(", ")}`,
   );
 
   console.log(
@@ -106,21 +117,54 @@ async function getDemoOrg() {
   return org;
 }
 
-async function getForbiddenClientDetailSentinels(organizationId) {
+async function getManagerUserId(organizationId) {
+  const result = await db.query(
+    `SELECT u.id
+     FROM users u
+     JOIN organization_members m ON m.user_id = u.id
+     WHERE u.email = $1 AND m.organization_id = $2
+     LIMIT 1`,
+    [demoEmail, organizationId],
+  );
+  return result.rows[0]?.id ?? null;
+}
+
+async function getOwnerClientDetailSentinels(organizationId, ownerId) {
   const result = await db.query(
     `SELECT c.name, c.email, c.phone, c.occupation, c.company, c.notes, p.policy_number, p.product_name
      FROM clients c
      LEFT JOIN policies p ON p.client_id = c.id
      WHERE c.organization_id = $1
        AND c.is_demo = true
+       AND c.owner_id = $2
      ORDER BY c.created_at ASC
      LIMIT 20`,
-    [organizationId],
+    [organizationId, ownerId],
   );
 
+  return toSentinelList(result.rows);
+}
+
+async function getForbiddenClientDetailSentinels(organizationId, excludeOwnerId = null) {
+  const result = await db.query(
+    `SELECT c.name, c.email, c.phone, c.occupation, c.company, c.notes, p.policy_number, p.product_name
+     FROM clients c
+     LEFT JOIN policies p ON p.client_id = c.id
+     WHERE c.organization_id = $1
+       AND c.is_demo = true
+       AND ($2::text IS NULL OR c.owner_id <> $2)
+     ORDER BY c.created_at ASC
+     LIMIT 20`,
+    [organizationId, excludeOwnerId],
+  );
+
+  return toSentinelList(result.rows);
+}
+
+function toSentinelList(rows) {
   return [
     ...new Set(
-      result.rows
+      rows
         .flatMap((row) => Object.values(row))
         .filter((value) => typeof value === "string")
         .map((value) => value.trim())

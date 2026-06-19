@@ -87,7 +87,7 @@
 
 AI 工作台
   問誠問 AI
-  AI 顧問陪談
+  AI 了解客戶
   AI 劇場演練
   SPIN 舊版（legacy flag / 內部相容）
 
@@ -203,7 +203,7 @@ Front office / client portal 永遠不顯示 CRM、團隊、AI 內部評分、pr
 | --- | --- | --- | --- | --- | --- | --- |
 | 總覽 | show | show | show | show | show | Dashboard 內容可依 role 顯示不同 panel |
 | 問誠問 AI | show if AI enabled | show if AI enabled | show if AI enabled | show if AI enabled | show if AI enabled | Assistant scope 依 role 限制 |
-| AI 顧問陪談 `/interview` | show if canUseAiModule | show | show | show | show | 只可讀 own/assigned client data |
+| AI 了解客戶 `/interview` | show if canUseAiModule | show | show | show | show | 只可讀 own/assigned client data |
 | SPIN 舊版 `/spin` | legacy flag | legacy flag | legacy flag | legacy flag | legacy flag | 遷移期入口，不建議全量常駐 |
 | AI 劇場演練 `/theater` | show if canUseAiModule | show | show | show | show | 不改 Theater enum/scoring contract |
 | 客戶管理 `/crm` | assigned only | show own/assigned | optional, own/assigned only | optional, own/assigned only | optional, own/assigned only | Manager 不因管理角色取得 member 客戶明細 |

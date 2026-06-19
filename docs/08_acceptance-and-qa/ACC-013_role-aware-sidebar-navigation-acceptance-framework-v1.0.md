@@ -13,7 +13,7 @@
 
 1. **Role-aware but server-safe**：sidebar 會依身份權限改變，但資料保護仍由 server policy / route guard / API guard 負責。
 2. **Surface 清楚**：member admin、org admin、super admin、client portal 的導覽家族不同，不混成單一長清單。
-3. **AI-first 不退化**：member sidebar 仍優先呈現 `問誠問 AI`、`AI 顧問陪談`、`AI 劇場演練`。
+3. **AI-first 不退化**：member sidebar 仍優先呈現 `問誠問 AI`、`AI 了解客戶`、`AI 劇場演練`。
 4. **權限不外溢**：manager 不因管理身份看到 member 客戶明細；client 不進 dashboard；super admin 不用一般 app session。
 5. **可驗證**：每個 role/capability 變化都有 resolver test、script proof、Browser QA 或清楚的 blocker note。
 
@@ -72,10 +72,10 @@
 
 ## 6. AI-first Sidebar Acceptance Checklist
 
-- [ ] Member sidebar 第一屏保留 `AI 工作台`，順序為 `問誠問 AI`、`AI 顧問陪談`、`AI 劇場演練`，legacy SPIN 由 feature flag 控制。
+- [ ] Member sidebar 第一屏保留 `AI 工作台`，順序為 `問誠問 AI`、`AI 了解客戶`、`AI 劇場演練`，legacy SPIN 由 feature flag 控制。
 - [ ] `問誠問 AI` 在不同 surface 的可見性與 scope 一致：member 不讀 org raw detail，org 不讀 member private detail，super admin 不讀敏感業務內容。
 - [ ] Assistant action 在 mobile drawer 點擊後行為正常；若會關閉 drawer，focus/aria 狀態不破。
-- [ ] `AI 顧問陪談` 與 `/interview` 保持主入口；`SPIN 舊版` 不應成為新使用者第一主線。
+- [ ] `AI 了解客戶` 與 `/interview` 保持主入口；`SPIN 舊版` 不應成為新使用者第一主線。
 - [ ] 不改 SPIN 狀態機、不改 Theater enum、不改 server-side scoring/turn contract。
 
 ---

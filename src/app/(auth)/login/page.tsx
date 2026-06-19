@@ -26,12 +26,10 @@ export default function LoginPage() {
     >
       <LoginAuthForm googleEnabled={googleEnabled} />
 
-      <div className="mt-4">
       <DemoLoginForm
         accounts={isDemoPasswordLoginEnabled ? demoLoginAccounts : []}
         demoLoginEnabled={isDemoPasswordLoginEnabled}
       />
-      </div>
 
       <AuthLinkRow>
         <span>還沒有帳號？</span>

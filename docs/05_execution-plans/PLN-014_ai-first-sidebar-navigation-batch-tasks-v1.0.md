@@ -39,7 +39,7 @@
 目標：把側邊欄從單層功能清單改為「今日 / AI 工作台 / 客戶工作 / 團隊與系統」的 AI-first 工作台導覽。
 
 - [x] 將 `src/components/layout/sidebar.tsx` 的 nav data 改為 grouped navigation structure，保留現有 route 與 active 判斷。
-- [x] 新增 `AI 工作台` section，順序為：`問誠問 AI`、`AI 顧問陪談`、`AI 劇場演練`。
+- [x] 新增 `AI 工作台` section，順序為：`問誠問 AI`、`AI 了解客戶`、`AI 劇場演練`。
 - [x] 將 AI 助手 trigger 從底部 CTA 移入 `AI 工作台` section；底部只保留 collapse/layout control。
 - [x] `客戶工作` section 包含：客戶管理、訪前規劃、分析報告、議題單。
 - [x] `團隊與系統` section 包含：團隊管理、通訊處設定、個人設定；`體驗版` 依 IQ-028 只在未登入 / onboarding / public trial 情境顯示。
@@ -55,7 +55,7 @@
 
 QA 結果：
 - `pnpm lint:changed` 通過。
-- In-app Browser desktop `/dashboard`：`AI 工作台`、`問誠問 AI`、`AI 顧問陪談`、`AI 劇場演練` 可見；sidebar 寬度 240px；無水平溢出。
+- In-app Browser desktop `/dashboard`：`AI 工作台`、`問誠問 AI`、`AI 了解客戶`、`AI 劇場演練` 可見；sidebar 寬度 240px；無水平溢出。
 - In-app Browser collapsed desktop：sidebar 約 72px；icon-only controls 有 accessible name；無水平溢出。
 - In-app Browser mobile drawer：`AI 工作台` 第一屏可見；點擊 `問誠問 AI` 後 drawer 關閉且 assistant panel 開啟；無水平溢出。
 - 截圖：`docs/06_audits-and-reports/screenshots/modern-ui/sidebar-ai-first/ais-001-desktop-expanded.png`、`docs/06_audits-and-reports/screenshots/modern-ui/sidebar-ai-first/ais-002-mobile-drawer.png`。
@@ -67,7 +67,7 @@ QA 結果：
 目標：確保 AI-first sidebar 在收合態與 mobile drawer 仍可理解、可操作、可及。
 
 - [x] 收合態保留 group spacing，避免 icon 變成無層級長串。
-- [x] 所有 icon-only navigation/action 都具備 tooltip 與 `aria-label`，包含 `問誠問 AI`、`AI 顧問陪談`、`AI 劇場演練`、collapse control。
+- [x] 所有 icon-only navigation/action 都具備 tooltip 與 `aria-label`，包含 `問誠問 AI`、`AI 了解客戶`、`AI 劇場演練`、collapse control。
 - [x] Mobile drawer 第一屏可看到 `AI 工作台`；點擊 AI 助手會關閉 drawer 並開啟 assistant panel。
 - [x] Keyboard tab order 合理：brand/logo → 今日 → AI 工作台 → 客戶工作 → 團隊與系統 → collapse。
 - [x] Focus ring 使用既有 navy `--ring`，active state 不遮蔽 focus outline。
@@ -83,7 +83,7 @@ QA 結果：
 QA 結果：
 - `pnpm lint:changed` 通過。
 - In-app Browser desktop collapsed `/dashboard`：section label 隱藏但 group spacing 保留；icon-only controls 含 accessible name；collapse control 有 `展開側欄` aria；無水平溢出。
-- In-app Browser keyboard/focus：品牌區為 `回到總覽` link，接著為 `總覽`、`問誠問 AI`、`AI 顧問陪談`、`AI 劇場演練`；nav links 有 focus outline，collapse button 保留 shadcn focus ring。
+- In-app Browser keyboard/focus：品牌區為 `回到總覽` link，接著為 `總覽`、`問誠問 AI`、`AI 了解客戶`、`AI 劇場演練`；nav links 有 focus outline，collapse button 保留 shadcn focus ring。
 - In-app Browser mobile drawer：`AI 工作台` 第一屏可見，brand link 指向 `/dashboard`，console error 0。
 - 截圖：`docs/06_audits-and-reports/screenshots/modern-ui/sidebar-ai-first/ais-002-desktop-collapsed.png`、`docs/06_audits-and-reports/screenshots/modern-ui/sidebar-ai-first/ais-002-mobile-drawer.png`。
 
@@ -93,9 +93,9 @@ QA 結果：
 
 目標：讓 sidebar label、tooltip、page title 與三個 AI 模組的使用情境一致。
 
-- [x] Sidebar 使用任務導向命名：`問誠問 AI`、`AI 顧問陪談`、`AI 劇場演練`。
+- [x] Sidebar 使用任務導向命名：`問誠問 AI`、`AI 了解客戶`、`AI 劇場演練`。
 - [x] 展開態可加入一行 microcopy，但需確保 `w-60` 下不換行破版；若破版則只保留 label，microcopy 放 tooltip。
-- [x] `/spin` 與 `/spin/[sessionId]` 的導航 active 對應 `AI 顧問陪談`，頁面可見標題或 breadcrumb 與新命名一致。
+- [x] `/spin` 與 `/spin/[sessionId]` 的導航 active 對應 `AI 了解客戶`，頁面可見標題或 breadcrumb 與新命名一致。
 - [x] `/theater` 與 `/theater/[sessionId]` 的導航 active 對應 `AI 劇場演練`，頁面可見標題或 breadcrumb 與新命名一致。
 - [x] Assistant panel trigger 與 assistant panel title 保留「誠問 AI 助手」品牌，但導覽動詞使用「問誠問 AI」。
 - [x] 不移除頁面內必要的 SPIN 專業語彙；只調整導覽層與入口文案。
@@ -109,8 +109,8 @@ QA 結果：
 
 QA 結果：
 - `pnpm lint:changed` 通過。
-- In-app Browser `/spin`：H1 = `AI 顧問陪談`，sidebar 含 `AI 顧問陪談`，console error 0，無水平溢出。
-- In-app Browser `/spin/[sessionId]`：breadcrumb 含 `AI 顧問陪談`，sidebar 含 `AI 顧問陪談`，console error 0，無水平溢出。
+- In-app Browser `/spin`：H1 = `AI 了解客戶`，sidebar 含 `AI 了解客戶`，console error 0，無水平溢出。
+- In-app Browser `/spin/[sessionId]`：breadcrumb 含 `AI 了解客戶`，sidebar 含 `AI 了解客戶`，console error 0，無水平溢出。
 - In-app Browser `/theater`：H1 = `AI 劇場演練`，sidebar 含 `AI 劇場演練`，console error 0，無水平溢出。
 - In-app Browser screenshot command 在 `/spin` 與 `/theater` active state retry 時 timeout；已保留 DOM/console 驗收結果，並用 headless Chrome 補存截圖。
 
@@ -136,8 +136,8 @@ QA 結果：
 QA 結果：
 - `pnpm lint:changed` 通過。
 - In-app Browser desktop `/dashboard`、`/spin`、`/theater`、`/crm`：展開/收合狀態皆無水平溢出，console error 0，AI 工作台導覽可見。
-- Route active：`/spin` active = `AI 顧問陪談`，H1 = `AI 顧問陪談`；`/theater` active = `AI 劇場演練`，H1 = `AI 劇場演練`；`/crm` active = `客戶管理`。
-- `/spin/[sessionId]`：breadcrumb = `AI 顧問陪談`，sidebar active label 可見，console error 0。
+- Route active：`/spin` active = `AI 了解客戶`，H1 = `AI 了解客戶`；`/theater` active = `AI 劇場演練`，H1 = `AI 劇場演練`；`/crm` active = `客戶管理`。
+- `/spin/[sessionId]`：breadcrumb = `AI 了解客戶`，sidebar active label 可見，console error 0。
 - Assistant panel 若已開啟，`問誠問 AI` 會同時呈現 active-like state；此為預期的 global panel 狀態。
 - Mobile drawer / assistant trigger 已於 AIS-002 驗收：`AI 工作台` 第一屏可見，點擊 `問誠問 AI` 後 drawer 關閉且 assistant panel 開啟。
 - Screenshots：`ais-004-spin-final.png`、`ais-004-theater-final.png`、`ais-004-spin-force-dark.png`、`ais-004-theater-force-dark.png`。In-app Browser screenshot timeout 以 headless Chrome 補存。

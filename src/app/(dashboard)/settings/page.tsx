@@ -458,7 +458,7 @@ function AiPanel({
           />
           <ToggleRow
             title="自動草擬訪前準備包"
-            description="AI 顧問陪談完成後，預設產生 VisitPlan 草稿。"
+            description="AI 了解客戶完成後，預設產生 VisitPlan 草稿。"
             checked={draft.aiPreferences.autoDraftVisitPlan}
             onClick={() =>
               updateDraft((current) => ({

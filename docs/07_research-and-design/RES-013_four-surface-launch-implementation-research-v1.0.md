@@ -263,7 +263,7 @@ API 實作：
 - AI context builder 按 surface 產生不同資料摘要。
 - Member settings 可控制個人 AI 偏好，例如語氣、預設客戶摘要粒度；org settings 可控制 organization-wide AI quota、可用模組與合規提醒強度。兩者衝突時，以 org policy 為上限。
 
-### 6.2 AI 顧問陪談
+### 6.2 AI 了解客戶
 
 | Surface | 實作 |
 | --- | --- |

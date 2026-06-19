@@ -15,7 +15,7 @@
 | 功能面 | Front office / client portal | Member admin | Org admin | Super admin | 資料邊界與目前狀態 |
 | --- | --- | --- | --- | --- | --- |
 | CRM / Client / Policy | 客戶不進入內部 CRM；未來 client portal 只看授權報告、預約、回覆、補資料。 | 只看 own / assigned clients；必須保留 `complianceChecklist`、`sensitivityLevel`、`kycStatus`。 | 只看 unit/member health、輔導指標與彙總，不看客戶明細、保單明細或對話全文。 | 預設看租戶健康、事件與支援 metadata；敏感內容需 break-glass reason 與 audit。 | `/team` 已移除 client store 熱點與明細依賴；CRM runtime 仍有 mock/store 來源，需 PSA-005 後續轉 DB service。 |
-| SPIN | 客戶只能透過報告或授權摘要看到顧問整理內容；不看內部陪談 session。 | 顧問操作自己的 SPIN session；不得破壞 `SITUATION -> PROBLEM -> IMPLICATION -> NEED_PAYOFF` 狀態機。 | 看完成率、卡關階段、輔導熱點與訓練建議。 | 看 AI usage、錯誤、成本與稽核事件；不預設讀取全文。 | Sidebar/page naming 已對齊 AI 顧問陪談；未改 SPIN 狀態機。AiUsageLog 實寫仍需每個 AI route audit。 |
+| SPIN | 客戶只能透過報告或授權摘要看到顧問整理內容；不看內部陪談 session。 | 顧問操作自己的 SPIN session；不得破壞 `SITUATION -> PROBLEM -> IMPLICATION -> NEED_PAYOFF` 狀態機。 | 看完成率、卡關階段、輔導熱點與訓練建議。 | 看 AI usage、錯誤、成本與稽核事件；不預設讀取全文。 | Sidebar/page naming 已對齊 AI 了解客戶；未改 SPIN 狀態機。AiUsageLog 實寫仍需每個 AI route audit。 |
 | Theater | 客戶不進入演練；可看顧問輸出的正式報告。 | 顧問使用 AI 劇場演練，保留 typed persona enum。 | 看訓練覆蓋率、常見異議、輔導佇列與 member health。 | 看用量、失敗率、成本與支援事件；敏感 transcript 需 break-glass。 | Theater enum 未改；評分 JSON/API 未改。AiUsageLog 實寫仍需 route 層逐一確認。 |
 | Pre-visit | 未來 client portal 可回覆預訪問題、補資料、確認預約。 | 顧問建立與使用訪前準備包。 | 看準備覆蓋率、逾期/風險分布與 coaching queue。 | 看 aggregate usage、錯誤與支援事件。 | UI 已現代化；`/api/ai/visit` 未被 PSA 改動。DB-backed plan 與 client portal 回覆仍待 integration。 |
 | Reports | token share 與 client login 都只能看授權報告；合規免責可見。 | 顧問編輯、分享、追蹤報告。 | 看報告完成率、分享成效與 coaching 指標，不看個別客戶內容。 | 看分享事件、錯誤、付款/方案能力；敏感報告需 break-glass。 | `ShareMeta` 已加入 branding / portal / CTA contract；正式 DB-backed share lookup 與 client authorization 仍待接。 |

@@ -19,7 +19,7 @@ const sections = [
   {
     title: "資料如何使用",
     body: [
-      "用於提供 CRM、訪前規劃、AI 顧問陪談、劇場演練、報告與 client portal 體驗。",
+      "用於提供 CRM、訪前規劃、AI 了解客戶、劇場演練、報告與 client portal 體驗。",
       "用於租戶隔離、權限控管、成本追蹤、除錯、資安稽核與合規留痕。",
       "正式公開上線前，production email、notification、payment 仍需明確核可才會啟用。",
     ],

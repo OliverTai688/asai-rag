@@ -2,7 +2,7 @@
 
 > 建立日期：2026-06-19  
 > 狀態：研究定稿  
-> 目的：釐清 `AI 劇場演練` 不應以「已完成 AI 顧問陪談 / SPIN 摘要」作為唯一前置條件，並建立一個可用於後續 ITA workstream 的開發缺口評估框架。  
+> 目的：釐清 `AI 劇場演練` 不應以「已完成 AI 了解客戶 / SPIN 摘要」作為唯一前置條件，並建立一個可用於後續 ITA workstream 的開發缺口評估框架。  
 > 關聯文件：`ARC-004_interview-theater-dual-agent-design-v1.1.md`、`RES-003_theater-field-semi-structured-interview-guide.md`、`RES-004_advisor-companion-semi-structured-interview-guide.md`、`PLN-015_interview-theater-dual-agent-batch-tasks-v1.0.md`、`ACC-006_interview-theater-dual-agent-acceptance-framework-v1.0.md`。
 
 ---
@@ -64,7 +64,7 @@
 
 - `/theater` 仍以 `completedSpinSessions` 作為唯一 source list。
 - 頁面文案寫「從一份 SPIN 摘要開始」。
-- 空狀態提示「先完成一筆 AI 顧問陪談後，就能把它轉成 AI 劇場演練」。
+- 空狀態提示「先完成一筆 AI 了解客戶後，就能把它轉成 AI 劇場演練」。
 - `handleStartSimulation()` 沒有 selectedSpin 就直接 return。
 
 建議開發切片：

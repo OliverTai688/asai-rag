@@ -28,6 +28,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { clientService } from "@/domains/client/service";
 import { demoQuickstart, getQuickstartStep } from "@/domains/demo/quickstart";
 import { reportTourSteps } from "@/domains/demo/tour-steps";
+import { getReportPurposeMeta, SECTION_TYPE_LABELS } from "@/domains/report/blueprints";
 import { reportService } from "@/domains/report/service";
 import { useReportStore } from "@/domains/report/store";
 import type { Report, ReportSection } from "@/domains/report/types";
@@ -128,11 +129,15 @@ function ReportEditorContent() {
           </Link>
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant="outline" className="rounded-full">V{report.version}.0</Badge>
+            <Badge variant="outline" className="rounded-full">{getReportPurposeMeta(report.purpose).label}</Badge>
             <Badge variant="outline" className="rounded-full">{audience === "internal" ? "內部版" : "客戶版"}</Badge>
             {report.share ? <Badge variant="outline" className="rounded-full">已分享</Badge> : null}
           </div>
           <h1 className="mt-4 text-3xl font-semibold tracking-tight text-ink sm:text-4xl">{report.clientName} 決策報告</h1>
-          <p className="mt-3 text-sm leading-6 text-muted-foreground">
+          {report.goal ? (
+            <p className="mt-3 text-sm leading-6 text-ink">目標：{report.goal}</p>
+          ) : null}
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">
             最後更新 <FormattedTime isoString={report.updatedAt} format="datetime" />
           </p>
         </div>
@@ -274,7 +279,7 @@ function ReportSections({
               <div className="grid gap-3 border-b border-hairline p-4 sm:grid-cols-[1fr_auto] sm:items-center">
                 <div className="min-w-0">
                   <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                    {String(index + 1).padStart(2, "0")}・{section.type}
+                    {String(index + 1).padStart(2, "0")}・{SECTION_TYPE_LABELS[section.type] ?? section.type}
                   </p>
                   <h2 className="mt-1 truncate text-lg font-semibold text-ink">{section.title}</h2>
                 </div>
@@ -467,7 +472,7 @@ function QuickstartReportView({
                   <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-ink text-xs font-semibold text-paper">{index + 1}</span>
                   <span className="min-w-0 flex-1">
                     <span className="block text-base font-semibold text-ink">{section.title}</span>
-                    <span className="mt-0.5 block text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">{section.type}</span>
+                    <span className="mt-0.5 block text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">{SECTION_TYPE_LABELS[section.type] ?? section.type}</span>
                   </span>
                   <ChevronDown className="mt-1 h-4 w-4 text-muted-foreground transition group-open:rotate-180" />
                 </summary>

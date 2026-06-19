@@ -56,8 +56,8 @@
 - `pnpm exec tsc --noEmit --pretty false`: 通過。
 - `pnpm lint:changed`: 通過。
 - `pnpm build`: 通過。
-- Browser proof `/interview` desktop 1280x720: console error 0、無水平 overflow、可見 `AI 顧問陪談` 與 `下一題計畫`。
-- Browser proof `/interview` mobile 390x844: console error 0、無水平 overflow、可見 `AI 顧問陪談` 與 `下一題計畫`。
+- Browser proof `/interview` desktop 1280x720: console error 0、無水平 overflow、可見 `AI 了解客戶` 與 `下一題計畫`。
+- Browser proof `/interview` mobile 390x844: console error 0、無水平 overflow、可見 `AI 了解客戶` 與 `下一題計畫`。
 - Browser interaction proof: 點擊開始陪談，送出合成回答「確定王大明是主要經濟支柱...不確定醫療險是否快到期」後，頁面顯示下一題計畫、why text、supporting memory IDs，且無 console error。
 
 ## 失敗與修正

@@ -16,7 +16,7 @@
 
 - 受邀保險顧問與少量通訊處可登入 private beta。
 - 顧問可管理客戶基本資料、家庭/保單摘要、訪談準備、AI output draft、報告分享。
-- 三個 AI 模組可作顧問輔助：`問誠問 AI`、`AI 顧問陪談`、`AI 劇場演練`。
+- 三個 AI 模組可作顧問輔助：`問誠問 AI`、`AI 了解客戶`、`AI 劇場演練`。
 - 通訊處主管只看 aggregate/coaching/unit/member health，不看客戶明細或逐字稿。
 - 客戶入口先採 token-scoped share / client portal，不承諾完整 client account。
 - 自助正式金流預設關閉；private beta 可採免費、人工合約或人工啟用方案。
