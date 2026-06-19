@@ -958,6 +958,212 @@ Context: 將兩個 AI 訪談（顧問陪談訪綱 A、劇場場域建構訪綱 B
 
 ---
 
+## Full-site BFF Architecture Batch Tasks
+
+Context: 將目前 partial vertical-slice BFF 推進成全站一致的 Backend-for-Frontend 架構。研究依據：`docs/07_research-and-design/RES-018_full-site-bff-architecture-research-v1.0.md`；架構規則：`docs/02_architecture-and-rules/ARC-008_full-site-bff-architecture-v1.0.md`；逐張任務卡：`docs/05_execution-plans/PLN-019_full-site-bff-batch-tasks-v1.0.md`；驗收：`docs/08_acceptance-and-qa/ACC-011_full-site-bff-acceptance-framework-v1.0.md`。本條只做**public/member/org/client/platform 五種 surface 的 BFF contract、DTO、權限邊界、資料來源收斂、AI/billing/audit proof**；不做 UI redesign、不任意改 SPIN 狀態機、不任意改 Theater legacy enum/scoring。
+
+### Current BFF Gaps
+- 已有 partial BFF：`/api/clients`、`/api/share/[token]`、`/api/client-portal/*`、`/api/org/*`、`/api/platform/*`、`/api/public/pricing` 與部分 `/api/ai/*`。
+- 尚未有全站資料來源盤點與 responsibility matrix；部分 production page/store/service 仍可能混用 local state、mock、static fixture 或 legacy fallback。
+- BFF route 命名、error/validation/sanitize helpers、DTO privacy、audit/usage proof 尚未形成一致規則。
+- Billing/ECPay production-grade BFF、public status/lead BFF、member dashboard/visit/report/issues BFF 仍待完整化。
+
+### Batch BFF-000 — 架構文件與 workstream 登錄
+- [x] 新增 `ARC-008_full-site-bff-architecture-v1.0.md`。
+- [x] 新增 `PLN-019_full-site-bff-batch-tasks-v1.0.md`。
+- [x] 新增 `ACC-011_full-site-bff-acceptance-framework-v1.0.md`。
+- [x] 更新 `RES-018` 下一步引用，避免與 realtime `ARC-007/PLN-018/ACC-010` 撞號。
+- [x] 更新 `AGENTS.md` 新 workstream，與 `PLN-019` 卡片狀態同步。
+- [x] 更新 `MAN-000` 文件數量與 `MAN-001` 文件索引。
+- [x] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+
+完成註記：2026-06-19 已新增 full-site BFF 架構、批次與驗收文件；因 realtime voice workstream 已使用 `ARC-007/PLN-018/ACC-010`，本 BFF workstream 使用 `ARC-008/PLN-019/ACC-011`。下一張最低未完成卡為 BFF-001。
+
+### Batch BFF-001 — 全站資料來源盤點與責任矩陣
+- [ ] 盤點所有 production route/page/component/domain service/store 的 business data source。
+- [ ] 標記 DB/BFF、server component query、mock API、Zustand local、static fixture、mixed mode。
+- [ ] 產出 `AUD-006_full-site-bff-data-source-inventory-v1.0.md`。
+- [ ] 建立 responsibility matrix：surface、UI route、BFF endpoint、session type、DTO、read/write、audit、QA script。
+- [ ] 新增或擴充 QA script，偵測 production page 直接 import `mocks.ts`、`seed-fixtures.ts` 或 browser storage business truth source。
+- [ ] 不改業務邏輯、不重寫 BFF route。
+- [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+
+### Batch BFF-002 — Shared API foundation
+- [ ] 建立共用 error/response/validation/sanitize helpers。
+- [ ] 新 route 使用 shared helpers；既有 route 只挑 2-3 條低風險 proof，不做全站機械重寫。
+- [ ] Private data response 設 no-store/cache-control；error response 不暴露 stack/env/secret/provider raw payload。
+- [ ] Share event、client response、audit metadata 使用 whitelist sanitizer。
+- [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+
+### Batch BFF-101 — Member dashboard BFF
+- [ ] 建立 `GET /api/member/dashboard`，回今日主線、下一步 CTA、compact KPI、task queue、recent activity、AI quota summary。
+- [ ] Server session 用 `requireCurrentMember()` 推導 org/user/unit。
+- [ ] Repository 聚合 client/visit/report/issue/AI usage，不讓 browser 串多條低階 API 自行拼資料。
+- [ ] `/dashboard` 改 BFF/cache-first；Zustand 只作 UI/cache。
+- [ ] Browser proof：desktop/mobile refresh/new context 後資料一致，console error 0、無水平 overflow。
+- [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+
+### Batch BFF-102 — Member settings BFF hardening
+- [ ] 檢查 `GET/PATCH /api/member/settings` 是否使用 current member scope。
+- [ ] DTO 明確分 profile、notification preferences、AI preferences、personal collaborator hints。
+- [ ] 不允許修改 org branding、billing、unit policy、client portal、org AI quota、compliance defaults。
+- [ ] API proof：member 200/patch 200；unauth 401；跨 member/org scope 無法指定。
+- [ ] Browser proof：refresh/new context persistence。
+- [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+
+### Batch BFF-103 — CRM BFF completion
+- [ ] 補齊 CRM 剩餘 read/write subresources：archive/update、family/policy/timeline/report/gap-analysis related-list。
+- [ ] 所有 writes 由 server session 推導 organization/owner/unit。
+- [ ] DTO 必須保留 `complianceChecklist`、`sensitivityLevel`、`kycStatus`。
+- [ ] Client store local write methods 改成 remote-confirmed cache update 或標註 dev-only。
+- [ ] API proof：401、403/404 foreign client、400 validation、200/201 success。
+- [ ] Browser proof：`/crm` 與 `/crm/[clientId]/*` refresh/new context。
+- [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+
+### Batch BFF-104 — Visit / pre-visit BFF
+- [ ] 建立 visit list/detail/create/update/notes BFF。
+- [ ] DTO 回準備包、checklist、source client summary、status、updatedAt，不回 raw prompt/provider payload。
+- [ ] `/pre-visit`、`/pre-visit/[planId]`、notes 頁改 BFF/cache-first。
+- [ ] 與 `/api/ai/visit` AI generation contract 分清。
+- [ ] API/browser proof 覆蓋 refresh/new context。
+- [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+
+### Batch BFF-105 — Reports / share action BFF
+- [ ] 建立 reports list/detail/update/share action BFF。
+- [ ] Report detail DTO 分 edit/share/preview mode，不把 public share DTO 與 member private DTO 混用。
+- [ ] Share action 寫 audit/event；public share 仍走 `/api/share/[token]`。
+- [ ] `/reports`、`/reports/[reportId]`、CRM report subpage 改 BFF/cache-first。
+- [ ] API/browser proof 覆蓋 invalid report、foreign org、success share。
+- [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+
+### Batch BFF-106 — Issues BFF
+- [ ] 建立 `GET /api/issues` 與 issue status/action endpoint。
+- [ ] DTO 區分 issue fact、AI inference、unknown，不把推論當事實。
+- [ ] `/issues` 改 BFF/cache-first。
+- [ ] API/browser proof 覆蓋 empty、forbidden、success、refresh。
+- [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+
+### Batch BFF-201 — AI BFF audit gate
+- [ ] 擴充或新增 `pnpm ai:bff-audit`，列出所有 `/api/ai/*`、`/api/rag` route。
+- [ ] 檢查每條 route 是否有 session/token scope、plan capability、quota guard、success/error `AiUsageLog`、input limit。
+- [ ] 產出或更新 `AUD-005_ai-usage-route-audit-v1.0.md`。
+- [ ] 不改 SPIN 狀態機、不改 Theater enum/scoring。
+- [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+
+### Batch BFF-202 — Visit / report AI hardening
+- [ ] `/api/ai/visit` 與 `/api/ai/report` 用 `requireCurrentMember()` 推導 org/user/unit/client/report scope。
+- [ ] `canUseAiModule()` 與 quota guard；quota blocked 不呼叫 provider、不寫假 usage。
+- [ ] Success/error path 都寫 `AiUsageLog`。
+- [ ] Response DTO 分 facts/inferences/unknowns/recommendations。
+- [ ] API proof：401、400、429、success、provider error。
+- [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+
+### Batch BFF-203 — SPIN AI hardening
+- [ ] `/api/ai/spin` 與 `/api/ai/spin-suggestions` session-scoped。
+- [ ] 保留 `SITUATION → PROBLEM → IMPLICATION → NEED_PAYOFF`。
+- [ ] Success/error path 都寫 `AiUsageLog`；quota/capability guard 完整。
+- [ ] API/browser proof 覆蓋 existing SPIN session flow。
+- [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+
+### Batch BFF-204 — Theater AI hardening
+- [ ] `/api/ai/theater` 與 `/api/ai/theater/score` session-scoped。
+- [ ] Success/error path 都寫 `AiUsageLog`；quota/capability guard 完整。
+- [ ] Legacy Theater 若未 Route B migration，維持 staging/demo gate，不宣稱 production-ready。
+- [ ] 不改 legacy enum/scoring 型別；Route B migration 另依 ITA。
+- [ ] API/browser proof 覆蓋 theater list/session basic flow。
+- [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+
+### Batch BFF-205 — Assistant / RAG / interview hardening
+- [ ] `/api/ai/chat`、`/api/ai/interview`、`/api/ai/interview/outputs` audit gap = 0。
+- [ ] `/api/rag` 若 disabled，回 guarded 503，不呼叫 provider、不寫假 usage。
+- [ ] Assistant conversation persistence 不含 secret/tool raw private payload。
+- [ ] Interview output DTO 分 fact/inference/unknown，保存 supporting evidence。
+- [ ] API proof：401、400、429/503、success、provider error。
+- [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+
+### Batch BFF-301 — Org BFF repository extraction and aggregate QA
+- [ ] 抽 `src/lib/org/*-repository.ts` 或整合既有 org repository。
+- [ ] `/api/org/overview`、coaching、AI usage 只保留 route protocol/session/response。
+- [ ] Manager unit scope 與 `canReadOrgAggregate()` 保留。
+- [ ] Sentinel QA 確認不回 client name/email/phone/report body/transcript/policy detail。
+- [ ] API/browser proof：manager aggregate 200、member 403、unauth 401。
+- [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+
+### Batch BFF-302 — Org writes audit and capability enforcement
+- [ ] Members/invites 套 max members/collaborators/seat limits。
+- [ ] Units 套 max units 與 hierarchy validation。
+- [ ] Settings writes 寫 `AuditLog`，保留 actor/resource/reason。
+- [ ] Manager read-only 或 limited-write policy 清楚。
+- [ ] API proof 覆蓋 forbidden、limit exceeded、audit created。
+- [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+
+### Batch BFF-303 — Client portal BFF completion
+- [ ] Share token session 支援 expiry/rotation/revocation。
+- [ ] `/api/client-portal/bootstrap` 僅回 authorized report/client-safe sections。
+- [ ] `/api/client-portal/responses` payload whitelist，支援補資料、提問、預約意向。
+- [ ] Client token 打 workspace/member/org/platform APIs 必須 401/403。
+- [ ] Browser/API proof 覆蓋 authorized/invalid/expired/revoked。
+- [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+
+### Batch BFF-304 — Platform BFF completion
+- [ ] Platform session 與 app session 分離 proof。
+- [ ] Organizations/AI usage/audit logs 預設 metadata/aggregate。
+- [ ] Impersonation/break-glass 必填 reason、scope、expiry、actor/target。
+- [ ] Sensitive read 每次寫 `AuditLog`，且 response 可回報 proof id。
+- [ ] Release readiness 聚合 auth、AI、billing、monitoring、backup、BFF gates。
+- [ ] API proof 覆蓋 app session rejected、platform success、break-glass audit。
+- [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+
+### Batch BFF-305 — Public BFF completion
+- [ ] `/api/public/pricing` 補 cache/fallback policy 與 DB consistency proof。
+- [ ] 新增 `/api/public/status`，回 maintenance、checkout availability、AI availability。
+- [ ] 新增 `/api/public/lead` 或明確延後，若實作需 rate limit、spam protection、consent version。
+- [ ] Landing/pricing CTA 不以 hardcoded frontend copy 判斷 checkout availability。
+- [ ] Public BFF 不回 private plan cost、secret、provider raw config。
+- [ ] Browser/API proof 覆蓋 pricing/status/CTA。
+- [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+
+### Batch BFF-401 — ECPay checkout BFF
+- [ ] 建立 `/api/billing/checkout`，server-side 產生 ECPay payload 與 CheckMacValue。
+- [ ] Browser 只收到導轉必要資料，不接觸 HashKey/HashIV。
+- [ ] Checkout request 寫 pending order/transaction。
+- [ ] Production credentials/callback domain 未獲 approval 時只能 test/sandbox 或 disabled posture。
+- [ ] API proof：unauth 401、invalid plan 400、disabled 503 或 sandbox 200。
+- [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+
+### Batch BFF-402 — ECPay notification / query / idempotency
+- [ ] 建立 `/api/billing/ecpay/notify`，驗證 CheckMacValue。
+- [ ] 建立 `/api/billing/ecpay/query` server-to-server confirmation。
+- [ ] Return/OrderResult URL 只顯示 pending/received，不直接啟用 plan。
+- [ ] Transaction ledger idempotency：同交易重送不重複啟用。
+- [ ] API proof 覆蓋 invalid CheckMacValue、duplicate notify、query confirmed。
+- [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+
+### Batch BFF-403 — Subscription capability BFF
+- [ ] 建立 `/api/billing/subscription` 或 `/api/org/billing`。
+- [ ] DTO 包含 current plan、capability、quota、seat/collaborator/unit usage、checkout status。
+- [ ] Plan activation 只由 confirmed transaction/query 控制。
+- [ ] Workspace bootstrap 與 org/member UI 使用 server capability，不使用 hardcoded plan assumptions。
+- [ ] API/browser proof 覆蓋 plan change persistence。
+- [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+
+### Batch BFF-404 — Release readiness BFF gate
+- [ ] `/api/platform/release-readiness` 納入 BFF inventory、AI usage audit、billing proof、cross-role sentinel、monitoring、backup/rollback。
+- [ ] 新增 `pnpm bff:release-readiness-qa` 或整合既有 full smoke。
+- [ ] Full smoke 覆蓋 public、member、org、client portal、platform。
+- [ ] Report 註明剩餘 blockers，不把 mock success 寫成 production success。
+- [ ] 更新 `AGENTS.md`、`PLN-019`、必要 report / issue-question。
+- [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`、必要 Browser QA。
+
+### Current BFF Blockers
+- ECPay production credentials、HashKey/HashIV、callback domain、server notification/query proof 需要 operator approval。
+- Production auth provider/email/SSO、platform MFA、client-user OTP 仍需 operator/product 決策。
+- 若 BFF tasks 改 route/layout/server action/cookies/session 行為，先讀 `node_modules/next/dist/docs/` 對應 Next.js 版本文件。
+- Production DB destructive operation、drop/reset/delete remote data 仍需明確 approval。
+
+---
+
+
 ## 文件慣例（新增任何規劃/設計/報告/驗收文件時）
 
 - docs 採「分類資料夾 + 類型前綴流水號」：`<TYPE>-<NNN>_<kebab-slug>.md`。規則見 `docs/00_manual-and-index/MAN-000_docs-usage-manual.md`。

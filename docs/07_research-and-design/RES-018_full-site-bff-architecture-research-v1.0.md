@@ -1,7 +1,7 @@
 # 誠問 AI Full-site BFF Architecture Research v1.0
 
 > 建立日期：2026-06-19  
-> 狀態：研究定稿，供制定 `ARC-007` / `PLN-018` 或 Launch Readiness 後續 batch 使用  
+> 狀態：研究定稿，已轉為 `ARC-008` / `PLN-019` / `ACC-011` 可執行文件  
 > 問題：若誠問 AI 要從目前的 partial vertical-slice BFF 推進到全站 BFF，參考 Netflix / BFF 架構精神，需要實作哪些項目？
 
 ---
@@ -433,7 +433,6 @@ Full-site BFF 可以宣告完成時，至少要通過：
 
 下一份文件建議直接產出：
 
-- `ARC-007_full-site-bff-architecture-v1.0.md`：架構規則、目錄 convention、surface ownership、DTO/error/auth contract。
-- `PLN-018_full-site-bff-batch-tasks-v1.0.md`：把本研究第 6 節拆成可勾選 batch cards。
-- `ACC-010_full-site-bff-acceptance-framework-v1.0.md`：cross-role、private leakage、AI usage、billing、browser persistence 驗收框架。
-
+- `ARC-008_full-site-bff-architecture-v1.0.md`：架構規則、目錄 convention、surface ownership、DTO/error/auth contract。
+- `PLN-019_full-site-bff-batch-tasks-v1.0.md`：把本研究第 6 節拆成可勾選 batch cards。
+- `ACC-011_full-site-bff-acceptance-framework-v1.0.md`：cross-role、private leakage、AI usage、billing、browser persistence 驗收框架。
