@@ -22,7 +22,8 @@
     "preferMinimalOperableInterfaceOverMarketingSurface": true,
     "preferVisibleReasoningTraceWithoutExposingPrivateRawPayload": true,
     "preferCrossSurfaceFlowOverIsolatedPagePolish": true,
-    "preferAIInterviewAsCreationAndRefinementEntry": true
+    "preferAIInterviewAsCreationAndRefinementEntry": true,
+    "allowResearchBackedPrevisitInterfaceRestructure": true
   },
   "priorityWorkstreams": [
     "PIM: Realtime Voice / Park-style Memory Interview",
@@ -63,11 +64,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 2,
+    "normalLoopsSinceLastWholeProductReview": 3,
     "lastWholeProductReviewAt": null,
     "lastWholeProductReviewReport": null,
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "Continue `lv3-previsit-to-theater-stage` by wiring the pre-visit preparation package UI/BFF launch path to `/theater/build` using the new visit-theater handoff contract, or score it against `lv3-client-to-relationship-graph` if source ownership/browser proof is safer next loop.",
+    "nextRecommendedImplementationSlice": "Continue with either (1) a BFF-backed `visitPlanId` handoff on `/theater/build` so the stage can read the exact preparation package server-side, or (2) `lv3-client-to-relationship-graph` if the next loop should strengthen the upstream client -> relationship graph source before more theater UI.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {
