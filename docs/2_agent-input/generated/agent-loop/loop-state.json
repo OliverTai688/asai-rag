@@ -121,7 +121,11 @@
   },
   "gitPolicy": {
     "branchPrefix": "codex/",
-    "commitAndPushEachLoop": true,
+    "commitEachLoop": true,
+    "pushEachLoop": false,
+    "commitAndPushEachLoop": false,
+    "pushPausedByUserInstructionAt": "2026-06-20",
+    "pushHoldReason": "User requested: 先不用 git push. Automation loops should still validate, stage, and commit locally, then report push skipped by user instruction.",
     "doNotStageUnrelatedChanges": true,
     "doNotMergeToMainAutomatically": true
   },

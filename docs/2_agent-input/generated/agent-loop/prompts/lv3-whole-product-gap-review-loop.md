@@ -83,7 +83,9 @@ Task:
    like `YYYY-MM-DD_lv3-whole-product-gap-review.md`.
 6. Run `git diff --check`. If docs/source changed, still run `pnpm exec tsc --noEmit --pretty false`
    and `pnpm lint:changed` unless a clear environment blocker prevents them.
-7. Stage only this review's related files, commit, and push the current branch.
+7. Stage only this review's related files and commit locally. Do not push while the 2026-06-20 user
+   instruction "先不用 git push" is active. In the report and final response, write `push skipped by
+   user instruction`. Resume pushing only after the user explicitly restores push.
 
 Constraints:
 
@@ -103,4 +105,5 @@ Final response must include:
 - Docs created/updated.
 - Validation commands and pass/fail.
 - Updated next implementation slice.
-- Git status summary, commit hash, and push target, or exact commit/push blocker.
+- Git status summary, commit hash, and push target; while push is paused, write `push skipped by user
+  instruction`. If commit fails, include the exact commit blocker.

@@ -116,7 +116,10 @@ Task:
 12. Write a concise report under `docs/2_agent-input/generated/agent-loop/reports/`.
 13. Update `docs/2_agent-input/generated/agent-loop/issue-question.md` only for real decisions,
     approvals, sessions, seed data, env, or external-service blockers.
-14. Stage only this loop's related files, commit with a clear message, and push the current branch.
+14. Stage only this loop's related files and commit locally with a clear message. Do not push while
+    the 2026-06-20 user instruction "先不用 git push" is active. In the report and final response,
+    write `push skipped by user instruction` instead of a push target. Resume pushing only after the
+    user explicitly restores push.
 
 Stop immediately and report if:
 
@@ -133,6 +136,7 @@ Final response must include:
 - Files changed and evidence/report paths.
 - Commands run and exact pass/fail result.
 - DB/Prisma operations and target, if any.
-- Git status summary, commit hash, and push target, or the exact reason commit/push failed.
+- Git status summary, commit hash, and push target; while push is paused, write `push skipped by user
+  instruction`. If commit fails, include the exact commit blocker.
 - Remaining blocker type: source, operator/environment, product decision, or production approval.
 - Recommended next prompt for the following automation loop.
