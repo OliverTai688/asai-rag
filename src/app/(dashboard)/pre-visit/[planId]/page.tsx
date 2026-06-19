@@ -32,11 +32,15 @@ import {
   demoQuickstart,
   getQuickstartVisitFixture,
 } from "@/domains/demo/quickstart";
+import { resolveClientFromList, resolveClientIdAlias } from "@/domains/client/id-aliases";
+import { clientService } from "@/domains/client/service";
 import { useClientStore } from "@/domains/client/store";
 import { useVisitStore } from "@/domains/visit/store";
 import type {
   ObjectionHandling,
   SpinQuestion,
+  VisitMaterial,
+  VisitObjective,
   VisitPurpose,
 } from "@/domains/visit/types";
 import { cn } from "@/lib/utils";
@@ -63,8 +67,64 @@ const TIMELINE_SEGMENTS = [
   { label: "收斂下一步", minutes: 15 },
 ];
 
+type VisitGenerationPayload = {
+  objectives: VisitObjective[];
+  spinQuestions: SpinQuestion[];
+  objections: ObjectionHandling[];
+  materials: VisitMaterial[];
+};
+
 function normalizeParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function getApiErrorCode(payload: unknown) {
+  if (!isRecord(payload) || typeof payload.error !== "string") {
+    return null;
+  }
+
+  return payload.error;
+}
+
+function getVisitGenerationErrorMessage(status: number, payload: unknown) {
+  const code = getApiErrorCode(payload);
+
+  if (code === "UNAUTHENTICATED") {
+    return "登入狀態已失效，請重新登入後再生成準備包。";
+  }
+
+  if (code === "CLIENT_NOT_FOUND") {
+    return "找不到這位客戶的資料，請從客戶管理重新開啟或重新建立拜訪規劃。";
+  }
+
+  if (code === "OPENAI_API_KEY is not configured") {
+    return "AI key 尚未設定，請先補上 OpenAI API key。";
+  }
+
+  if (code === "VISIT_AI_SCHEMA_MISMATCH" || code === "VISIT_AI_INVALID_JSON" || code === "VISIT_AI_EMPTY_RESPONSE") {
+    return "AI 回應格式不完整，請重新生成一次。";
+  }
+
+  if (code === "VISIT_AI_GENERATION_FAILED") {
+    return "AI 服務暫時無法完成準備包，請稍後再試。";
+  }
+
+  return `目前無法生成準備包。錯誤代碼：${code ?? status}`;
+}
+
+function isVisitGenerationPayload(value: unknown): value is VisitGenerationPayload {
+  if (!isRecord(value)) return false;
+
+  return (
+    Array.isArray(value.objectives) &&
+    Array.isArray(value.spinQuestions) &&
+    Array.isArray(value.objections) &&
+    Array.isArray(value.materials)
+  );
 }
 
 export default function VisitPlanDetailPage() {
@@ -82,7 +142,8 @@ function VisitPlanDetailContent() {
   const updatePlan = useVisitStore((state) => state.updatePlan);
   const planId = normalizeParam(params.planId);
   const plan = useVisitStore((state) => state.plans.find((p) => p.id === planId));
-  const client = useClientStore((state) => state.clients.find((c) => c.id === plan?.clientId));
+  const clients = useClientStore((state) => state.clients);
+  const client = plan ? resolveClientFromList(clients, plan.clientId) : undefined;
   const isQuickstart = searchParams.get("demo") === "quickstart";
   const seededRef = useRef(false);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -110,6 +171,14 @@ function VisitPlanDetailContent() {
     });
   }, [isQuickstart, plan, updatePlan]);
 
+  useEffect(() => {
+    if (isQuickstart) return;
+
+    void clientService.fetchClients().catch((error: unknown) => {
+      console.error("Pre-visit client refresh failed", error);
+    });
+  }, [isQuickstart]);
+
   if (!plan || !client) {
     return <PlanMissingState onBack={() => router.push("/pre-visit")} />;
   }
@@ -123,7 +192,8 @@ function VisitPlanDetailContent() {
   const isReady = plan.status === "READY" && readyCount >= 3;
   const checkedMaterials = plan.materials.filter((material) => material.checked).length;
   const totalMinutes = TIMELINE_SEGMENTS.reduce((sum, segment) => sum + segment.minutes, 0);
-  const nextHref = `/spin?clientId=${plan.clientId}&autoCreate=true${isQuickstart ? "&demo=quickstart" : ""}`;
+  const apiClientId = resolveClientIdAlias(plan.clientId);
+  const nextHref = `/spin?clientId=${apiClientId}&autoCreate=true${isQuickstart ? "&demo=quickstart" : ""}`;
 
   const applyQuickstartFixture = () => {
     const fixture = getQuickstartVisitFixture();
@@ -151,15 +221,21 @@ function VisitPlanDetailContent() {
       const response = await fetch("/api/ai/visit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ purpose: plan.purpose, clientId: client.id }),
+        body: JSON.stringify({ purpose: plan.purpose, clientId: apiClientId }),
       });
+      const payload = await response.json().catch(() => null) as unknown;
 
       if (!response.ok) {
-        throw new Error("visit generation failed");
+        throw new Error(getVisitGenerationErrorMessage(response.status, payload));
       }
 
-      const generatedData = await response.json();
+      if (!isVisitGenerationPayload(payload)) {
+        throw new Error("AI 回應格式不完整，請重新生成一次。");
+      }
+
+      const generatedData = payload;
       updatePlan(plan.id, {
+        clientId: apiClientId,
         objectives: generatedData.objectives,
         spinQuestions: generatedData.spinQuestions,
         objections: generatedData.objections,
@@ -169,8 +245,9 @@ function VisitPlanDetailContent() {
       toast.success("拜訪準備包已生成");
     } catch (error) {
       console.error("AI visit generation failed", error);
-      setGenerationError("目前無法生成準備包。請確認 AI key 或稍後重試。");
-      toast.error("準備包生成失敗");
+      const message = error instanceof Error ? error.message : "目前無法生成準備包。請稍後重試。";
+      setGenerationError(message);
+      toast.error("準備包生成失敗", { description: message });
     } finally {
       setIsGenerating(false);
     }

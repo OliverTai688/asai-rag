@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -8,6 +8,7 @@ import {
   ChevronRight,
   Clock,
   ListFilter,
+  Loader2,
   Plus,
   Search,
   User,
@@ -35,6 +36,8 @@ import {
 import { SpotlightTour } from "@/components/demo/spotlight-tour";
 import { demoQuickstart, getQuickstartStep } from "@/domains/demo/quickstart";
 import { previsitTourSteps } from "@/domains/demo/tour-steps";
+import { resolveClientFromList } from "@/domains/client/id-aliases";
+import { clientService } from "@/domains/client/service";
 import { useClientStore } from "@/domains/client/store";
 import { type Client } from "@/domains/client/types";
 import { useVisitStore } from "@/domains/visit/store";
@@ -77,8 +80,12 @@ function PreVisitListContent() {
   const isQuickstart = searchParams.get("demo") === "quickstart";
   const { plans, createEmptyPlan } = useVisitStore();
   const { clients } = useClientStore();
+  const autoCreatedRef = useRef(false);
+  const preselectedClientParamRef = useRef<string | null>(null);
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isLoadingClients, setIsLoadingClients] = useState(!isQuickstart);
+  const [clientLoadError, setClientLoadError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("ALL");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
   const [sortMode, setSortMode] = useState<SortMode>("TIME_ASC");
@@ -96,21 +103,71 @@ function PreVisitListContent() {
   const selectedClient = clients.find((client) => client.id === selectedClientId);
 
   useEffect(() => {
-    const autoCreate = searchParams.get("autoCreate");
-    const clientId = searchParams.get("clientId");
+    if (isQuickstart) return;
 
-    if (autoCreate === "true" && clientId) {
-      const planId = createEmptyPlan(clientId, "FIRST_VISIT");
-      router.replace(`/pre-visit/${planId}${isQuickstart ? "?demo=quickstart" : ""}`);
+    let cancelled = false;
+
+    async function loadClients() {
+      try {
+        setIsLoadingClients(true);
+        setClientLoadError(null);
+        await clientService.fetchClients();
+      } catch (error) {
+        if (!cancelled) {
+          setClientLoadError(error instanceof Error ? error.message : "CLIENT_LOAD_FAILED");
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoadingClients(false);
+        }
+      }
     }
-  }, [searchParams, createEmptyPlan, router, isQuickstart]);
+
+    void loadClients();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isQuickstart]);
+
+  useEffect(() => {
+    const requestedClientId = searchParams.get("clientId");
+
+    if (isQuickstart || !requestedClientId || requestedClientId === preselectedClientParamRef.current) {
+      return;
+    }
+
+    const resolvedClient = resolveClientFromList(clients, requestedClientId);
+
+    if (!resolvedClient) return;
+
+    preselectedClientParamRef.current = requestedClientId;
+    queueMicrotask(() => setNewPlanClientId(resolvedClient.id));
+  }, [clients, isQuickstart, searchParams]);
+
+  useEffect(() => {
+    const autoCreate = searchParams.get("autoCreate");
+    const requestedClientId = searchParams.get("clientId");
+
+    if (autoCreatedRef.current || autoCreate !== "true" || !requestedClientId) {
+      return;
+    }
+
+    const resolvedClient = resolveClientFromList(clients, requestedClientId);
+
+    if (!resolvedClient) return;
+
+    autoCreatedRef.current = true;
+    const planId = createEmptyPlan(resolvedClient.id, "FIRST_VISIT");
+    router.replace(`/pre-visit/${planId}${isQuickstart ? "?demo=quickstart" : ""}`);
+  }, [clients, createEmptyPlan, isQuickstart, router, searchParams]);
 
   const planRows = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
 
     return [...plans]
       .filter((plan) => {
-        const client = clients.find((candidate) => candidate.id === plan.clientId);
+        const client = resolveClientFromList(clients, plan.clientId);
         const matchesStatus = statusFilter === "ALL" || plan.status === statusFilter;
         const matchesView =
           viewMode === "ALL" ||
@@ -161,6 +218,14 @@ function PreVisitListContent() {
         onStart={handleCreatePlan}
       />
     );
+  }
+
+  if (isLoadingClients) {
+    return <PreVisitLoadingState />;
+  }
+
+  if (clientLoadError) {
+    return <PreVisitClientLoadError error={clientLoadError} />;
   }
 
   return (
@@ -504,6 +569,28 @@ function EmptyPlansState({ onCreate }: { onCreate: () => void }) {
   );
 }
 
+function PreVisitLoadingState() {
+  return (
+    <div className="flex min-h-[360px] flex-col items-center justify-center rounded-lg border border-hairline bg-card px-6 text-center">
+      <Loader2 className="mb-4 h-7 w-7 animate-spin text-muted-foreground" />
+      <p className="text-sm font-semibold text-foreground">正在同步客戶資料</p>
+      <p className="mt-1 text-sm text-muted-foreground">準備可生成 AI 準備包的客戶清單。</p>
+    </div>
+  );
+}
+
+function PreVisitClientLoadError({ error }: { error: string }) {
+  return (
+    <div className="rounded-lg border border-dashed border-hairline bg-card px-5 py-20 text-center">
+      <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-md border border-hairline bg-paper-2 text-muted-foreground">
+        <CalendarDays className="h-6 w-6" strokeWidth={1.5} />
+      </div>
+      <h2 className="text-base font-semibold text-foreground">無法同步客戶資料</h2>
+      <p className="mt-2 text-sm text-muted-foreground">請確認登入狀態後重新整理。錯誤代碼：{error}</p>
+    </div>
+  );
+}
+
 function QuickstartPreVisitStart({
   clientName,
   occupation,
@@ -570,7 +657,7 @@ function QuickstartPreVisitStart({
 }
 
 function getClientName(clients: Client[], id: string) {
-  return clients.find((client) => client.id === id)?.name || "未知客戶";
+  return resolveClientFromList(clients, id)?.name || "未知客戶";
 }
 
 function getNextStep(plan: VisitPlan) {
