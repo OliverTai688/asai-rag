@@ -69,14 +69,17 @@
 `ITA-003f/S1` 若只做 no-provider stage map，完成前必須額外滿足：
 
 - [ ] `/theater/[sessionId]` 先以 persisted Route B session DTO 渲染焦點客戶與 NPC（NPC <= 4），不使用 mock success 取代正式資料來源。
+- [ ] Stage map person/edge model 由 `characters`、Route B `scene/sourceMetadata`、stored turns、relationship evidence 與 `sceneState.statePatches` 推導；不讀 legacy Theater store 或 client-provided org/member/client scope 作 business truth。
 - [ ] 每個 stage person 顯示簡要角色/狀態，以及 `fact` / `inference` / `unknown` 或等價來源標籤；缺口顯示為待確認，不得補造收入、職位、家庭、保單、病史或資產。
 - [ ] 關係邊或關係摘要顯示 evidence label，能追到準備包、訪談、關係圖或 Route B source metadata，但不暴露 raw private transcript / raw provider payload。
 - [ ] 點人物可切換或建立對該人的 private lane；group/private visibility badge 清楚可辨，私聊內容不自動外洩到群聊。
 - [ ] active speaker 與 addressee 在 stage map 上可辨識；沒有 AI runtime 時仍可用 deterministic advisor turn / stored turn 呈現。
+- [ ] 旁白補問與人物狀態 proposal 可在 stage map 上操作或明確可抵達；不得要求顧問輸入 raw session/person id 作主要流程。
 - [ ] 人物狀態更新只作 stage proposal，固定標示 `requiresConfirmation=true`、`writesConfirmedCrmFact=false`，不寫 confirmed CRM fact。
 - [ ] S1 不呼叫 provider；proof 必須明確顯示 `providerCallAttempted=false`、`AiUsageLog` count 不變，不能假造 success usage。
 - [ ] 權限 proof 覆蓋 member owner read 200、manager/non-owner read 404；response/page 不含 private sentinel。
 - [ ] Desktop/mobile 無水平 overflow，mobile 輸入區不遮擋 stage map 主要操作。
+- [ ] 若 Supabase DB/DNS 無法連線，僅可提交 proof-plan、fixture/source contract 或 blocked report；不得把 fixture 當作 DB-backed browser proof。
 
 ---
 
