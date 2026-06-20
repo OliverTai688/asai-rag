@@ -287,6 +287,8 @@ Whole-product review note（2026-06-20 after PIM-011）：第五輪校準確認 
 
 完成註記（2026-06-21 PIM-011b）：新增 `/api/ai/interview/quick-captures`、`createPersistentQuickCaptureBridge()`、`scripts/interview-quick-capture-bff-qa.mjs` 與 `pnpm interview:quick-capture-bff-qa`，並把 route 加入 `scripts/ai-usage-route-audit.mjs` deterministic no-provider manifest。Proof 覆蓋 unauth 401、member owner 201、high-sensitive client 缺 approval 409 且不落 session/turn/memory、approved response 不 echo raw note text、server session scope 覆蓋 rogue `clientProvidedScope`、snapshot refresh/new-context 讀回 persisted memory、turn content 僅存 quick-capture anchor、manager read/write 404、unknown 產生 narrator question + state proposal、inference 產生 state proposal 且 CRM candidate = 0、secret/raw payload 409 且不落地、`AiUsageLog` 147->147。尚未完成：正式 UI selector、`/pre-visit/[id]/notes` 與 meeting workspace 接入。
 
+Whole-product review note（2026-06-21 after PIM-011b）：第五輪校準後，下一個建議 implementation/proof slice 是 `PIM-011c quick-capture UI selector bridge`。本 slice 不新增 schema、不接 provider、不採用未追蹤 AMM prototype；先在 committed baseline 補 advisor-facing UI：`/pre-visit/[planId]/notes` 或等價 current-workspace entry 自動帶入 visit/client context，顧問只需選「保持私人草稿 / 歸客戶 / 歸拜訪 / 轉待確認」與必要 reason/riskAccepted，送到 `/api/ai/interview/quick-captures`。驗收需含 desktop/mobile browser proof、no raw ID primary workflow、high-sensitive approval gate、response no private sentinel/raw note echo、`AiUsageLog` unchanged。
+
 Quiet five-frame proof-plan note（2026-06-20 PIM-011b）：本輪未新增 source，因 Supabase DB/DNS 仍無法解析，改把 PIM-011a 後續 BFF/API proof 缺口收斂成可交接驗收計畫。下一個可實作切片必須符合以下五個視框，否則不得把 PIM-011 宣告為正式 BFF/API proof 完成：
 
 1. Advisor workflow / onboarding：quick-capture 的第一步只要求顧問選「保持私人草稿 / 歸客戶 / 歸拜訪 / 轉待確認」。正式 UI 應使用 selector 或 current workspace context，不要求顧問輸入 raw client/visit/session ID。

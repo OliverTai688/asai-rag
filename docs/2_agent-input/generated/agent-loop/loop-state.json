@@ -71,11 +71,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 4,
+    "normalLoopsSinceLastWholeProductReview": 0,
     "lastWholeProductReviewAt": "2026-06-21",
-    "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-21_lv3-whole-product-gap-review-db-blocker-build-fallback.md",
+    "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-21_lv3-whole-product-gap-review-pim-ui-nap-routeb.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "Normal PIM-011 BFF/API quick-capture -> Park memory bridge proof completed on 2026-06-21: /api/ai/interview/quick-captures now persists server-scoped quick captures into existing InterviewSession/InterviewTurn/InterviewMemory without schema change or provider call; DEMO_QA_BASE_URL=http://localhost:3000 pnpm interview:quick-capture-bff-qa proves owner 201/readback, manager read/write 404, high-sensitive client gate, secret/raw payload block, response no private sentinel, raw note not echoed, unknown/inference theater handoff, and AiUsageLog unchanged 147->147. Cadence is now 4 normal loops since the last whole-product review, so the next loop should run lv3-whole-product-gap-review-loop.md before selecting another implementation slice.",
+    "nextRecommendedImplementationSlice": "Whole-product review completed on 2026-06-21 after PIM-011b. Next highest-leverage implementation slice is PIM-011c quick-capture UI selector bridge: wire /pre-visit/[planId]/notes or equivalent current-workspace entry to /api/ai/interview/quick-captures, keep the advisor flow to selector choices (private draft / client / visit / follow-up review) instead of raw IDs, prove high-sensitive approval gate, no raw note/private sentinel echo, desktop/mobile no-overflow, and AiUsageLog unchanged. Secondary gap is NAP-001 AI module inventory / NANDA mapping; provider-bound ITA-003g Route B runtime should wait for explicit provider approval or be implemented as guarded-disabled preflight proof.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {
