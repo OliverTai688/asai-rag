@@ -71,11 +71,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 1,
+    "normalLoopsSinceLastWholeProductReview": 2,
     "lastWholeProductReviewAt": "2026-06-21",
     "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-21_lv3-whole-product-gap-review-nap-routeb-runtime.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "ITA-003g Route B guarded runtime preflight completed on 2026-06-21: /api/theater/route-b/runtime now validates DIRECTOR/CHARACTER/FEEDBACK preflight contracts before provider gating, returns source-aligned runtimeInputPreview DTOs, keeps providerCallAttempted=false and aiUsageLogWritten=false while disabled, and aligns asai.theater.route_b manifest actions/DTO refs. Next safe no-provider slice: NAP-003 per-AI source adoption/alignment for remaining AI modules. If operator explicitly approves live Route B provider usage, switch to provider success/error AiUsageLog proof instead.",
+    "nextRecommendedImplementationSlice": "Quiet NAP-003 source adoption gap-research completed on 2026-06-21: AUD-008 now contains a six-frame NAP-003 source adoption matrix for all 11 AI modules, with source owners, current proof, adoption gaps, smallest next slice, proof commands, and blocker type. Next safe implementation/proof slice: NAP-003a provider-ready AI source adoption for CHAT / VISIT / REPORT / SPIN, no provider calls, preserving SPIN state machine and internal-only registry posture. If operator explicitly approves live Route B provider usage, that remains an alternate but not the default heartbeat continuation slice.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {

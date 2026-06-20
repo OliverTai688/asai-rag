@@ -1544,6 +1544,7 @@ Context: 將誠問 AI 內所有 AI 能力逐步對齊 MIT Project NANDA / AgentF
 - NAP-002 已建立 `AgentProtocolManifest` source schema、11 個 internal-only manifest 與 `pnpm ai:protocol-registry-qa`；多數正式 AI route 已有 session/quota/`AiUsageLog` 或 deterministic no-provider proof。
 - NAP-004 已建立 platform-only internal registry readiness reader、least-disclosure API 與 release-readiness projection；platform user 可讀、member app session 403，且所有 agent 仍為 `internal-only`。
 - ITA-003g 已補 `asai.theater.route_b` manifest source alignment：runtime preflight capability、director/character/feedback actions、`RouteBRuntimeInputPreview` DTO refs、guarded-disabled provider posture、visibility-safe history 與 success/error `AiUsageLog` plan 已有 source/API proof；legacy Theater 與其他 AI modules 仍待 NAP-003 完整對齊。
+- Quiet NAP-003 gap research（2026-06-21）：`AUD-008` 已新增 NAP-003 source adoption matrix，用六視框把 11 個 AI module 拆成 source owner、目前 proof、adoption gap、下一個最小 slice、proof command 與 blocker。下一輪建議不要一次掃完所有 AI，先做 `NAP-003a provider-ready AI source adoption`，對齊 CHAT / VISIT / REPORT / SPIN 的 source-owner proof、DTO/evidence boundary、quota/`AiUsageLog` posture，且不呼叫 provider、不改 SPIN 狀態機。
 - 缺口轉為 NAP-003 的 per-AI source alignment / readiness adoption，以及 NAP-005 local-only adapter/export dry-run。
 - NANDA / AgentFacts 對外 registry publication、signing、public discovery endpoint、cross-org agent access 都需 operator approval；目前只允許 internal manifest / adapter proof。
 
