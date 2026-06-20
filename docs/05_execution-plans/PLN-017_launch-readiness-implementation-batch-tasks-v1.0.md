@@ -263,6 +263,8 @@
 
 Whole-product review note（2026-06-21）：若 Supabase DB/DNS 仍阻擋 `ITA-003f/S1`、`BFF-103d` 與 `PIM-011` 這類 DB-backed LV3 proof，`LCH-009` 的最高安全 fallback 是 production build font blocker。下一輪若選此 fallback，需先讀 `node_modules/next/dist/docs/` 中與 Next 16 fonts/build 相關文件，修復目前 `next/font/google` / Turbopack Google font path build blocker（優先 local/self-hosted font 或官方支援設定），並以 `pnpm build` 通過作 release-proof；這不得被宣稱為 theater/source proof，也不得 stage unrelated AMM/notes prototype files。
 
+LCH-009 proof note（2026-06-21）：本輪依 no-DB fallback 先讀 Next 16 bundled docs：`01-app/01-getting-started/13-fonts.md`、`01-app/02-guides/production-checklist.md`、`01-app/03-api-reference/08-turbopack.md`。Baseline `pnpm build` 在目前 worktree 已完整通過（Prisma generate、Next production compile、TypeScript、static page generation 全部完成），因此未改 `src/app/layout.tsx` 或 font source，避免替已恢復的 blocker 引入新風險。此 proof 只代表 current worktree production build blocker resolved；不代表 DB-backed LV3 theater/source proof 已恢復。
+
 範圍外：不宣稱 full public production，除非 LCH-001-LCH-008 與 operator blockers 全部解除。
 
 ---
@@ -270,7 +272,7 @@ Whole-product review note（2026-06-21）：若 Supabase DB/DNS 仍阻擋 `ITA-0
 ## Current Launch Blockers
 
 - Auth provider 已改採 Auth.js / NextAuth；production 仍需 `AUTH_SECRET`、正式 provider/email/SSO 與 callback URL。
-- Production build 目前仍有 Next/Turbopack Google font path blocker；DB 仍不可用時，這是 `LCH-009` 的 no-DB release-hardening fallback，需以官方 Next 16 bundled docs + `pnpm build` proof 收斂。
+- Production build font/Turbopack blocker 已於 2026-06-21 以官方 Next 16 bundled docs + `pnpm build` proof 收斂；若後續重新失敗，再以 local/self-hosted font 或官方支援設定處理。
 - `/api/rag` 已是 guarded disabled posture；若要 public RAG launch，仍需正式 provider/vector path 與 success/error `AiUsageLog`。
 - Theater Route B 尚未 migration；若用 legacy Theater，只能標 staging demo。
 - ECPay credentials、callback domain、CheckMacValue、notification/query API、refund/void process 尚未完成。

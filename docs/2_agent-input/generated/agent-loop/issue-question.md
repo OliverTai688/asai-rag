@@ -58,12 +58,12 @@ Last updated: 2026-06-21
 
 ## Operator 手動處理
 
-- Build blocker：`pnpm build` 目前卡在 Next/Turbopack Google Font path（`[next]/internal/font/google/*` / `@vercel/turbopack-next/internal/font/google/font`）。需另輪先讀 `node_modules/next/dist/docs/` 相關 Next 16 fonts/build 文件，處理自託管/local font 或官方支援設定後重跑 production build；DB/DNS 未恢復時，這是目前最適合的 no-DB release-hardening fallback。
+- 2026-06-21 resolved: 先前記錄的 Next/Turbopack Google Font production build blocker 已以本輪 LCH-009 proof 收斂。已讀 `node_modules/next/dist/docs/01-app/01-getting-started/13-fonts.md`、`01-app/02-guides/production-checklist.md`、`01-app/03-api-reference/08-turbopack.md`，並重跑 `pnpm build` 完整通過；目前不需要 operator 針對 font path 做人工決策。若後續 build 再回歸失敗，再依 Next 16 bundled docs 處理 local/self-hosted font fallback。
 
 ## Session / Seed Data / Env / External Service
 
 - 2026-06-20 blocker: BFF-103d related-list targeted proof 被 Supabase DB DNS/connection 中斷阻擋。初次 `pnpm bff:crm-related-lists-qa` 已完成 partial proof：unauth 401、member client/family/policy/visit/report create 201、related-lists 200、manager 403、policies/timeline desktop screenshots；後續 browser gap-analysis proof 時 Prisma pool 失敗 `EHOSTUNREACH/P1001`，重跑時 direct DNS 解析 `db.wwocdcicvpmbdmqvskzi.supabase.co` 回 `ENOTFOUND`，`/api/clients` 也回 500。待 Supabase DNS/DB 恢復後，重跑 `DEMO_QA_BASE_URL=http://localhost:3029 pnpm bff:crm-related-lists-qa` 補 full API/browser/AiUsageLog unchanged proof。
-- 2026-06-21 blocker status: 同一 Supabase host 再測仍回 `No answer`。DB/DNS 未恢復前，只能做 no-DB source contract、quiet five-frame docs，或 LCH-009 production build fallback；不得把 fixture/mock/local proof 寫成 DB-backed proof。
+- 2026-06-21 blocker status: 同一 Supabase host 再測仍回 `No answer`。DB/DNS 未恢復前，只能做 no-DB source contract、quiet six-frame docs、L4 blocker analysis 或 no-DB protocol inventory；不得把 fixture/mock/local proof 寫成 DB-backed proof。LCH-009 production build fallback 已於 2026-06-21 以 `pnpm build` pass proof 收斂，不應再重複當作下一輪 fallback。
 - PIM-006 已 resolved；本輪 proof 使用 `ALLOW_DEV_AUTH_HEADER=true` 的 local dev server 與 demo member/manager header。
 - PIM-008 已 resolved；browser writeback proof 使用 demo member header 與自動建立 demo client 完成。
 - PIM-009 已 resolved；cross-mode QA 使用 local dev server、demo member/manager header、development Supabase DB proof 與 headless browser desktop/mobile proof 完成。
