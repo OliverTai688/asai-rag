@@ -2,55 +2,56 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useClientRecord } from "@/components/crm/use-client-record";
+import { useClientRelatedLists } from "@/components/crm/use-client-related-lists";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress, ProgressIndicator, ProgressTrack } from "@/components/ui/progress";
+import type { ClientGapAnalysisRelatedListItem, RelatedListPriority } from "@/domains/client/related-lists";
 import { formatCurrency } from "@/lib/format";
-import { ArrowRight, CalendarPlus, CheckCircle2, ShieldCheck, Target } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowRight,
+  CalendarPlus,
+  CheckCircle2,
+  Loader2,
+  ShieldCheck,
+  Target,
+} from "lucide-react";
 import {
   CompactMetric,
+  EmptyRelatedState,
   RecordSubpageHeader,
 } from "../_components/record-subpage-ui";
-
-const GAP_CATEGORIES = [
-  {
-    name: "身故保障",
-    current: 5000000,
-    suggested: 12000000,
-    desc: "保障家庭十年內之生活與子女教育開銷",
-  },
-  {
-    name: "重大疾病",
-    current: 1000000,
-    suggested: 3000000,
-    desc: "支應高額自費藥物與三至五年之薪資損失",
-  },
-  {
-    name: "意外身障",
-    current: 2000000,
-    suggested: 8000000,
-    desc: "應對不預期之失能照護成本",
-  },
-  {
-    name: "長照保障",
-    current: 0,
-    suggested: 2000000,
-    desc: "老後失能之安養機構費用",
-  },
-];
 
 export default function GapAnalysisPage() {
   const params = useParams();
   const clientId = params.clientId as string;
-  const { client } = useClientRecord(clientId);
+  const { data, isLoading, error } = useClientRelatedLists(clientId);
 
-  if (!client) return null;
+  if (!data && isLoading) {
+    return (
+      <EmptyRelatedState
+        icon={Loader2}
+        title="載入保障缺口 related-list"
+        description="正在依保單、家庭、年收入與合規缺項推導缺口。"
+      />
+    );
+  }
 
-  const totalCurrent = GAP_CATEGORIES.reduce((sum, item) => sum + item.current, 0);
-  const totalSuggested = GAP_CATEGORIES.reduce((sum, item) => sum + item.suggested, 0);
-  const totalGap = totalSuggested - totalCurrent;
-  const urgentGaps = GAP_CATEGORIES.filter((item) => item.current / item.suggested < 0.6);
+  if (!data && error) {
+    return (
+      <EmptyRelatedState
+        icon={AlertTriangle}
+        title="保障缺口暫時無法讀取"
+        description="請稍後重試；目前先不顯示未連到客戶資料的預設缺口。"
+      />
+    );
+  }
+
+  const gapAnalysis = data?.lists.gapAnalysis;
+  const summary = gapAnalysis?.summary;
+  const gaps = gapAnalysis?.items ?? [];
+  const topGap = gaps.find((item) => item.priority === "HIGH") ?? gaps[0];
 
   return (
     <div className="space-y-5">
@@ -70,9 +71,9 @@ export default function GapAnalysisPage() {
       />
 
       <div className="grid gap-3 md:grid-cols-3">
-        <CompactMetric label="總缺口" value={formatCurrency(totalGap)} helper="建議保額減現有保額" />
-        <CompactMetric label="完成率" value={`${Math.round((totalCurrent / totalSuggested) * 100)}%`} helper="四類保障加權概況" />
-        <CompactMetric label="優先項" value={`${urgentGaps.length} 項`} helper="完成率低於 60%" />
+        <CompactMetric label="總缺口" value={formatCurrency(summary?.totalGap ?? 0)} helper="建議保額減現有保額" />
+        <CompactMetric label="完成率" value={`${summary?.completionRate ?? 0}%`} helper="四類保障加權概況" />
+        <CompactMetric label="優先項" value={`${summary?.urgentCount ?? 0} 項`} helper="完成率低於 50%" />
       </div>
 
       <section className="grid gap-5 xl:grid-cols-[minmax(0,1.25fr)_minmax(320px,0.85fr)]">
@@ -81,40 +82,9 @@ export default function GapAnalysisPage() {
             <CardTitle>缺口清單</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {GAP_CATEGORIES.map((category) => {
-              const ratio = Math.round((category.current / category.suggested) * 100);
-              const gap = category.suggested - category.current;
-
-              return (
-                <div key={category.name} className="rounded-md border border-hairline bg-card p-4">
-                  <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="font-semibold text-foreground">{category.name}</p>
-                        <Badge variant={ratio < 60 ? "warning" : "outline"} className="h-5 text-[10px]">
-                          完成 {ratio}%
-                        </Badge>
-                      </div>
-                      <p className="mt-1 text-sm leading-6 text-muted-foreground">{category.desc}</p>
-                    </div>
-                    <p className="text-sm font-semibold text-foreground tabular-nums">
-                      缺口 {formatCurrency(gap)}
-                    </p>
-                  </div>
-                  <div className="mt-4 space-y-2">
-                    <div className="flex items-center justify-between text-xs font-semibold text-muted-foreground">
-                      <span>現有 {formatCurrency(category.current)}</span>
-                      <span>建議 {formatCurrency(category.suggested)}</span>
-                    </div>
-                    <Progress value={ratio}>
-                      <ProgressTrack className="h-2">
-                        <ProgressIndicator className={ratio < 60 ? "bg-primary" : "bg-foreground"} />
-                      </ProgressTrack>
-                    </Progress>
-                  </div>
-                </div>
-              );
-            })}
+            {gaps.map((category) => (
+              <GapCategoryCard key={category.id} category={category} />
+            ))}
           </CardContent>
         </Card>
 
@@ -128,24 +98,78 @@ export default function GapAnalysisPage() {
           <CardContent className="space-y-3">
             <RecommendationItem
               icon={ShieldCheck}
-              title="先補重大疾病與意外身障"
-              description="用定期型商品降低保費壓力，先處理完成率低於 60% 的風險。"
+              title={topGap ? `先釐清 ${topGap.category}` : "先補齊保障資料"}
+              description={topGap ? topGap.rationale : "目前缺少可推導的保單與家庭資料，下一次拜訪先確認現有保障。"}
             />
             <RecommendationItem
               icon={ArrowRight}
-              title="把身故保障轉成家庭責任問題"
-              description="下一次訪談先確認教育金、房貸與家庭生活費責任期間。"
+              title="把缺口轉成訪談問題"
+              description="下一次訪談先確認家庭責任、共同決策人與可接受預算，再討論方案。"
             />
             <RecommendationItem
               icon={CheckCircle2}
-              title="長照保障列為第二階段"
-              description="先建立可承受月繳預算，再討論長照與退休現金流。"
+              title="把未知留在準備包"
+              description={`${summary?.unknownCount ?? 0} 個項目含 unknown evidence，應進準備包問題清單，不可當成已確認事實。`}
             />
           </CardContent>
         </Card>
       </section>
     </div>
   );
+}
+
+function GapCategoryCard({ category }: { category: ClientGapAnalysisRelatedListItem }) {
+  const priorityMeta = getPriorityMeta(category.priority);
+
+  return (
+    <div className="rounded-md border border-hairline bg-card p-4">
+      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="font-semibold text-foreground">{category.category}</p>
+            <Badge variant={priorityMeta.variant} className="h-5 text-[10px]">
+              {priorityMeta.label}・完成 {category.completionRate}%
+            </Badge>
+          </div>
+          <p className="mt-1 text-sm leading-6 text-muted-foreground">{category.rationale}</p>
+        </div>
+        <p className="text-sm font-semibold text-foreground tabular-nums">
+          缺口 {formatCurrency(category.gap)}
+        </p>
+      </div>
+      <div className="mt-4 space-y-2">
+        <div className="flex items-center justify-between text-xs font-semibold text-muted-foreground">
+          <span>現有 {formatCurrency(category.currentCoverage)}</span>
+          <span>建議 {formatCurrency(category.suggestedCoverage)}</span>
+        </div>
+        <Progress value={category.completionRate}>
+          <ProgressTrack className="h-2">
+            <ProgressIndicator className={category.priority === "HIGH" ? "bg-primary" : "bg-foreground"} />
+          </ProgressTrack>
+        </Progress>
+      </div>
+      <div className="mt-3 flex flex-wrap gap-1.5">
+        {category.evidence.slice(0, 3).map((evidence) => (
+          <Badge
+            key={evidence.id}
+            variant={evidence.factStatus === "UNKNOWN" ? "warning" : "outline"}
+            className="h-6 text-[11px]"
+          >
+            {evidence.factStatus === "FACT" ? "事實" : evidence.factStatus === "INFERENCE" ? "推論" : "未知"}・{evidence.label}
+          </Badge>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function getPriorityMeta(priority: RelatedListPriority): {
+  label: string;
+  variant: "warning" | "outline" | "secondary";
+} {
+  if (priority === "HIGH") return { label: "高優先", variant: "warning" };
+  if (priority === "MEDIUM") return { label: "待確認", variant: "secondary" };
+  return { label: "觀察", variant: "outline" };
 }
 
 function RecommendationItem({

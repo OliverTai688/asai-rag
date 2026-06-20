@@ -51,6 +51,7 @@ Last updated: 2026-06-20
 
 ## Session / Seed Data / Env / External Service
 
+- 2026-06-20 blocker: BFF-103d related-list targeted proof 被 Supabase DB DNS/connection 中斷阻擋。初次 `pnpm bff:crm-related-lists-qa` 已完成 partial proof：unauth 401、member client/family/policy/visit/report create 201、related-lists 200、manager 403、policies/timeline desktop screenshots；後續 browser gap-analysis proof 時 Prisma pool 失敗 `EHOSTUNREACH/P1001`，重跑時 direct DNS 解析 `db.wwocdcicvpmbdmqvskzi.supabase.co` 回 `ENOTFOUND`，`/api/clients` 也回 500。待 Supabase DNS/DB 恢復後，重跑 `DEMO_QA_BASE_URL=http://localhost:3029 pnpm bff:crm-related-lists-qa` 補 full API/browser/AiUsageLog unchanged proof。
 - PIM-006 已 resolved；本輪 proof 使用 `ALLOW_DEV_AUTH_HEADER=true` 的 local dev server 與 demo member/manager header。
 - PIM-008 已 resolved；browser writeback proof 使用 demo member header 與自動建立 demo client 完成。
 - PIM-009 已 resolved；cross-mode QA 使用 local dev server、demo member/manager header、development Supabase DB proof 與 headless browser desktop/mobile proof 完成。

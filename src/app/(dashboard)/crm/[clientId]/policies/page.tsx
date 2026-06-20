@@ -1,12 +1,12 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import { useClientRecord } from "@/components/crm/use-client-record";
+import { useClientRelatedLists } from "@/components/crm/use-client-related-lists";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatCurrency } from "@/lib/format";
-import { FileText, Plus, ShieldCheck } from "lucide-react";
+import { AlertTriangle, FileText, Loader2, Plus, ShieldCheck } from "lucide-react";
 import {
   CompactMetric,
   EmptyRelatedState,
@@ -16,18 +16,30 @@ import {
 export default function ClientPoliciesPage() {
   const params = useParams();
   const clientId = params.clientId as string;
-  const { client } = useClientRecord(clientId);
+  const { data, isLoading, error } = useClientRelatedLists(clientId);
 
-  if (!client) return null;
+  const policies = data?.lists.policies.items ?? [];
+  const summary = data?.lists.policies.summary;
 
-  const totalCoverage = client.existingPolicies.reduce(
-    (sum, policy) => sum + policy.amount,
-    0
-  );
-  const largestPolicy = client.existingPolicies.reduce(
-    (largest, policy) => (policy.amount > largest ? policy.amount : largest),
-    0
-  );
+  if (!data && isLoading) {
+    return (
+      <EmptyRelatedState
+        icon={Loader2}
+        title="載入保單 related-list"
+        description="正在讀取保單、保額與來源摘要。"
+      />
+    );
+  }
+
+  if (!data && error) {
+    return (
+      <EmptyRelatedState
+        icon={AlertTriangle}
+        title="保單資料暫時無法讀取"
+        description="請稍後重試；目前先不顯示可能過期的本機暫存資料。"
+      />
+    );
+  }
 
   return (
     <div className="space-y-5">
@@ -46,22 +58,22 @@ export default function ClientPoliciesPage() {
       <div className="grid gap-3 md:grid-cols-3">
         <CompactMetric
           label="保單數"
-          value={`${client.existingPolicies.length} 張`}
-          helper="已記錄有效保障"
+          value={`${summary?.count ?? 0} 張`}
+          helper="BFF 已確認保單"
         />
         <CompactMetric
           label="總保額"
-          value={formatCurrency(totalCoverage)}
+          value={formatCurrency(summary?.totalInsuredAmount ?? 0)}
           helper="以目前資料加總"
         />
         <CompactMetric
           label="最高單筆"
-          value={formatCurrency(largestPolicy)}
+          value={formatCurrency(summary?.largestInsuredAmount ?? 0)}
           helper="用來判斷保障集中度"
         />
       </div>
 
-      {client.existingPolicies.length === 0 ? (
+      {policies.length === 0 ? (
         <EmptyRelatedState
           icon={FileText}
           title="尚無既存保單資料"
@@ -71,7 +83,7 @@ export default function ClientPoliciesPage() {
         <Card>
           <CardContent className="p-0">
             <div className="divide-y divide-hairline">
-              {client.existingPolicies.map((policy) => (
+              {policies.map((policy) => (
                 <div
                   key={policy.id}
                   className="grid gap-3 px-5 py-4 transition-colors hover:bg-paper-2/60 md:grid-cols-[minmax(0,1fr)_180px_160px]"
@@ -82,9 +94,11 @@ export default function ClientPoliciesPage() {
                     </div>
                     <div className="min-w-0">
                       <p className="truncate text-sm font-semibold text-foreground">
-                        {policy.type}
+                        {policy.productName}
                       </p>
-                      <p className="text-xs text-muted-foreground">{policy.provider}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {policy.provider}・{policy.category}
+                      </p>
                     </div>
                   </div>
                   <div>
@@ -92,12 +106,12 @@ export default function ClientPoliciesPage() {
                       保額
                     </p>
                     <p className="mt-1 text-sm font-semibold text-foreground tabular-nums">
-                      {formatCurrency(policy.amount)}
+                      {formatCurrency(policy.insuredAmount)}
                     </p>
                   </div>
                   <div className="flex items-center justify-start md:justify-end">
-                    <Badge variant="outline" className="h-6 text-[11px]">
-                      盤點可用
+                    <Badge variant={policy.status === "ACTIVE" ? "success" : "outline"} className="h-6 text-[11px]">
+                      {policy.status === "UNKNOWN" ? "待確認" : policy.status}
                     </Badge>
                   </div>
                 </div>
