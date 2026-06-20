@@ -3,7 +3,10 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState, useSyncExternalStore } from "react";
-import { Sidebar } from "@/components/layout/sidebar";
+import {
+  RoleAwareSidebar,
+  type RoleAwareSidebarNavigation,
+} from "@/components/layout/role-aware-sidebar";
 import { TopBar } from "@/components/layout/top-bar";
 import type { TopBarSwitchAccount, TopBarViewer } from "@/components/layout/top-bar";
 import { GlobalAssistant } from "@/components/assistant/global-assistant";
@@ -13,10 +16,12 @@ export function DashboardShell({
   children,
   viewer,
   switchAccounts,
+  sidebarNavigation,
 }: {
   children: React.ReactNode;
   viewer?: TopBarViewer;
   switchAccounts?: TopBarSwitchAccount[];
+  sidebarNavigation: RoleAwareSidebarNavigation;
 }) {
   const [desktopSidebarOpen, setDesktopSidebarOpen] = useState(true);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
@@ -61,24 +66,25 @@ export function DashboardShell({
     <Sheet open={mobileSidebarOpen} onOpenChange={setMobileSidebarOpen}>
       <div className="flex h-screen bg-background overflow-hidden relative">
         {/* Sidebar */}
-        <Sidebar
+        <RoleAwareSidebar
           open={desktopSidebarOpen}
           setOpen={setDesktopSidebarOpen}
-          role={viewer?.role}
+          navigation={sidebarNavigation}
           className="hidden lg:flex"
         />
 
         <SheetContent
+          id="mobile-sidebar"
           side="left"
           showCloseButton={false}
           className="w-[280px] max-w-[82vw] gap-0 border-hairline bg-card p-0 lg:hidden"
         >
           <SheetTitle className="sr-only">主選單</SheetTitle>
-          <Sidebar
+          <RoleAwareSidebar
             open
             setOpen={setMobileSidebarOpen}
             mobile
-            role={viewer?.role}
+            navigation={sidebarNavigation}
             onNavigate={() => setMobileSidebarOpen(false)}
             className="w-full border-r-0"
           />

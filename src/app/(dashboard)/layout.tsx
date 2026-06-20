@@ -1,6 +1,7 @@
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { requireMemberRoute } from "@/lib/auth/route-guards";
 import { demoLoginAccounts, isDemoPasswordLoginEnabled } from "@/lib/demo-login";
+import { buildWorkspaceSidebarRenderModel } from "@/lib/navigation/workspace-sidebar";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -35,9 +36,17 @@ export default async function DashboardLayout({
         label: account.label,
       }))
     : [];
+  const sidebarNavigation = {
+    member: buildWorkspaceSidebarRenderModel(session, "member"),
+    orgAdmin: buildWorkspaceSidebarRenderModel(session, "orgAdmin"),
+  };
 
   return (
-    <DashboardShell viewer={viewer} switchAccounts={switchAccounts}>
+    <DashboardShell
+      viewer={viewer}
+      switchAccounts={switchAccounts}
+      sidebarNavigation={sidebarNavigation}
+    >
       {children}
     </DashboardShell>
   );

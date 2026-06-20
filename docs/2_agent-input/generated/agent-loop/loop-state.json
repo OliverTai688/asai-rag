@@ -64,11 +64,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 0,
+    "normalLoopsSinceLastWholeProductReview": 1,
     "lastWholeProductReviewAt": "2026-06-20",
     "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-20_lv3-whole-product-gap-review-after-ras-004a.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "Whole-product review after RAS-004a completed and cadence reset to 0. Primary product gap remains ITA-003f/S1 Route B relationship-graph stage map (no-provider) because it connects relationship graph/previsit/interview materials to an operable theater stage. Current DB DNS check still fails for db.wwocdcicvpmbdmqvskzi.supabase.co, so the next safe normal loop should run RAS-004b sidebar UI wiring using buildWorkspaceSidebarRenderModel() while isolating existing sidebar /notes dirty diff. If Supabase DB/DNS recovers before the next loop, switch back to ITA-003f/S1; after DB recovers, also rerun BFF-103d related-list proof.",
+    "nextRecommendedImplementationSlice": "RAS-004b sidebar UI wiring completed with no-provider/no-db source and fixture browser proof. Primary product gap remains ITA-003f/S1 Route B relationship-graph stage map (no-provider) because it connects relationship graph/previsit/interview materials to an operable theater stage, but current DB DNS check still fails for db.wwocdcicvpmbdmqvskzi.supabase.co. If Supabase DB/DNS recovers before the next loop, switch back to ITA-003f/S1 and rerun BFF-103d related-list proof. If DB remains blocked, run RAS-005 cross-role sidebar QA/docs sync using available fixtures and only claim live Browser/session proof for surfaces that can load without DB failure.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {
