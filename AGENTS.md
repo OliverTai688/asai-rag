@@ -1582,6 +1582,8 @@ Context: 將誠問 AI 內所有 AI 能力逐步對齊 MIT Project NANDA / AgentF
 
 Whole-product review 註記（2026-06-21 after NAP-003b）：第五輪 LV3 校準確認 NAP-003a/b 與 ITA-003g 已把 provider-ready、interview、quick-capture、realtime voice、Route B runtime preflight 的 source/proof 底座補齊；下一個最高槓桿不再是單一 AI manifest，而是 `LV3-CROSS-001 clean cross-flow no-provider proof pack`。下一輪應用 clean context 證明 client / relationship graph / previsit reasoning evidence / quick-capture 或 interview writeback / Route B theater stage 能串成低噪音、無 raw-ID、無 provider call 的顧問旅程；若範圍過大，fallback 為 NAP-003c theater+RAG source adoption，再 fallback NAP-005 local-only adapter/export dry-run。仍不得在未獲 operator approval 前做 live provider Route B、live WebRTC、external registry publication 或 production write。
 
+LV3-CROSS-001 proof pack 註記（2026-06-21）：新增 `pnpm lv3:cross-flow-no-provider-qa`，串跑 client relationship graph、visit/pre-visit BFF、quick-capture BFF/UI、Route B session/UI/interaction 與 `ai:bff-audit`，並在 wrapper 層驗證 `AiUsageLog` count unchanged。初版 proof pack 曾納入 `interview:draft-writeback-qa`，browser path 會呼叫 `/api/ai/interview`；該 provider risk 已移除，最終 committed script 改用 no-provider quick-capture BFF/UI proof。下一輪回到 `NAP-003c theater + RAG source adoption`，補 legacy Theater、Route B Theater 與 RAG guarded-disabled source adoption，不做 external registry publication。
+
 ### Batch NAP-004 — Internal registry and readiness API
 - [x] 建立 internal registry reader（server-only），可列出 AI manifests、readiness、missing proof、operator approval blockers。
 - [x] Platform readiness / release readiness 可顯示每個 AI 的 protocol readiness，不把 `registry-draft` 顯示為 external registered。
