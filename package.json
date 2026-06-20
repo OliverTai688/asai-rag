@@ -55,6 +55,7 @@
     "demo:three-ai-turn-usage-qa": "node scripts/three-ai-turn-usage-qa.mjs",
     "rag:launch-posture-qa": "node scripts/rag-launch-posture-qa.mjs",
     "ai:usage-audit": "node scripts/ai-usage-route-audit.mjs",
+    "ai:bff-audit": "node scripts/ai-usage-route-audit.mjs",
     "demo:runtime-audit": "node scripts/demo-runtime-audit.mjs",
     "mock:production-guard-qa": "node scripts/mock-production-guard-qa.mjs",
     "share:token-qa": "node scripts/share-token-qa.mjs",

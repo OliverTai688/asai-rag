@@ -64,11 +64,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 3,
+    "normalLoopsSinceLastWholeProductReview": 4,
     "lastWholeProductReviewAt": "2026-06-20",
     "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-20_lv3-whole-product-gap-review-bff-issues-dashboard.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "BFF-201 AI BFF audit gate. Scope: refresh /api/ai/* and /api/rag audit after BFF read-surface changes, confirm session/token scope, quota/capability guard, success/error AiUsageLog, input limits, guarded-disabled no-provider proof, and update AUD-005 before BFF-202/203/204/205.",
+    "nextRecommendedImplementationSlice": "Scheduled fifth-loop whole-product gap review. Scope: run docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md before the next implementation slice, then choose between BFF-202 Visit/report AI hardening, BFF-203 SPIN AI hardening, or BFF-204 Theater AI hardening based on the refreshed gap review.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {

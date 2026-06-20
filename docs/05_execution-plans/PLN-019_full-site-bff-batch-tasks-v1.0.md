@@ -37,7 +37,7 @@
 | BFF-104 | Visit / pre-visit BFF | [x] | BFF-002 |
 | BFF-105 | Reports / share action BFF | [x] | BFF-002 |
 | BFF-106 | Issues BFF | [x] | BFF-002 |
-| BFF-201 | AI BFF audit gate | [ ] | BFF-002 |
+| BFF-201 | AI BFF audit gate | [x] | BFF-002 |
 | BFF-202 | Visit/report AI hardening | [ ] | BFF-201 |
 | BFF-203 | SPIN AI hardening | [ ] | BFF-201 |
 | BFF-204 | Theater AI hardening | [ ] | BFF-201 |
@@ -210,11 +210,13 @@ Whole-product review 註記（2026-06-20 after BFF-105）：下一個 normal LV3
 
 目標：建立 AI route 全覆蓋 audit gate，後續逐條 hardening 前先知道缺口。
 
-- [ ] 擴充或新增 `pnpm ai:bff-audit`，列出所有 `/api/ai/*`、`/api/rag` route。
-- [ ] 檢查每條 route 是否有 session/token scope、plan capability、quota guard、success/error `AiUsageLog`、input limit。
-- [ ] 產出或更新 `AUD-005_ai-usage-route-audit-v1.0.md`。
-- [ ] 不改 SPIN 狀態機、不改 Theater enum/scoring。
-- [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+- [x] 擴充或新增 `pnpm ai:bff-audit`，列出所有 `/api/ai/*`、`/api/rag` route。
+- [x] 檢查每條 route 是否有 session/token scope、plan capability、quota guard、success/error `AiUsageLog`、input limit。
+- [x] 產出或更新 `AUD-005_ai-usage-route-audit-v1.0.md`。
+- [x] 不改 SPIN 狀態機、不改 Theater enum/scoring。
+- [x] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+
+完成註記（2026-06-20）：已完成 BFF-201。`scripts/ai-usage-route-audit.mjs` 改為自動 discovery + manifest gate，新增 `pnpm ai:bff-audit` alias，掃描 `src/app/api/ai/**/route.ts` 與 `src/app/api/rag/**/route.ts`。Proof 顯示 22/22 route covered、13 條 provider-ready route 具備 session/quota/input/success-error `AiUsageLog` evidence、8 條 deterministic interview BFF route 有 session/input/no-provider proof、`/api/rag` 保持 guarded-disabled no-provider posture。此卡未改 SPIN 狀態機、未改 Theater enum/scoring、未呼叫 provider、未改 DB/Prisma schema；下一張建議 `BFF-202 Visit/report AI hardening` 或 `BFF-203 SPIN AI hardening`，依是否優先處理 provider route proof 或 SPIN mock source blocker。
 
 ---
 
