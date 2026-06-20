@@ -402,6 +402,8 @@ Context: 將 AI-first sidebar 進一步升級為依 session、role、surface、u
 完成註記：2026-06-20 新增 `src/domains/navigation/role-aware-sidebar.ts` 與 `pnpm nav:role-aware-contract-qa`。Contract 已覆蓋 member / org admin / platform / client portal 四套 manifest draft、`SidebarContext`、action/link/visible/disabled/badge/aria contract、legacy `SPIN 舊版` feature flag 與 current sidebar migration note；未接 UI、未改 route guard、未改 business data。
 
 ### Batch RAS-002 — Server-side sidebar resolver and policy tests
+Whole-product review note（2026-06-20 after RAS-001）：若 Supabase DB/DNS 仍阻擋 BFF/Theater browser proof，RAS-002 是下一個最高安全 fallback。它不需要 DB/provider，即可把 RAS-001 contract 轉成可測試 resolver，驗證 manager / client / platform 不會因 sidebar 顯示取得更寬資料邊界；不得把 resolver proof 宣稱為正式 route guard/browser auth proof。
+
 - [ ] 建立 `resolveSidebarSections(context)` 或同等 helper，輸入 RAS-001 contract，輸出已過濾/標註 disabled 的 sections。
 - [ ] 建立 navigation policy helpers，至少覆蓋 `canAccessMemberRoute`、`canAccessOrgAdmin`、`canManageOrgSettings`、`canReadOrgAggregate`、`canUseAiModule`、`canAccessPlatformTool`。
 - [ ] 補測試或可重複 script 覆蓋 collaborator、member、manager、org admin、org owner、support、finance、super admin、client viewer。
@@ -805,6 +807,8 @@ ITA-003d session UI note（2026-06-20）：已完成 Route B persisted session U
 Whole-product review 註記（2026-06-20 after previsit redesign）：最新端到端校準確認 client/relationship graph/previsit package/theater handoff 已可串起，但 Route B session 仍停在 read-only guarded-disabled stage。下一個最高槓桿子切片建議為 `ITA-003e Route B persisted interaction write shell`：新增 owner-scoped advisor turn append / group-private lane selection / state patch proposal persistence，先不呼叫 provider；proof 必須覆蓋 member 201、manager 404、private visibility 不外洩、state patch 不寫 confirmed CRM fact、response no raw private sentinel、`AiUsageLog` count before/after 不變。若本切片被 provider/env 阻擋，fallback 為 `BFF-001` 全站資料來源盤點。
 
 ITA-003e interaction shell note（2026-06-20）：已完成 Route B persisted interaction write shell。新增 `POST /api/theater/route-b/sessions/[sessionId]/turns` 與 `appendRouteBAdvisorTurnForMember()`，owner 可寫入顧問 `AGENT` turn，支援 `GROUP` / `PRIVATE` visibility、私聊 addressee routeBCharacterId、狀態筆記 proposal persistence；狀態 proposal 同步寫入 turn `statePatches` 與 session `sceneState.statePatches`，固定 `requiresConfirmation=true`、`writesConfirmedCrmFact=false`，不觸發 provider。`/theater/[sessionId]` Route B stage 新增顧問互動 composer，私聊 lane 顯示指定角色私聊 turn，provider guard 仍維持 disabled。`pnpm theater:route-b-interaction-qa` 通過 unauth 401、member group/private 201、invalid private 400、manager 404、DB turn/state proof、browser submit proof、response/page no private sentinel、`AiUsageLog` THEATER count before/after 不變；in-app Browser 背景檢查 console error 0。尚未完成：Route B director/character/feedback provider success/error `AiUsageLog`、AI 角色回覆 orchestration 與五視角 feedback runtime。
+
+Whole-product review 註記（2026-06-20 after RAS-001）：端到端 LV3 校準確認「建場」已可從 client / relationship graph / previsit / interview 進入 persisted Route B session，但劇場頁仍不像真正的演練舞台。下一個 product-level 最高槓桿子切片為 `ITA-003f/S1 Route B relationship-graph stage map (no-provider)`：`/theater/[sessionId]` 以 Route B characters/relationship evidence 呈現可操作舞台地圖，支援點人物進私聊、發言/被點名高亮、群/私聊 visibility badge、guarded-disabled runtime 狀態，不呼叫 provider；proof 覆蓋 member read、manager 404、private visibility、不寫 confirmed CRM fact、desktop/mobile no overflow。若 Supabase DB/DNS 仍不可用，立即 fallback 到 `RAS-002` resolver/policy tests，避免卡在 DB proof。
 
 ### Batch ITA-004 — 五視角質化回饋（M4）
 - [ ] 五視角 prompt：教練的耳朵 / 客戶的眼睛 / 沉默裡的需求 / 守門的良心 / 決策的橋。
