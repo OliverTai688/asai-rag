@@ -39,6 +39,7 @@
     "bff:foundation-qa": "node scripts/bff-foundation-qa.mjs",
     "bff:foundation-api-qa": "node scripts/bff-foundation-api-qa.mjs",
     "bff:reports-qa": "node scripts/bff-reports-qa.mjs",
+    "bff:issues-qa": "node scripts/bff-issues-qa.mjs",
     "client:relationship-graph-qa": "node scripts/client-relationship-graph-qa.mjs",
     "client:relationship-graph-write-qa": "node scripts/client-relationship-graph-write-qa.mjs",
     "theater:client-build-qa": "node scripts/theater-client-build-qa.mjs",

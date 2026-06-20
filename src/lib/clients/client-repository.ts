@@ -13,6 +13,7 @@ export const createClientInputSchema = z.object({
   occupation: z.string().trim().max(120).optional().or(z.literal("")),
   annualIncome: z.coerce.number().min(0).max(999999999).default(0),
   status: z.enum(["PROSPECT", "ACTIVE", "CLOSED"]).default("PROSPECT"),
+  notes: z.string().trim().max(4000).optional().or(z.literal("")),
 });
 
 export const updateClientInputSchema = createClientInputSchema.partial();
@@ -79,6 +80,7 @@ export async function createClientForMember(session: AppSession, input: CreateCl
       occupation: input.occupation || null,
       annualIncome: input.annualIncome,
       status: input.status,
+      notes: input.notes || null,
       sensitivity: "NORMAL",
       tags: [],
       aiTags: [],
@@ -143,6 +145,7 @@ export async function updateClientForMember(session: AppSession, clientId: strin
       ...(input.occupation !== undefined ? { occupation: input.occupation || null } : {}),
       ...(input.annualIncome !== undefined ? { annualIncome: input.annualIncome } : {}),
       ...(input.status !== undefined ? { status: input.status } : {}),
+      ...(input.notes !== undefined ? { notes: input.notes || null } : {}),
       lastInteractionAt: new Date(),
     },
     include: clientInclude,

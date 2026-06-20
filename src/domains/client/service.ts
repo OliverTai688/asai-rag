@@ -2,10 +2,8 @@ import { useClientStore } from "./store";
 import { Client, DEFAULT_CLIENT_COMPLIANCE, FamilyMember, Policy } from "./types";
 import { nanoid } from "nanoid";
 
-type CreateClientInput = Pick<
-  Client,
-  "name" | "email" | "phone" | "birthDate" | "occupation" | "annualIncome" | "status"
->;
+type CreateClientInput = Pick<Client, "name" | "annualIncome" | "status"> &
+  Partial<Pick<Client, "email" | "phone" | "birthDate" | "occupation" | "notes">>;
 
 type ClientListResponse = {
   clients: Client[];

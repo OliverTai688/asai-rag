@@ -1,7 +1,7 @@
 # AUD-006 Full-site BFF Data Source Inventory v1.0
 
 > 建立日期：2026-06-20  
-> 狀態：BFF-001 baseline complete; BFF-105 reports/share BFF complete
+> 狀態：BFF-001 baseline complete; BFF-105 reports/share BFF complete; BFF-106 issues BFF complete
 > 對應計畫：`docs/05_execution-plans/PLN-019_full-site-bff-batch-tasks-v1.0.md`  
 > 驗收依據：`docs/08_acceptance-and-qa/ACC-011_full-site-bff-acceptance-framework-v1.0.md`
 
@@ -20,8 +20,8 @@
 ## Executive Summary
 
 - **可作 LV3 server-owned proof 的核心鏈路**：`/crm` client list/detail、`/crm/[clientId]/relationships` relationship graph review、`/pre-visit` list/detail/notes/create/update、`/theater/build` client/visit handoff、Route B `/theater/[sessionId]` persisted session and advisor turns、public `/share/[token]`、client portal、org/platform/settings/pricing APIs。
-- **最高優先 BFF 缺口**：BFF-105 後，member-facing `/reports` library/detail/share action 與 CRM report subpage 已有 `/api/reports` owner-scoped contract；下一批最高風險轉為 `/issues` static mock、`/team` mock aggregate、dashboard client-side aggregation、SPIN mock outline fallback、admin/pilot demo seed 與 notification mock success。
-- **明確 static/mock blockers**：`src/app/(dashboard)/issues/page.tsx` 的 `MOCK_ISSUES`、`src/app/(dashboard)/team/team-page-client.tsx` 的 `MOCK_TEAM_MEMBERS`、`src/app/(admin)/admin/page.tsx` 與 `src/app/(dashboard)/pilot/page.tsx` 的 `@/domains/demo/seed-fixtures`。
+- **最高優先 BFF 缺口**：BFF-106 後，member-facing `/issues` 已有 `/api/issues` 與 status/action audit contract；下一批最高風險轉為 dashboard client-side aggregation、`/team` mock aggregate、SPIN mock outline fallback、admin/pilot demo seed 與 notification mock success。
+- **明確 static/mock blockers**：`src/app/(dashboard)/team/team-page-client.tsx` 的 `MOCK_TEAM_MEMBERS`、`src/app/(admin)/admin/page.tsx` 與 `src/app/(dashboard)/pilot/page.tsx` 的 `@/domains/demo/seed-fixtures`。`/issues` 的 `MOCK_ISSUES` 已由 BFF-106 移除。
 - **local truth baseline**：`src/domains/client/store.ts`、`src/domains/event/store.ts`、`src/domains/report/store.ts`、`src/domains/visit/store.ts`、`src/domains/spin/store.ts` 仍從 demo seed 初始化；其中 visit/client 已有 BFF path，但 store seed 仍需保留為 cache fallback 或 demo-only 並逐步清除 production dependency。
 - **browser storage baseline**：`src/domains/assistant/store.ts` 僅 persist `isPanelOpen`，`src/components/demo/dashboard-welcome-card.tsx` 僅保存 quickstart UI 狀態；`src/domains/calendar/store.ts` persist Google connected flag，但 events 仍有 local seed，需列入 future calendar BFF。
 - **mock route baseline**：`src/app/api/mock/*` 由 `blockMockApiInProduction()` guard 管理；`src/app/(dashboard)/spin/[sessionId]/page.tsx` 仍會呼叫 `/api/mock/ai/spin-outline` 作 outline fallback，需在 BFF-203 或 SPIN hardening 中移除 production dependency。
@@ -52,7 +52,7 @@
 | Reports library | `/reports` | DB/BFF ready with cache; quickstart local branch | `GET/POST /api/reports` | member | report library DTO | server session | report create/update via repository; no provider call in CRUD path | `pnpm bff:reports-qa` | BFF-105 complete. Blank/orphan report create is intentionally blocked because `Report.clientId` is required. |
 | Report detail/share | `/reports/[reportId]` | DB/BFF ready with cache; quickstart local branch | `GET/PATCH /api/reports/[id]`, `POST /api/reports/[id]/share` | member | member edit DTO plus client-safe sections | server session | share action creates/reuses `ReportShare` and writes sanitized `ShareEvent` | `pnpm bff:reports-qa` | BFF-105 complete. Public preview stays separate through `/api/share/[token]`. |
 | Public shared report | `/share/[token]` | DB/BFF ready | `GET /api/share/[token]`, `POST /api/share/[token]/events` | public token | public report DTO | token-scoped server route | share view events | `pnpm share:token-qa` | Keep separate from member report detail DTO. |
-| Issues | `/issues` | Static fixture/mock | missing `GET /api/issues`, `PATCH /api/issues/[id]` | member | issue/recommendation DTO | should be server session | issue action audit required | pending | BFF-106. Current `src/app/(dashboard)/issues/page.tsx` uses `MOCK_ISSUES`. |
+| Issues | `/issues` | DB/BFF ready | `GET /api/issues`, `PATCH /api/issues/[id]` | member | issue/recommendation DTO with facts/inferences/unknowns/internal readiness/next action | server session | status/action writes `AuditLog(resourceType=ISSUE)` | `pnpm bff:issues-qa` | BFF-106 complete. Keep internal readiness out of public report/share DTOs. |
 | Team page | `/team` | Static fixture/mock | missing or partial org aggregate BFF | org manager/member | team coaching summary DTO | server session / role aware | org aggregate must not leak client detail/private transcript | pending | BFF-301. Current `src/app/(dashboard)/team/team-page-client.tsx` uses `MOCK_TEAM_MEMBERS`. |
 | Org settings/admin | `/team/settings`, org admin surfaces | DB/BFF ready partial | `/api/org/settings`, `/api/org/members`, `/api/org/units`, `/api/org/invites`, `/api/org/overview`, `/api/org/coaching` | org manager | org aggregate DTO | server session | audit for writes | existing org QA scripts | BFF-301/302. |
 | Platform admin | `/(admin)/admin`, `/platform` APIs | Mixed | `/api/platform/*`; admin page still demo seed | platform/admin | platform DTO | server session for API; page seed for demo metrics | platform audit logs required | existing platform QA scripts | BFF-304. Current `src/app/(admin)/admin/page.tsx` imports `seed-fixtures`. |
@@ -70,7 +70,7 @@ The following paths are known production-facing or production-adjacent risk poin
 
 | Path | Pattern | Classification | Required follow-up |
 | --- | --- | --- | --- |
-| `src/app/(dashboard)/issues/page.tsx` | `MOCK_ISSUES` | Static fixture/mock | BFF-106. |
+| `src/app/(dashboard)/issues/page.tsx` | resolved: no `MOCK_ISSUES`; server page reads issues repository | DB/BFF ready | BFF-106 complete; keep `pnpm bff:issues-qa` in release proof. |
 | `src/app/(dashboard)/team/team-page-client.tsx` | `MOCK_TEAM_MEMBERS` | Static fixture/mock | BFF-301. |
 | `src/app/(admin)/admin/page.tsx` | `@/domains/demo/seed-fixtures` | Static fixture/demo seed | BFF-304 or explicit demo-only guard. |
 | `src/app/(dashboard)/pilot/page.tsx` | `@/domains/demo/seed-fixtures` | Static fixture/demo seed | Explicit demo-only posture or pilot BFF. |
@@ -91,18 +91,18 @@ The following paths are known production-facing or production-adjacent risk poin
 
 - `pnpm visit:bff-qa` proves `/api/visits` and `/api/visits/[id]` create/update/reload, reasoning evidence, notes persistence, theater handoff and no raw private sentinel without provider calls.
 - `pnpm bff:reports-qa` proves `/api/reports` list/create, `/api/reports/[id]` detail/update, `/api/reports/[id]/share`, sanitized `ShareEvent`, public share client-safe sections, invalid/foreign guards, and reports list/detail browser persistence without provider calls.
+- `pnpm bff:issues-qa` proves `/api/issues` list and `/api/issues/[id]` status/action update, fact/inference/unknown DTO, internal readiness hidden from client-facing surfaces, empty query, manager foreign guard, `AuditLog(resourceType=ISSUE)`, refresh persistence and desktop/mobile browser proof without provider calls.
 - `pnpm client:relationship-graph-qa` and `pnpm client:relationship-graph-write-qa` prove relationship graph review and family member remote-confirmed write path.
 - `pnpm theater:client-build-qa`, `pnpm visit:theater-gate-qa`, `pnpm theater:route-b-persistence-qa`, `pnpm theater:route-b-session-ui-qa`, and `pnpm theater:route-b-interaction-qa` prove Route B handoff/session/turn storage without provider calls.
 - `pnpm share:token-qa`, `pnpm client-portal:qa`, `pnpm public:pricing-qa`, and org/platform QA scripts cover public/client/org/platform BFF islands.
 
 ## Next BFF Queue
 
-1. **BFF-106 Issues BFF**: remove the visible `MOCK_ISSUES` production-facing page and convert AI recommendations into fact/inference/unknown DTOs.
-2. **BFF-101 Member dashboard BFF**: replace dashboard client-side aggregation with one member-scoped decision-center DTO.
-3. **BFF-301 Team/org aggregate**: replace `MOCK_TEAM_MEMBERS` and ensure manager aggregate never returns client detail, report body, transcript or private memory.
-4. **BFF-203 SPIN hardening**: preserve the SPIN state machine while removing mock outline fallback and local seed truth from production proof.
-5. **BFF-204 / ITA-003f Route B provider orchestration**: only after explicit provider/cost approval; success/error paths must write `AiUsageLog`, and raw provider payload must not be stored.
-6. **BFF-202 Visit/report AI hardening follow-up**: keep `/api/ai/visit` and `/api/ai/report` usage/cost/error audit coverage aligned with the server-owned visit/report CRUD surfaces.
+1. **BFF-101 Member dashboard BFF**: replace dashboard client-side aggregation with one member-scoped decision-center DTO and consume server-owned issue/readiness/task signals.
+2. **BFF-301 Team/org aggregate**: replace `MOCK_TEAM_MEMBERS` and ensure manager aggregate never returns client detail, report body, transcript or private memory.
+3. **BFF-203 SPIN hardening**: preserve the SPIN state machine while removing mock outline fallback and local seed truth from production proof.
+4. **BFF-204 / ITA-003f Route B provider orchestration**: only after explicit provider/cost approval; success/error paths must write `AiUsageLog`, and raw provider payload must not be stored.
+5. **BFF-202 Visit/report AI hardening follow-up**: keep `/api/ai/visit` and `/api/ai/report` usage/cost/error audit coverage aligned with the server-owned visit/report CRUD surfaces.
 
 ## BFF-001 Validation Notes
 

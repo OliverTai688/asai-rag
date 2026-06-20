@@ -30,6 +30,7 @@ export function toClientDto(record: ClientRecord): Client {
     tags: record.tags,
     aiTags: record.aiTags,
     status: record.status === "ARCHIVED" ? "CLOSED" : record.status,
+    notes: record.notes ?? undefined,
     complianceChecklist,
     sensitivityLevel: record.sensitivity,
     kycStatus: complianceChecklist.kycStatus,

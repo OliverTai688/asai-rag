@@ -91,6 +91,7 @@ export interface Client {
   tags: string[];
   aiTags: string[];
   status: ClientStatus;
+  notes?: string;
   complianceChecklist: ClientComplianceChecklist;
   sensitivityLevel: ClientSensitivityLevel;
   kycStatus: ClientComplianceStatus;

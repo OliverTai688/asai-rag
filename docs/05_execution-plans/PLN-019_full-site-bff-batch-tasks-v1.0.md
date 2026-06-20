@@ -36,7 +36,7 @@
 | BFF-103 | CRM BFF completion | [ ] | BFF-002 |
 | BFF-104 | Visit / pre-visit BFF | [x] | BFF-002 |
 | BFF-105 | Reports / share action BFF | [x] | BFF-002 |
-| BFF-106 | Issues BFF | [ ] | BFF-002 |
+| BFF-106 | Issues BFF | [x] | BFF-002 |
 | BFF-201 | AI BFF audit gate | [ ] | BFF-002 |
 | BFF-202 | Visit/report AI hardening | [ ] | BFF-201 |
 | BFF-203 | SPIN AI hardening | [ ] | BFF-201 |
@@ -191,14 +191,16 @@ Whole-product review 註記（2026-06-20）：下一個 LV3 implementation loop 
 
 目標：讓 `/issues` 由 server-side issue/recommendation BFF 提供資料，不依賴 mock/static state。
 
-- [ ] 建立 `GET /api/issues`，回 member-scoped issue list、priority、readiness、next action。
-- [ ] 建立 `PATCH /api/issues/[id]` 或 action endpoint 管理 status/assignment。
-- [ ] DTO 區分 issue fact、AI inference、unknown，不把推論當事實。
-- [ ] `/issues` 改 BFF/cache-first。
-- [ ] API/browser proof 覆蓋 empty、forbidden、success、refresh。
-- [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+- [x] 建立 `GET /api/issues`，回 member-scoped issue list、priority、readiness、next action。
+- [x] 建立 `PATCH /api/issues/[id]` 或 action endpoint 管理 status/assignment。
+- [x] DTO 區分 issue fact、AI inference、unknown，不把推論當事實。
+- [x] `/issues` 改 BFF/cache-first。
+- [x] API/browser proof 覆蓋 empty、forbidden、success、refresh。
+- [x] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
 
 Whole-product review 註記（2026-06-20 after BFF-105）：下一個 normal LV3 implementation loop 建議選 `BFF-106 Issues BFF`。先把 `src/app/(dashboard)/issues/page.tsx` 從 `MOCK_ISSUES` 改為 member-scoped BFF/cache-first；server DTO 至少包含 issue summary、status、priority、source references、`fact` / `inference` / `unknown` classification、IRL/internal readiness 與 advisor next action。Client-facing report/share 不得顯示 internal IRL 分數；org/manager 後續 aggregate 只能看統計，不讀 member client details。驗收需新增 deterministic API/browser proof：unauth 401、member success、foreign/manager detail forbidden 或 404、empty state、status/action write audit、refresh/new context persistence、desktop/mobile no overflow、response 無 raw private sentinel。
+
+完成註記（2026-06-20）：已完成 BFF-106。新增 `src/domains/issues/types.ts`、`src/lib/issues/issues-repository.ts`、`GET /api/issues`、`PATCH /api/issues/[id]`、`/issues` server page + client component 與 `pnpm bff:issues-qa`。DTO 由 DB `Issue` table 產生，包含 facts / inferences / unknowns、source references、internal readiness（固定不可 client-facing）與 advisor next action；PATCH status/action/feedback/assignment 會寫 `AuditLog(resourceType=ISSUE)`。Proof 覆蓋 unauth 401、member 200、manager foreign 404、empty query、invalid patch 400、status/action audit、reload persistence、desktop/mobile no overflow、no raw private sentinel；不呼叫 provider、不改 Prisma schema。下一張建議為 `BFF-101 Member dashboard BFF`。
 
 ---
 

@@ -1085,7 +1085,7 @@ Context: 將目前 partial vertical-slice BFF 推進成全站一致的 Backend-f
 - 已有 partial BFF：`/api/clients`、`/api/share/[token]`、`/api/client-portal/*`、`/api/org/*`、`/api/platform/*`、`/api/public/pricing` 與部分 `/api/ai/*`。
 - 尚未有全站資料來源盤點與 responsibility matrix；部分 production page/store/service 仍可能混用 local state、mock、static fixture 或 legacy fallback。
 - BFF route 命名、DTO privacy、audit/usage proof 尚未全站一致；error/response/validation/sanitize foundation 已由 BFF-002 建立，後續 route 需逐步採用。
-- Billing/ECPay production-grade BFF、public status/lead BFF、member dashboard/visit/report/issues BFF 仍待完整化。
+- Billing/ECPay production-grade BFF、public status/lead BFF、member dashboard、team/org aggregate 與 SPIN/Theater AI hardening 仍待完整化。
 
 ### Batch BFF-000 — 架構文件與 workstream 登錄
 - [x] 新增 `ARC-008_full-site-bff-architecture-v1.0.md`。
@@ -1174,13 +1174,15 @@ Whole-product review 註記：2026-06-20 第五輪校準選定下一個最高槓
 完成註記（2026-06-20）：已新增 member-scoped `GET/POST /api/reports`、`GET/PATCH /api/reports/[id]`、`POST /api/reports/[id]/share`、report repository schemas 與 `pnpm bff:reports-qa`。`/reports` library/detail 與 CRM report subpage 改為 BFF/cache-first；quickstart demo 保留 local branch。Member DTO 回 internal editor sections 與 client-safe sections，public `/api/share/[token]` 仍只回 client-safe DTO；share action 會建立/重用 `ReportShare` 並寫 sanitized `ShareEvent`。Proof 覆蓋 unauth 401、member list/detail/create/update/share、invalid section 400、manager foreign read 404、public share 不回 internal/performance section、desktop/mobile no overflow。此 proof 不呼叫 provider，無 AiUsageLog 需求；DB 僅新增可辨識 demo/test `Report`、`ReportShare` 與 `ShareEvent` evidence，無 schema/Prisma 變更。
 
 ### Batch BFF-106 — Issues BFF
-- [ ] 建立 `GET /api/issues` 與 issue status/action endpoint。
-- [ ] DTO 區分 issue fact、AI inference、unknown，不把推論當事實。
-- [ ] `/issues` 改 BFF/cache-first。
-- [ ] API/browser proof 覆蓋 empty、forbidden、success、refresh。
-- [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+- [x] 建立 `GET /api/issues` 與 issue status/action endpoint。
+- [x] DTO 區分 issue fact、AI inference、unknown，不把推論當事實。
+- [x] `/issues` 改 BFF/cache-first。
+- [x] API/browser proof 覆蓋 empty、forbidden、success、refresh。
+- [x] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
 
 Whole-product review 註記（2026-06-20 after BFF-105）：第五輪校準後的最高安全 implementation slice 改為 `BFF-106 Issues BFF`。原因：reports/share 已 server-owned，`/issues` 仍是 production-facing `MOCK_ISSUES`，且 issue readiness / next action 會被 dashboard、previsit question rationale、org coaching 與 release QA 重複引用。下一輪實作需建立 member-scoped `GET /api/issues` 與 status/action endpoint，DTO 明確分 `fact` / `inference` / `unknown` / `nextAction` / internal IRL，不把推論當事實，不把 internal IRL 暴露到 client-facing report；proof 覆蓋 unauth、forbidden/foreign、empty/success、refresh/new context、desktop/mobile no overflow 與 no mock/local truth。
+
+完成註記（2026-06-20）：已完成 BFF-106。新增 `src/domains/issues/types.ts`、`src/lib/issues/issues-repository.ts`、`GET /api/issues`、`PATCH /api/issues/[id]`、`/issues` server page + client操作介面與 `pnpm bff:issues-qa`。Issue DTO 從 DB `Issue` row 生成 member-scoped list，明確分 `facts` / `inferences` / `unknowns`、`sourceReferences`、internal readiness（固定 `clientFacingVisible=false`）與 advisor `nextAction`；status/action 更新會寫 `AuditLog(resourceType=ISSUE)`。Proof 覆蓋 unauth 401、member success、manager foreign 404、empty query、invalid patch 400、status/action write audit、reload persistence、desktop/mobile no overflow、response/page no raw private sentinel；不呼叫 provider，無 AiUsageLog 需求。下一張建議為 BFF-101 member dashboard BFF，讓首頁 task queue/今日主線消費 server-owned issues signal。
 
 ### Batch BFF-201 — AI BFF audit gate
 - [ ] 擴充或新增 `pnpm ai:bff-audit`，列出所有 `/api/ai/*`、`/api/rag` route。

@@ -64,11 +64,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 0,
+    "normalLoopsSinceLastWholeProductReview": 1,
     "lastWholeProductReviewAt": "2026-06-20",
     "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-20_lv3-whole-product-gap-review-bff-issues-dashboard.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "BFF-106 Issues BFF. Scope: replace /issues MOCK_ISSUES with member-scoped GET/PATCH /api/issues, model issue facts/inferences/unknowns and next actions, keep IRL/internal issue readiness out of client-facing reports, and prove unauth/forbidden/success/refresh/browser mobile with no mock/local truth.",
+    "nextRecommendedImplementationSlice": "BFF-101 Member dashboard BFF. Scope: replace /dashboard client-side aggregation with GET /api/member/dashboard, consume server-owned clients/visits/reports/issues/AI usage signals, return today line/next CTA/KPI/task queue/recent activity/quota summary, and prove unauth/member success/refresh/mobile/no private leakage.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {
