@@ -64,11 +64,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 3,
+    "normalLoopsSinceLastWholeProductReview": 4,
     "lastWholeProductReviewAt": "2026-06-20",
     "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-20_lv3-whole-product-gap-review-after-pim-011.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "Quiet ITA-003f/S1a Route B relationship-graph stage-map proof-plan documentation completed. If Supabase DB/DNS recovers, resume ITA-003f/S1 source implementation using persisted Route B session DTO, then rerun BFF-103d or PIM-011 BFF/API proof. If DB/DNS remains blocked, continue only with no-DB source slices or quiet five-frame documentation; do not claim Route B stage-map, BFF-103d, or PIM-011 BFF/API DB-backed proof until persistence can be tested, and do not stage unrelated AI meeting/notes prototype files.",
+    "nextRecommendedImplementationSlice": "Quiet BFF-103d CRM related-list recovery proof-plan documentation completed; cadence is now 4, so the next loop should run the scheduled whole-product gap review prompt unless a critical source/security issue appears. If Supabase DB/DNS recovers before or after the review, resume ITA-003f/S1 Route B stage-map implementation first, then rerun BFF-103d with DEMO_QA_BASE_URL=http://localhost:3029 pnpm bff:crm-related-lists-qa or the current equivalent. If DB/DNS remains blocked, continue only quiet five-frame documentation or no-DB source-contract slices; do not claim BFF-103d, Route B stage-map, or PIM-011 BFF/API DB-backed proof until persistence can be tested.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {

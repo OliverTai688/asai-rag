@@ -39,6 +39,19 @@ Full-site BFF 驗收重點不是 endpoint 數量，而是資料邊界、session 
 - CRM DTO keeps `complianceChecklist`、`sensitivityLevel`、`kycStatus`.
 - Refresh/new browser context shows DB-backed data, not browser storage-only data.
 
+#### 2.2.1 CRM Related-list Recovery Gates
+
+`BFF-103d` 的 related-list DTO 已有 partial implementation；若 DB/DNS 中斷，僅可記為 blocked/partial，不得宣稱完成。恢復驗收必須額外證明：
+
+- `GET /api/clients/[id]/related-lists` 由 current member session 推導 org/member/unit/client scope；不信任前端傳入的 organization/member/client scope。
+- DTO 覆蓋 policies、timeline、reports、gap-analysis、previsit/theater readiness signals，並保留 `complianceChecklist`、`sensitivityLevel`、`kycStatus`。
+- Response/page 不含 raw report body、raw provider payload、policyNumber、email/phone sentinel、private transcript、raw metadata。
+- Gap-analysis / report / previsit handoff 消費 facts / inferences / unknowns 與 source references；inference 不得被標成 confirmed fact。
+- Cross-role proof 覆蓋 member owner success 與 manager/foreign 403 或 404；org aggregate 權限不得升格為 member client-detail 權限。
+- Browser proof 覆蓋 policies、timeline、gap-analysis 至少 desktop/mobile no overflow 與 refresh/new-context persistence。
+- No-provider proof 顯示 `AiUsageLog` count unchanged；若任何 related-list action 後續接 AI provider，success/error path 必須另寫 `AiUsageLog`。
+- 若 Supabase DB/DNS 無法連線，只能提交 proof-plan 或 blocked report，不得把 fixture/mock output 當 DB-backed proof。
+
 ### 2.3 Org Admin
 
 - Member without org role gets 403.
@@ -168,4 +181,3 @@ Each BFF implementation report should include:
 ### Next Recommended Entry
 - ...
 ```
-
