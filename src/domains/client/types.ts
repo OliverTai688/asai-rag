@@ -96,5 +96,4 @@ export interface Client {
   sensitivityLevel: ClientSensitivityLevel;
   kycStatus: ClientComplianceStatus;
   lastInteraction: string;
-  parentMemberId?: string;
 }

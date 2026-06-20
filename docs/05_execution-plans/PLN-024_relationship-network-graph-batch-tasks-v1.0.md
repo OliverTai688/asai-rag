@@ -1,0 +1,90 @@
+# PLN-024 — 人物關係圖（關係網絡）修復與升級 Batch Tasks v1.0
+
+- 類型：計畫與批次（PLN）
+- KEY：`REL`
+- 研究依據：`docs/07_research-and-design/RES-024_relationship-network-graph-creation-gap-research-v1.0.md`
+- 驗收：`docs/08_acceptance-and-qa/ACC-016_relationship-network-graph-acceptance-framework-v1.0.md`
+- 對齊：`AGENTS.md` Full-site BFF（BFF-103 CRM completion）、`PLN-010`（家庭關係圖多世代擴充）
+- 建立日期：2026-06-20
+
+本檔是 `AGENTS.md` 「Relationship Network Graph Batch Tasks」workstream 的完整任務卡來源。單一勾選真相以 `AGENTS.md` 鏡像為準（與本檔同步）。每張卡都是可獨立驗收的清單；完成即就地把 `[ ]` 改成 `[x]` 並註記變更檔案。
+
+---
+
+## Context
+
+修復 `/crm/[clientId]/relationships` 人物關係圖的建立/持久化 bug，並把「單一父指標的樹」升級為可表達網絡的「節點＋邊」模型。本條只做**關係圖資料來源收斂、建立/持久化修復、edge 語意與佈局、edge model 與驗收**；不改 SPIN 狀態機、不改 Theater enum/scoring、不刪合規欄位（`complianceChecklist`、`sensitivityLevel`、`kycStatus`）、不外洩 email/phone 到 org manager aggregate 或 client-facing 介面。
+
+REL-1（REL-001/002）為**不動 schema 的最小修復**；REL-3（REL-004）才動 schema，且需可確認 DB target（local/development/已授權 staging）與 migration/rollback note。
+
+---
+
+## Current Relationship Graph Gaps
+
+- **G1/G2/G3 已於 2026-06-20 REL-001/002 最小修復完成**：runtime 不再讀寫 `Client.parentMemberId`；長輩直接掛主客戶時會畫成長輩→主客戶 edge；parent mode 改走 BFF create + re-parent。
+- **G4 單一父指標**：只有 `FamilyMember.parentMemberId`，無 edge / relation-type 表，無法表達雙親、配偶結合、手足、社會關係。
+- **G5 配偶/union 語意**：配偶被當有向父子邊（animated 虛線），無婚姻結合（pair-bond / union 節點）。
+- **G6 兩套實作未收斂**：互動 `RelationshipMap`（ReactFlow+dagre）vs BFF `relationship-graph.ts` review/`relationship-graph-repository.ts` 各自為政，畫面與真相不一致。
+- **G7 佈局僅 dagre 樹**：不處理同輩/社會邊與配偶配對排版。
+- **G8 缺驗收**：無關係圖 create/persist 的 API/Browser proof。
+
+---
+
+## Batch REL-001 — 最小修復：移除幽靈欄位、修長輩連線（不動 schema）
+
+- [x] 移除 / 廢用 `Client.parentMemberId`（`src/domains/client/types.ts:99`），並清掉其讀取點：`RelationshipMap.tsx:149-159` 的 client-parent edge 區塊、`RelationshipMap.tsx:180` 的 `isClientParent` dead code；source audit confirmed `relationship-graph.ts` `getParentLabel` only depends on `FamilyMember.parentMemberId`.
+- [x] 修 `RelationshipMap.tsx:186` 長輩 early-return：長輩（generation<0）直接掛主客戶時，畫成方向正確的 `PARENT_OF`（長輩→主客戶）邊，不再 return 掉、不再漂浮。
+- [x] edge label / 方向統一：父母→客戶用一致語意（不再把父→客戶硬寫成「子女」與其他成員 `member.relation` 兩套邏輯）。
+- [x] 確認 `RelationshipMap` 仍只讀 `client.family` 既有欄位，不新增 client-store 業務持久化來源。
+- [x] 不改 SPIN 狀態機、不改 Theater enum/scoring、不刪合規欄位。
+- [x] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+- [x] Browser proof：`/crm/[clientId]/relationships` 長輩節點有連線、無漂浮孤立；desktop/mobile 無水平 overflow、console error 0。
+
+## Batch REL-002 — 建立流程收斂到 BFF（child + parent 一致持久化）
+
+- [x] `AddRelationshipDialog.tsx` parent mode 改走 BFF：用 `createFamilyMemberRemote` 建立新成員，並用既有 `PATCH /api/clients/[id]/family-members/[memberId]` re-parent，不再用 local-only `addFamilyMember`/`updateClient`。
+- [x] child / parent 兩 mode 都 server-confirmed；client store local write method 改為 remote-confirmed cache update 或標 dev-only（對齊 BFF-103）。
+- [x] 所有 write 由 server session 推導 organization/owner；DTO 保留 `complianceChecklist`、`sensitivityLevel`、`kycStatus`。
+- [x] API proof：unauth 401、跨 org/foreign client 403/404、缺欄位 400、成功 200/201。
+- [x] Persist proof：清空 browser storage / 新 browser context 後，新增的父母/子女關係仍在（不再 refresh 消失）。
+- [x] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+
+完成註記（2026-06-20 REL-001/002）：變更檔案 `src/domains/client/types.ts`、`src/components/crm/RelationshipMap.tsx`、`src/components/crm/AddRelationshipDialog.tsx`、`src/domains/client/service.ts`、`scripts/client-relationship-graph-write-qa.mjs`、`scripts/client-relationship-graph-qa.mjs`。Proof：`pnpm client:relationship-graph-write-qa`、`pnpm client:relationship-graph-qa`、`pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+
+## Batch REL-003 — BFF edge 推導 + 渲染收斂 + 配偶 union（不動 schema）
+
+- [ ] BFF 由既有 `FamilyMember`（`parentMemberId` + `relation`）推導 edge list：`PARENT_OF` / `SPOUSE_OF` / `SIBLING_OF` / `CHILD_OF` / `SOCIAL_TIE`，附 `factStatus`（FACT/INFERENCE/UNKNOWN，對齊 `relationship-graph.ts`）。
+- [ ] `RelationshipMap` 改吃 BFF 推導的 nodes/edges，而非前端各自重算；與 `relationship-graph.ts` review 收斂為同一份真相（解 G6）。
+- [ ] 配偶改 genogram union/同 rank 結合線（pair-bond），非有向父子邊；edge label 統一。
+- [ ] 社會關係（朋友/合作夥伴）以關聯線呈現，可選擇不參與階層 rank。
+- [ ] API/source proof：edge list 不外洩 email/phone；node/edge 數與 `client.family` 一致。
+- [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+- [ ] Browser proof：配偶、雙親、手足關係渲染正確；desktop/mobile 無 overflow、console error 0。
+
+## Batch REL-004 — 完整 edge model（動 schema，需 approval）
+
+- [ ] Prisma 新增 `RelationshipEdge`（`id`、`clientId`、`sourceNodeId`、`targetNodeId`、`type`、`factStatus`、`label?`、`metadata?`），全表帶可驗證 `organizationId`（經 client）；保留 `FamilyMember` 既有欄位作 compatibility。
+- [ ] 支援多親、配偶結合、手足、離婚/監護、社會關係；主客戶本身為節點，不再依賴幽靈 `Client.parentMemberId`。
+- [ ] Repository / DTO 邊界：UI 不直接 import Prisma；read/write 都 server-scoped。
+- [ ] Backfill 策略 idempotent：把既有 `FamilyMember.parentMemberId` 轉成 `PARENT_OF` edge，不破壞真實資料、不重複。
+- [ ] 動 schema 跑 `pnpm prisma:validate`、`pnpm prisma:generate`，在可確認 DB target 做 `db push` 或 migration dry-run，並附 migration/rollback note。
+- [ ] API/persist proof：建立多親/配偶/社會邊後重新登入仍可讀。
+- [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+
+## Batch REL-005 — 佈局/互動 polish + 驗收 + 文件同步
+
+- [ ] 佈局：dagre/elk 處理同 rank 配偶與手足排序；社會邊不破壞世代階層；尊重 `prefers-reduced-motion`。
+- [ ] 互動 polish：新增/刪除節點、新增父/子節點 toolbar 都有 tooltip/aria-label；keyboard 可操作。
+- [ ] 跨狀態 Browser QA：空關係、單親、雙親、配偶、含社會關係；desktop/mobile console error 0、無水平 overflow。
+- [ ] 依 `ACC-016` 完成驗收；截圖存 `docs/06_audits-and-reports/screenshots/modern-ui/relationship-graph/`。
+- [ ] 更新 `AGENTS.md`、本檔（PLN-024）、必要 report / issue-question 完成狀態。
+- [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+
+---
+
+## Current Relationship Graph Blockers
+
+- REL-004 動 schema 需可確認 DB target（local/development/已授權 staging）與 migration/rollback approval；無法確認時先停在 REL-001..REL-003 的不動 schema 切片。
+- 若改 route/layout/server action/session 行為，先讀 `node_modules/next/dist/docs/` 對應 Next.js 版本文件。
+- 高敏感客戶關係資料進劇場仍走既有 reason/riskAccepted gate（TDF-004），不得繞過。
+- 與 `PLN-023`（AI Meeting Module）為不同 workstream，勿混改其檔案。

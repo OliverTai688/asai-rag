@@ -64,11 +64,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 0,
+    "normalLoopsSinceLastWholeProductReview": 1,
     "lastWholeProductReviewAt": "2026-06-20",
     "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-20_lv3-whole-product-gap-review-relationship-graph-spin.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "REL-001/REL-002 no-schema relationship graph build/persistence repair. Scope: remove the UI dependency on the Client.parentMemberId schema-mismatched contract, fix elder nodes so parent/elder relations render as connected PARENT_OF edges, make AddRelationshipDialog parent mode use createFamilyMemberRemote + PATCH /api/clients/[id]/family-members/[memberId] re-parent instead of local-only writes, and prove refresh/new-context persistence without changing schema.",
+    "nextRecommendedImplementationSlice": "REL-003 relationship graph BFF edge convergence. Scope: derive typed PARENT_OF/SPOUSE_OF/SIBLING_OF/SOCIAL_TIE edges from existing FamilyMember data, keep edge/node DTO free of email/phone/private sentinel, and make RelationshipMap consume the same BFF truth as the relationship-graph review without changing schema.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {

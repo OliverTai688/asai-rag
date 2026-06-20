@@ -83,22 +83,23 @@ export function AddRelationshipDialog({
           parentMemberId: selectedParentMemberId === "__root__" ? undefined : selectedParentMemberId,
         });
       } else {
-        // Parent mode remains a local graph helper until the relationship re-parent API is added.
-        const newMember = clientService.addFamilyMember(clientId, {
+        const previousMemberIds = new Set(existingMembers.map((member) => member.id));
+        const updatedClient = await clientService.createFamilyMemberRemote(clientId, {
           name,
           relation,
           age: age ? parseInt(age) : undefined,
           phone: phone || undefined,
-          // New parent might also have a parent, but for now we assume it's a new root branch
         });
+        const newMember = findCreatedMember(updatedClient.family, previousMemberIds, name, relation);
 
-        if (newMember) {
-          // Then update the target node's parentMemberId
-          if (selectedParentMemberId === "__root__") {
-            clientService.updateClient(clientId, { parentMemberId: newMember.id });
-          } else {
-            clientService.updateFamilyMember(clientId, selectedParentMemberId, { parentMemberId: newMember.id });
-          }
+        if (!newMember) {
+          throw new Error("Created family member was not returned by the server.");
+        }
+
+        if (selectedParentMemberId !== "__root__") {
+          await clientService.updateFamilyMemberRemote(clientId, selectedParentMemberId, {
+            parentMemberId: newMember.id,
+          });
         }
       }
 
@@ -223,4 +224,20 @@ export function AddRelationshipDialog({
       </DialogContent>
     </Dialog>
   );
+}
+
+function findCreatedMember(
+  family: FamilyMember[],
+  previousMemberIds: Set<string>,
+  name: string,
+  relation: string,
+) {
+  for (let index = family.length - 1; index >= 0; index -= 1) {
+    const member = family[index];
+    if (!previousMemberIds.has(member.id) && member.name === name && member.relation === relation) {
+      return member;
+    }
+  }
+
+  return family.find((member) => !previousMemberIds.has(member.id));
 }

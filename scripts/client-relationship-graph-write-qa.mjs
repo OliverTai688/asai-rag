@@ -20,6 +20,9 @@ const checks = [];
 const consoleErrors = [];
 let createdClientId = "";
 let browserDeleteMemberName = "";
+let browserChildName = "";
+let browserParentName = "";
+let rootElderName = "";
 
 mkdirSync(screenshotDir, { recursive: true });
 
@@ -55,9 +58,23 @@ async function runApiProof() {
   createdClientId = created.id;
   if (!createdClientId) return;
 
+  const invalidCreate = await memberRequestJson(
+    "POST",
+    `/api/clients/${createdClientId}/family-members`,
+    { relation: "父" },
+  );
+  push(invalidCreate.status === 400, "POST family member missing name returns 400", `status=${invalidCreate.status}`);
+
+  const rootElder = await createFamilyMember(createdClientId, {
+    name: `${qaStamp} 直接父節點`,
+    relation: "父",
+    age: 72,
+  });
+  rootElderName = rootElder.member?.name ?? "";
+
   const parent = await createFamilyMember(createdClientId, {
-    name: `${qaStamp} 父節點`,
-    relation: "配偶",
+    name: `${qaStamp} API 父節點`,
+    relation: "父",
     age: 43,
   });
   const child = await createFamilyMember(createdClientId, {
@@ -70,12 +87,22 @@ async function runApiProof() {
     relation: "親戚",
     age: 51,
   });
+  const browserChild = await createFamilyMember(createdClientId, {
+    name: `${qaStamp} UI 待掛子節點`,
+    relation: "女",
+    age: 16,
+  });
+  browserParentName = `${qaStamp} UI 新父節點`;
   browserDeleteMemberName = browserDelete.member?.name ?? "";
+  browserChildName = browserChild.member?.name ?? "";
 
+  push(Boolean(rootElder.member?.id), "API proof has root elder member id");
   push(Boolean(parent.member?.id), "API proof has parent member id");
   push(Boolean(child.member?.id), "API proof has child member id");
   push(Boolean(browserDelete.member?.id), "API proof has browser-delete member id");
-  if (!parent.member?.id || !child.member?.id || !browserDelete.member?.id) return;
+  push(Boolean(browserChild.member?.id), "API proof has browser parent-mode target child id");
+  push(!rootElder.member?.parentMemberId, "root elder member stays attached to primary client through graph inference");
+  if (!rootElder.member?.id || !parent.member?.id || !child.member?.id || !browserDelete.member?.id || !browserChild.member?.id) return;
 
   const reparent = await memberRequestJson(
     "PATCH",
@@ -124,10 +151,15 @@ async function runApiProof() {
     `/api/clients/${createdClientId}/family-members/${parent.member.id}`,
   );
   push(missingDelete.status === 404, "DELETE missing family member returns 404", `status=${missingDelete.status}`);
+
+  const persisted = await memberRequestJson("GET", `/api/clients/${createdClientId}`);
+  const persistedRootElder = persisted.body?.client?.family?.find((member) => member.id === rootElder.member.id);
+  push(persisted.status === 200, "GET client reload returns relationship graph family state", `status=${persisted.status}`);
+  push(Boolean(persistedRootElder) && !persistedRootElder.parentMemberId, "root elder persists without Client.parentMemberId dependency");
 }
 
 async function runBrowserProof() {
-  if (!createdClientId || !browserDeleteMemberName) {
+  if (!createdClientId || !browserDeleteMemberName || !browserChildName || !browserParentName || !rootElderName) {
     push(false, "browser proof has created client and member");
     return;
   }
@@ -153,10 +185,56 @@ async function runBrowserProof() {
       timeout: 60000,
     });
     await page.getByRole("heading", { name: "關係人管理" }).waitFor({ timeout: 30000 });
+    await page.getByText(rootElderName).first().waitFor({ timeout: 30000 });
+    await page.getByText(browserChildName).first().waitFor({ timeout: 30000 });
     const deleteButton = page.getByLabel(`刪除 ${browserDeleteMemberName}`);
     await deleteButton.waitFor({ timeout: 30000 });
+
+    const initialGraphChecks = await page.evaluate((expectedNames) => {
+      const text = document.body.innerText;
+      return {
+        hasRootElder: text.includes(expectedNames.rootElderName),
+        hasBrowserChild: text.includes(expectedNames.browserChildName),
+        edgeCount: document.querySelectorAll(".react-flow__edge").length,
+        horizontalOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
+      };
+    }, { rootElderName, browserChildName });
+    push(initialGraphChecks.hasRootElder, "browser renders root-connected elder node");
+    push(initialGraphChecks.hasBrowserChild, "browser renders parent-mode target child node");
+    push(initialGraphChecks.edgeCount >= 4, "browser graph renders an edge for each root/family relationship", `edges=${initialGraphChecks.edgeCount}`);
+    push(!initialGraphChecks.horizontalOverflow, "relationship graph write desktop has no horizontal overflow before parent create");
+
+    const targetNode = page.locator(".react-flow__node").filter({ hasText: browserChildName }).first();
+    await targetNode.click();
+    await page.getByRole("button", { name: /新增父節點/ }).click();
+    await page.getByLabel("姓名").fill(browserParentName);
+    await page.getByRole("combobox").first().click();
+    await page.getByRole("option", { name: "父", exact: true }).click();
+    await page.getByLabel(/年齡/).fill("66");
+    await page.getByRole("button", { name: "儲存" }).click();
+    await page.getByText("關係人已新增").waitFor({ timeout: 30000 });
+    await page.reload({ waitUntil: "networkidle", timeout: 60000 });
+    await page.getByText(browserParentName).first().waitFor({ timeout: 30000 });
+
+    const parentCreateChecks = await page.evaluate((expectedNames) => {
+      const text = document.body.innerText;
+      const rows = Array.from(document.querySelectorAll("div")).map((element) => element.textContent ?? "");
+      return {
+        parentVisible: text.includes(expectedNames.browserParentName),
+        childLinkedToParent: rows.some((row) =>
+          row.includes(expectedNames.browserChildName) && row.includes(`連結至 ${expectedNames.browserParentName}`),
+        ),
+        edgeCount: document.querySelectorAll(".react-flow__edge").length,
+        horizontalOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
+      };
+    }, { browserChildName, browserParentName });
+    push(parentCreateChecks.parentVisible, "browser parent-mode create persists new parent after reload");
+    push(parentCreateChecks.childLinkedToParent, "browser parent-mode create re-parents target child after reload");
+    push(parentCreateChecks.edgeCount >= 5, "browser graph still renders parent/child edges after parent create", `edges=${parentCreateChecks.edgeCount}`);
+    push(!parentCreateChecks.horizontalOverflow, "relationship graph write desktop has no horizontal overflow after parent create");
+
     await page.screenshot({
-      path: resolve(screenshotDir, "2026-06-20-relationship-graph-write-before-delete.png"),
+      path: resolve(screenshotDir, "2026-06-20-relationship-graph-write-parent-create.png"),
       fullPage: true,
     });
 
@@ -178,6 +256,18 @@ async function runBrowserProof() {
 
     await page.screenshot({
       path: resolve(screenshotDir, "2026-06-20-relationship-graph-write-after-delete.png"),
+      fullPage: true,
+    });
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.reload({ waitUntil: "networkidle", timeout: 60000 });
+    await page.getByText(browserParentName).first().waitFor({ timeout: 30000 });
+    const mobileChecks = await page.evaluate(() => ({
+      horizontalOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
+    }));
+    push(!mobileChecks.horizontalOverflow, "relationship graph write mobile has no horizontal overflow after parent create");
+    await page.screenshot({
+      path: resolve(screenshotDir, "2026-06-20-relationship-graph-write-mobile.png"),
       fullPage: true,
     });
   } finally {

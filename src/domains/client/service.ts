@@ -242,7 +242,8 @@ export const clientService = {
   },
 
   /**
-   * 新增家屬/關係人
+   * 新增家屬/關係人。
+   * Dev-only local cache helper; production relationship writes should use createFamilyMemberRemote().
    */
   addFamilyMember: (clientId: string, member: Omit<FamilyMember, "id">) => {
     const client = useClientStore.getState().getClientById(clientId);
@@ -262,7 +263,8 @@ export const clientService = {
   },
 
   /**
-   * 更新家屬/關係人
+   * 更新家屬/關係人。
+   * Dev-only local cache helper; production relationship writes should use updateFamilyMemberRemote().
    */
   updateFamilyMember: (clientId: string, memberId: string, updates: Partial<FamilyMember>) => {
     const client = useClientStore.getState().getClientById(clientId);
@@ -279,7 +281,8 @@ export const clientService = {
   },
 
   /**
-   * 刪除家屬/關係人
+   * 刪除家屬/關係人。
+   * Dev-only local cache helper; production relationship writes should use deleteFamilyMemberRemote().
    */
   deleteFamilyMember: (clientId: string, memberId: string) => {
     const client = useClientStore.getState().getClientById(clientId);

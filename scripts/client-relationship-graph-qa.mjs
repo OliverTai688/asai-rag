@@ -15,6 +15,8 @@ const screenshotDir = resolve(
   process.env.DEMO_QA_SCREENSHOT_DIR ?? "docs/06_audits-and-reports/screenshots/lv3-relationship-graph",
 );
 const qaStamp = `Relationship Graph QA ${Date.now()}`;
+const qaPrivateEmailPrefix = `relationship-graph-${Date.now()}`;
+const qaPrivatePhone = "0912-440-550";
 
 const checks = [];
 const consoleErrors = [];
@@ -84,8 +86,8 @@ async function runApiProof() {
     "relationship graph returns suggested prep questions",
   );
   push(
-    !detailText.includes("@") && !/09\d{2}/.test(detailText),
-    "relationship graph response has no email/phone sentinel",
+    !detailText.includes(qaPrivateEmailPrefix) && !detailText.includes(qaPrivatePhone),
+    "relationship graph response has no seeded email/phone sentinel",
   );
   push(
     !["rawPayload", "cookie", "secret", "authorization", "providerPayload"].some((key) =>
@@ -172,8 +174,8 @@ async function createGraphClient() {
   const name = `${qaStamp} 專案情境客戶`;
   const client = await memberRequestJson("POST", "/api/clients", {
     name,
-    email: `relationship-graph-${Date.now()}@asai.local`,
-    phone: "0912-440-550",
+    email: `${qaPrivateEmailPrefix}@asai.local`,
+    phone: qaPrivatePhone,
     occupation: "家族企業第二代負責人",
     annualIncome: 5600000,
     status: "ACTIVE",

@@ -145,19 +145,6 @@ function buildGraph(
     position: { x: 0, y: 0 },
   });
 
-  // Client Parent Edge
-  if (client.parentMemberId) {
-    edges.push({
-      id: `e-${client.parentMemberId}-${client.id}`,
-      source: client.parentMemberId,
-      target: client.id,
-      label: "子女",
-      labelStyle: { fill: "#888", fontWeight: 700, fontSize: 10 },
-      style: { stroke: "#90CAF9", strokeWidth: 2 },
-      markerEnd: { type: MarkerType.ArrowClosed, color: "#90CAF9", width: 16, height: 16 },
-    });
-  }
-
   // Build member nodes
   client.family.forEach((member) => {
     const generation = RELATION_GENERATION[member.relation] ?? 0;
@@ -176,25 +163,18 @@ function buildGraph(
       position: { x: 0, y: 0 },
     });
 
-    // Determine edge source
-    const isClientParent = !member.parentMemberId && client.parentMemberId === member.id;
-    
-    // If it's the client's parent, the edge is already handled above
-    if (isClientParent) return;
-
-    // If it has no parent and is an elder, it's a root node in the graph
-    if (!member.parentMemberId && generation < 0) return;
-
-    const sourceId = member.parentMemberId ?? client.id;
+    const isRootConnectedElder = !member.parentMemberId && generation < 0;
+    const sourceId = member.parentMemberId ?? (isRootConnectedElder ? member.id : client.id);
+    const targetId = isRootConnectedElder ? client.id : member.id;
 
     const isSpouse = member.relation === "配偶";
     const isCollateral =
       generation === 0 && !isSpouse; // same-generation but not spouse
 
     edges.push({
-      id: `e-${sourceId}-${member.id}`,
+      id: `e-${sourceId}-${targetId}`,
       source: sourceId,
-      target: member.id,
+      target: targetId,
       animated: isSpouse,
       label: member.relation,
       labelStyle: { fill: "#888", fontWeight: 700, fontSize: 10 },
