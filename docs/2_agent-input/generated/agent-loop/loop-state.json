@@ -71,11 +71,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 2,
+    "normalLoopsSinceLastWholeProductReview": 3,
     "lastWholeProductReviewAt": "2026-06-21",
     "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-21_lv3-whole-product-gap-review-cross-flow-proof.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "NAP-003c theater + RAG source adoption completed on 2026-06-21. Next normal loop should run `NAP-005 local-only adapter/export dry-run`: define/export least-disclosure internal metadata for NANDA AgentFacts-style JSON/MCP/A2A/HTTPS targets without public registry publication, signing, public discovery, or cross-org access; include revocation/version/approval gate proof. Fallback: BFF-204/205 Theater/RAG AI hardening if adapter proof exposes source blockers.",
+    "nextRecommendedImplementationSlice": "NAP-005 local-only adapter/export dry-run completed on 2026-06-21. Next normal loop should run `BFF-204/205 Theater/RAG AI hardening`: use the adapter/export proof and source adoption records to tighten legacy Theater, Route B, and RAG launch/provider blockers without external registry publication, public discovery, cross-org access, or unapproved provider calls. Fallback: release/private-beta registry readiness proof pack if BFF hardening is too broad.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {

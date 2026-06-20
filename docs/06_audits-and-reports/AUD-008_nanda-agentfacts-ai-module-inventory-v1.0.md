@@ -252,3 +252,13 @@ Implementation/proof update on 2026-06-21:
 - RAG evidence names guarded-disabled private beta route posture, quota check, no-provider response, usage counter proof, and the ingestion/privacy blocker before any client or high-sensitive source material can be accepted.
 - `scripts/ai-protocol-registry-qa.ts` now enforces source-adoption requirements for NAP-003a, NAP-003b, and NAP-003c agent ids.
 - The slice remains internal-only: no external registry publication, no signing, no public discovery endpoint, no cross-org access, and no OpenAI/Anthropic provider call in the implementation slice.
+
+### NAP-005 Completion Evidence
+
+Implementation/proof update on 2026-06-21:
+
+- `src/domains/ai-protocol/adapter-export.ts` now builds local-only protocol drafts from the internal manifest source: NANDA AgentFacts-style JSON, MCP descriptor, A2A Agent Card, and HTTPS metadata.
+- The shared publication gate requires operator approval, signing material custody and rotation planning, public discovery endpoint ownership and rollback planning, revocation process, privacy redaction review, and cross-organization access policy before any external publication can be enabled.
+- The local dry-run keeps all 11 manifests `internal-only`, marks every export `localOnly=true`, disables public discovery, leaves signing not configured, and documents rollback as deleting the local export.
+- `pnpm ai:protocol-adapter-dry-run-qa` proves all 4 export targets are present, JSON-serializable, versioned as `2026-06-21.nap-005`, least-disclosure, revocable, free of private sentinel values, and do not claim `external-ready` or `external-registered`.
+- The slice remains local-only: no external registry call, no provider invocation, no DB/Prisma operation, no public endpoint publication, and no cross-organization agent access.

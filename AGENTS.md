@@ -1596,11 +1596,13 @@ LV3-CROSS-001 proof pack 註記（2026-06-21）：新增 `pnpm lv3:cross-flow-no
 完成註記（2026-06-21 NAP-004）：新增 `getAgentProtocolRegistryReadiness()` platform-scoped least-disclosure DTO、`/api/platform/ai-protocol/registry` platform-only no-store API、release-readiness `aiProtocol` projection，以及 `pnpm ai:protocol-readiness-qa`。HTTP proof 覆蓋 member app session 403、platform session 200、registry/release-readiness total 與 `internal-only` readiness 一致、private sentinel 0。未呼叫 provider、未動 Prisma schema、未做 DB write、未對外發布 registry。
 
 ### Batch NAP-005 — External registration gate and adapter proof
-- [ ] 定義 external NANDA / MCP / A2A / HTTPS adapter publication gate：operator approval、signing/credential policy、public discovery endpoint、revocation/key rotation、privacy redaction、rollback。
-- [ ] 建立 local-only adapter/export dry-run，不呼叫外部 registry、不發布 public endpoint。
-- [ ] Proof 顯示 exported metadata schema-valid、least-disclosure、versioned、revocable、且未含 secret/private sentinel。
-- [ ] 更新 issue-question 記錄 external publication / signing / cross-org agent access approval。
-- [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`、adapter dry-run QA。
+- [x] 定義 external NANDA / MCP / A2A / HTTPS adapter publication gate：operator approval、signing/credential policy、public discovery endpoint、revocation/key rotation、privacy redaction、rollback。
+- [x] 建立 local-only adapter/export dry-run，不呼叫外部 registry、不發布 public endpoint。
+- [x] Proof 顯示 exported metadata schema-valid、least-disclosure、versioned、revocable、且未含 secret/private sentinel。
+- [x] 更新 issue-question 記錄 external publication / signing / cross-org agent access approval。
+- [x] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`、adapter dry-run QA。
+
+完成註記（2026-06-21 NAP-005）：新增 `src/domains/ai-protocol/adapter-export.ts` 與 `pnpm ai:protocol-adapter-dry-run-qa`，可從 11 個 internal-only manifest 產生 NANDA AgentFacts-style JSON、MCP descriptor、A2A Agent Card、HTTPS metadata 四種 local-only draft。Publication gate 固定要求 operator approval、signing material policy、public discovery owner/rollback、revocation/rotation plan、privacy redaction review、cross-organization access policy；dry-run proof 確認 4 個 export target schema-valid、versioned、revocable、least-disclosure、無 private sentinel、無 provider invocation、無 DB write、無 external-ready / external-registered 宣稱、未對外發布 registry。
 
 ### Current NANDA / Agent Protocol Blockers
 - NANDA / AgentFacts 規格仍在演進；本 repo 先採「NANDA-aligned internal manifest」，不宣稱正式相容或已登記。
