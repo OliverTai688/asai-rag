@@ -1540,7 +1540,8 @@ Context: 將誠問 AI 內所有 AI 能力逐步對齊 MIT Project NANDA / AgentF
 ### Current NANDA / Agent Protocol Gaps
 - `AUD-008` 已完成 NAP-001 inventory：`問誠問 AI`、`AI 了解客戶`、quick-capture、Realtime voice、SPIN、訪前規劃、report generation、legacy Theater、Route B Theater、RAG guarded-disabled、AI Meeting / notes prototype 都已映射到 internal AgentFacts-style module inventory；目前全數仍為 `internal-only`。
 - NAP-002 已建立 `AgentProtocolManifest` source schema、11 個 internal-only manifest 與 `pnpm ai:protocol-registry-qa`；多數正式 AI route 已有 session/quota/`AiUsageLog` 或 deterministic no-provider proof。
-- 缺口轉為 NAP-003 的 per-AI source alignment / readiness adoption、NAP-004 internal registry reader，以及 NAP-005 local-only adapter/export dry-run。
+- NAP-004 已建立 platform-only internal registry readiness reader、least-disclosure API 與 release-readiness projection；platform user 可讀、member app session 403，且所有 agent 仍為 `internal-only`。
+- 缺口轉為 NAP-003 的 per-AI source alignment / readiness adoption，以及 NAP-005 local-only adapter/export dry-run。
 - NANDA / AgentFacts 對外 registry publication、signing、public discovery endpoint、cross-org agent access 都需 operator approval；目前只允許 internal manifest / adapter proof。
 
 ### Batch NAP-001 — AI module inventory and NANDA mapping
@@ -1571,11 +1572,13 @@ Context: 將誠問 AI 內所有 AI 能力逐步對齊 MIT Project NANDA / AgentF
 - [ ] 跑 `pnpm ai:bff-audit`、`pnpm ai:protocol-registry-qa`、`pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
 
 ### Batch NAP-004 — Internal registry and readiness API
-- [ ] 建立 internal registry reader（server-only），可列出 AI manifests、readiness、missing proof、operator approval blockers。
-- [ ] Platform readiness / release readiness 可顯示每個 AI 的 protocol readiness，不把 `registry-draft` 顯示為 external registered。
-- [ ] API response 使用 least-disclosure DTO，不回 private prompt/provider payload。
-- [ ] Browser/API proof 覆蓋 platform user 可讀、member/client 無權讀、private sentinel 0。
-- [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`、targeted QA。
+- [x] 建立 internal registry reader（server-only），可列出 AI manifests、readiness、missing proof、operator approval blockers。
+- [x] Platform readiness / release readiness 可顯示每個 AI 的 protocol readiness，不把 `registry-draft` 顯示為 external registered。
+- [x] API response 使用 least-disclosure DTO，不回 private prompt/provider payload。
+- [x] Browser/API proof 覆蓋 platform user 可讀、member/client 無權讀、private sentinel 0。
+- [x] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`、targeted QA。
+
+完成註記（2026-06-21 NAP-004）：新增 `getAgentProtocolRegistryReadiness()` platform-scoped least-disclosure DTO、`/api/platform/ai-protocol/registry` platform-only no-store API、release-readiness `aiProtocol` projection，以及 `pnpm ai:protocol-readiness-qa`。HTTP proof 覆蓋 member app session 403、platform session 200、registry/release-readiness total 與 `internal-only` readiness 一致、private sentinel 0。未呼叫 provider、未動 Prisma schema、未做 DB write、未對外發布 registry。
 
 ### Batch NAP-005 — External registration gate and adapter proof
 - [ ] 定義 external NANDA / MCP / A2A / HTTPS adapter publication gate：operator approval、signing/credential policy、public discovery endpoint、revocation/key rotation、privacy redaction、rollback。

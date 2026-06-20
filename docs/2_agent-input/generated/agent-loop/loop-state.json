@@ -71,11 +71,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 3,
+    "normalLoopsSinceLastWholeProductReview": 4,
     "lastWholeProductReviewAt": "2026-06-21",
     "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-21_lv3-whole-product-gap-review-pim-ui-nap-routeb.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "NAP-002 source/proof loop completed on 2026-06-21: src/domains/ai-protocol now defines AgentProtocolManifest plus 11 internal-only manifests, and pnpm ai:protocol-registry-qa passes with completeness, sentinel, AiUsageLog policy, readiness, and publication-gate checks; pnpm ai:bff-audit still passes with 23 routes. Next recommended slice is NAP-003 per-AI source alignment/adoption or NAP-004 platform-only internal registry reader/readiness DTO; if the operator explicitly approves live provider work, ITA-003g Route B runtime can run as a guarded provider proof instead.",
+    "nextRecommendedImplementationSlice": "NAP-004 source/API/proof loop completed on 2026-06-21: src/domains/ai-protocol now exposes getAgentProtocolRegistryReadiness(), /api/platform/ai-protocol/registry is platform-only/no-store, and platform release readiness includes least-disclosure aiProtocol readiness. pnpm ai:protocol-readiness-qa passes both source and DEMO_QA_BASE_URL HTTP proof. Cadence counter is now 4, so the next automation loop should run the fifth-loop whole-product gap review prompt before more implementation unless the operator gives an urgent override.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {

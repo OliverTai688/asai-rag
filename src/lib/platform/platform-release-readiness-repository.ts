@@ -2,6 +2,7 @@ import "server-only";
 
 import { existsSync } from "node:fs";
 import { join } from "node:path";
+import { getAgentProtocolRegistryReadiness } from "@/domains/ai-protocol";
 import { prisma, prismaRuntimeDatabaseSource, prismaRuntimeDatabaseUrl } from "@/lib/prisma";
 import { getPlatformSettings } from "./platform-settings-repository";
 
@@ -57,6 +58,7 @@ function readinessLabel(status: ReleaseGateStatus) {
 export async function getPlatformReleaseReadiness() {
   const currentMonth = monthStart();
   const settings = await getPlatformSettings();
+  const aiProtocolRegistry = getAgentProtocolRegistryReadiness();
 
   const [organizations, aiTotals, aiErrors, usageByModule, pendingBillingOrders] = await Promise.all([
     prisma.organization.findMany({
@@ -208,6 +210,24 @@ export async function getPlatformReleaseReadiness() {
         totalTokens: numberOrZero(group._sum.totalTokens),
         estimatedCostUsd: decimalOrZero(group._sum.costUsd),
       })),
+    },
+    aiProtocol: {
+      scope: aiProtocolRegistry.scope,
+      summary: aiProtocolRegistry.summary,
+      agents: aiProtocolRegistry.agents.map((agent) => ({
+        agentId: agent.agentId,
+        displayName: agent.displayName,
+        module: agent.module,
+        status: agent.status,
+        registryReadiness: agent.registryReadiness,
+        ownerSurface: agent.ownerSurface,
+        endpointCount: agent.interfaceSummary.endpointCount,
+        actionCount: agent.interfaceSummary.actionCount,
+        providerCostPosture: agent.quotaCost.providerCostPosture,
+        aiUsageLogPolicy: agent.quotaCost.aiUsageLogPolicy,
+        knownBlockers: agent.proof.knownBlockers,
+      })),
+      safety: aiProtocolRegistry.safety,
     },
     quota: {
       status: quotaStatus,
