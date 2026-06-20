@@ -107,6 +107,8 @@
 
 PIM-011a source-contract proof（2026-06-20）新增 `pnpm interview:quick-capture-bridge-dry-run`，目前只證明 domain helper 的分類、scope、敏感 gate、handoff 與 no-provider posture；尚未證明正式 BFF/API persistence、cross-role denial、refresh/new-context DB readback 或 UI browser proof。
 
+PIM-011b proof-plan boundary（2026-06-20）：若 Supabase/DB proof 尚不可執行，agent 可更新文件與 proof plan，但不得把 PIM-011 宣告為 BFF/API 完成。正式 BFF/API slice 必須以 server session 推導 scope，並以 DB-backed request 證明 owner success、cross-role denial、high-sensitive gate、refresh/new-context readback 與 raw-private-data hygiene。
+
 - [ ] Quick-capture note 可先不歸戶，但歸戶或連到 `VisitPlan` / `Client` 時，scope 一律由 server session 推導，不信任前端 `organizationId`、`memberId`、`clientId`、`visitPlanId`。
 - [ ] Note -> memory mapping 保留 source label、note/turn id、`FACT` / `CONFIRMED` / `INFERENCE` / `UNKNOWN`，且 inference 不得寫成 CRM confirmed fact。
 - [ ] 手動筆記與語音 transcript 都可以成為 `InterviewMemory` candidate；raw audio 預設不保存，raw private transcript 不進 report/evidence。
@@ -114,6 +116,8 @@ PIM-011a source-contract proof（2026-06-20）新增 `pnpm interview:quick-captu
 - [ ] High-sensitive client note 缺 reason/riskAccepted 時 blocked 或只能保持 private draft。
 - [ ] No-provider bridge proof 必須顯示 `AiUsageLog` count unchanged；若新增 summary/chat provider route，success/error 都必須寫 `AiUsageLog` 並納入 `pnpm ai:usage-audit`。
 - [ ] Cross-role proof 覆蓋 member owner success 與 manager/foreign denied；org aggregate API 不回 note text、transcript、memory text 或 client private payload。
+- [ ] BFF/API proof response DTO 至少包含 note/turn/memory id、source label、data class、fact/inference/unknown 分流、supporting evidence、`requiresConfirmation`；不得包含 raw private transcript、raw provider payload、secret/token sentinel。
+- [ ] Browser proof 若接 UI，必須證明顧問可用 selector/context 選「保持私人草稿 / 歸客戶 / 歸拜訪 / 轉待確認」，不得要求 raw client/visit/session ID 作為主要操作。
 
 ---
 
@@ -140,6 +144,7 @@ PIM-011a source-contract proof（2026-06-20）新增 `pnpm interview:quick-captu
 - [ ] 動 AI route：success/error `AiUsageLog` proof
 - [ ] 動 UI：Browser/headless desktop/mobile screenshot proof
 - [ ] PIM-011a source contract：`pnpm interview:quick-capture-bridge-dry-run`
+- [ ] PIM-011 BFF/API proof：owner member 201/200、manager/foreign 404/403、high-sensitive missing reason blocked、refresh/new-context DB readback、response no private sentinel、`AiUsageLog` unchanged 或 provider success/error log proof
 
 ---
 

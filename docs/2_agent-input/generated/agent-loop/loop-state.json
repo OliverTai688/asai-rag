@@ -64,11 +64,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 1,
+    "normalLoopsSinceLastWholeProductReview": 2,
     "lastWholeProductReviewAt": "2026-06-20",
     "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-20_lv3-whole-product-gap-review-after-pim-011.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "PIM-011a quick-capture -> Park memory bridge source contract completed with no-provider dry-run proof. If Supabase DB/DNS recovers, resume ITA-003f/S1 Route B relationship-graph stage map (no-provider) as the primary product slice, then rerun BFF-103d. If DB/DNS remains blocked, continue only with no-DB slices or quiet five-frame gap documentation; do not claim PIM-011 BFF/API owner/manager/refresh proof until DB-backed persistence can be tested, and do not stage unrelated AI meeting/notes prototype files.",
+    "nextRecommendedImplementationSlice": "Quiet PIM-011b quick-capture BFF/API proof-plan documentation completed. If Supabase DB/DNS recovers, resume ITA-003f/S1 Route B relationship-graph stage map (no-provider) as the primary product slice, then rerun BFF-103d or the PIM-011 BFF/API proof. If DB/DNS remains blocked, continue only with no-DB source slices or quiet five-frame documentation; do not claim PIM-011 BFF/API owner/manager/refresh proof until DB-backed persistence can be tested, and do not stage unrelated AI meeting/notes prototype files.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {

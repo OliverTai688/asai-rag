@@ -285,6 +285,14 @@ Whole-product review note（2026-06-20 after PIM-011）：第五輪校準確認 
 
 完成註記（2026-06-20 PIM-011a）：新增 `src/domains/interview/quick-capture.ts`、`scripts/interview-quick-capture-bridge-dry-run.ts`、`scripts/interview-quick-capture-bridge-dry-run.mjs` 與 `pnpm interview:quick-capture-bridge-dry-run`。此子切片只完成 no-provider/no-schema domain contract：serverScope 優先於 clientProvidedScope、manual/voice quick-capture 可轉 `InterviewMemory` candidate、confirmed/inference/unknown 分流、inference 不產生 CRM candidate、unknown 轉 narrator question、inference/unknown 轉 theater state proposal 且 `writesConfirmedCrmFact=false`、高敏感連到 client/visit 缺 reason/riskAccepted 會 blocked、private draft 可保留、secret/token/raw payload 會 blocked、`providerCallAttempted=false` / `aiUsageLogRequired=false`。尚未完成：正式 BFF/API persistence、owner/member 200、manager/foreign denial、refresh/new-context DB readback、UI browser proof。
 
+Quiet five-frame proof-plan note（2026-06-20 PIM-011b）：本輪未新增 source，因 Supabase DB/DNS 仍無法解析，改把 PIM-011a 後續 BFF/API proof 缺口收斂成可交接驗收計畫。下一個可實作切片必須符合以下五個視框，否則不得把 PIM-011 宣告為正式 BFF/API proof 完成：
+
+1. Advisor workflow / onboarding：quick-capture 的第一步只要求顧問選「保持私人草稿 / 歸客戶 / 歸拜訪 / 轉待確認」。正式 UI 應使用 selector 或 current workspace context，不要求顧問輸入 raw client/visit/session ID。
+2. Source-of-truth / BFF：未來 route 應由 server session 推導 `organizationId`、`memberId`、`unitId` 與可寫入的 `clientId` / `visitPlanId`；任何 client-provided scope 只能當 intent，不可成為 persistence source of truth。優先復用 existing `InterviewSession` / `InterviewTurn` / `InterviewMemory` adapter；若要新增 `QuickNote` table 或 `AiModule.MEETING`，需另列 operator/product decision。
+3. AI reasoning / evidence：response DTO 至少回傳 note/turn/memory id、source label、data class、fact/inference/unknown 分流、supporting evidence 與 `requiresConfirmation`。不得回傳 raw private transcript、raw provider payload、secret/token sentinel；本 quick-capture bridge 仍是 no-provider，若後續新增 provider summary/chat，success/error 必須寫 `AiUsageLog`。
+4. Theater / relationship immersion：bridge output 可產生準備包 supplement、narrator questions、relationship tension inference 與 theater state proposal；state proposal 固定 `requiresConfirmation=true`、`writesConfirmedCrmFact=false`，不得直接改 confirmed CRM fact 或 Route B stage fact。
+5. QA / compliance：正式完成前必須有 DB-backed proof：owner/member 201 或 200、manager/foreign denied 404/403、高敏感連客戶/拜訪但缺 reason/riskAccepted blocked、refresh/new-context readback、response 無 private sentinel、`AiUsageLog` unchanged 或 provider-call success/error log proof、必要時 browser desktop/mobile no-overflow。DB 不可用期間只能宣告 source-contract 或 proof-plan 完成。
+
 範圍外：不啟用 live Realtime provider；不保存 raw audio；不把 untracked AI meeting/notes prototype 當正式 proof；不新增 production schema migration；不把 inference 寫成 CRM confirmed fact。
 
 ---
