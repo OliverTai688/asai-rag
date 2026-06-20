@@ -333,6 +333,24 @@ export function canManageWorkspaceOrgSettings(session: AppSession) {
   return canManageOrgSettings(buildWorkspaceSidebarContext(session, "orgAdmin"));
 }
 
+const orgSettingsWriteRoutePrefixes = [
+  "/team/settings",
+  "/team/billing",
+  "/team/seats",
+  "/team/units",
+  "/team/invites",
+  "/api/org/settings",
+  "/api/org/units",
+  "/api/org/invites",
+  "/api/org/billing",
+] as const;
+
+function isOrgSettingsWriteRoute(href: string) {
+  return orgSettingsWriteRoutePrefixes.some((prefix) =>
+    href === prefix || href.startsWith(`${prefix}/`),
+  );
+}
+
 export function resolveWorkspaceRouteAccess(session: AppSession, href: string): WorkspaceRouteAccess {
   if (href.startsWith("/super-admin")) {
     return {
@@ -356,7 +374,7 @@ export function resolveWorkspaceRouteAccess(session: AppSession, href: string): 
     };
   }
 
-  if (href.startsWith("/team/settings") || href.startsWith("/api/org/settings")) {
+  if (isOrgSettingsWriteRoute(href)) {
     const allowed = canManageWorkspaceOrgSettings(session);
     const canReadOrgSurface = canReadWorkspaceOrgAggregate(session);
 

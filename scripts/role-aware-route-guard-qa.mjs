@@ -136,10 +136,15 @@ push(access("MEMBER", "/team/settings").redirectIfDenied === "/dashboard", "memb
 push(access("MANAGER", "/team", ["unit-north"]).allowed, "scoped manager can hand-type /team");
 push(!access("MANAGER", "/team/settings", ["unit-north"]).allowed, "scoped manager cannot hand-type /team/settings");
 push(access("MANAGER", "/team/settings", ["unit-north"]).redirectIfDenied === "/team", "scoped manager org settings denial returns team");
+push(!access("MANAGER", "/team/billing", ["unit-north"]).allowed, "scoped manager cannot hand-type /team/billing");
+push(access("MANAGER", "/team/billing", ["unit-north"]).redirectIfDenied === "/team", "scoped manager billing denial returns team");
+push(!access("MANAGER", "/team/seats", ["unit-north"]).allowed, "scoped manager cannot hand-type /team/seats");
+push(!access("MANAGER", "/api/org/units", ["unit-north"]).allowed, "scoped manager cannot call /api/org/units");
 push(!access("MANAGER", "/team", []).allowed, "unscoped manager cannot hand-type /team");
 push(access("MANAGER", "/team", []).redirectIfDenied === "/dashboard", "unscoped manager org aggregate denial returns dashboard");
 push(!access("OWNER", "/super-admin").allowed, "app owner cannot enter platform route through workspace policy");
 push(!access("OWNER", "/client/reports").allowed, "app owner cannot enter client portal route through workspace policy");
+push(access("OWNER", "/team/billing").allowed, "owner can hand-type /team/billing");
 push(access("OWNER", "/team/settings").allowed, "owner can hand-type /team/settings");
 push(access("ADMIN", "/api/org/settings").allowed, "admin can call /api/org/settings");
 push(!access("MANAGER", "/api/org/settings", ["unit-north"]).allowed, "manager cannot call /api/org/settings");

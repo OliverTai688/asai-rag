@@ -67,6 +67,7 @@
     "nav:route-guard-qa": "node scripts/role-aware-route-guard-qa.mjs",
     "nav:sidebar-renderer-contract-qa": "node scripts/role-aware-sidebar-renderer-contract-qa.mjs",
     "nav:sidebar-ui-qa": "node scripts/role-aware-sidebar-ui-qa.mjs",
+    "nav:sidebar-cross-role-qa": "node scripts/role-aware-sidebar-cross-role-qa.mjs",
     "demo:runtime-audit": "node scripts/demo-runtime-audit.mjs",
     "mock:production-guard-qa": "node scripts/mock-production-guard-qa.mjs",
     "share:token-qa": "node scripts/share-token-qa.mjs",
