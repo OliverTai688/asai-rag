@@ -64,11 +64,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 4,
+    "normalLoopsSinceLastWholeProductReview": 0,
     "lastWholeProductReviewAt": "2026-06-20",
-    "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-20_lv3-whole-product-gap-review-stage-map-ras.md",
+    "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-20_lv3-whole-product-gap-review-after-ras-004a.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "Cadence is now 4, so the next loop should run the scheduled whole-product LV3 gap review. Include this loop's RAS-004a result: sidebar renderer contract adapter is proven without DB/provider and without touching dirty sidebar.tsx, but actual sidebar UI wiring / Browser QA remains RAS-004b. If the review defers implementation to a critical slice and Supabase DB/DNS is available, reconsider ITA-003f/S1 Route B relationship-graph stage map (no-provider). If DB remains blocked after the review, continue with RAS-004b sidebar UI wiring using buildWorkspaceSidebarRenderModel() while isolating existing sidebar /notes dirty diff.",
+    "nextRecommendedImplementationSlice": "Whole-product review after RAS-004a completed and cadence reset to 0. Primary product gap remains ITA-003f/S1 Route B relationship-graph stage map (no-provider) because it connects relationship graph/previsit/interview materials to an operable theater stage. Current DB DNS check still fails for db.wwocdcicvpmbdmqvskzi.supabase.co, so the next safe normal loop should run RAS-004b sidebar UI wiring using buildWorkspaceSidebarRenderModel() while isolating existing sidebar /notes dirty diff. If Supabase DB/DNS recovers before the next loop, switch back to ITA-003f/S1; after DB recovers, also rerun BFF-103d related-list proof.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {

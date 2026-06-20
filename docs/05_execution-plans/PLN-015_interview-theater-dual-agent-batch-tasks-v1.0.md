@@ -155,6 +155,8 @@ ITA-003e interaction shell note（2026-06-20）：已完成 Route B persisted in
 
 Whole-product review note（2026-06-20 after RAS-001）：端到端 LV3 校準確認「建場」已可從 client / relationship graph / previsit / interview 進入 persisted Route B session，但劇場頁仍缺 relationship-graph-centered 的可操作舞台。下一個 product-level 最高槓桿子切片為 `ITA-003f/S1 Route B relationship-graph stage map (no-provider)`：`/theater/[sessionId]` 以 Route B characters / relationship evidence 呈現舞台地圖，支援點人物進私聊、發言/被點名高亮、群/私聊 visibility badge、guarded-disabled runtime 狀態，不呼叫 provider；proof 覆蓋 member read、manager 404、private visibility、不寫 confirmed CRM fact、desktop/mobile no overflow。若 Supabase DB/DNS 仍不可用，下一輪先 fallback `RAS-002` resolver/policy tests。
 
+Whole-product review note（2026-06-20 after RAS-004a）：`ITA-003f/S1` 仍是 immersive theater 的 product-level primary，因關係圖、準備包、訪談 writeback 已能進 Route B session，但 session page 還缺真正以人物關係為中心的舞台地圖。若 DB/DNS 仍不可用，下一輪安全 fallback 改為 `RAS-004b sidebar UI wiring`；DB 恢復後再回來做 stage map proof，且不得在 provider/director/character/feedback 未有 `AiUsageLog` success/error proof 前宣稱 AI 角色 runtime 完成。
+
 ---
 
 ## Batch ITA-004 - 五視角質化回饋
