@@ -948,7 +948,7 @@ Context: 將兩個 AI 訪談（顧問陪談訪綱 A、劇場場域建構訪綱 B
 - 訪綱 A 與訪綱 B 已共用 Park memory domain contracts；劇場場域建構可產生 `TheaterBuildPacket`，完整 Theater Route B migration 仍屬 `PLN-015`。
 - 訪談 turn、memory、reflection 已 DB 化，並提供 owner-scoped BFF routes；reflection/planning 已拆成可測 service 與 BFF route。
 - Confirmation card 與 CRM/writeback boundary 已完成；confirmed fact / inference / unknown 會先經人工確認卡，再依 server boundary 寫成 CRM candidate、interview insight 或 follow-up task。
-- 剩餘 LV3 expansion gap：AI 訪談尚未把已確認素材直接建立為 persisted `VisitPlan` 草稿或 Route B theater build draft；下一個安全切片應走 confirmation/writeback boundary，不儲存 raw transcript、不呼叫 provider。
+- PIM-010 已補上 LV3 expansion gap：AI 訪談可把確認卡素材建立為 persisted `VisitPlan` 草稿或 Route B theater session draft；後續焦點轉回 SPIN source-truth、Route B provider orchestration 或 live Realtime provider proof。
 
 ### Batch PIM-000 — 架構文件與 workstream 登錄
 - [x] 新增 `ARC-007`，明確定義兩個 AI 訪談共用 Park-style runtime architecture。
@@ -1070,16 +1070,18 @@ Context: 將兩個 AI 訪談（顧問陪談訪綱 A、劇場場域建構訪綱 B
 完成註記：2026-06-19 新增 `pnpm interview:cross-mode-qa` 作為 PIM release-candidate proof，串接 advisor/theater/voice shell/persistence/reflection/writeback/browser/privacy 驗收。`PLN-018` 已補 rollback note：voice provider 可停用回文字 fallback、memory persistence 可停用回 request-local stream、schema rollback 必須以 approved reverse migration 或 unused additive tables 處理、CRM writeback rollback 保留 audit trail、manager aggregate API 不得讀 transcript/memory/client private payload。驗收：`pnpm interview:cross-mode-qa`、`pnpm exec tsc --noEmit --pretty false`、`pnpm run lint:changed` 通過。PIM workstream code/docs/proof 已可交接；live Realtime provider proof、raw audio retention 與 production migration approval 仍是 blockers。
 
 ### Batch PIM-010 — Interview -> VisitPlan / Theater draft writeback
-- [ ] 新增或擴充 writeback target：`VISIT_PLAN_DRAFT` 與 `THEATER_BUILD_DRAFT`，只接受已確認或明確標示 inference/unknown 的素材。
-- [ ] `VISIT_PLAN_DRAFT` 透過現有 `/api/visits` / visit repository 建立 persisted `VisitPlan` 草稿，保留 facts / inferences / unknowns / reasoning evidence，不保存 raw transcript 或 raw provider payload。
-- [ ] `THEATER_BUILD_DRAFT` 透過現有 Theater build packet / Route B session boundary 建立可 review 的 stage draft 或 DB-backed Route B session，未知項轉 narrator questions，NPC <= 4。
-- [ ] 高敏感 client 仍需 reason/riskAccepted；inference 不得寫成 confirmed CRM fact。
-- [ ] API proof：unauth 401、member 201、manager/foreign 404、高敏感缺 approval blocked、response no raw private sentinel。
-- [ ] Browser proof：`/interview` confirmation card 可選「建立準備包草稿」或「建立劇場草稿」，完成後導向 `/pre-visit/[id]` 或 `/theater/build` / `/theater/[sessionId]`，desktop/mobile 無水平 overflow。
-- [ ] No-provider proof：本切片不呼叫 OpenAI/Anthropic；`AiUsageLog` count before/after 不變。
-- [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+- [x] 新增或擴充 writeback target：`VISIT_PLAN_DRAFT` 與 `THEATER_BUILD_DRAFT`，只接受已確認或明確標示 inference/unknown 的素材。
+- [x] `VISIT_PLAN_DRAFT` 透過現有 `/api/visits` / visit repository 建立 persisted `VisitPlan` 草稿，保留 facts / inferences / unknowns / reasoning evidence，不保存 raw transcript 或 raw provider payload。
+- [x] `THEATER_BUILD_DRAFT` 透過現有 Theater build packet / Route B session boundary 建立可 review 的 stage draft 或 DB-backed Route B session，未知項轉 narrator questions，NPC <= 4。
+- [x] 高敏感 client 仍需 reason/riskAccepted；inference 不得寫成 confirmed CRM fact。
+- [x] API proof：unauth 401、member 201、manager/foreign 404、高敏感缺 approval blocked、response no raw private sentinel。
+- [x] Browser proof：`/interview` confirmation card 可選「建立準備包草稿」或「建立劇場草稿」，完成後導向 `/pre-visit/[id]` 或 `/theater/build` / `/theater/[sessionId]`，desktop/mobile 無水平 overflow。
+- [x] No-provider proof：本切片不呼叫 OpenAI/Anthropic；`AiUsageLog` count before/after 不變。
+- [x] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
 
 Whole-product review 註記（2026-06-20）：第五輪校準後下一個最高槓桿實作切片建議為 `PIM-010 Interview -> VisitPlan / Theater draft writeback`。原因：client/relationship/previsit/theater shell 已有 server-owned proof，但「AI 訪談建立或補強準備包與劇場」仍停在 CRM candidate/insight/task；本切片可不動 schema、不呼叫 provider，直接串起 interview -> previsit -> theater。
+
+完成註記：2026-06-20 已在 confirmation/writeback boundary 增加 `VISIT_PLAN_DRAFT` / `THEATER_BUILD_DRAFT`，`/interview` 確認卡可建立 persisted `VisitPlan` 草稿或 DB-backed Route B theater session。高敏感缺 draft reason/riskAccepted 會 blocked；approved writeback 保留 facts/inferences/unknowns/reasoning evidence，未知項轉 narrator questions，NPC <= 4，且不建立 confirmed CRM fact。Proof：`pnpm interview:draft-writeback-qa` 通過 API/DB/browser/no-provider；`DEMO_QA_BASE_URL=http://localhost:3031 pnpm interview:writeback-qa` regression 通過。
 
 ### Current PIM Blockers
 - Realtime voice 若接 provider，需要可用 OpenAI Realtime model、ephemeral session policy 與 usage/cost evidence。

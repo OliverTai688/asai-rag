@@ -64,11 +64,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 0,
+    "normalLoopsSinceLastWholeProductReview": 1,
     "lastWholeProductReviewAt": "2026-06-20",
     "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-20_lv3-whole-product-gap-review-interview-drafts.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "PIM-010 Interview -> VisitPlan / Theater draft writeback. Use the existing interview confirmation/writeback boundary to create persisted VisitPlan drafts and Route B theater build drafts without provider calls, raw transcript storage, or inference-to-CRM-fact leakage. Fallback if blocked: BFF-203a SPIN source-truth hardening for /spin mock outline/local seed removal.",
+    "nextRecommendedImplementationSlice": "BFF-203a SPIN source-truth hardening. Protect the SPIN SITUATION -> PROBLEM -> IMPLICATION -> NEED_PAYOFF state machine while removing the remaining /spin/[sessionId] mock outline/local seed proof gap. Fallback if blocked: ITA-003f Route B provider orchestration guarded by explicit provider approval and success/error AiUsageLog proof.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {

@@ -1,7 +1,7 @@
 # 誠問 AI Realtime Voice × Park-style Interview Memory Batch Tasks v1.0
 
 > 建立日期：2026-06-19  
-> 狀態：第一階段完成（PIM-009 cross-mode QA 完成）；PIM-010 LV3 extension queued，live provider / production migration 仍需 approval
+> 狀態：第一階段完成（PIM-010 LV3 draft writeback 完成）；live provider / production migration 仍需 approval
 > 架構依據：`ARC-007_realtime-voice-and-park-memory-interview-architecture-v1.0.md`  
 > 研究依據：`RES-017_chinese-realtime-voice-and-park-memory-interview-research-v1.0.md`  
 > 既有雙 Agent 依據：`ARC-004_interview-theater-dual-agent-design-v1.1.md`、`PLN-015_interview-theater-dual-agent-batch-tasks-v1.0.md`  
@@ -44,7 +44,7 @@
 | PIM-007 | Reflection + planning service/routes | [x] | PIM-006 可部分並行 |
 | PIM-008 | Confirmation card + CRM/writeback boundary | [x] | PIM-002、PIM-006 |
 | PIM-009 | Cross-mode QA, docs sync, rollback notes | [x] | PIM-002 to PIM-008 |
-| PIM-010 | Interview -> VisitPlan / Theater draft writeback | [ ] | PIM-006、PIM-008、BFF-104、ITA-003e |
+| PIM-010 | Interview -> VisitPlan / Theater draft writeback | [x] | PIM-006、PIM-008、BFF-104、ITA-003e |
 
 ---
 
@@ -249,18 +249,20 @@
 
 目標：讓 `/interview` 的已確認素材可以建立或補強拜訪準備包與劇場草稿，補上 LV3「AI 訪談建立準備包 / 劇場」的直接工作流。
 
-- [ ] 新增或擴充 writeback target：`VISIT_PLAN_DRAFT` 與 `THEATER_BUILD_DRAFT`，只接受已確認或明確標示 inference/unknown 的素材。
-- [ ] `VISIT_PLAN_DRAFT` 透過現有 `/api/visits` / visit repository 建立 persisted `VisitPlan` 草稿，保留 facts / inferences / unknowns / reasoning evidence，不保存 raw transcript 或 raw provider payload。
-- [ ] `THEATER_BUILD_DRAFT` 透過既有 Theater build packet / Route B session boundary 建立可 review 的 stage draft 或 DB-backed Route B session，未知項轉 narrator questions，NPC <= 4。
-- [ ] 高敏感 client 仍需 reason/riskAccepted；inference 不得寫成 confirmed CRM fact。
-- [ ] API proof：unauth 401、member 201、manager/foreign 404、高敏感缺 approval blocked、response no raw private sentinel。
-- [ ] Browser proof：`/interview` confirmation card 可選「建立準備包草稿」或「建立劇場草稿」，完成後導向 `/pre-visit/[id]` 或 `/theater/build` / `/theater/[sessionId]`，desktop/mobile 無水平 overflow。
-- [ ] No-provider proof：本切片不呼叫 OpenAI/Anthropic；`AiUsageLog` count before/after 不變。
-- [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+- [x] 新增或擴充 writeback target：`VISIT_PLAN_DRAFT` 與 `THEATER_BUILD_DRAFT`，只接受已確認或明確標示 inference/unknown 的素材。
+- [x] `VISIT_PLAN_DRAFT` 透過現有 `/api/visits` / visit repository 建立 persisted `VisitPlan` 草稿，保留 facts / inferences / unknowns / reasoning evidence，不保存 raw transcript 或 raw provider payload。
+- [x] `THEATER_BUILD_DRAFT` 透過既有 Theater build packet / Route B session boundary 建立可 review 的 stage draft 或 DB-backed Route B session，未知項轉 narrator questions，NPC <= 4。
+- [x] 高敏感 client 仍需 reason/riskAccepted；inference 不得寫成 confirmed CRM fact。
+- [x] API proof：unauth 401、member 201、manager/foreign 404、高敏感缺 approval blocked、response no raw private sentinel。
+- [x] Browser proof：`/interview` confirmation card 可選「建立準備包草稿」或「建立劇場草稿」，完成後導向 `/pre-visit/[id]` 或 `/theater/build` / `/theater/[sessionId]`，desktop/mobile 無水平 overflow。
+- [x] No-provider proof：本切片不呼叫 OpenAI/Anthropic；`AiUsageLog` count before/after 不變。
+- [x] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
 
 範圍外：不啟用 live Realtime provider；不保存 raw audio/raw private transcript；不新增 production schema migration；不把 inference 寫成 CRM confirmed fact。
 
 Whole-product review 註記（2026-06-20）：第五輪校準選定下一個 implementation/proof slice 為 PIM-010。理由是 client/relationship/previsit/theater shell 已有 server-owned proof，但 AI 訪談目前只寫 CRM candidate/insight/follow-up，尚未直接建立 persisted 準備包或劇場草稿。
+
+完成註記：2026-06-20 已在 confirmation/writeback boundary 增加 `VISIT_PLAN_DRAFT` / `THEATER_BUILD_DRAFT`，`/interview` 的確認卡可直接建立 persisted `VisitPlan` 草稿或 DB-backed Route B theater session。高敏感 client/material 缺 draft reason/riskAccepted 時會 blocked；approved writeback 保留 facts/inferences/unknowns/reasoning evidence，未知項轉 narrator questions，Route B NPC <= 4，且不建立 confirmed CRM fact。新增 `pnpm interview:draft-writeback-qa` 覆蓋 unauth 401、member 201、manager 404、高敏感 blocked、VisitPlan / Route B session DB proof、no raw private sentinel、`AiUsageLog` before/after unchanged 與 browser `/interview` -> `/pre-visit/[id]` no-overflow proof。Regression：`DEMO_QA_BASE_URL=http://localhost:3031 pnpm interview:writeback-qa` 通過。
 
 ---
 

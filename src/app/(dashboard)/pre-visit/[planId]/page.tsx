@@ -694,8 +694,8 @@ function PriorityQuestionCard({ index, question }: { index: number; question: Sp
         </p>
         {evidence.length ? (
           <div className="mt-3 grid gap-2">
-            {evidence.slice(0, 2).map((item) => (
-              <EvidenceLine key={item.id} item={item} />
+            {evidence.slice(0, 2).map((item, index) => (
+              <EvidenceLine key={`${item.id}-${item.status}-${index}`} item={item} />
             ))}
           </div>
         ) : null}
@@ -816,8 +816,8 @@ function QuestionCard({ question }: { question: SpinQuestion }) {
           </div>
           <p className="mt-2 text-xs leading-5 text-muted-foreground">{question.reasoning.summary}</p>
           <div className="mt-3 grid gap-2">
-            {question.reasoning.evidence.slice(0, 3).map((item) => (
-              <EvidenceLine key={item.id} item={item} />
+            {question.reasoning.evidence.slice(0, 3).map((item, index) => (
+              <EvidenceLine key={`${item.id}-${item.status}-${index}`} item={item} />
             ))}
           </div>
           {question.reasoning.confirmationPrompt ? (
@@ -861,8 +861,8 @@ function EvidenceBoard({ buckets }: { buckets: EvidenceBucket[] }) {
             </div>
             {bucket.items.length ? (
               <div className="mt-3 grid gap-2">
-                {bucket.items.slice(0, 2).map((item) => (
-                  <EvidenceLine key={item.id} item={item} />
+                {bucket.items.slice(0, 2).map((item, index) => (
+                  <EvidenceLine key={`${bucket.status}-${item.id}-${index}`} item={item} />
                 ))}
               </div>
             ) : null}

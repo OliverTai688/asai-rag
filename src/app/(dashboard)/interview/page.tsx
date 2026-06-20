@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   AlertCircle,
   CheckCircle2,
@@ -68,6 +69,8 @@ type ConfirmationCandidate = {
   blockedReason?: string;
 };
 
+type DraftWritebackTarget = "VISIT_PLAN_DRAFT" | "THEATER_BUILD_DRAFT";
+
 type WritebackResult = {
   createdEvents?: {
     id: string;
@@ -75,6 +78,16 @@ type WritebackResult = {
     target: ConfirmationCandidate["target"];
     title: string;
     occurredAt: string;
+  }[];
+  createdDrafts?: {
+    target: DraftWritebackTarget;
+    id: string;
+    href: string;
+    title: string;
+  }[];
+  draftBlocked?: {
+    target: DraftWritebackTarget;
+    reason: string;
   }[];
   blocked?: {
     candidateId: string;
@@ -106,6 +119,7 @@ function getComposerVoiceLabel(stage: VoiceStage, consentAccepted: boolean) {
 }
 
 export default function InterviewPage() {
+  const router = useRouter();
   const {
     sessions,
     activeSessionId,
@@ -156,6 +170,8 @@ export default function InterviewPage() {
   const [approvalRiskAccepted, setApprovalRiskAccepted] = useState<Record<string, boolean>>({});
   const [isLoadingConfirmationCard, setIsLoadingConfirmationCard] = useState(false);
   const [isSavingConfirmation, setIsSavingConfirmation] = useState(false);
+  const [isCreatingVisitDraft, setIsCreatingVisitDraft] = useState(false);
+  const [isCreatingTheaterDraft, setIsCreatingTheaterDraft] = useState(false);
   const [confirmationError, setConfirmationError] = useState<string | null>(null);
   const [writebackResult, setWritebackResult] = useState<WritebackResult | null>(null);
   const [panelOpen, setPanelOpen] = useState(false);
@@ -163,7 +179,11 @@ export default function InterviewPage() {
   const activeSession = sessions.find((session) => session.id === activeSessionId);
   // Transcript + DB session id live in the store so the in-progress interview
   // survives SPA navigation away from /interview and back.
-  const messages = activeSession ? transcripts[activeSession.id] ?? [] : [];
+  const activeInterviewSessionId = activeSession?.id;
+  const messages = useMemo(
+    () => activeInterviewSessionId ? transcripts[activeInterviewSessionId] ?? [] : [],
+    [activeInterviewSessionId, transcripts],
+  );
   const setMessages = (updater: InterviewTranscriptUpdater) => {
     if (!activeSession) return;
     setTranscript(activeSession.id, updater);
@@ -851,10 +871,19 @@ export default function InterviewPage() {
     }
   }
 
-  async function handleSaveConfirmationCard() {
+  async function handleSaveConfirmationCard(
+    draftTargets: DraftWritebackTarget[] = [],
+    navigateTarget?: DraftWritebackTarget,
+  ) {
     if (!persistentSessionId || selectedCandidateIds.length === 0) return;
 
-    setIsSavingConfirmation(true);
+    if (navigateTarget === "VISIT_PLAN_DRAFT") {
+      setIsCreatingVisitDraft(true);
+    } else if (navigateTarget === "THEATER_BUILD_DRAFT") {
+      setIsCreatingTheaterDraft(true);
+    } else {
+      setIsSavingConfirmation(true);
+    }
     setConfirmationError(null);
     setWritebackResult(null);
 
@@ -869,6 +898,8 @@ export default function InterviewPage() {
             reason: approvalReasons[candidateId],
             riskAccepted: approvalRiskAccepted[candidateId] === true,
           })),
+          draftTargets,
+          draftApproval: buildDraftApproval(selectedCandidateIds, approvalReasons, approvalRiskAccepted),
         }),
       });
       const payload = await response.json();
@@ -878,10 +909,24 @@ export default function InterviewPage() {
       }
 
       setWritebackResult(payload);
+      if (navigateTarget) {
+        const createdDraft = payload.createdDrafts?.find?.((draft: NonNullable<WritebackResult["createdDrafts"]>[number]) =>
+          draft.target === navigateTarget &&
+          (navigateTarget === "VISIT_PLAN_DRAFT"
+            ? draft.href.startsWith("/pre-visit/")
+            : draft.href.startsWith("/theater/")),
+        );
+
+        if (createdDraft?.href) {
+          router.push(createdDraft.href);
+        }
+      }
     } catch (error) {
       setConfirmationError(error instanceof Error ? error.message : "確認卡保存失敗");
     } finally {
       setIsSavingConfirmation(false);
+      setIsCreatingVisitDraft(false);
+      setIsCreatingTheaterDraft(false);
     }
   }
 
@@ -1252,11 +1297,31 @@ export default function InterviewPage() {
                   type="button"
                   variant="mono"
                   className="flex-1"
-                  onClick={handleSaveConfirmationCard}
+                  onClick={() => handleSaveConfirmationCard()}
                   disabled={!persistentSessionId || selectedCandidateIds.length === 0 || isSavingConfirmation}
                 >
                   {isSavingConfirmation ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />}
                   保存
+                </Button>
+              </div>
+              <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                <Button
+                  type="button"
+                  variant="monoOutline"
+                  onClick={() => handleSaveConfirmationCard(["VISIT_PLAN_DRAFT"], "VISIT_PLAN_DRAFT")}
+                  disabled={!persistentSessionId || selectedCandidateIds.length === 0 || isCreatingVisitDraft}
+                >
+                  {isCreatingVisitDraft ? <Loader2 className="size-4 animate-spin" /> : <FileText className="size-4" />}
+                  建立準備包草稿
+                </Button>
+                <Button
+                  type="button"
+                  variant="monoOutline"
+                  onClick={() => handleSaveConfirmationCard(["THEATER_BUILD_DRAFT"], "THEATER_BUILD_DRAFT")}
+                  disabled={!persistentSessionId || selectedCandidateIds.length === 0 || isCreatingTheaterDraft}
+                >
+                  {isCreatingTheaterDraft ? <Loader2 className="size-4 animate-spin" /> : <MessageSquare className="size-4" />}
+                  建立劇場草稿
                 </Button>
               </div>
               {confirmationError ? (
@@ -1343,7 +1408,13 @@ export default function InterviewPage() {
               {writebackResult ? (
                 <div className="mt-3 rounded-lg border border-hairline bg-paper px-3 py-2 text-xs leading-5 text-muted-foreground">
                   已建立 {writebackResult.createdEvents?.length ?? 0} 筆互動事件；
-                  阻擋 {writebackResult.blocked?.length ?? 0} 筆。
+                  草稿 {writebackResult.createdDrafts?.length ?? 0} 筆；
+                  阻擋 {(writebackResult.blocked?.length ?? 0) + (writebackResult.draftBlocked?.length ?? 0)} 筆。
+                  {writebackResult.draftBlocked?.length ? (
+                    <span className="mt-1 block text-destructive">
+                      {writebackResult.draftBlocked.map((item) => item.reason).join("；")}
+                    </span>
+                  ) : null}
                 </div>
               ) : null}
             </PanelSection>
@@ -1520,6 +1591,21 @@ function sensitivityLabel(sensitivity: ConfirmationCandidate["sensitivity"]): st
   };
 
   return labels[sensitivity];
+}
+
+function buildDraftApproval(
+  selectedCandidateIds: string[],
+  approvalReasons: Record<string, string>,
+  approvalRiskAccepted: Record<string, boolean>,
+): { reason: string; riskAccepted: true } | undefined {
+  for (const candidateId of selectedCandidateIds) {
+    const reason = approvalReasons[candidateId]?.trim();
+    if (reason && approvalRiskAccepted[candidateId] === true) {
+      return { reason, riskAccepted: true };
+    }
+  }
+
+  return undefined;
 }
 
 function targetLabel(target: ConfirmationCandidate["target"]): string {

@@ -9,6 +9,8 @@ export type InterviewWritebackTarget =
   | "THEATER_NARRATOR_QUESTION"
   | "BLOCKED";
 
+export type InterviewDraftWritebackTarget = "VISIT_PLAN_DRAFT" | "THEATER_BUILD_DRAFT";
+
 export type InterviewWritebackSensitivity = "NORMAL" | "SENSITIVE" | "HIGHLY_SENSITIVE";
 
 export interface InterviewConfirmationCandidate {
