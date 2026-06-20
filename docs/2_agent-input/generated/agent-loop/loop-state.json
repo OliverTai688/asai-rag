@@ -71,11 +71,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 3,
+    "normalLoopsSinceLastWholeProductReview": 4,
     "lastWholeProductReviewAt": "2026-06-21",
     "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-21_lv3-whole-product-gap-review-db-blocker-build-fallback.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "Normal BFF-103d recovery-proof loop completed on 2026-06-21: DB-backed CRM related-list proof now passes with DEMO_QA_BASE_URL=http://localhost:3000 pnpm bff:crm-related-lists-qa, covering member-owned policies/timeline/reports/gap-analysis DTO, manager denial, compliance fields, raw-private sentinel exclusion, desktop/mobile browser proof, and AiUsageLog unchanged 147->147. Next highest implementation slice: PIM-011 BFF/API quick-capture -> Park memory bridge proof now that DB is reachable; it should prove owner create/read/readback, manager/foreign denial, high-sensitive gate, no-provider/AiUsageLog unchanged, refresh/new-context memory retrieval, and no raw private sentinel. Secondary slice: ITA-003g Route B provider runtime contract preflight, guarded-disabled unless explicit operator approval enables live provider calls.",
+    "nextRecommendedImplementationSlice": "Normal PIM-011 BFF/API quick-capture -> Park memory bridge proof completed on 2026-06-21: /api/ai/interview/quick-captures now persists server-scoped quick captures into existing InterviewSession/InterviewTurn/InterviewMemory without schema change or provider call; DEMO_QA_BASE_URL=http://localhost:3000 pnpm interview:quick-capture-bff-qa proves owner 201/readback, manager read/write 404, high-sensitive client gate, secret/raw payload block, response no private sentinel, raw note not echoed, unknown/inference theater handoff, and AiUsageLog unchanged 147->147. Cadence is now 4 normal loops since the last whole-product review, so the next loop should run lv3-whole-product-gap-review-loop.md before selecting another implementation slice.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {

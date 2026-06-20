@@ -110,6 +110,14 @@ const routeManifest = [
     methods: ["GET", "POST"],
     inputEvidence: ["interviewWritebackInputSchema", "safeParse"],
   }),
+  deterministicRoute({
+    route: "/api/ai/interview/quick-captures",
+    file: "src/app/api/ai/interview/quick-captures/route.ts",
+    module: "INTERVIEW",
+    methods: ["POST"],
+    inputEvidence: ["createQuickCaptureBridgeInputSchema", "safeParse"],
+    noProviderEvidence: ["requireCurrentMember", "createPersistentQuickCaptureBridge"],
+  }),
   providerRoute({
     route: "/api/ai/interview/transcribe",
     file: "src/app/api/ai/interview/transcribe/route.ts",
