@@ -273,6 +273,8 @@ Whole-product review 註記（2026-06-20）：第五輪校準選定下一個 imp
 
 Quiet gap note（2026-06-20）：本卡由 LV3 heartbeat quiet continuation 的五個視框收斂而來。現況已存在 `VisitPlan.postVisitNotes`、PIM interview memory、PIM-010 visit/theater draft writeback，以及未納入 committed baseline 的 AI meeting / quick note 草稿；下一步不應先接 provider，而是先建立 committed bridge contract 與 no-provider proof。
 
+Whole-product review note（2026-06-20 after PIM-011）：第五輪校準確認 `ITA-003f/S1 Route B relationship-graph stage map (no-provider)` 仍是最高槓桿 product slice，但 Supabase DB/DNS 尚未恢復，不能把 fixture 當 DB-backed theater proof。若下一輪 DB 仍 blocked，本卡是最佳 no-DB fallback：先用 existing `InterviewSession` / `InterviewTurn` / `InterviewMemory` 做 no-schema bridge，讓 post-visit quick capture 可補強準備包、narrator questions 與 theater state proposal，同時維持 high-sensitive gate、confirmation/writeback boundary、`AiUsageLog` unchanged proof 與 no raw private transcript/report hygiene。既有 untracked AI meeting / notes prototype 不屬 committed baseline，除非下一輪明確選中並驗證完整 AMM/quick-capture slice，否則不得 stage。
+
 - [ ] Advisor workflow / onboarding：定義顧問從 `/pre-visit/[id]/notes`、全站 quick-capture 或 meeting workspace 捕捉一則 post-visit note 後，下一步只需選「歸客戶/歸拜訪/保持私人草稿/轉成待確認」之一，不要求一開始就完整分類。
 - [ ] Source-of-truth / BFF：quick-capture bridge 由 server session 推導 organization/member/unit/client/visit scope；可先以 existing `InterviewSession` / `InterviewTurn` / `InterviewMemory` 建立 no-schema adapter，不新增未核可 production migration。
 - [ ] AI reasoning / evidence：每則 note 轉成 memory candidate 時必須保留 `FACT` / `CONFIRMED` / `INFERENCE` / `UNKNOWN`、source label、supporting note/turn id；不得保存 raw audio、raw private transcript 或 raw provider payload。
