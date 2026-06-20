@@ -63,6 +63,7 @@
     "ai:bff-audit": "node scripts/ai-usage-route-audit.mjs",
     "nav:role-aware-contract-qa": "node scripts/role-aware-sidebar-contract-qa.mjs",
     "nav:role-aware-resolver-qa": "node scripts/role-aware-sidebar-resolver-qa.mjs",
+    "nav:workspace-bootstrap-qa": "node scripts/role-aware-workspace-bootstrap-qa.mjs",
     "demo:runtime-audit": "node scripts/demo-runtime-audit.mjs",
     "mock:production-guard-qa": "node scripts/mock-production-guard-qa.mjs",
     "share:token-qa": "node scripts/share-token-qa.mjs",
