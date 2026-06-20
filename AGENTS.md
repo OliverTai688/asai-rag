@@ -1544,8 +1544,9 @@ Context: 將誠問 AI 內所有 AI 能力逐步對齊 MIT Project NANDA / AgentF
 - NAP-002 已建立 `AgentProtocolManifest` source schema、11 個 internal-only manifest 與 `pnpm ai:protocol-registry-qa`；多數正式 AI route 已有 session/quota/`AiUsageLog` 或 deterministic no-provider proof。
 - NAP-004 已建立 platform-only internal registry readiness reader、least-disclosure API 與 release-readiness projection；platform user 可讀、member app session 403，且所有 agent 仍為 `internal-only`。
 - ITA-003g 已補 `asai.theater.route_b` manifest source alignment：runtime preflight capability、director/character/feedback actions、`RouteBRuntimeInputPreview` DTO refs、guarded-disabled provider posture、visibility-safe history 與 success/error `AiUsageLog` plan 已有 source/API proof；legacy Theater 與其他 AI modules 仍待 NAP-003 完整對齊。
-- Quiet NAP-003 gap research（2026-06-21）：`AUD-008` 已新增 NAP-003 source adoption matrix，用六視框把 11 個 AI module 拆成 source owner、目前 proof、adoption gap、下一個最小 slice、proof command 與 blocker。下一輪建議不要一次掃完所有 AI，先做 `NAP-003a provider-ready AI source adoption`，對齊 CHAT / VISIT / REPORT / SPIN 的 source-owner proof、DTO/evidence boundary、quota/`AiUsageLog` posture，且不呼叫 provider、不改 SPIN 狀態機。
-- 缺口轉為 NAP-003 的 per-AI source alignment / readiness adoption，以及 NAP-005 local-only adapter/export dry-run。
+- Quiet NAP-003 gap research（2026-06-21）：`AUD-008` 已新增 NAP-003 source adoption matrix，用六視框把 11 個 AI module 拆成 source owner、目前 proof、adoption gap、下一個最小 slice、proof command 與 blocker。
+- NAP-003a（2026-06-21）已完成 CHAT / VISIT / REPORT / SPIN provider-ready source adoption：四個 manifest 都新增 source owner proof、DTO/evidence boundary、quota/`AiUsageLog` posture 與 NAP-003a static QA；未呼叫 provider、不改 SPIN 狀態機，所有 module 仍為 `internal-only`。
+- 缺口轉為 NAP-003b/c 的 interview / quick-capture / realtime / theater / RAG per-AI source alignment，以及 NAP-005 local-only adapter/export dry-run。
 - NANDA / AgentFacts 對外 registry publication、signing、public discovery endpoint、cross-org agent access 都需 operator approval；目前只允許 internal manifest / adapter proof。
 
 ### Batch NAP-001 — AI module inventory and NANDA mapping
@@ -1567,13 +1568,15 @@ Context: 將誠問 AI 內所有 AI 能力逐步對齊 MIT Project NANDA / AgentF
 完成註記（2026-06-21 NAP-002）：新增 `src/domains/ai-protocol/` 的 `AgentProtocolManifest` schema 與 11 個 internal-only manifest，覆蓋 chat、interview、quick-capture、Realtime voice、SPIN、visit、report、legacy Theater、Route B Theater、RAG guarded-disabled、AI Meeting prototype。新增 `pnpm ai:protocol-registry-qa` 檢查 manifest completeness、sentinel、`AiUsageLog` policy、readiness 與 disabled publication gate；`pnpm ai:bff-audit` 仍為 route/AiUsage source proof。未呼叫 provider、未動 DB/Prisma、未對外發布 registry。
 
 ### Batch NAP-003 — Per-AI manifest adoption and source alignment
-- [ ] 將 `CHAT` / assistant manifest 對齊 route owner proof，標明 assistant conversation/message persistence、tool allowlist、quota、usage logging。
+- [x] 將 `CHAT` / assistant manifest 對齊 route owner proof，標明 assistant conversation/message persistence、tool allowlist、quota、usage logging。
 - [ ] 將 `INTERVIEW` / `INTERVIEW_OUTPUTS` / quick-capture manifest 對齊 source proof，標明 memory/writeback/confirmation boundary。
-- [ ] 將 `VISIT` / `REPORT` AI manifest 對齊 source proof，標明 provider-safe client snapshot、facts/inferences/unknowns DTO。
-- [ ] 將 `SPIN` manifest 對齊 source proof，明確保留 `SITUATION -> PROBLEM -> IMPLICATION -> NEED_PAYOFF` state machine。
+- [x] 將 `VISIT` / `REPORT` AI manifest 對齊 source proof，標明 provider-safe client snapshot、facts/inferences/unknowns DTO。
+- [x] 將 `SPIN` manifest 對齊 source proof，明確保留 `SITUATION -> PROBLEM -> IMPLICATION -> NEED_PAYOFF` state machine。
 - [~] 將 `THEATER` legacy / Route B manifest 對齊 source proof，標明 guarded-disabled provider posture、director/character/feedback readiness 與 private/group visibility。
 - [ ] 將 `RAG` manifest 對齊 source proof，標明 private beta guarded-disabled posture。
-- [ ] 跑 `pnpm ai:bff-audit`、`pnpm ai:protocol-registry-qa`、`pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+- [x] 跑 `pnpm ai:bff-audit`、`pnpm ai:protocol-registry-qa`、`pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+
+完成註記（2026-06-21 NAP-003a）：`asai.chat.assistant`、`asai.visit.preparation_package`、`asai.report.generation`、`asai.spin.advisor` 已在 `AgentProtocolManifest` 新增 `proof.sourceAdoption.status=adopted`、source owner refs、evidence refs 與 source adoption notes；`scripts/ai-protocol-registry-qa.ts` 會強制檢查四個 provider-ready module 的 NAP-003a adoption proof。`pnpm bff:visit-report-ai-qa` 會實際觸發 provider 成功路徑，本輪依 no-provider slice 不執行，改以 static/source proof 與非 provider QA 收斂。
 
 ### Batch NAP-004 — Internal registry and readiness API
 - [x] 建立 internal registry reader（server-only），可列出 AI manifests、readiness、missing proof、operator approval blockers。

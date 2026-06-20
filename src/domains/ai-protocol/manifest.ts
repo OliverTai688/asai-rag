@@ -29,6 +29,8 @@ export type AgentProtocolAiUsageLogPolicy =
   | "blocked-until-provider-proof"
   | "not-accepted-prototype";
 
+export type AgentProtocolSourceAdoptionStatus = "pending" | "partial" | "adopted";
+
 export type AgentProtocolDataClass =
   | "PUBLIC_METADATA"
   | "INTERNAL_METADATA"
@@ -99,6 +101,12 @@ export interface AgentProtocolManifest {
   proof: {
     sourceAuditModule: AgentProtocolModule | "PROTOTYPE";
     commands: string[];
+    sourceAdoption?: {
+      status: AgentProtocolSourceAdoptionStatus;
+      ownerRefs: string[];
+      evidenceRefs: string[];
+      notes: string[];
+    };
     knownBlockers: string[];
   };
   registry: {
@@ -175,7 +183,7 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
       displayName: "問誠問 AI",
       ownerSurface: "global assistant / dashboard shell",
       module: "CHAT",
-      version: "2026-06-21.nap-002",
+      version: "2026-06-21.nap-003a",
       status: "active",
     },
     capabilities: [
@@ -230,6 +238,27 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
     proof: {
       sourceAuditModule: "CHAT",
       commands: commonProofCommands,
+      sourceAdoption: {
+        status: "adopted",
+        ownerRefs: [
+          "src/app/api/ai/chat/route.ts",
+          "src/lib/assistant/assistant-chat-repository.ts",
+          "src/lib/assistant/assistant-tools.ts",
+        ],
+        evidenceRefs: [
+          "chatRequestSchema",
+          "ASSISTANT_TOOLS",
+          "executeAssistantTool",
+          "ensureAssistantConversation",
+          "persistAssistantChatSuccess",
+          "persistAssistantChatFailure",
+        ],
+        notes: [
+          "Route scope comes from requireCurrentMember and canUseAiModule before the provider path.",
+          "Conversation and message persistence are owned by assistant-chat-repository, including success and error AiUsageLog paths.",
+          "Assistant tool execution is restricted to the local allowlist and resolves client/team scope from the trusted session.",
+        ],
+      },
       knownBlockers: ["External registry publication approval is missing."],
     },
     registry: commonRegistry,
@@ -421,7 +450,7 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
       displayName: "SPIN advisor",
       ownerSurface: "/spin",
       module: "SPIN",
-      version: "2026-06-21.nap-002",
+      version: "2026-06-21.nap-003a",
       status: "active",
     },
     capabilities: [
@@ -470,6 +499,28 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
     proof: {
       sourceAuditModule: "SPIN",
       commands: [...commonProofCommands, "pnpm spin:source-truth-qa"],
+      sourceAdoption: {
+        status: "adopted",
+        ownerRefs: [
+          "src/app/api/ai/spin/route.ts",
+          "src/app/api/ai/spin-suggestions/route.ts",
+          "src/lib/spin/spin-session-repository.ts",
+        ],
+        evidenceRefs: [
+          "spinRequestSchema",
+          "suggestionsRequestSchema",
+          "SPIN_PHASES",
+          "PHASE_ORDER",
+          "isAllowedPhaseTransition",
+          "persistAiGenerationSuccess",
+          "persistAiGenerationFailure",
+        ],
+        notes: [
+          "Provider routes use requireCurrentMember, canUseAiModule, server-side client lookup, and success/error AiUsageLog helpers.",
+          "Persisted SPIN sessions keep SITUATION -> PROBLEM -> IMPLICATION -> NEED_PAYOFF ordering through repository transition checks.",
+          "Deterministic SPIN source-truth QA remains the accepted proof that session outline/persistence does not need a provider call.",
+        ],
+      },
       knownBlockers: ["External registry publication approval is missing."],
     },
     registry: commonRegistry,
@@ -480,7 +531,7 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
       displayName: "Visit preparation package",
       ownerSurface: "/pre-visit",
       module: "VISIT",
-      version: "2026-06-21.nap-002",
+      version: "2026-06-21.nap-003a",
       status: "active",
     },
     capabilities: [
@@ -528,6 +579,30 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
     proof: {
       sourceAuditModule: "VISIT",
       commands: [...commonProofCommands, "pnpm bff:visit-report-ai-qa"],
+      sourceAdoption: {
+        status: "adopted",
+        ownerRefs: [
+          "src/app/api/ai/visit/route.ts",
+          "src/domains/visit/ai-evidence-dto.ts",
+          "src/domains/visit/reasoning.ts",
+          "src/lib/visits/visit-plan-repository.ts",
+        ],
+        evidenceRefs: [
+          "visitRequestSchema",
+          "visitOutputSchema",
+          "buildProviderSafeClientSnapshot",
+          "buildAiEvidenceSummary",
+          "enrichSpinQuestionsWithReasoning",
+          "updateVisitPlanForMember",
+          "persistAiGenerationSuccess",
+          "persistAiGenerationFailure",
+        ],
+        notes: [
+          "Provider input is built from a provider-safe client snapshot and server-side client permission lookup.",
+          "Question rationale and evidence summary keep facts, inferences, unknowns, and recommendations separate.",
+          "Saved VisitPlan persistence is owned by the visit-plan repository, not by provider response metadata.",
+        ],
+      },
       knownBlockers: ["External registry publication approval is missing."],
     },
     registry: commonRegistry,
@@ -538,7 +613,7 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
       displayName: "Report generation",
       ownerSurface: "/reports",
       module: "REPORT",
-      version: "2026-06-21.nap-002",
+      version: "2026-06-21.nap-003a",
       status: "active",
     },
     capabilities: [
@@ -585,7 +660,31 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
     },
     proof: {
       sourceAuditModule: "REPORT",
-      commands: [...commonProofCommands, "pnpm bff:visit-report-ai-qa"],
+      commands: [...commonProofCommands, "pnpm bff:visit-report-ai-qa", "pnpm bff:reports-qa"],
+      sourceAdoption: {
+        status: "adopted",
+        ownerRefs: [
+          "src/app/api/ai/report/route.ts",
+          "src/domains/visit/ai-evidence-dto.ts",
+          "src/lib/report/report-repository.ts",
+          "src/lib/report/report-dto.ts",
+        ],
+        evidenceRefs: [
+          "reportRequestSchema",
+          "buildProviderSafeClientSnapshot",
+          "buildAiEvidenceSummary",
+          "persistAiGenerationSuccess",
+          "persistAiGenerationFailure",
+          "toReportDto",
+          "clientSections",
+          "INTERNAL_ONLY_SECTION_TYPES",
+        ],
+        notes: [
+          "Report AI uses current member scope, server-side client lookup, quota guard, and success/error AiUsageLog helpers.",
+          "JSON report mode returns evidenceSummary while report repository keeps internal sections separate from client-safe sections.",
+          "Public share uses report DTO filtering and never treats internal report body as registry metadata.",
+        ],
+      },
       knownBlockers: ["External registry publication approval is missing."],
     },
     registry: commonRegistry,

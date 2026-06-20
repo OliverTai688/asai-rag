@@ -30,6 +30,45 @@ const forbiddenValuePatterns = [
   /\botp\b/i,
 ];
 
+const nap003aSourceAdoptionRequirements: Record<string, { ownerRefs: string[]; evidenceRefs: string[]; commands: string[] }> = {
+  "asai.chat.assistant": {
+    ownerRefs: [
+      "src/app/api/ai/chat/route.ts",
+      "src/lib/assistant/assistant-chat-repository.ts",
+      "src/lib/assistant/assistant-tools.ts",
+    ],
+    evidenceRefs: ["ASSISTANT_TOOLS", "ensureAssistantConversation", "persistAssistantChatSuccess", "persistAssistantChatFailure"],
+    commands: ["pnpm ai:bff-audit", "pnpm ai:protocol-registry-qa"],
+  },
+  "asai.visit.preparation_package": {
+    ownerRefs: [
+      "src/app/api/ai/visit/route.ts",
+      "src/domains/visit/ai-evidence-dto.ts",
+      "src/lib/visits/visit-plan-repository.ts",
+    ],
+    evidenceRefs: ["buildProviderSafeClientSnapshot", "buildAiEvidenceSummary", "enrichSpinQuestionsWithReasoning", "updateVisitPlanForMember"],
+    commands: ["pnpm ai:bff-audit", "pnpm ai:protocol-registry-qa", "pnpm bff:visit-report-ai-qa"],
+  },
+  "asai.report.generation": {
+    ownerRefs: [
+      "src/app/api/ai/report/route.ts",
+      "src/lib/report/report-repository.ts",
+      "src/lib/report/report-dto.ts",
+    ],
+    evidenceRefs: ["buildProviderSafeClientSnapshot", "buildAiEvidenceSummary", "toReportDto", "clientSections"],
+    commands: ["pnpm ai:bff-audit", "pnpm ai:protocol-registry-qa", "pnpm bff:visit-report-ai-qa", "pnpm bff:reports-qa"],
+  },
+  "asai.spin.advisor": {
+    ownerRefs: [
+      "src/app/api/ai/spin/route.ts",
+      "src/app/api/ai/spin-suggestions/route.ts",
+      "src/lib/spin/spin-session-repository.ts",
+    ],
+    evidenceRefs: ["SPIN_PHASES", "isAllowedPhaseTransition", "persistAiGenerationSuccess", "persistAiGenerationFailure"],
+    commands: ["pnpm ai:bff-audit", "pnpm ai:protocol-registry-qa", "pnpm spin:source-truth-qa"],
+  },
+};
+
 runQa();
 
 for (const check of checks) {
@@ -60,6 +99,7 @@ function runQa() {
     assertPublicationGate(manifest);
     assertUsagePolicy(manifest);
     assertProofCommands(manifest);
+    assertNap003aSourceAdoption(manifest);
     assertNoForbiddenValues(manifest);
   }
 
@@ -149,6 +189,38 @@ function assertProofCommands(manifest: AgentProtocolManifest) {
 
   if (manifest.identity.status !== "prototype") {
     push(manifest.proof.commands.includes("pnpm ai:bff-audit"), `${prefix} includes AI BFF audit`);
+  }
+}
+
+function assertNap003aSourceAdoption(manifest: AgentProtocolManifest) {
+  const prefix = manifest.identity.agentId;
+  const requirement = nap003aSourceAdoptionRequirements[prefix];
+
+  if (!requirement) {
+    return;
+  }
+
+  const adoption = manifest.proof.sourceAdoption;
+
+  push(Boolean(adoption), `${prefix} declares NAP-003a source adoption evidence`);
+
+  if (!adoption) {
+    return;
+  }
+
+  push(adoption.status === "adopted", `${prefix} NAP-003a source adoption is adopted`, adoption.status);
+  push(adoption.notes.length > 0, `${prefix} has NAP-003a source adoption notes`);
+
+  for (const ownerRef of requirement.ownerRefs) {
+    push(adoption.ownerRefs.includes(ownerRef), `${prefix} source owner includes ${ownerRef}`);
+  }
+
+  for (const evidenceRef of requirement.evidenceRefs) {
+    push(adoption.evidenceRefs.includes(evidenceRef), `${prefix} evidence refs include ${evidenceRef}`);
+  }
+
+  for (const command of requirement.commands) {
+    push(manifest.proof.commands.includes(command), `${prefix} proof commands include ${command}`);
   }
 }
 

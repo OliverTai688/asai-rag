@@ -71,11 +71,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 2,
+    "normalLoopsSinceLastWholeProductReview": 3,
     "lastWholeProductReviewAt": "2026-06-21",
     "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-21_lv3-whole-product-gap-review-nap-routeb-runtime.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "Quiet NAP-003 source adoption gap-research completed on 2026-06-21: AUD-008 now contains a six-frame NAP-003 source adoption matrix for all 11 AI modules, with source owners, current proof, adoption gaps, smallest next slice, proof commands, and blocker type. Next safe implementation/proof slice: NAP-003a provider-ready AI source adoption for CHAT / VISIT / REPORT / SPIN, no provider calls, preserving SPIN state machine and internal-only registry posture. If operator explicitly approves live Route B provider usage, that remains an alternate but not the default heartbeat continuation slice.",
+    "nextRecommendedImplementationSlice": "NAP-003a provider-ready AI source adoption completed on 2026-06-21 for CHAT / VISIT / REPORT / SPIN: four manifests now carry proof.sourceAdoption.status=adopted with source owner refs, DTO/evidence refs, quota/AiUsage posture notes, and SPIN state-machine refs. Next safe slice: NAP-003b interview memory + quick-capture source adoption for INTERVIEW / INTERVIEW_OUTPUTS / quick-capture / realtime voice, preferably no-provider/default guarded, mapping memory/reflection/writeback/confirmation boundaries and updating registry QA without touching Theater Route B provider runtime.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {
