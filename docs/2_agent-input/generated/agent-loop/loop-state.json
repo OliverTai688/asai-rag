@@ -71,11 +71,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 0,
+    "normalLoopsSinceLastWholeProductReview": 1,
     "lastWholeProductReviewAt": "2026-06-21",
     "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-21_lv3-whole-product-gap-review-pim-ui-nap-routeb.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "Whole-product review completed on 2026-06-21 after PIM-011b. Next highest-leverage implementation slice is PIM-011c quick-capture UI selector bridge: wire /pre-visit/[planId]/notes or equivalent current-workspace entry to /api/ai/interview/quick-captures, keep the advisor flow to selector choices (private draft / client / visit / follow-up review) instead of raw IDs, prove high-sensitive approval gate, no raw note/private sentinel echo, desktop/mobile no-overflow, and AiUsageLog unchanged. Secondary gap is NAP-001 AI module inventory / NANDA mapping; provider-bound ITA-003g Route B runtime should wait for explicit provider approval or be implemented as guarded-disabled preflight proof.",
+    "nextRecommendedImplementationSlice": "Normal PIM-011c quick-capture UI selector bridge completed on 2026-06-21: /pre-visit/[planId]/notes now sends post-visit notes to /api/ai/interview/quick-captures using advisor choices (private draft / client / visit / follow-up review) instead of raw IDs, shows safe DTO summary only, proves high-sensitive blocked 409 then approved READY 201, mobile follow-up state proposal, desktop/mobile no-overflow, and AiUsageLog unchanged 147->147. Next recommended slice is NAP-001 AI module inventory and NANDA / AgentFacts mapping, unless the operator explicitly approves live provider work for ITA-003g Route B runtime.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {

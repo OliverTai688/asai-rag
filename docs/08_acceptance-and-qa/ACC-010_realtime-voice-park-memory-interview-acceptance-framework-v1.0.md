@@ -113,6 +113,8 @@ PIM-011b BFF/API proof（2026-06-21）：新增 `pnpm interview:quick-capture-bf
 
 PIM-011c UI selector proof target（2026-06-21 whole-product review）：正式 UI 接入需優先證明 `/pre-visit/[planId]/notes` 或等價 current-workspace entry 可用 selector/context 送出 quick capture，不要求顧問輸入 raw client/visit/session ID；high-sensitive client-bound note 缺 reason/riskAccepted 需被 blocked 或保持 private draft；desktop/mobile browser proof 需保存 no-overflow evidence。
 
+PIM-011c UI selector proof（2026-06-21）：新增 `pnpm interview:quick-capture-ui-qa`，已證明 `/pre-visit/[planId]/notes` 可用 selector/context 送出 quick capture，不要求 raw client/visit/session ID；high-sensitive visit capture 缺 approval 409、補 reason/riskAccepted 後 READY 201、mobile follow-up review 產生 theater state proposal、desktop/mobile no overflow、API response/result panel 不 echo raw note/private sentinel、`AiUsageLog` unchanged 147->147。
+
 - [x] Quick-capture note 可先不歸戶，但歸戶或連到 `VisitPlan` / `Client` 時，scope 一律由 server session 推導，不信任前端 `organizationId`、`memberId`、`clientId`、`visitPlanId`。
 - [x] Note -> memory mapping 保留 source label、note/turn id、`FACT` / `CONFIRMED` / `INFERENCE` / `UNKNOWN`，且 inference 不得寫成 CRM confirmed fact。
 - [x] 手動筆記與語音 transcript 都可以成為 `InterviewMemory` candidate；raw audio 預設不保存，raw private transcript 不進 report/evidence。
@@ -121,8 +123,8 @@ PIM-011c UI selector proof target（2026-06-21 whole-product review）：正式 
 - [x] No-provider bridge proof 必須顯示 `AiUsageLog` count unchanged；若新增 summary/chat provider route，success/error 都必須寫 `AiUsageLog` 並納入 `pnpm ai:usage-audit`。
 - [x] Cross-role proof 覆蓋 member owner success 與 manager/foreign denied；org aggregate API 不回 note text、transcript、memory text 或 client private payload。
 - [x] BFF/API proof response DTO 至少包含 note/turn/memory id、source label、data class、fact/inference/unknown 分流、supporting evidence、`requiresConfirmation`；不得包含 raw private transcript、raw provider payload、secret/token sentinel。
-- [ ] Browser proof 若接 UI，必須證明顧問可用 selector/context 選「保持私人草稿 / 歸客戶 / 歸拜訪 / 轉待確認」，不得要求 raw client/visit/session ID 作為主要操作。
-- [ ] UI selector 呼叫 `/api/ai/interview/quick-captures` 後，畫面只顯示 safe DTO 摘要、memory/state proposal id 與待確認狀態，不 echo raw note/private sentinel；`AiUsageLog` unchanged 或 provider success/error log proof 需明確記錄。
+- [x] Browser proof 若接 UI，必須證明顧問可用 selector/context 選「保持私人草稿 / 歸客戶 / 歸拜訪 / 轉待確認」，不得要求 raw client/visit/session ID 作為主要操作。
+- [x] UI selector 呼叫 `/api/ai/interview/quick-captures` 後，畫面只顯示 safe DTO 摘要、memory/state proposal id 與待確認狀態，不 echo raw note/private sentinel；`AiUsageLog` unchanged 或 provider success/error log proof 需明確記錄。
 
 ---
 
@@ -148,8 +150,9 @@ PIM-011c UI selector proof target（2026-06-21 whole-product review）：正式 
 - [ ] 需要 DB 實套：local/development `prisma db push` 或 migration dry-run/proof
 - [ ] 動 AI route：success/error `AiUsageLog` proof
 - [ ] 動 UI：Browser/headless desktop/mobile screenshot proof
-- [ ] PIM-011a source contract：`pnpm interview:quick-capture-bridge-dry-run`
+- [x] PIM-011a source contract：`pnpm interview:quick-capture-bridge-dry-run`
 - [x] PIM-011 BFF/API proof：owner member 201/200、manager/foreign 404/403、high-sensitive missing reason blocked、refresh/new-context DB readback、response no private sentinel、`AiUsageLog` unchanged 或 provider success/error log proof
+- [x] PIM-011 UI proof：`DEMO_QA_BASE_URL=http://localhost:3000 pnpm interview:quick-capture-ui-qa`
 
 ---
 
