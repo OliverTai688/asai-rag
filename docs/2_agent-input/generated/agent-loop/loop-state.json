@@ -71,11 +71,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 1,
+    "normalLoopsSinceLastWholeProductReview": 2,
     "lastWholeProductReviewAt": "2026-06-21",
     "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-21_lv3-whole-product-gap-review-cross-flow-proof.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "LV3-CROSS-001 clean cross-flow no-provider proof pack completed on 2026-06-21. Next normal loop should run `NAP-003c theater + RAG source adoption`: finish source-adoption proof for legacy Theater, Route B Theater, and RAG guarded-disabled posture without provider calls or external registry publication; keep every AI module internal-only. Fallback: `NAP-005 local-only adapter/export dry-run` if NAP-003c is too broad.",
+    "nextRecommendedImplementationSlice": "NAP-003c theater + RAG source adoption completed on 2026-06-21. Next normal loop should run `NAP-005 local-only adapter/export dry-run`: define/export least-disclosure internal metadata for NANDA AgentFacts-style JSON/MCP/A2A/HTTPS targets without public registry publication, signing, public discovery, or cross-org access; include revocation/version/approval gate proof. Fallback: BFF-204/205 Theater/RAG AI hardening if adapter proof exposes source blockers.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {

@@ -779,7 +779,7 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
       displayName: "Legacy theater AI",
       ownerSurface: "/theater legacy routes",
       module: "THEATER",
-      version: "2026-06-21.nap-002",
+      version: "2026-06-21.nap-003c",
       status: "guarded-disabled",
     },
     capabilities: [
@@ -829,6 +829,32 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
     proof: {
       sourceAuditModule: "THEATER",
       commands: commonProofCommands,
+      sourceAdoption: {
+        status: "adopted",
+        ownerRefs: [
+          "src/app/api/ai/theater/route.ts",
+          "src/app/api/ai/theater/score/route.ts",
+          "src/app/api/ai/theater-build/route.ts",
+          "src/lib/theater/theater-ai-repository.ts",
+          "src/lib/theater/theater-build-ai-repository.ts",
+        ],
+        evidenceRefs: [
+          "theaterRequestSchema",
+          "scoreRequestSchema",
+          "requestSchema",
+          "THEATER_ROUTE_B_REQUIRED",
+          "persistTheaterCharacterSuccess",
+          "persistTheaterScoreSuccess",
+          "persistTheaterBuildSuccess",
+          "persistTheaterFailure",
+          "persistTheaterBuildFailure",
+        ],
+        notes: [
+          "Legacy Theater remains guarded and is not the Route B production runtime.",
+          "Legacy persona and scoring contracts are preserved while success/error usage is owned by theater AI repositories.",
+          "Production legacy demo flow is blocked by the Route B required gate unless explicitly enabled for demo.",
+        ],
+      },
       knownBlockers: ["Route B provider runtime remains the primary future path."],
     },
     registry: commonRegistry,
@@ -839,7 +865,7 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
       displayName: "Route B relationship theater",
       ownerSurface: "/theater/[sessionId]",
       module: "THEATER",
-      version: "2026-06-21.ita-003g",
+      version: "2026-06-21.nap-003c",
       status: "active",
     },
     capabilities: [
@@ -912,6 +938,37 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
     proof: {
       sourceAuditModule: "THEATER",
       commands: [...commonProofCommands, "pnpm theater:route-b-runtime-qa", "pnpm theater:route-b-interaction-qa"],
+      sourceAdoption: {
+        status: "adopted",
+        ownerRefs: [
+          "src/app/api/theater/route-b/runtime/route.ts",
+          "src/app/api/theater/route-b/sessions/route.ts",
+          "src/app/api/theater/route-b/sessions/[sessionId]/route.ts",
+          "src/app/api/theater/route-b/sessions/[sessionId]/turns/route.ts",
+          "src/domains/theater/route-b-handoff.ts",
+          "src/domains/theater/route-b-session.ts",
+          "src/lib/theater/route-b-boundary.ts",
+          "src/lib/theater/route-b-session-bff-repository.ts",
+          "src/lib/theater/route-b-session-repository.ts",
+        ],
+        evidenceRefs: [
+          "RouteBRuntimeInputPreview",
+          "runtimeInputPreview.sourceAlignment",
+          "validateRouteBHandoffBoundary",
+          "isTheaterRouteBHandoffPacket",
+          "createRouteBSessionForMember",
+          "appendRouteBAdvisorTurnForMember",
+          "RouteBSessionSnapshot",
+          "buildTheaterRouteBStatePatch",
+          "providerCallAttempted=false",
+          "writesConfirmedCrmFact=false",
+        ],
+        notes: [
+          "Route B is source-adopted for deterministic session/turn persistence and guarded runtime preflight, not live provider runtime.",
+          "Visibility scope, private lane, and state proposal writes are server-owned and owner-scoped.",
+          "Director, character, and feedback provider enablement remains blocked until explicit approval and success/error AiUsageLog proof.",
+        ],
+      },
       knownBlockers: [
         "Live director, character, and feedback provider success/error proof is missing.",
         "Provider calls remain disabled until explicit operator approval and AiUsageLog proof.",
@@ -925,7 +982,7 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
       displayName: "Private beta RAG",
       ownerSurface: "/api/rag",
       module: "RAG",
-      version: "2026-06-21.nap-002",
+      version: "2026-06-21.nap-003c",
       status: "guarded-disabled",
     },
     capabilities: [
@@ -973,6 +1030,26 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
     proof: {
       sourceAuditModule: "RAG",
       commands: [...commonProofCommands, "pnpm rag:launch-posture-qa"],
+      sourceAdoption: {
+        status: "adopted",
+        ownerRefs: [
+          "src/app/api/rag/route.ts",
+          "src/domains/rag/services/rag.service.ts",
+          "scripts/rag-launch-posture-qa.mjs",
+        ],
+        evidenceRefs: [
+          "querySchema",
+          "RAG_DISABLED_FOR_PRIVATE_BETA",
+          "launchPosture=disabled_guarded",
+          "providerAttempted=false",
+          "countRagUsage",
+        ],
+        notes: [
+          "RAG remains guarded-disabled, quota-checked, and no-provider while private beta ingestion and retrieval proof is missing.",
+          "No high-sensitive or client data ingestion is accepted before dedicated ingestion/privacy proof.",
+          "Future provider or retrieval enablement must add success/error AiUsageLog proof.",
+        ],
+      },
       knownBlockers: ["RAG ingestion, retrieval, and external registry approval are missing."],
     },
     registry: commonRegistry,

@@ -145,6 +145,73 @@ const sourceAdoptionRequirements: Record<string, { ownerRefs: string[]; evidence
     ],
     commands: ["pnpm ai:bff-audit", "pnpm ai:protocol-registry-qa", "pnpm interview:realtime-bff-qa"],
   },
+  "asai.theater.legacy": {
+    ownerRefs: [
+      "src/app/api/ai/theater/route.ts",
+      "src/app/api/ai/theater/score/route.ts",
+      "src/app/api/ai/theater-build/route.ts",
+      "src/lib/theater/theater-ai-repository.ts",
+      "src/lib/theater/theater-build-ai-repository.ts",
+    ],
+    evidenceRefs: [
+      "theaterRequestSchema",
+      "scoreRequestSchema",
+      "requestSchema",
+      "THEATER_ROUTE_B_REQUIRED",
+      "persistTheaterCharacterSuccess",
+      "persistTheaterScoreSuccess",
+      "persistTheaterBuildSuccess",
+      "persistTheaterFailure",
+      "persistTheaterBuildFailure",
+    ],
+    commands: ["pnpm ai:bff-audit", "pnpm ai:protocol-registry-qa"],
+  },
+  "asai.theater.route_b": {
+    ownerRefs: [
+      "src/app/api/theater/route-b/runtime/route.ts",
+      "src/app/api/theater/route-b/sessions/route.ts",
+      "src/app/api/theater/route-b/sessions/[sessionId]/route.ts",
+      "src/app/api/theater/route-b/sessions/[sessionId]/turns/route.ts",
+      "src/domains/theater/route-b-handoff.ts",
+      "src/domains/theater/route-b-session.ts",
+      "src/lib/theater/route-b-boundary.ts",
+      "src/lib/theater/route-b-session-bff-repository.ts",
+      "src/lib/theater/route-b-session-repository.ts",
+    ],
+    evidenceRefs: [
+      "RouteBRuntimeInputPreview",
+      "runtimeInputPreview.sourceAlignment",
+      "validateRouteBHandoffBoundary",
+      "isTheaterRouteBHandoffPacket",
+      "createRouteBSessionForMember",
+      "appendRouteBAdvisorTurnForMember",
+      "RouteBSessionSnapshot",
+      "buildTheaterRouteBStatePatch",
+      "providerCallAttempted=false",
+      "writesConfirmedCrmFact=false",
+    ],
+    commands: [
+      "pnpm ai:bff-audit",
+      "pnpm ai:protocol-registry-qa",
+      "pnpm theater:route-b-runtime-qa",
+      "pnpm theater:route-b-interaction-qa",
+    ],
+  },
+  "asai.rag.private_beta": {
+    ownerRefs: [
+      "src/app/api/rag/route.ts",
+      "src/domains/rag/services/rag.service.ts",
+      "scripts/rag-launch-posture-qa.mjs",
+    ],
+    evidenceRefs: [
+      "querySchema",
+      "RAG_DISABLED_FOR_PRIVATE_BETA",
+      "launchPosture=disabled_guarded",
+      "providerAttempted=false",
+      "countRagUsage",
+    ],
+    commands: ["pnpm ai:bff-audit", "pnpm ai:protocol-registry-qa", "pnpm rag:launch-posture-qa"],
+  },
 };
 
 runQa();

@@ -1546,7 +1546,7 @@ Context: 將誠問 AI 內所有 AI 能力逐步對齊 MIT Project NANDA / AgentF
 - ITA-003g 已補 `asai.theater.route_b` manifest source alignment：runtime preflight capability、director/character/feedback actions、`RouteBRuntimeInputPreview` DTO refs、guarded-disabled provider posture、visibility-safe history 與 success/error `AiUsageLog` plan 已有 source/API proof；legacy Theater 與其他 AI modules 仍待 NAP-003 完整對齊。
 - Quiet NAP-003 gap research（2026-06-21）：`AUD-008` 已新增 NAP-003 source adoption matrix，用六視框把 11 個 AI module 拆成 source owner、目前 proof、adoption gap、下一個最小 slice、proof command 與 blocker。
 - NAP-003a（2026-06-21）已完成 CHAT / VISIT / REPORT / SPIN provider-ready source adoption：四個 manifest 都新增 source owner proof、DTO/evidence boundary、quota/`AiUsageLog` posture 與 NAP-003a static QA；未呼叫 provider、不改 SPIN 狀態機，所有 module 仍為 `internal-only`。
-- 缺口轉為 NAP-003b/c 的 interview / quick-capture / realtime / theater / RAG per-AI source alignment，以及 NAP-005 local-only adapter/export dry-run。
+- NAP-003c（2026-06-21）已完成 legacy Theater / Route B Theater / RAG private beta source adoption；缺口轉為 NAP-005 local-only adapter/export dry-run。
 - NANDA / AgentFacts 對外 registry publication、signing、public discovery endpoint、cross-org agent access 都需 operator approval；目前只允許 internal manifest / adapter proof。
 
 ### Batch NAP-001 — AI module inventory and NANDA mapping
@@ -1572,8 +1572,8 @@ Context: 將誠問 AI 內所有 AI 能力逐步對齊 MIT Project NANDA / AgentF
 - [x] 將 `INTERVIEW` / `INTERVIEW_OUTPUTS` / quick-capture manifest 對齊 source proof，標明 memory/writeback/confirmation boundary。
 - [x] 將 `VISIT` / `REPORT` AI manifest 對齊 source proof，標明 provider-safe client snapshot、facts/inferences/unknowns DTO。
 - [x] 將 `SPIN` manifest 對齊 source proof，明確保留 `SITUATION -> PROBLEM -> IMPLICATION -> NEED_PAYOFF` state machine。
-- [~] 將 `THEATER` legacy / Route B manifest 對齊 source proof，標明 guarded-disabled provider posture、director/character/feedback readiness 與 private/group visibility。
-- [ ] 將 `RAG` manifest 對齊 source proof，標明 private beta guarded-disabled posture。
+- [x] 將 `THEATER` legacy / Route B manifest 對齊 source proof，標明 guarded-disabled provider posture、director/character/feedback readiness 與 private/group visibility。
+- [x] 將 `RAG` manifest 對齊 source proof，標明 private beta guarded-disabled posture。
 - [x] 跑 `pnpm ai:bff-audit`、`pnpm ai:protocol-registry-qa`、`pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
 
 完成註記（2026-06-21 NAP-003a）：`asai.chat.assistant`、`asai.visit.preparation_package`、`asai.report.generation`、`asai.spin.advisor` 已在 `AgentProtocolManifest` 新增 `proof.sourceAdoption.status=adopted`、source owner refs、evidence refs 與 source adoption notes；`scripts/ai-protocol-registry-qa.ts` 會強制檢查四個 provider-ready module 的 NAP-003a adoption proof。`pnpm bff:visit-report-ai-qa` 會實際觸發 provider 成功路徑，本輪依 no-provider slice 不執行，改以 static/source proof 與非 provider QA 收斂。
@@ -1583,6 +1583,8 @@ Context: 將誠問 AI 內所有 AI 能力逐步對齊 MIT Project NANDA / AgentF
 Whole-product review 註記（2026-06-21 after NAP-003b）：第五輪 LV3 校準確認 NAP-003a/b 與 ITA-003g 已把 provider-ready、interview、quick-capture、realtime voice、Route B runtime preflight 的 source/proof 底座補齊；下一個最高槓桿不再是單一 AI manifest，而是 `LV3-CROSS-001 clean cross-flow no-provider proof pack`。下一輪應用 clean context 證明 client / relationship graph / previsit reasoning evidence / quick-capture 或 interview writeback / Route B theater stage 能串成低噪音、無 raw-ID、無 provider call 的顧問旅程；若範圍過大，fallback 為 NAP-003c theater+RAG source adoption，再 fallback NAP-005 local-only adapter/export dry-run。仍不得在未獲 operator approval 前做 live provider Route B、live WebRTC、external registry publication 或 production write。
 
 LV3-CROSS-001 proof pack 註記（2026-06-21）：新增 `pnpm lv3:cross-flow-no-provider-qa`，串跑 client relationship graph、visit/pre-visit BFF、quick-capture BFF/UI、Route B session/UI/interaction 與 `ai:bff-audit`，並在 wrapper 層驗證 `AiUsageLog` count unchanged。初版 proof pack 曾納入 `interview:draft-writeback-qa`，browser path 會呼叫 `/api/ai/interview`；該 provider risk 已移除，最終 committed script 改用 no-provider quick-capture BFF/UI proof。下一輪回到 `NAP-003c theater + RAG source adoption`，補 legacy Theater、Route B Theater 與 RAG guarded-disabled source adoption，不做 external registry publication。
+
+完成註記（2026-06-21 NAP-003c）：`asai.theater.legacy`、`asai.theater.route_b`、`asai.rag.private_beta` 已在 `AgentProtocolManifest` 新增 `proof.sourceAdoption.status=adopted`。Legacy Theater 保留 protected enum/scoring 與 guarded demo / Route B required gate；Route B adoption 覆蓋 deterministic session/turn persistence、private/group visibility、state proposals、guarded runtime preflight 與 success/error `AiUsageLog` plan；RAG adoption 覆蓋 guarded-disabled private beta no-provider posture。`scripts/ai-protocol-registry-qa.ts` now enforces NAP-003a/b/c source adoption requirements。未呼叫 provider、未動 schema、未做 external registry publication。
 
 ### Batch NAP-004 — Internal registry and readiness API
 - [x] 建立 internal registry reader（server-only），可列出 AI manifests、readiness、missing proof、operator approval blockers。
