@@ -10,10 +10,15 @@ import {
   persistAiGenerationFailure,
   persistAiGenerationSuccess,
 } from "@/lib/ai/generation-usage-repository";
+import {
+  buildAiEvidenceSummary,
+  buildProviderSafeClientSnapshot,
+} from "@/domains/visit/ai-evidence-dto";
 import { enrichSpinQuestionsWithReasoning } from "@/domains/visit/reasoning";
 
 const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const MODEL = "gpt-4o-mini";
+const QA_PROVIDER_ERROR_MODEL = "asai-qa-forced-invalid-model";
 
 const visitPurposeSchema = z.enum(["FIRST_VISIT", "ADD_ON", "RENEWAL", "CARE", "REFERRAL"]);
 
@@ -27,10 +32,12 @@ const visitRequestSchema = z
       })
       .passthrough()
       .optional(),
+    dryRun: z.boolean().optional().default(false),
   })
   .transform((input) => ({
     purpose: input.purpose,
     clientId: input.clientId ?? input.client?.id,
+    dryRun: input.dryRun,
   }))
   .refine((input) => Boolean(input.clientId), {
     message: "clientId is required.",
@@ -137,6 +144,7 @@ export async function POST(req: Request) {
   let session: AppSession | undefined;
   let scopedClientId: string | undefined;
   let providerAttempted = false;
+  let model = MODEL;
 
   try {
     session = await requireCurrentMember();
@@ -154,7 +162,9 @@ export async function POST(req: Request) {
 
     const body = parsedBody.data;
     scopedClientId = body.clientId;
-    const quota = canUseAiModule(session, AiModule.VISIT);
+    const quota = shouldForceQuotaExceededForQa(req, body)
+      ? { allowed: false, code: "QUOTA_EXCEEDED" as const, remaining: 0 }
+      : canUseAiModule(session, AiModule.VISIT);
 
     if (!quota.allowed) {
       return Response.json(
@@ -177,7 +187,7 @@ export async function POST(req: Request) {
       await persistAiGenerationFailure({
         session,
         module: AiModule.VISIT,
-        model: MODEL,
+        model,
         clientId: scopedClientId,
         latencyMs: Date.now() - startedAt,
         error: "OPENAI_API_KEY is not configured",
@@ -186,10 +196,11 @@ export async function POST(req: Request) {
       return Response.json({ error: "OPENAI_API_KEY is not configured" }, { status: 500 });
     }
 
+    model = shouldForceProviderErrorForQa(req, body) ? QA_PROVIDER_ERROR_MODEL : MODEL;
     const userPrompt = buildVisitPrompt(body.purpose, clientData);
     providerAttempted = true;
     const response = await client.chat.completions.create({
-      model: MODEL,
+      model,
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: userPrompt },
@@ -204,7 +215,7 @@ export async function POST(req: Request) {
       await persistAiGenerationFailure({
         session,
         module: AiModule.VISIT,
-        model: MODEL,
+        model,
         clientId: scopedClientId,
         requestId: response.id,
         promptTokens: response.usage?.prompt_tokens,
@@ -225,7 +236,7 @@ export async function POST(req: Request) {
       await persistAiGenerationFailure({
         session,
         module: AiModule.VISIT,
-        model: MODEL,
+        model,
         clientId: scopedClientId,
         requestId: response.id,
         promptTokens: response.usage?.prompt_tokens,
@@ -244,7 +255,7 @@ export async function POST(req: Request) {
       await persistAiGenerationFailure({
         session,
         module: AiModule.VISIT,
-        model: MODEL,
+        model,
         clientId: scopedClientId,
         requestId: response.id,
         promptTokens: response.usage?.prompt_tokens,
@@ -264,13 +275,21 @@ export async function POST(req: Request) {
         purpose: body.purpose,
       }),
     };
+    const evidenceSummary = buildAiEvidenceSummary({
+      client: clientData,
+      purpose: body.purpose,
+      questionEvidence: enrichedOutput.spinQuestions.flatMap((question) => question.reasoning?.evidence ?? []),
+      objectives: enrichedOutput.objectives,
+      objections: enrichedOutput.objections,
+      materials: enrichedOutput.materials,
+    });
 
     await persistAiGenerationSuccess({
       session,
       module: AiModule.VISIT,
       clientId: scopedClientId,
       usage: {
-        model: MODEL,
+        model,
         requestId: response.id,
         promptTokens: response.usage?.prompt_tokens,
         completionTokens: response.usage?.completion_tokens,
@@ -279,7 +298,10 @@ export async function POST(req: Request) {
       },
     });
 
-    return Response.json(enrichedOutput);
+    return Response.json({
+      ...enrichedOutput,
+      evidenceSummary,
+    });
   } catch (error) {
     if (!session) {
       return authErrorResponse(error);
@@ -289,7 +311,7 @@ export async function POST(req: Request) {
       await persistAiGenerationFailure({
         session,
         module: AiModule.VISIT,
-        model: MODEL,
+        model,
         clientId: scopedClientId,
         latencyMs: Date.now() - startedAt,
         error: normalizeAiError(error, "Visit generation failed"),
@@ -304,16 +326,43 @@ function buildVisitPrompt(purpose: z.infer<typeof visitPurposeSchema>, clientDat
   if (!clientData) {
     return "";
   }
+  const safeClient = buildProviderSafeClientSnapshot(clientData);
 
   return `
 客戶資訊：
-- 姓名：${clientData.name}
-- 職業：${clientData.occupation || "未提供"}
-- 年收入：${clientData.annualIncome}
-- 家庭成員：${JSON.stringify(clientData.family)}
-- 現有保單：${JSON.stringify(clientData.existingPolicies)}
-- AI 標籤（需求缺口）：${clientData.aiTags.join(", ") || "未提供"}
+- 姓名：${safeClient.name}
+- 職業：${safeClient.occupation || "未提供"}
+- 年收入：${safeClient.annualIncome}
+- 客戶狀態：${safeClient.status}
+- 敏感等級：${safeClient.sensitivityLevel}
+- KYC 狀態：${safeClient.kycStatus}
+- 家庭/關係圖摘要：${JSON.stringify(safeClient.family)}
+- 現有保單摘要：${JSON.stringify(safeClient.existingPolicies)}
+- 合規待補：${safeClient.complianceChecklist.missingItems.join(", ") || "無"}
+- AI 標籤（需求缺口）：${safeClient.aiTags.join(", ") || "未提供"}
 
 拜訪目的：${purpose}
 `;
+}
+
+function shouldForceQuotaExceededForQa(
+  req: Request,
+  body: { dryRun?: boolean },
+): boolean {
+  return (
+    process.env.NODE_ENV !== "production" &&
+    body.dryRun === true &&
+    req.headers.get("x-asai-qa-force-quota-exceeded") === "true"
+  );
+}
+
+function shouldForceProviderErrorForQa(
+  req: Request,
+  body: { dryRun?: boolean },
+): boolean {
+  return (
+    process.env.NODE_ENV !== "production" &&
+    body.dryRun === true &&
+    req.headers.get("x-asai-qa-force-provider-error") === "true"
+  );
 }

@@ -22,13 +22,14 @@ Audit gate 會自動掃描：
 
 若新增 route 但未登錄 manifest，或 route 缺少必要 auth/quota/input/usage/no-provider evidence，指令會回 `overall=gaps_found` 並以 non-zero exit code 失敗。
 
-2026-06-20 audit 結論：
+2026-06-20 audit 結論（BFF-202 後）：
 
 - ✅ Route discovery pass：共 22 條 route，manifest 覆蓋 22/22，undocumented route = 0。
 - ✅ Provider-ready pass：13 條 OpenAI-facing route 具備 `requireCurrentMember()`、`canUseAiModule()`、input limit、provider call evidence、success/error `AiUsageLog` evidence。
 - ✅ No-provider / deterministic BFF pass：8 條 interview persistence/reflection/plan/writeback route 具備 session scope、input schema 或 GET-only boundary，且未偵測 OpenAI/Anthropic provider call；不需要假寫 `AiUsageLog`。
 - ✅ Guarded-disabled pass：`/api/rag` 仍是 private beta disabled posture；有 `requireCurrentMember()`、`canUseAiModule()`、input validation、`RAG_DISABLED_FOR_PRIVATE_BETA`、`disabled_guarded` 與 `providerAttempted=false` evidence；disabled 時不呼叫 provider、不寫假 usage。
 - ✅ Event mirror pass：`/api/ai/interview/realtime-events` 不打外部 provider，但會以 `AiProvider.MOCK` 寫 usage/event mirror evidence，並拒絕 raw audio / secret-bearing payload。
+- ✅ BFF-202 targeted proof pass：`pnpm bff:visit-report-ai-qa` 覆蓋 `/api/ai/visit` 與 `/api/ai/report` 的 401、400、429/no fake usage、provider success、invalid-model provider error、success/error `AiUsageLog` 增量與 response DTO fact/inference/unknown/recommendation boundary。
 
 ---
 
@@ -47,8 +48,9 @@ Current-month DB aggregate proof（`pnpm ai:bff-audit`，2026-06-20）：
 | --- | --- | ---: | ---: | ---: | --- | --- |
 | `CHAT` | `OPENAI` | 37 | 34 | 3 | 2026-06-19 07:22:52.803 | 2026-06-19 11:21:49.356 |
 | `INTERVIEW` | `OPENAI` | 73 | 70 | 3 | 2026-06-19 07:22:58.943 | 2026-06-19 11:44:10.158 |
+| `REPORT` | `OPENAI` | 4 | 2 | 2 | 2026-06-20 04:17:25.764 | 2026-06-20 04:20:14.927 |
 | `THEATER` | `OPENAI` | 10 | 9 | 1 | 2026-06-19 07:23:05.099 | 2026-06-19 11:18:10.334 |
-| `VISIT` | `OPENAI` | 16 | 13 | 3 | 2026-06-19 07:53:13.551 | 2026-06-19 16:47:00.862 |
+| `VISIT` | `OPENAI` | 20 | 15 | 5 | 2026-06-19 07:53:13.551 | 2026-06-20 04:20:13.902 |
 
 > DB aggregate 只列 module/provider/count/time window，不輸出 raw provider payload、request body、raw transcript、cookie、secret 或 token。
 
@@ -125,7 +127,7 @@ Result summary:
 
 1. Keep `/api/rag` disabled for private beta unless/until formal RAG provider/vector path is implemented with success/error `AiUsageLog`.
 2. Run `pnpm ai:bff-audit` before BFF-202/203/204/205 changes and after any new `/api/ai/*` route is added.
-3. BFF-202 should still add targeted API proof for `/api/ai/visit` and `/api/ai/report` success/provider-error paths, even though audit evidence is green.
+3. BFF-202 is complete; keep `pnpm bff:visit-report-ai-qa` in the regression set whenever `/api/ai/visit`, `/api/ai/report`, `AiUsageLog`, or report/previsit generation contracts change.
 4. BFF-203 should treat SPIN mock outline/local session source as a separate source blocker; current audit only proves provider route scope/usage/input guard, not the whole SPIN UI source model.
 5. BFF-204 should keep legacy Theater enum/scoring untouched unless an approved ITA Route B card is active.
 
@@ -136,6 +138,7 @@ Result summary:
 ```bash
 pnpm ai:bff-audit
 pnpm ai:usage-audit
+DEMO_QA_BASE_URL=http://localhost:3020 pnpm bff:visit-report-ai-qa
 ```
 
 Both commands run the same audit gate.

@@ -10,13 +10,20 @@ import {
   persistAiGenerationFailure,
   persistAiGenerationSuccess,
 } from "@/lib/ai/generation-usage-repository";
+import {
+  buildAiEvidenceSummary,
+  buildProviderSafeClientSnapshot,
+} from "@/domains/visit/ai-evidence-dto";
 
 const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const MODEL = "gpt-4o-mini";
+const QA_PROVIDER_ERROR_MODEL = "asai-qa-forced-invalid-model";
 
 const reportRequestSchema = z
   .object({
     prompt: z.string().trim().min(1).max(2000),
+    responseFormat: z.enum(["markdown", "json"]).optional().default("markdown"),
+    dryRun: z.boolean().optional().default(false),
     clientId: z.string().trim().min(1).max(120).optional(),
     client: z
       .object({
@@ -27,7 +34,9 @@ const reportRequestSchema = z
   })
   .transform((input) => ({
     prompt: input.prompt,
+    responseFormat: input.responseFormat,
     clientId: input.clientId ?? input.client?.id,
+    dryRun: input.dryRun,
   }))
   .refine((input) => Boolean(input.clientId), {
     message: "clientId is required.",
@@ -56,6 +65,7 @@ export async function POST(req: Request) {
   let session: AppSession | undefined;
   let scopedClientId: string | undefined;
   let providerAttempted = false;
+  let model = MODEL;
 
   try {
     session = await requireCurrentMember();
@@ -73,7 +83,9 @@ export async function POST(req: Request) {
 
     const body = parsedBody.data;
     scopedClientId = body.clientId;
-    const quota = canUseAiModule(session, AiModule.REPORT);
+    const quota = shouldForceQuotaExceededForQa(req, body)
+      ? { allowed: false, code: "QUOTA_EXCEEDED" as const, remaining: 0 }
+      : canUseAiModule(session, AiModule.REPORT);
 
     if (!quota.allowed) {
       return Response.json(
@@ -96,7 +108,7 @@ export async function POST(req: Request) {
       await persistAiGenerationFailure({
         session,
         module: AiModule.REPORT,
-        model: MODEL,
+        model,
         clientId: scopedClientId,
         latencyMs: Date.now() - startedAt,
         error: "OPENAI_API_KEY is not configured",
@@ -105,9 +117,10 @@ export async function POST(req: Request) {
       return Response.json({ error: "OPENAI_API_KEY is not configured" }, { status: 500 });
     }
 
+    model = shouldForceProviderErrorForQa(req, body) ? QA_PROVIDER_ERROR_MODEL : MODEL;
     providerAttempted = true;
     const response = await client.chat.completions.create({
-      model: MODEL,
+      model,
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: buildReportPrompt(body.prompt, clientData) },
@@ -121,7 +134,7 @@ export async function POST(req: Request) {
       await persistAiGenerationFailure({
         session,
         module: AiModule.REPORT,
-        model: MODEL,
+        model,
         clientId: scopedClientId,
         requestId: response.id,
         promptTokens: response.usage?.prompt_tokens,
@@ -139,7 +152,7 @@ export async function POST(req: Request) {
       module: AiModule.REPORT,
       clientId: scopedClientId,
       usage: {
-        model: MODEL,
+        model,
         requestId: response.id,
         promptTokens: response.usage?.prompt_tokens,
         completionTokens: response.usage?.completion_tokens,
@@ -147,6 +160,16 @@ export async function POST(req: Request) {
         latencyMs: Date.now() - startedAt,
       },
     });
+
+    if (body.responseFormat === "json") {
+      return Response.json({
+        markdown: content,
+        evidenceSummary: buildAiEvidenceSummary({
+          client: clientData,
+          reportPrompt: body.prompt,
+        }),
+      });
+    }
 
     return new Response(content, {
       headers: { "Content-Type": "text/markdown; charset=utf-8" },
@@ -160,7 +183,7 @@ export async function POST(req: Request) {
       await persistAiGenerationFailure({
         session,
         module: AiModule.REPORT,
-        model: MODEL,
+        model,
         clientId: scopedClientId,
         latencyMs: Date.now() - startedAt,
         error: normalizeAiError(error, "Report generation failed"),
@@ -175,16 +198,43 @@ function buildReportPrompt(prompt: string, clientData: Awaited<ReturnType<typeof
   if (!clientData) {
     return prompt;
   }
+  const safeClient = buildProviderSafeClientSnapshot(clientData);
 
   return `
 客戶資訊：
-- 姓名：${clientData.name}
-- 職業：${clientData.occupation || "未提供"}
-- 年收入：${clientData.annualIncome}
-- 家庭成員：${JSON.stringify(clientData.family)}
-- 現有保單：${JSON.stringify(clientData.existingPolicies)}
-- AI 標籤：${clientData.aiTags.join(", ") || "未提供"}
+- 姓名：${safeClient.name}
+- 職業：${safeClient.occupation || "未提供"}
+- 年收入：${safeClient.annualIncome}
+- 客戶狀態：${safeClient.status}
+- 敏感等級：${safeClient.sensitivityLevel}
+- KYC 狀態：${safeClient.kycStatus}
+- 家庭/關係圖摘要：${JSON.stringify(safeClient.family)}
+- 現有保單摘要：${JSON.stringify(safeClient.existingPolicies)}
+- 合規待補：${safeClient.complianceChecklist.missingItems.join(", ") || "無"}
+- AI 標籤：${safeClient.aiTags.join(", ") || "未提供"}
 
 生成要求：${prompt}
 `;
+}
+
+function shouldForceQuotaExceededForQa(
+  req: Request,
+  body: { dryRun?: boolean },
+): boolean {
+  return (
+    process.env.NODE_ENV !== "production" &&
+    body.dryRun === true &&
+    req.headers.get("x-asai-qa-force-quota-exceeded") === "true"
+  );
+}
+
+function shouldForceProviderErrorForQa(
+  req: Request,
+  body: { dryRun?: boolean },
+): boolean {
+  return (
+    process.env.NODE_ENV !== "production" &&
+    body.dryRun === true &&
+    req.headers.get("x-asai-qa-force-provider-error") === "true"
+  );
 }

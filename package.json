@@ -41,6 +41,7 @@
     "bff:dashboard-qa": "node scripts/bff-dashboard-qa.mjs",
     "bff:org-aggregate-qa": "node scripts/bff-org-aggregate-qa.mjs",
     "bff:reports-qa": "node scripts/bff-reports-qa.mjs",
+    "bff:visit-report-ai-qa": "node scripts/bff-visit-report-ai-qa.mjs",
     "bff:issues-qa": "node scripts/bff-issues-qa.mjs",
     "client:relationship-graph-qa": "node scripts/client-relationship-graph-qa.mjs",
     "client:relationship-graph-polish-qa": "node scripts/client-relationship-graph-polish-qa.mjs",

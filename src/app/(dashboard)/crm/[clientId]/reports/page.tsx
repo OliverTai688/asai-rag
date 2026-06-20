@@ -85,12 +85,14 @@ export default function ClientReportsPage() {
       const response = await fetch("/api/ai/report", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: reportPrompt, clientId: client.id }),
+        body: JSON.stringify({ prompt: reportPrompt, clientId: client.id, responseFormat: "json" }),
       });
 
       if (!response.ok) throw new Error("生成失敗");
 
-      const markdown = await response.text();
+      const generatedPayload = (await response.json().catch(() => null)) as unknown;
+      const markdown = isGeneratedReportPayload(generatedPayload) ? generatedPayload.markdown : "";
+      if (!markdown) throw new Error("報告格式錯誤");
       const saveResponse = await fetch("/api/reports", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -274,5 +276,14 @@ export default function ClientReportsPage() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+function isGeneratedReportPayload(value: unknown): value is { markdown: string } {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "markdown" in value &&
+    typeof value.markdown === "string"
   );
 }

@@ -228,12 +228,14 @@ Whole-product review 註記（2026-06-20 after BFF-105）：下一個 normal LV3
 
 目標：把 `/api/ai/visit` 與 `/api/ai/report` 對齊 AI BFF contract。
 
-- [ ] `requireCurrentMember()` 推導 org/user/unit/client/report scope。
-- [ ] `canUseAiModule()` 與 quota guard；quota blocked 不呼叫 provider、不寫假 usage。
-- [ ] Success/error path 都寫 `AiUsageLog`。
-- [ ] Response DTO 分 facts/inferences/unknowns/recommendations。
-- [ ] API proof：401、400、429、success、provider error。
-- [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+- [x] `requireCurrentMember()` 推導 org/user/unit/client/report scope。
+- [x] `canUseAiModule()` 與 quota guard；quota blocked 不呼叫 provider、不寫假 usage。
+- [x] Success/error path 都寫 `AiUsageLog`。
+- [x] Response DTO 分 facts/inferences/unknowns/recommendations。
+- [x] API proof：401、400、429、success、provider error。
+- [x] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+
+完成註記（2026-06-20）：`src/domains/visit/ai-evidence-dto.ts` 建立 visit/report 共用 evidence summary DTO 與 provider-safe client snapshot。`/api/ai/visit` 回傳向下相容準備包 JSON + `evidenceSummary`；`/api/ai/report` 保留 markdown 相容模式並新增 `responseFormat: "json"`，CRM report subpage 已消費 JSON DTO。Provider prompt 僅包含職業、年收入、狀態、敏感/KYC、關係摘要、保單摘要、合規待補與 AI tags，不送 email/phone/raw notes。新增 `pnpm bff:visit-report-ai-qa`，proof 通過 401、400、429 no fake usage、success、invalid-model provider error、success/error `AiUsageLog` 增量、email/phone sentinel 0。未改 Prisma schema；DB 僅新增正常 VISIT/REPORT OpenAI usage evidence。
 
 ---
 
