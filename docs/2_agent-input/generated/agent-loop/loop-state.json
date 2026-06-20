@@ -71,11 +71,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 1,
+    "normalLoopsSinceLastWholeProductReview": 2,
     "lastWholeProductReviewAt": "2026-06-21",
     "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-21_lv3-whole-product-gap-review-pim-ui-nap-routeb.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "Normal PIM-011c quick-capture UI selector bridge completed on 2026-06-21: /pre-visit/[planId]/notes now sends post-visit notes to /api/ai/interview/quick-captures using advisor choices (private draft / client / visit / follow-up review) instead of raw IDs, shows safe DTO summary only, proves high-sensitive blocked 409 then approved READY 201, mobile follow-up state proposal, desktop/mobile no-overflow, and AiUsageLog unchanged 147->147. Next recommended slice is NAP-001 AI module inventory and NANDA / AgentFacts mapping, unless the operator explicitly approves live provider work for ITA-003g Route B runtime.",
+    "nextRecommendedImplementationSlice": "Quiet NAP-001 gap-research documentation loop completed on 2026-06-21: AUD-008 now inventories all ASAI AI modules against NANDA / AgentFacts-style fields, confirms node scripts/ai-usage-route-audit.mjs pass with 23 routes, marks all modules internal-only, and blocks external registry claims until manifest/schema/publication approval exist. Next recommended slice is NAP-002 Internal AgentFacts-style manifest schema plus ai:protocol-registry-qa; if the operator explicitly approves live provider work, ITA-003g Route B runtime can run as a guarded provider proof instead.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {

@@ -1538,16 +1538,19 @@ Whole-product review 註記（2026-06-20 fifth-loop calibration）：BFF-103a/10
 Context: 將誠問 AI 內所有 AI 能力逐步對齊 MIT Project NANDA / AgentFacts 的 agent protocol 思路：每個 AI 都要可描述、可驗證、可被 internal registry 管理，並保留未來 external NANDA / MCP / A2A / HTTPS adapter 登記能力。本條只做**AI module protocol contract、internal manifest/registry、registration readiness、adapter boundary、least-disclosure proof**；不直接對外發布 registry、不開跨組織 agent access、不繞過 `AiUsageLog`、不暴露 raw prompt/provider/private payload。KEY = `NAP`。
 
 ### Current NANDA / Agent Protocol Gaps
-- 現有 AI 能力包含 `問誠問 AI`、`AI 了解客戶`、SPIN、訪前規劃、report generation、Route B Theater、AI Meeting / notes emerging workstream、RAG guarded-disabled posture；多數已有 session/quota/`AiUsageLog` proof，但尚未有統一 AgentFacts-style manifest。
+- `AUD-008` 已完成 NAP-001 inventory：`問誠問 AI`、`AI 了解客戶`、quick-capture、Realtime voice、SPIN、訪前規劃、report generation、legacy Theater、Route B Theater、RAG guarded-disabled、AI Meeting / notes prototype 都已映射到 internal AgentFacts-style module inventory；目前全數仍為 `internal-only`。
+- 多數正式 AI route 已有 session/quota/`AiUsageLog` 或 deterministic no-provider proof；缺口轉為 NAP-002 的 `AgentProtocolManifest` schema、static QA 與 per-module manifest adoption。
 - `package.json` 已有多個 AI/BFF QA scripts，可作 protocol readiness proof 的基礎；仍缺 `pnpm ai:protocol-registry-qa` 或等價 script。
 - NANDA / AgentFacts 對外 registry publication、signing、public discovery endpoint、cross-org agent access 都需 operator approval；目前只允許 internal manifest / adapter proof。
 
 ### Batch NAP-001 — AI module inventory and NANDA mapping
-- [ ] 盤點所有 AI route / module / agent-like workflow：chat、interview、interview outputs、SPIN、visit、report、theater legacy、Route B runtime、RAG、AI Meeting / notes prototype。
-- [ ] 為每個 AI 建立 mapping：agent id、surface owner、capability、endpoint/action、input/output DTO、auth/session scope、data class、provider posture、quota、`AiUsageLog` policy、registration readiness。
-- [ ] 標出不可外部登記的資料：raw prompt、private transcript、policy number、email/phone、secret/token、provider payload。
-- [ ] 產出 NANDA / AgentFacts alignment report，列出 `internal-only` / `registry-draft` / `external-ready` / `external-registered` 狀態。
-- [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`；不改 product source 時至少跑 `git diff --check`。
+- [x] 盤點所有 AI route / module / agent-like workflow：chat、interview、interview outputs、SPIN、visit、report、theater legacy、Route B runtime、RAG、AI Meeting / notes prototype。
+- [x] 為每個 AI 建立 mapping：agent id、surface owner、capability、endpoint/action、input/output DTO、auth/session scope、data class、provider posture、quota、`AiUsageLog` policy、registration readiness。
+- [x] 標出不可外部登記的資料：raw prompt、private transcript、policy number、email/phone、secret/token、provider payload。
+- [x] 產出 NANDA / AgentFacts alignment report，列出 `internal-only` / `registry-draft` / `external-ready` / `external-registered` 狀態。
+- [x] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`；不改 product source 時至少跑 `git diff --check`。
+
+完成註記（2026-06-21 NAP-001）：新增 `AUD-008_nanda-agentfacts-ai-module-inventory-v1.0.md`，以 Project NANDA / AgentFacts primary research、`node scripts/ai-usage-route-audit.mjs` route audit（23 routes、13 provider-ready、10 no-provider、gaps 0）與六視框 gap review 建立 AI module inventory。所有 module 目前標為 `internal-only`；未呼叫 provider、未改 product runtime source、未動 DB/Prisma、未對外發布 registry。
 
 ### Batch NAP-002 — Internal AgentFacts-style manifest schema
 - [ ] 建立 `AgentProtocolManifest` 或等價 type/schema，覆蓋 identity、capabilities、modalities、endpoints/actions、schemas、auth scopes、data classes、trust/compliance、quota/cost、audit/usage、version/status、registry readiness。

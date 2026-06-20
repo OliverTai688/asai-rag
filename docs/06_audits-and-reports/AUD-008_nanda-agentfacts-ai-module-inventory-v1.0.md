@@ -1,0 +1,164 @@
+# 誠問 AI NANDA / AgentFacts AI Module Inventory v1.0
+
+> 建立日期：2026-06-21  
+> 對應 workstream：`NAP-001`  
+> 範圍：ASAI 內部 AI module / AI route / agent-like workflow inventory 與 AgentFacts-style readiness mapping。  
+> 不做：external NANDA registry publication、public discovery endpoint、credential signing、cross-org agent access、live provider smoke。
+
+---
+
+## 1. Scope
+
+本文件完成 `NAP-001 AI module inventory and NANDA mapping`。它把目前 ASAI 的 AI 能力整理成內部 AgentFacts-style inventory，目的不是宣稱正式 NANDA compatible，而是讓下一張 `NAP-002` 可以建立可驗證的 `AgentProtocolManifest` schema 與 static QA。
+
+本輪只做文件與靜態/source proof：
+
+- 沒有新增或修改 product runtime source。
+- 沒有呼叫 OpenAI / Anthropic provider。
+- 沒有 DB write、Prisma schema change、Prisma generate 或 db push。
+- 沒有外部 registry publication。
+
+---
+
+## 2. Research Basis
+
+本輪核對 primary / project sources：
+
+- [Project NANDA GitHub](https://github.com/projnanda)：NANDA 目標是 agent discovery、capability verification、protocol-neutral interop 與 governance。
+- [NANDA Adapter](https://github.com/projnanda/adapter)：adapter 把 local agent 變成 persistent、discoverable、interoperable agent，並提到 multi-framework、multi-protocol、global index 與 SSL support。
+- [Beyond DNS: Unlocking the Internet of AI Agents via the NANDA Index and Verified AgentFacts](https://arxiv.org/abs/2507.14263)：NANDA index resolves to dynamic, cryptographically verifiable AgentFacts, with schema-validated capability assertions, key rotation/revocation, and least-disclosure discovery.
+- [Using the NANDA Index Architecture in Practice](https://arxiv.org/html/2508.03101v1)：enterprise framing stresses AgentFacts metadata, MCP / A2A / HTTPS interoperability, and Zero Trust Agentic Access.
+- [A Survey of AI Agent Registry Solutions](https://arxiv.org/html/2508.03095v1)：compares registry models across security, authentication, scalability, and maintenance.
+
+ASAI interpretation：先做 internal, least-disclosure manifest；對外 registry/signing/public discovery 需要 operator approval。
+
+---
+
+## 3. Static Proof Baseline
+
+`node scripts/ai-usage-route-audit.mjs` on 2026-06-21:
+
+| Field | Result |
+| --- | --- |
+| overall | `pass` |
+| routeCount | `23` |
+| providerReadyRouteCount | `13` |
+| noProviderRouteCount | `10` |
+| routesWithGaps | `[]` |
+| discoveryGaps | `0` |
+| modules | `CHAT`, `INTERVIEW`, `RAG`, `REPORT`, `SPIN`, `THEATER`, `VISIT` |
+
+This proves route discovery and AiUsage/no-provider posture coverage. It does not yet prove AgentFacts manifest completeness, because NAP-002 has not created the manifest schema or `pnpm ai:protocol-registry-qa`.
+
+---
+
+## 4. Readiness Rubric
+
+| State | Meaning in ASAI |
+| --- | --- |
+| `internal-only` | Capability is usable or documented inside ASAI but lacks internal AgentFacts manifest schema/proof, external allowlist, signing, public discovery, and publication approval. |
+| `registry-draft` | Internal manifest exists and passes static QA, but is not externally published or signed. |
+| `external-ready` | Manifest is least-disclosure, schema-valid, versioned, signed/exportable, and operator has approved publication path, but it is not yet registered. |
+| `external-registered` | Published to an approved external registry/discovery endpoint with revocation/key rotation and rollback proof. |
+
+Current result：all modules remain `internal-only`. None are `registry-draft`, `external-ready`, or `external-registered`.
+
+---
+
+## 5. Six-frame Gap Review
+
+1. **Advisor workflow and onboarding**  
+   AI entrypoints are now operable (`問誠問 AI`, `AI 了解客戶`, previsit, Route B theater), but the advisor cannot inspect a unified capability map that says what each AI can safely do, which data it uses, and which actions are deterministic vs provider-backed.
+
+2. **Source-of-truth and BFF**  
+   Most production-relevant AI routes have session/quota/AiUsage evidence via BFF audit. The missing source of truth is a single internal manifest schema that maps those routes to module identity, capabilities, input/output DTO, auth scope, data classes, and proof commands.
+
+3. **AI reasoning and evidence**  
+   Visit/report/SPIN/interview/theater routes expose facts/inferences/unknowns in several DTOs, but this is not declared in a cross-module manifest. External metadata must not reveal raw prompts, raw provider payload, raw transcripts, policy numbers, email/phone, secrets, tokens, or raw audio.
+
+4. **Theater/relationship immersion**  
+   Route B has relationship-stage and no-provider interaction proof, but director/character/feedback provider runtime is still guarded-disabled or legacy-provider scoped. The manifest must separate `THEATER.legacy` from `THEATER.route-b` so the product does not imply live multi-character AI is externally available before provider success/error `AiUsageLog` proof.
+
+5. **QA, compliance, and release-proof**  
+   Existing proof commands are strong enough to seed manifest evidence references. Missing proof is `pnpm ai:protocol-registry-qa`, which should verify manifest completeness, forbidden sentinel absence, readiness state consistency, and no external publication.
+
+6. **NANDA / AgentFacts protocol**  
+   ASAI lacks the internal AgentFacts-style manifest schema and registry reader. NAP-002 should create `AgentProtocolManifest`; NAP-003 should adopt it per module; NAP-004 can expose a platform-only internal registry surface.
+
+---
+
+## 6. Module Inventory
+
+| Agent id | Owner surface | Capability summary | Endpoint / action boundary | Input / output DTO boundary | Auth / session scope | Data classes | Provider posture | Quota / AiUsage policy | Readiness |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `asai.chat.assistant` | Global assistant / dashboard shell | Advisor assistant chat, allowed tool intents, conversation persistence | `POST /api/ai/chat` | chat messages in, streamed assistant response and persisted conversation/message out | `requireCurrentMember`; organization/member/unit from server session | advisor prompt, assistant reply, tool command metadata | `provider_ready` OpenAI | quota before provider; success/error `AiUsageLog` required | `internal-only` |
+| `asai.interview.companion` | `/interview`, interview session workspace | Advisor companion interview, output draft, memory loop, reflection/planning, writeback cards | `/api/ai/interview`, `/outputs`, `/sessions*`, `/writebacks`, `/plans`, `/reflections*` | messages/materials/memory candidates in; draft, reflection, plan, confirmation/writeback DTO out | `requireCurrentMember`; owner-scoped persisted session | confirmed facts, inferences, unknowns, transcript-derived memory, high-sensitive approval metadata | mixed: provider-ready plus deterministic BFF | provider routes write success/error `AiUsageLog`; deterministic BFF proves no-provider | `internal-only` |
+| `asai.interview.quick_capture` | `/pre-visit/[planId]/notes` and future notes/meeting surfaces | Post-visit note quick-capture into Park memory and downstream previsit/theater handoff | `POST /api/ai/interview/quick-captures` | note + assignment intent + optional approval in; least-disclosure memory/state proposal summary out | `requireCurrentMember`; client/visit scope derived server-side | quick note, memory candidate, narrator question, state proposal | deterministic no-provider | no `AiUsageLog` required; proof must show count unchanged | `internal-only` |
+| `asai.interview.realtime_voice` | `/interview` Chinese voice beta | Realtime session minting, event mirror, transcription/correction path | `/realtime-session`, `/realtime-events`, `/transcribe`, `/transcribe-realtime-session` | consent/event/audio bounds in; ephemeral token/session marker/transcript DTO out | `requireCurrentMember`; quota guard before token mint/provider | transcript, correction memory, no raw audio default | provider-or-dry-run / transcription provider / event mirror | session marker or provider success/error `AiUsageLog`; raw audio not stored by default | `internal-only` |
+| `asai.spin.advisor` | `/spin` and SPIN suggestions | SPIN conversation and suggestion generation while preserving state machine | `POST /api/ai/spin`, `POST /api/ai/spin-suggestions` | SPIN messages/client context refs in; streamed response/suggestions out | `requireCurrentMember`; DB client/session scope | SPIN stage, client-safe context, conversation content | `provider_ready` OpenAI | quota before provider; success/error `AiUsageLog` required | `internal-only` |
+| `asai.visit.preparation_package` | `/pre-visit` | AI-generated visit preparation package with facts/inferences/unknowns | `POST /api/ai/visit` | clientId / provider-safe snapshot in; preparation package + evidence summary out | `requireCurrentMember`; client read permission server-side | client facts, family/policy summary, recommendations, unknowns | `provider_ready` OpenAI | quota before provider; success/error `AiUsageLog` required | `internal-only` |
+| `asai.report.generation` | `/reports`, CRM report flows | AI-generated report draft / JSON DTO for report workflows | `POST /api/ai/report` | report prompt/client/report context in; markdown-compatible or JSON DTO out | `requireCurrentMember`; report/client scope server-side | facts, inferences, unknowns, recommendations, report sections | `provider_ready` OpenAI | quota before provider; success/error `AiUsageLog` required | `internal-only` |
+| `asai.theater.legacy` | Legacy theater surfaces and staging gate | Legacy theater character response, scoring, setup/build generation | `/api/ai/theater`, `/api/ai/theater/score`, `/api/ai/theater-build` | persona/history/setup inputs in; legacy response/score/build draft out | `requireCurrentMember`; quota guard | persona, history, setup materials, score/feedback | `provider_ready` OpenAI, but product-gated by Route B policy | quota before provider; success/error `AiUsageLog` required | `internal-only` |
+| `asai.theater.route_b` | `/theater/[sessionId]`, Route B persisted stage | Multi-character scene/session persistence, group/private turns, state proposals, guarded runtime preview | `/api/theater/route-b/runtime`, `/sessions`, `/sessions/[id]`, `/turns` | handoff/session/turn/state proposal DTOs; no raw provider payload | `requireCurrentMember`; owner-scoped session | stage characters, relationship evidence, group/private turns, state proposal | deterministic BFF; director/character/feedback provider guarded-disabled / not implemented | no fake usage; provider enablement requires success/error `AiUsageLog` proof | `internal-only` |
+| `asai.rag.private_beta` | RAG route / future knowledge search | Private beta guarded-disabled RAG posture | `POST /api/rag` | query in; guarded-disabled response out | `requireCurrentMember`; quota checked | query string only; no high-sensitive default ingestion | `guarded_disabled` | no provider call; no fake `AiUsageLog`; future provider route must log success/error | `internal-only` |
+| `asai.meeting.prototype` | AI Meeting / notes emerging prototype | Meeting workspace and notes quick-capture concept, not committed product baseline | uncommitted prototype files under `src/app/(dashboard)/notes/`, `src/app/(dashboard)/pre-visit/[planId]/meeting/`, `src/components/meeting/`, `src/domains/note/` | not accepted as product DTO yet | not accepted as session proof yet | meeting notes/transcript-like material | prototype-only; not in route audit | no provider/usage policy accepted yet | `internal-only` / not registry eligible |
+
+---
+
+## 7. Least-disclosure External Blocklist
+
+No internal or future external manifest may expose:
+
+- raw prompt or system prompt text;
+- raw provider payload, provider error body, model API key, secret, token, cookie, OTP, ephemeral Realtime token;
+- raw private transcript, raw note text, raw audio, or unredacted memory text;
+- policy number, email, phone, payment data, billing key, ECPay hash material;
+- organization-internal report body, coaching note, platform break-glass reason text;
+- client or member identifiers beyond explicit least-disclosure public handles approved for publication.
+
+External registry/export must also include capability allowlist, redaction proof, signed/versioned metadata, revocation/key rotation plan, and operator approval.
+
+---
+
+## 8. NAP-002 Input Requirements
+
+Next slice should create an internal manifest schema with these required groups:
+
+1. `identity`: `agentId`, name, owner surface, version, status.
+2. `capabilities`: capability ids, action list, human-facing label, module enum.
+3. `interfaces`: endpoints/actions, method, launch posture, provider posture, modalities.
+4. `schemas`: input DTO refs, output DTO refs, evidence DTO refs.
+5. `auth`: required session type, scope derivation, role restrictions.
+6. `dataClasses`: public/internal/high-sensitive/private-transcript/raw-audio/payment classifications.
+7. `privacy`: retention, redaction, no-raw-payload claims, external blocklist.
+8. `quotaCost`: `canUseAiModule` gate, `AiUsageLog` success/error/no-provider policy.
+9. `proof`: existing commands, source audit references, known blockers.
+10. `registry`: readiness state, external publication approval requirement, signing/discovery status.
+
+Suggested proof command for NAP-002:
+
+```bash
+pnpm ai:bff-audit
+pnpm ai:protocol-registry-qa
+pnpm exec tsc --noEmit --pretty false
+pnpm lint:changed
+```
+
+---
+
+## 9. Blockers
+
+- **Source blocker**：no `AgentProtocolManifest` schema or static QA script exists yet.
+- **Product / safety blocker**：Route B provider runtime and five-view feedback still need success/error `AiUsageLog` proof before external capability claims.
+- **Operator / production approval blocker**：external NANDA / third-party registry publication, public discovery endpoint, credential signing, key rotation, and cross-org agent access all require explicit approval.
+- **Prototype blocker**：AI Meeting / notes prototype remains outside committed baseline and cannot be represented as registry-ready until selected, committed, and validated.
+
+---
+
+## 10. NAP-001 Acceptance
+
+- [x] AI routes / modules / agent-like workflows inventoried.
+- [x] Mapping includes agent id, owner surface, capability, endpoint/action, DTO boundary, auth/session scope, data class, provider posture, quota, `AiUsageLog` policy, and registration readiness.
+- [x] Non-exposable raw/private data listed.
+- [x] Alignment report produced.
+- [x] Validation command baseline identified and run for route audit.
