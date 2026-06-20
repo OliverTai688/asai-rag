@@ -64,11 +64,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 3,
+    "normalLoopsSinceLastWholeProductReview": 4,
     "lastWholeProductReviewAt": "2026-06-20",
     "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-20_lv3-whole-product-gap-review-stage-map-ras.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "Primary if Supabase DB/DNS is available: ITA-003f/S1 Route B relationship-graph stage map (no-provider) to make /theater/[sessionId] a relationship-graph-centered stage with private/group visibility and guarded-disabled runtime proof. If DB remains blocked: run RAS-004 sidebar renderer / surface switch consumption of workspace bootstrap navigation, preserving AI-first member surface and org settings visibility while avoiding unrelated sidebar dirty changes. Separately rerun BFF-103d related-list full proof after DB recovers.",
+    "nextRecommendedImplementationSlice": "Cadence is now 4, so the next loop should run the scheduled whole-product LV3 gap review. Include this loop's RAS-004a result: sidebar renderer contract adapter is proven without DB/provider and without touching dirty sidebar.tsx, but actual sidebar UI wiring / Browser QA remains RAS-004b. If the review defers implementation to a critical slice and Supabase DB/DNS is available, reconsider ITA-003f/S1 Route B relationship-graph stage map (no-provider). If DB remains blocked after the review, continue with RAS-004b sidebar UI wiring using buildWorkspaceSidebarRenderModel() while isolating existing sidebar /notes dirty diff.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {

@@ -4,7 +4,11 @@ import {
   canManageOrgSettings,
   resolveSidebarSections,
   type OrganizationRole,
+  type ResolvedSidebarItem,
   type ResolvedSidebarSection,
+  type SidebarAction,
+  type SidebarDataBoundary,
+  type SidebarDisabledReason,
   type SidebarContext,
   type SidebarFeatureFlags,
   type SidebarPlanCapabilities,
@@ -109,6 +113,79 @@ export interface WorkspaceNavigationBootstrap {
     readonly routeGuardDocsRead: "node_modules/next/dist/docs/01-app/03-api-reference/04-functions/redirect.md";
     readonly providerCalls: "none";
     readonly dbWrites: "none";
+  };
+}
+
+export type WorkspaceSidebarActiveMatch =
+  | "exact-or-prefix"
+  | "team-root-excluding-settings";
+
+export type WorkspaceSidebarRenderAction =
+  | {
+      readonly type: "href";
+      readonly href: string;
+      readonly activeMatch: WorkspaceSidebarActiveMatch;
+    }
+  | {
+      readonly type: "openAssistant";
+      readonly assistantScope: NonNullable<SidebarAction["assistantScope"]>;
+    }
+  | {
+      readonly type: "switchSurface";
+      readonly targetSurface: WorkspaceBootstrapSurface;
+      readonly href: string;
+      readonly available: boolean;
+      readonly current: boolean;
+      readonly disabledReason?: WorkspaceSurfaceSwitch["disabledReason"];
+    };
+
+export interface WorkspaceSidebarRenderItem {
+  readonly id: string;
+  readonly label: string;
+  readonly description?: string;
+  readonly icon: string;
+  readonly ariaLabel: string;
+  readonly badge?: ResolvedSidebarItem["badge"];
+  readonly disabled: boolean;
+  readonly disabledReason?: SidebarDisabledReason | WorkspaceSurfaceSwitch["disabledReason"];
+  readonly sourceKind: ResolvedSidebarItem["kind"];
+  readonly policy: ResolvedSidebarItem["policy"];
+  readonly dataBoundary: SidebarDataBoundary;
+  readonly action: WorkspaceSidebarRenderAction;
+}
+
+export interface WorkspaceSidebarRenderSection {
+  readonly id: string;
+  readonly label: string;
+  readonly items: readonly WorkspaceSidebarRenderItem[];
+}
+
+export interface WorkspaceSidebarRenderSurfaceSwitch {
+  readonly id: WorkspaceSurfaceSwitch["id"];
+  readonly label: string;
+  readonly ariaLabel: string;
+  readonly disabled: boolean;
+  readonly disabledReason?: WorkspaceSurfaceSwitch["disabledReason"];
+  readonly dataBoundary: WorkspaceSurfaceSwitch["dataBoundary"];
+  readonly action: Extract<WorkspaceSidebarRenderAction, { readonly type: "switchSurface" }>;
+}
+
+export interface WorkspaceSidebarRenderModel {
+  readonly currentSurface: WorkspaceBootstrapSurface;
+  readonly defaultSurface: WorkspaceBootstrapSurface;
+  readonly defaultSurfaceRedirect: WorkspaceNavigationBootstrap["defaultSurfaceRedirect"];
+  readonly primarySections: readonly WorkspaceSidebarRenderSection[];
+  readonly surfaceSwitches: readonly WorkspaceSidebarRenderSurfaceSwitch[];
+  readonly activeItemId?: string;
+  readonly routeGuardAlignment: WorkspaceRouteGuardAlignment;
+  readonly settingsRoutePolicy: WorkspaceSettingsRoutePolicy;
+  readonly proof: {
+    readonly source: "RAS-004a";
+    readonly consumes: "RAS-003 workspace bootstrap navigation";
+    readonly rendererContract: "sidebar.tsx view-model ready";
+    readonly providerCalls: "none";
+    readonly dbWrites: "none";
+    readonly dirtySidebarFileTouched: false;
   };
 }
 
@@ -390,6 +467,207 @@ export function buildWorkspaceBootstrapNavigation(
       routeGuardDocsRead: "node_modules/next/dist/docs/01-app/03-api-reference/04-functions/redirect.md",
       providerCalls: "none",
       dbWrites: "none",
+    },
+  };
+}
+
+function getDefaultAssistantScope(surface: WorkspaceBootstrapSurface): NonNullable<SidebarAction["assistantScope"]> {
+  return surface === "orgAdmin" ? "org-aggregate" : "member-own-assigned";
+}
+
+function getLinkActiveMatch(href: string): WorkspaceSidebarActiveMatch {
+  return href === "/team" ? "team-root-excluding-settings" : "exact-or-prefix";
+}
+
+function getSwitchForAction(
+  item: ResolvedSidebarItem,
+  surfaceSwitches: readonly WorkspaceSurfaceSwitch[],
+): WorkspaceSurfaceSwitch | undefined {
+  if (item.kind !== "action" || item.action.type !== "switchSurface") {
+    return undefined;
+  }
+
+  return surfaceSwitches.find((entry) => entry.targetSurface === item.action.targetSurface);
+}
+
+function toWorkspaceSidebarRenderAction(
+  item: ResolvedSidebarItem,
+  currentSurface: WorkspaceBootstrapSurface,
+  surfaceSwitches: readonly WorkspaceSurfaceSwitch[],
+): WorkspaceSidebarRenderAction {
+  if (item.kind === "link") {
+    return {
+      type: "href",
+      href: item.href,
+      activeMatch: getLinkActiveMatch(item.href),
+    };
+  }
+
+  if (item.action.type === "openAssistant") {
+    return {
+      type: "openAssistant",
+      assistantScope: item.action.assistantScope ?? getDefaultAssistantScope(currentSurface),
+    };
+  }
+
+  const surfaceSwitch = getSwitchForAction(item, surfaceSwitches);
+  const targetSurface =
+    item.action.targetSurface === "orgAdmin" ? "orgAdmin" : "member";
+
+  return {
+    type: "switchSurface",
+    targetSurface,
+    href: surfaceSwitch?.href ?? (targetSurface === "orgAdmin" ? "/team" : "/dashboard"),
+    available: surfaceSwitch?.available ?? false,
+    current: surfaceSwitch?.current ?? false,
+    disabledReason: surfaceSwitch?.disabledReason,
+  };
+}
+
+function toWorkspaceSidebarRenderItem(
+  item: ResolvedSidebarItem,
+  currentSurface: WorkspaceBootstrapSurface,
+  surfaceSwitches: readonly WorkspaceSurfaceSwitch[],
+): WorkspaceSidebarRenderItem {
+  const action = toWorkspaceSidebarRenderAction(item, currentSurface, surfaceSwitches);
+  const switchDisabled =
+    action.type === "switchSurface" && (!action.available || action.current);
+
+  return {
+    id: item.id,
+    label: item.label,
+    description: item.description,
+    icon: item.icon,
+    ariaLabel: item.ariaLabel,
+    badge: item.badge,
+    disabled: item.disabled || switchDisabled,
+    disabledReason: item.disabledReason ?? (action.type === "switchSurface" ? action.disabledReason : undefined),
+    sourceKind: item.kind,
+    policy: item.policy,
+    dataBoundary: item.dataBoundary,
+    action,
+  };
+}
+
+function toWorkspaceSidebarRenderSection(
+  section: ResolvedSidebarSection,
+  currentSurface: WorkspaceBootstrapSurface,
+  surfaceSwitches: readonly WorkspaceSurfaceSwitch[],
+): WorkspaceSidebarRenderSection {
+  return {
+    id: section.id,
+    label: section.label,
+    items: section.items.map((item) =>
+      toWorkspaceSidebarRenderItem(item, currentSurface, surfaceSwitches),
+    ),
+  };
+}
+
+function toWorkspaceSidebarRenderSurfaceSwitch(
+  entry: WorkspaceSurfaceSwitch,
+): WorkspaceSidebarRenderSurfaceSwitch {
+  return {
+    id: entry.id,
+    label: entry.label,
+    ariaLabel: `切換到${entry.label}`,
+    disabled: !entry.available || entry.current,
+    disabledReason: entry.disabledReason,
+    dataBoundary: entry.dataBoundary,
+    action: {
+      type: "switchSurface",
+      targetSurface: entry.targetSurface,
+      href: entry.href,
+      available: entry.available,
+      current: entry.current,
+      disabledReason: entry.disabledReason,
+    },
+  };
+}
+
+function normalizeSidebarPathname(pathname: string) {
+  const [withoutQuery = "/"] = pathname.split(/[?#]/);
+  const normalized = withoutQuery.replace(/\/+$/, "");
+
+  return normalized || "/";
+}
+
+function isHrefActive(
+  action: Extract<WorkspaceSidebarRenderAction, { readonly type: "href" }>,
+  pathname: string,
+) {
+  const href = normalizeSidebarPathname(action.href);
+  const current = normalizeSidebarPathname(pathname);
+
+  if (current === href) {
+    return true;
+  }
+
+  if (href === "/") {
+    return false;
+  }
+
+  if (
+    action.activeMatch === "team-root-excluding-settings" &&
+    current.startsWith("/team/settings")
+  ) {
+    return false;
+  }
+
+  return current.startsWith(`${href}/`);
+}
+
+export function resolveWorkspaceSidebarActiveItemId(
+  sections: readonly WorkspaceSidebarRenderSection[],
+  pathname: string,
+) {
+  const matches = sections
+    .flatMap((section) => section.items)
+    .filter((item) => item.action.type === "href" && !item.disabled)
+    .map((item) => ({
+      item,
+      action: item.action as Extract<WorkspaceSidebarRenderAction, { readonly type: "href" }>,
+    }))
+    .filter(({ action }) => isHrefActive(action, pathname))
+    .sort((first, second) =>
+      normalizeSidebarPathname(second.action.href).length -
+      normalizeSidebarPathname(first.action.href).length,
+    );
+
+  return matches[0]?.item.id;
+}
+
+export function buildWorkspaceSidebarRenderModel(
+  session: AppSession,
+  requestedSurface: WorkspaceBootstrapSurface = getDefaultWorkspaceSurface(session),
+  options: { readonly pathname?: string } = {},
+): WorkspaceSidebarRenderModel {
+  const navigation = buildWorkspaceBootstrapNavigation(session, requestedSurface);
+  const primarySections = navigation.sidebarSections.map((section) =>
+    toWorkspaceSidebarRenderSection(
+      section,
+      navigation.currentSurface,
+      navigation.surfaceSwitches,
+    ),
+  );
+
+  return {
+    currentSurface: navigation.currentSurface,
+    defaultSurface: navigation.defaultSurface,
+    defaultSurfaceRedirect: navigation.defaultSurfaceRedirect,
+    primarySections,
+    surfaceSwitches: navigation.surfaceSwitches.map(toWorkspaceSidebarRenderSurfaceSwitch),
+    activeItemId: options.pathname
+      ? resolveWorkspaceSidebarActiveItemId(primarySections, options.pathname)
+      : undefined,
+    routeGuardAlignment: navigation.routeGuardAlignment,
+    settingsRoutePolicy: navigation.settingsRoutePolicy,
+    proof: {
+      source: "RAS-004a",
+      consumes: "RAS-003 workspace bootstrap navigation",
+      rendererContract: "sidebar.tsx view-model ready",
+      providerCalls: "none",
+      dbWrites: "none",
+      dirtySidebarFileTouched: false,
     },
   };
 }
