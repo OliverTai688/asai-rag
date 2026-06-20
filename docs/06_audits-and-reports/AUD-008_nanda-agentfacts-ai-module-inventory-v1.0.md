@@ -48,7 +48,7 @@ ASAI interpretation：先做 internal, least-disclosure manifest；對外 regist
 | discoveryGaps | `0` |
 | modules | `CHAT`, `INTERVIEW`, `RAG`, `REPORT`, `SPIN`, `THEATER`, `VISIT` |
 
-This proves route discovery and AiUsage/no-provider posture coverage. It does not yet prove AgentFacts manifest completeness, because NAP-002 has not created the manifest schema or `pnpm ai:protocol-registry-qa`.
+This proves route discovery and AiUsage/no-provider posture coverage. NAP-002 later added AgentFacts-style manifest completeness proof through `pnpm ai:protocol-registry-qa`.
 
 ---
 
@@ -56,7 +56,7 @@ This proves route discovery and AiUsage/no-provider posture coverage. It does no
 
 | State | Meaning in ASAI |
 | --- | --- |
-| `internal-only` | Capability is usable or documented inside ASAI but lacks internal AgentFacts manifest schema/proof, external allowlist, signing, public discovery, and publication approval. |
+| `internal-only` | Capability is usable or documented inside ASAI but is not externally approved, signed, discoverable, or registered. It may still have an internal manifest and static proof. |
 | `registry-draft` | Internal manifest exists and passes static QA, but is not externally published or signed. |
 | `external-ready` | Manifest is least-disclosure, schema-valid, versioned, signed/exportable, and operator has approved publication path, but it is not yet registered. |
 | `external-registered` | Published to an approved external registry/discovery endpoint with revocation/key rotation and rollback proof. |
@@ -71,7 +71,7 @@ Current result：all modules remain `internal-only`. None are `registry-draft`, 
    AI entrypoints are now operable (`問誠問 AI`, `AI 了解客戶`, previsit, Route B theater), but the advisor cannot inspect a unified capability map that says what each AI can safely do, which data it uses, and which actions are deterministic vs provider-backed.
 
 2. **Source-of-truth and BFF**  
-   Most production-relevant AI routes have session/quota/AiUsage evidence via BFF audit. The missing source of truth is a single internal manifest schema that maps those routes to module identity, capabilities, input/output DTO, auth scope, data classes, and proof commands.
+   Most production-relevant AI routes have session/quota/AiUsage evidence via BFF audit. NAP-002 now adds a single internal manifest schema that maps those routes to module identity, capabilities, input/output DTO, auth scope, data classes, and proof commands.
 
 3. **AI reasoning and evidence**  
    Visit/report/SPIN/interview/theater routes expose facts/inferences/unknowns in several DTOs, but this is not declared in a cross-module manifest. External metadata must not reveal raw prompts, raw provider payload, raw transcripts, policy numbers, email/phone, secrets, tokens, or raw audio.
@@ -80,10 +80,10 @@ Current result：all modules remain `internal-only`. None are `registry-draft`, 
    Route B has relationship-stage and no-provider interaction proof, but director/character/feedback provider runtime is still guarded-disabled or legacy-provider scoped. The manifest must separate `THEATER.legacy` from `THEATER.route-b` so the product does not imply live multi-character AI is externally available before provider success/error `AiUsageLog` proof.
 
 5. **QA, compliance, and release-proof**  
-   Existing proof commands are strong enough to seed manifest evidence references. Missing proof is `pnpm ai:protocol-registry-qa`, which should verify manifest completeness, forbidden sentinel absence, readiness state consistency, and no external publication.
+   Existing proof commands now include `pnpm ai:protocol-registry-qa`, which verifies manifest completeness, forbidden sentinel absence, readiness state consistency, and no external publication.
 
 6. **NANDA / AgentFacts protocol**  
-   ASAI lacks the internal AgentFacts-style manifest schema and registry reader. NAP-002 should create `AgentProtocolManifest`; NAP-003 should adopt it per module; NAP-004 can expose a platform-only internal registry surface.
+   ASAI now has the internal AgentFacts-style manifest schema. Remaining work is NAP-003 source alignment/adoption per module and NAP-004 platform-only internal registry surface.
 
 ---
 
@@ -120,9 +120,9 @@ External registry/export must also include capability allowlist, redaction proof
 
 ---
 
-## 8. NAP-002 Input Requirements
+## 8. NAP-002 Follow-up Evidence
 
-Next slice should create an internal manifest schema with these required groups:
+NAP-002 created `src/domains/ai-protocol/manifest.ts` with these required groups:
 
 1. `identity`: `agentId`, name, owner surface, version, status.
 2. `capabilities`: capability ids, action list, human-facing label, module enum.
@@ -135,7 +135,7 @@ Next slice should create an internal manifest schema with these required groups:
 9. `proof`: existing commands, source audit references, known blockers.
 10. `registry`: readiness state, external publication approval requirement, signing/discovery status.
 
-Suggested proof command for NAP-002:
+Accepted proof command set for NAP-002:
 
 ```bash
 pnpm ai:bff-audit
@@ -148,7 +148,7 @@ pnpm lint:changed
 
 ## 9. Blockers
 
-- **Source blocker**：no `AgentProtocolManifest` schema or static QA script exists yet.
+- **Registry reader blocker**：no platform-only internal registry reader / readiness API exists yet.
 - **Product / safety blocker**：Route B provider runtime and five-view feedback still need success/error `AiUsageLog` proof before external capability claims.
 - **Operator / production approval blocker**：external NANDA / third-party registry publication, public discovery endpoint, credential signing, key rotation, and cross-org agent access all require explicit approval.
 - **Prototype blocker**：AI Meeting / notes prototype remains outside committed baseline and cannot be represented as registry-ready until selected, committed, and validated.

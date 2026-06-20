@@ -61,6 +61,7 @@
     "rag:launch-posture-qa": "node scripts/rag-launch-posture-qa.mjs",
     "ai:usage-audit": "node scripts/ai-usage-route-audit.mjs",
     "ai:bff-audit": "node scripts/ai-usage-route-audit.mjs",
+    "ai:protocol-registry-qa": "node scripts/ai-protocol-registry-qa.mjs",
     "nav:role-aware-contract-qa": "node scripts/role-aware-sidebar-contract-qa.mjs",
     "nav:role-aware-resolver-qa": "node scripts/role-aware-sidebar-resolver-qa.mjs",
     "nav:workspace-bootstrap-qa": "node scripts/role-aware-workspace-bootstrap-qa.mjs",

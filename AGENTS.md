@@ -1539,8 +1539,8 @@ Context: 將誠問 AI 內所有 AI 能力逐步對齊 MIT Project NANDA / AgentF
 
 ### Current NANDA / Agent Protocol Gaps
 - `AUD-008` 已完成 NAP-001 inventory：`問誠問 AI`、`AI 了解客戶`、quick-capture、Realtime voice、SPIN、訪前規劃、report generation、legacy Theater、Route B Theater、RAG guarded-disabled、AI Meeting / notes prototype 都已映射到 internal AgentFacts-style module inventory；目前全數仍為 `internal-only`。
-- 多數正式 AI route 已有 session/quota/`AiUsageLog` 或 deterministic no-provider proof；缺口轉為 NAP-002 的 `AgentProtocolManifest` schema、static QA 與 per-module manifest adoption。
-- `package.json` 已有多個 AI/BFF QA scripts，可作 protocol readiness proof 的基礎；仍缺 `pnpm ai:protocol-registry-qa` 或等價 script。
+- NAP-002 已建立 `AgentProtocolManifest` source schema、11 個 internal-only manifest 與 `pnpm ai:protocol-registry-qa`；多數正式 AI route 已有 session/quota/`AiUsageLog` 或 deterministic no-provider proof。
+- 缺口轉為 NAP-003 的 per-AI source alignment / readiness adoption、NAP-004 internal registry reader，以及 NAP-005 local-only adapter/export dry-run。
 - NANDA / AgentFacts 對外 registry publication、signing、public discovery endpoint、cross-org agent access 都需 operator approval；目前只允許 internal manifest / adapter proof。
 
 ### Batch NAP-001 — AI module inventory and NANDA mapping
@@ -1553,19 +1553,21 @@ Context: 將誠問 AI 內所有 AI 能力逐步對齊 MIT Project NANDA / AgentF
 完成註記（2026-06-21 NAP-001）：新增 `AUD-008_nanda-agentfacts-ai-module-inventory-v1.0.md`，以 Project NANDA / AgentFacts primary research、`node scripts/ai-usage-route-audit.mjs` route audit（23 routes、13 provider-ready、10 no-provider、gaps 0）與六視框 gap review 建立 AI module inventory。所有 module 目前標為 `internal-only`；未呼叫 provider、未改 product runtime source、未動 DB/Prisma、未對外發布 registry。
 
 ### Batch NAP-002 — Internal AgentFacts-style manifest schema
-- [ ] 建立 `AgentProtocolManifest` 或等價 type/schema，覆蓋 identity、capabilities、modalities、endpoints/actions、schemas、auth scopes、data classes、trust/compliance、quota/cost、audit/usage、version/status、registry readiness。
-- [ ] Manifest 不得含 raw secret、raw prompt、raw provider payload、private transcript、email/phone/policyNumber sentinel。
-- [ ] 支援 protocol-neutral export target：NANDA AgentFacts-style JSON、MCP descriptor、A2A Agent Card 或 standard HTTPS metadata（先 internal draft，不對外發布）。
-- [ ] 補 static QA script：掃描所有 manifest 欄位完整性、sentinel、`AiUsageLog` policy 與 readiness 狀態。
-- [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed` 與新增 QA。
+- [x] 建立 `AgentProtocolManifest` 或等價 type/schema，覆蓋 identity、capabilities、modalities、endpoints/actions、schemas、auth scopes、data classes、trust/compliance、quota/cost、audit/usage、version/status、registry readiness。
+- [x] Manifest 不得含 raw secret、raw prompt、raw provider payload、private transcript、email/phone/policyNumber sentinel。
+- [x] 支援 protocol-neutral export target：NANDA AgentFacts-style JSON、MCP descriptor、A2A Agent Card 或 standard HTTPS metadata（先 internal draft，不對外發布）。
+- [x] 補 static QA script：掃描所有 manifest 欄位完整性、sentinel、`AiUsageLog` policy 與 readiness 狀態。
+- [x] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed` 與新增 QA。
 
-### Batch NAP-003 — Per-AI manifest adoption
-- [ ] 為 `CHAT` / assistant 建立 manifest，標明 assistant conversation/message persistence、tool allowlist、quota、usage logging。
-- [ ] 為 `INTERVIEW` / `INTERVIEW_OUTPUTS` / quick-capture 建立 manifest，標明 memory/writeback/confirmation boundary。
-- [ ] 為 `VISIT` / `REPORT` AI 建立 manifest，標明 provider-safe client snapshot、facts/inferences/unknowns DTO。
-- [ ] 為 `SPIN` 建立 manifest，明確保留 `SITUATION -> PROBLEM -> IMPLICATION -> NEED_PAYOFF` state machine。
-- [ ] 為 `THEATER` legacy / Route B 建立 manifest，標明 guarded-disabled provider posture、director/character/feedback readiness 與 private/group visibility。
-- [ ] 為 `RAG` 建立 manifest，標明 private beta guarded-disabled posture。
+完成註記（2026-06-21 NAP-002）：新增 `src/domains/ai-protocol/` 的 `AgentProtocolManifest` schema 與 11 個 internal-only manifest，覆蓋 chat、interview、quick-capture、Realtime voice、SPIN、visit、report、legacy Theater、Route B Theater、RAG guarded-disabled、AI Meeting prototype。新增 `pnpm ai:protocol-registry-qa` 檢查 manifest completeness、sentinel、`AiUsageLog` policy、readiness 與 disabled publication gate；`pnpm ai:bff-audit` 仍為 route/AiUsage source proof。未呼叫 provider、未動 DB/Prisma、未對外發布 registry。
+
+### Batch NAP-003 — Per-AI manifest adoption and source alignment
+- [ ] 將 `CHAT` / assistant manifest 對齊 route owner proof，標明 assistant conversation/message persistence、tool allowlist、quota、usage logging。
+- [ ] 將 `INTERVIEW` / `INTERVIEW_OUTPUTS` / quick-capture manifest 對齊 source proof，標明 memory/writeback/confirmation boundary。
+- [ ] 將 `VISIT` / `REPORT` AI manifest 對齊 source proof，標明 provider-safe client snapshot、facts/inferences/unknowns DTO。
+- [ ] 將 `SPIN` manifest 對齊 source proof，明確保留 `SITUATION -> PROBLEM -> IMPLICATION -> NEED_PAYOFF` state machine。
+- [ ] 將 `THEATER` legacy / Route B manifest 對齊 source proof，標明 guarded-disabled provider posture、director/character/feedback readiness 與 private/group visibility。
+- [ ] 將 `RAG` manifest 對齊 source proof，標明 private beta guarded-disabled posture。
 - [ ] 跑 `pnpm ai:bff-audit`、`pnpm ai:protocol-registry-qa`、`pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
 
 ### Batch NAP-004 — Internal registry and readiness API
