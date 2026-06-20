@@ -1,6 +1,6 @@
 # Agent Loop Issue Questions
 
-Last updated: 2026-06-20
+Last updated: 2026-06-21
 
 ## 使用者決策
 
@@ -17,6 +17,7 @@ Last updated: 2026-06-20
 - 2026-06-20 resolved: RAS-004b 已完成 sidebar UI wiring；dashboard shell 現在用新的 `RoleAwareSidebar` 消費 server-built member/orgAdmin `buildWorkspaceSidebarRenderModel()`，保留 legacy `src/components/layout/sidebar.tsx` 與其既有 `/notes` dirty diff 不動。`pnpm nav:sidebar-ui-qa` 覆蓋 shell/layout wiring、member/org active item、member/org assistant scope、data-boundary/reduced-motion hooks、legacy sidebar 未混入，並保存 desktop/mobile fixture screenshots。此 proof 不代表 live cross-role Browser/session matrix、super admin/client portal surfaced UI 或 assistant scope payload 行為已完成；下一段仍需 RAS-005，且 DB-backed ITA/BFF proof 仍受 Supabase DNS 阻擋。
 - 2026-06-20 resolved: 本輪 scheduled fifth-loop whole-product gap review after PIM-011 已完成；cadence counter 重設為 0。五視框確認 product-level primary 仍是 `ITA-003f/S1 Route B relationship-graph stage map (no-provider)`，但 Supabase DB host `db.wwocdcicvpmbdmqvskzi.supabase.co` 仍回 `No answer`，所以 DB 未恢復前下一輪可執行 fallback 是 `PIM-011 post-visit quick-capture -> Park memory bridge`。此 fallback 必須 no-provider/no-schema、證明 `AiUsageLog` unchanged、member owner success、manager/foreign denied、high-sensitive gate、no private sentinel、refresh/new-context memory readback；不得 stage 既有 untracked AI meeting/notes prototype，除非下一輪明確選擇並驗證該整包 slice。
 - 2026-06-20 resolved: PIM-011a 已完成 quick-capture -> Park memory bridge source contract 與 `pnpm interview:quick-capture-bridge-dry-run`；此 proof 只證明 no-provider/no-schema domain helper：serverScope 優先於 clientProvidedScope、confirmed/inference/unknown 分流、inference 不變 CRM candidate、unknown 轉 narrator question、state proposal 不寫 confirmed CRM fact、高敏感 gate、secret/raw payload block、`providerCallAttempted=false` / `aiUsageLogRequired=false`。它不代表正式 BFF/API persistence、owner 200、manager/foreign denial、refresh/new-context DB readback 或 UI browser proof 已完成；Supabase DB DNS blocker 仍適用。
+- 2026-06-21 resolved: 本輪 scheduled fifth-loop whole-product gap review 已完成；cadence counter 重設為 0。Primary slice 仍是 `ITA-003f/S1 Route B relationship-graph stage map (no-provider)`，但 2026-06-21 再次 `nslookup db.wwocdcicvpmbdmqvskzi.supabase.co` 仍回 `No answer`，所以 DB 未恢復前不得宣稱 Route B stage map、BFF-103d 或 PIM-011 BFF/API DB-backed proof 完成。若 DB 持續 blocked，下一輪 no-DB fallback 改為 `LCH-009 production build font blocker`：讀 Next 16 bundled docs，修復 `next/font/google` / Turbopack Google font path blocker，跑 `pnpm build`，並保持 unrelated AMM/notes prototype files 不 staging。
 - PIM-009 已完成 cross-mode QA 與 rollback note；尚未啟用 production recording 或 live Realtime provider proof。
 - 2026-06-20 resolved: BFF-104a 已完成 Visit / Pre-visit server-owned workspace；`/pre-visit` list/detail/notes/create/update 改走 member-scoped BFF，`/api/ai/visit` 仍只負責 provider generation，deterministic save/update 另走 `/api/visits`。Proof 不呼叫 provider，僅做 demo `VisitPlan` 非破壞性新增/更新 evidence。
 - 2026-06-20 resolved: TDF-004a 已完成 persisted visit package -> theater build 高敏感 gate；準備包來源審查顯示 known/inference/unknown，缺 reason/riskAccepted 會 blocked，approval 寫 `InteractionEvent` audit。Proof 不呼叫 provider；仍待 TDF-004b 補 `/theater` client selector 與越權 403 proof。
@@ -57,11 +58,12 @@ Last updated: 2026-06-20
 
 ## Operator 手動處理
 
-- Build blocker：`pnpm build` 目前卡在 Next/Turbopack Google Font path（`[next]/internal/font/google/*` / `@vercel/turbopack-next/internal/font/google/font`）。需另輪處理自託管字體或 Next 16 font build 設定後重跑 production build。
+- Build blocker：`pnpm build` 目前卡在 Next/Turbopack Google Font path（`[next]/internal/font/google/*` / `@vercel/turbopack-next/internal/font/google/font`）。需另輪先讀 `node_modules/next/dist/docs/` 相關 Next 16 fonts/build 文件，處理自託管/local font 或官方支援設定後重跑 production build；DB/DNS 未恢復時，這是目前最適合的 no-DB release-hardening fallback。
 
 ## Session / Seed Data / Env / External Service
 
 - 2026-06-20 blocker: BFF-103d related-list targeted proof 被 Supabase DB DNS/connection 中斷阻擋。初次 `pnpm bff:crm-related-lists-qa` 已完成 partial proof：unauth 401、member client/family/policy/visit/report create 201、related-lists 200、manager 403、policies/timeline desktop screenshots；後續 browser gap-analysis proof 時 Prisma pool 失敗 `EHOSTUNREACH/P1001`，重跑時 direct DNS 解析 `db.wwocdcicvpmbdmqvskzi.supabase.co` 回 `ENOTFOUND`，`/api/clients` 也回 500。待 Supabase DNS/DB 恢復後，重跑 `DEMO_QA_BASE_URL=http://localhost:3029 pnpm bff:crm-related-lists-qa` 補 full API/browser/AiUsageLog unchanged proof。
+- 2026-06-21 blocker status: 同一 Supabase host 再測仍回 `No answer`。DB/DNS 未恢復前，只能做 no-DB source contract、quiet five-frame docs，或 LCH-009 production build fallback；不得把 fixture/mock/local proof 寫成 DB-backed proof。
 - PIM-006 已 resolved；本輪 proof 使用 `ALLOW_DEV_AUTH_HEADER=true` 的 local dev server 與 demo member/manager header。
 - PIM-008 已 resolved；browser writeback proof 使用 demo member header 與自動建立 demo client 完成。
 - PIM-009 已 resolved；cross-mode QA 使用 local dev server、demo member/manager header、development Supabase DB proof 與 headless browser desktop/mobile proof 完成。

@@ -261,6 +261,8 @@
 
 進行中註記：2026-06-19 新增 `ACC-009_release-monitoring-setup-runbook.md` 與 `pnpm monitoring:readiness-qa`。Runbook 定義 `SENTRY_DSN` / `NEXT_PUBLIC_SENTRY_DSN` env contract、operator checklist、PII/cookie/authorization/prompt 禁止規則與 production ingestion proof 要求；QA 驗證一般 member 403、platform readiness 含 `monitoring` control、live gate 不輸出 DSN、source 使用 documented DSN OR contract，並用 dry-run 證明無 DSN=blocked、server/public DSN 任一存在=pass。此項完成「方案或 release blocker」要求；若部署環境未設定 DSN，readiness gate 仍會正確保持 monitoring blocked，不宣稱 production provider ingestion 已完成。
 
+Whole-product review note（2026-06-21）：若 Supabase DB/DNS 仍阻擋 `ITA-003f/S1`、`BFF-103d` 與 `PIM-011` 這類 DB-backed LV3 proof，`LCH-009` 的最高安全 fallback 是 production build font blocker。下一輪若選此 fallback，需先讀 `node_modules/next/dist/docs/` 中與 Next 16 fonts/build 相關文件，修復目前 `next/font/google` / Turbopack Google font path build blocker（優先 local/self-hosted font 或官方支援設定），並以 `pnpm build` 通過作 release-proof；這不得被宣稱為 theater/source proof，也不得 stage unrelated AMM/notes prototype files。
+
 範圍外：不宣稱 full public production，除非 LCH-001-LCH-008 與 operator blockers 全部解除。
 
 ---
@@ -268,6 +270,7 @@
 ## Current Launch Blockers
 
 - Auth provider 已改採 Auth.js / NextAuth；production 仍需 `AUTH_SECRET`、正式 provider/email/SSO 與 callback URL。
+- Production build 目前仍有 Next/Turbopack Google font path blocker；DB 仍不可用時，這是 `LCH-009` 的 no-DB release-hardening fallback，需以官方 Next 16 bundled docs + `pnpm build` proof 收斂。
 - `/api/rag` 已是 guarded disabled posture；若要 public RAG launch，仍需正式 provider/vector path 與 success/error `AiUsageLog`。
 - Theater Route B 尚未 migration；若用 legacy Theater，只能標 staging demo。
 - ECPay credentials、callback domain、CheckMacValue、notification/query API、refund/void process 尚未完成。

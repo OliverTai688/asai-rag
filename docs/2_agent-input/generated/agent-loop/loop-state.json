@@ -64,11 +64,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 4,
-    "lastWholeProductReviewAt": "2026-06-20",
-    "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-20_lv3-whole-product-gap-review-after-pim-011.md",
+    "normalLoopsSinceLastWholeProductReview": 0,
+    "lastWholeProductReviewAt": "2026-06-21",
+    "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-21_lv3-whole-product-gap-review-db-blocker-build-fallback.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "Quiet BFF-103d CRM related-list recovery proof-plan documentation completed; cadence is now 4, so the next loop should run the scheduled whole-product gap review prompt unless a critical source/security issue appears. If Supabase DB/DNS recovers before or after the review, resume ITA-003f/S1 Route B stage-map implementation first, then rerun BFF-103d with DEMO_QA_BASE_URL=http://localhost:3029 pnpm bff:crm-related-lists-qa or the current equivalent. If DB/DNS remains blocked, continue only quiet five-frame documentation or no-DB source-contract slices; do not claim BFF-103d, Route B stage-map, or PIM-011 BFF/API DB-backed proof until persistence can be tested.",
+    "nextRecommendedImplementationSlice": "Scheduled whole-product review completed on 2026-06-21. Primary next slice remains ITA-003f/S1 Route B relationship-graph stage map (no-provider) as soon as Supabase DB/DNS recovers; it must prove persisted session owner read, manager/foreign denial, private visibility, stage map desktop/mobile, no private sentinel, and AiUsageLog unchanged. If DB/DNS remains blocked, use the no-DB release-proof fallback: LCH-009 production build font blocker fix by reading the relevant Next 16 bundled docs, moving away from the failing next/font/google/Turbopack path via local/self-hosted font or supported config, then proving pnpm build without staging unrelated AMM/notes prototype files. After DB recovery, rerun BFF-103d related-list proof with DEMO_QA_BASE_URL=http://localhost:3029 pnpm bff:crm-related-lists-qa or current equivalent.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {
@@ -134,5 +134,5 @@
     "lv3ImmersiveLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-immersive-loop.md",
     "lv3WholeProductGapReviewLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md"
   },
-  "updatedAt": "2026-06-20"
+  "updatedAt": "2026-06-21"
 }
