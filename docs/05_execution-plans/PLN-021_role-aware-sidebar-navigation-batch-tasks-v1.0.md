@@ -29,7 +29,7 @@
 
 | 卡片 | 範圍 | 狀態 | 依賴 |
 | --- | --- | --- | --- |
-| RAS-001 | Role-aware navigation contract | ☐ | `RES-020` |
+| RAS-001 | Role-aware navigation contract | ✅ | `RES-020` |
 | RAS-002 | Server-side sidebar resolver and policy tests | ☐ | RAS-001 |
 | RAS-003 | Workspace bootstrap and route guard alignment | ☐ | RAS-002 |
 | RAS-004 | Sidebar renderer, surface switch, and legacy SPIN visibility | ☐ | RAS-003 |
@@ -41,13 +41,15 @@
 
 目標：建立 sidebar item/section/action 的 canonical contract，讓 member、org admin、super admin、client portal 可用同一個資料結構投影不同導覽。
 
-- [ ] 盤點目前 `src/components/layout/sidebar.tsx` 的 section、route、assistant action、active state、tooltip/aria 行為，形成 migration note。
-- [ ] 定義 `SidebarSection`、`SidebarItem`、`SidebarAction`、`SidebarBadge`、`SidebarDisabledReason` 等型別；需能表達 `href`、`action`、`visible`、`disabled`、`reason`、`badge`、`ariaLabel`。
-- [ ] 定義 `SidebarContext` input，至少包含 session type、organization role、platform role、client role、managed unit scope、plan capabilities、feature flags、demo mode。
-- [ ] 建立 member / org admin / super admin / client portal 四套 manifest draft，保留 `RES-008` 的 AI-first 命名：`問誠問 AI`、`AI 了解客戶`、`AI 劇場演練`。
-- [ ] 明確標註 `SPIN 舊版` 只由 legacy feature flag 顯示，不作新使用者常駐主入口。
-- [ ] 不改 route guard、不改 business data、不改 assistant/theater/spin store。
-- [ ] 跑 `pnpm exec tsc --noEmit --pretty false` 與 `pnpm lint:changed`。
+- [x] 盤點目前 `src/components/layout/sidebar.tsx` 的 section、route、assistant action、active state、tooltip/aria 行為，形成 migration note。
+- [x] 定義 `SidebarSection`、`SidebarItem`、`SidebarAction`、`SidebarBadge`、`SidebarDisabledReason` 等型別；需能表達 `href`、`action`、`visible`、`disabled`、`reason`、`badge`、`ariaLabel`。
+- [x] 定義 `SidebarContext` input，至少包含 session type、organization role、platform role、client role、managed unit scope、plan capabilities、feature flags、demo mode。
+- [x] 建立 member / org admin / super admin / client portal 四套 manifest draft，保留 `RES-008` 的 AI-first 命名：`問誠問 AI`、`AI 了解客戶`、`AI 劇場演練`。
+- [x] 明確標註 `SPIN 舊版` 只由 legacy feature flag 顯示，不作新使用者常駐主入口。
+- [x] 不改 route guard、不改 business data、不改 assistant/theater/spin store。
+- [x] 跑 `pnpm exec tsc --noEmit --pretty false` 與 `pnpm lint:changed`。
+
+完成註記：2026-06-20 新增 `src/domains/navigation/role-aware-sidebar.ts` canonical contract 與 `pnpm nav:role-aware-contract-qa`。Contract 覆蓋 member / org admin / platform / client portal 四套 manifest draft、`SidebarContext`、action/link/visible/disabled/badge/aria contract、legacy `SPIN 舊版` feature flag 與 current sidebar migration note。此卡不接 sidebar UI、不改 route guard、不改 business data；後續 RAS-002 需把 contract 接成 resolver/policy tests。
 
 範圍外：不接 API；不改 sidebar UI；不新增資料庫欄位。
 

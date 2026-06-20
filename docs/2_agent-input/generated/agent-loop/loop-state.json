@@ -64,11 +64,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 3,
+    "normalLoopsSinceLastWholeProductReview": 4,
     "lastWholeProductReviewAt": "2026-06-20",
     "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-20_lv3-whole-product-gap-review-interview-drafts.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "BFF-103d CRM related-list DTO source-truth follow-up. Implementation is in place, but targeted API/browser/AiUsageLog unchanged proof is blocked by Supabase DNS/DB ENOTFOUND/EHOSTUNREACH; rerun DEMO_QA_BASE_URL=http://localhost:3029 pnpm bff:crm-related-lists-qa after DB recovers. Fallback if DB remains blocked: RAS-001 role-aware navigation contract / legacy SPIN visibility, because it does not require DB writes.",
+    "nextRecommendedImplementationSlice": "Scheduled fifth-loop whole-product gap review. RAS-001 role-aware sidebar navigation contract is complete with no-DB proof; BFF-103d related-list full API/browser proof remains blocked by Supabase DNS/DB ENOTFOUND/EHOSTUNREACH and should be rerun after DB recovers.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {

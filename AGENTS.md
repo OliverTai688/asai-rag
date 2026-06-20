@@ -391,13 +391,15 @@ Context: 將 AI-first sidebar 進一步升級為依 session、role、surface、u
 - `/interview` 與 `SPIN 舊版` 並存；legacy SPIN 應由 feature flag 控制，不應長期成為所有角色常駐主入口。
 
 ### Batch RAS-001 — Role-aware navigation contract
-- [ ] 盤點目前 `src/components/layout/sidebar.tsx` 的 section、route、assistant action、active state、tooltip/aria 行為，形成 migration note。
-- [ ] 定義 `SidebarSection`、`SidebarItem`、`SidebarAction`、`SidebarBadge`、`SidebarDisabledReason` 等型別；需能表達 `href`、`action`、`visible`、`disabled`、`reason`、`badge`、`ariaLabel`。
-- [ ] 定義 `SidebarContext` input，至少包含 session type、organization role、platform role、client role、managed unit scope、plan capabilities、feature flags、demo mode。
-- [ ] 建立 member / org admin / super admin / client portal 四套 manifest draft，保留 `RES-008` 的 AI-first 命名：`問誠問 AI`、`AI 了解客戶`、`AI 劇場演練`。
-- [ ] 明確標註 `SPIN 舊版` 只由 legacy feature flag 顯示，不作新使用者常駐主入口。
-- [ ] 不改 route guard、不改 business data、不改 assistant/theater/spin store。
-- [ ] 跑 `pnpm exec tsc --noEmit --pretty false` 與 `pnpm lint:changed`。
+- [x] 盤點目前 `src/components/layout/sidebar.tsx` 的 section、route、assistant action、active state、tooltip/aria 行為，形成 migration note。
+- [x] 定義 `SidebarSection`、`SidebarItem`、`SidebarAction`、`SidebarBadge`、`SidebarDisabledReason` 等型別；需能表達 `href`、`action`、`visible`、`disabled`、`reason`、`badge`、`ariaLabel`。
+- [x] 定義 `SidebarContext` input，至少包含 session type、organization role、platform role、client role、managed unit scope、plan capabilities、feature flags、demo mode。
+- [x] 建立 member / org admin / super admin / client portal 四套 manifest draft，保留 `RES-008` 的 AI-first 命名：`問誠問 AI`、`AI 了解客戶`、`AI 劇場演練`。
+- [x] 明確標註 `SPIN 舊版` 只由 legacy feature flag 顯示，不作新使用者常駐主入口。
+- [x] 不改 route guard、不改 business data、不改 assistant/theater/spin store。
+- [x] 跑 `pnpm exec tsc --noEmit --pretty false` 與 `pnpm lint:changed`。
+
+完成註記：2026-06-20 新增 `src/domains/navigation/role-aware-sidebar.ts` 與 `pnpm nav:role-aware-contract-qa`。Contract 已覆蓋 member / org admin / platform / client portal 四套 manifest draft、`SidebarContext`、action/link/visible/disabled/badge/aria contract、legacy `SPIN 舊版` feature flag 與 current sidebar migration note；未接 UI、未改 route guard、未改 business data。
 
 ### Batch RAS-002 — Server-side sidebar resolver and policy tests
 - [ ] 建立 `resolveSidebarSections(context)` 或同等 helper，輸入 RAS-001 contract，輸出已過濾/標註 disabled 的 sections。
