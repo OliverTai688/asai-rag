@@ -71,11 +71,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 4,
+    "normalLoopsSinceLastWholeProductReview": 0,
     "lastWholeProductReviewAt": "2026-06-21",
-    "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-21_lv3-whole-product-gap-review-nap-routeb-runtime.md",
+    "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-21_lv3-whole-product-gap-review-cross-flow-proof.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "NAP-003b interview memory + quick-capture/realtime source adoption completed on 2026-06-21: asai.interview.companion, asai.interview.quick_capture, and asai.interview.realtime_voice now carry proof.sourceAdoption.status=adopted with source owner refs, evidence refs, no-provider/usage notes, writeback confirmation boundaries, and realtime dry-run/event-mirror/transcription separation. Because normalLoopsSinceLastWholeProductReview is now 4, the next heartbeat should run the fifth-loop whole-product gap review prompt before resuming implementation; after review compare NAP-003c theater/RAG source adoption vs NAP-005 local-only adapter/export dry-run vs a clean LV3 cross-flow no-provider proof.",
+    "nextRecommendedImplementationSlice": "Scheduled fifth-loop whole-product review completed on 2026-06-21 after NAP-003a/b and ITA-003g. Next normal loop should run `LV3-CROSS-001 clean cross-flow no-provider proof pack`: prove a clean advisor journey across DB-backed client/relationship graph, visit/previsit reasoning evidence, quick-capture/interview writeback, and persisted Route B theater stage without provider calls or raw-ID workflow; use existing BFF/theater/interview proof scripts where possible and add a small acceptance script/report if missing. Fallback: NAP-003c theater+RAG source adoption if cross-flow proof becomes too broad; second fallback NAP-005 local-only adapter/export dry-run.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {
