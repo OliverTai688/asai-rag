@@ -1,11 +1,16 @@
 import { getAppSession, getClientSession, getPlatformSession } from "./session";
 import type { AppSession, ClientSession, PlatformSession } from "./session";
+import {
+  canManageWorkspaceOrgSettings,
+  canReadWorkspaceOrgAggregate,
+} from "@/lib/navigation/workspace-sidebar";
 
 export class AuthRequiredError extends Error {
   constructor(
     public readonly code:
       | "UNAUTHENTICATED"
       | "ORG_ADMIN_REQUIRED"
+      | "ORG_SETTINGS_REQUIRED"
       | "PLATFORM_REQUIRED"
       | "CLIENT_SESSION_REQUIRED",
     message: string,
@@ -29,8 +34,18 @@ export async function requireCurrentMember(): Promise<AppSession> {
 export async function requireOrgAdmin(): Promise<AppSession> {
   const session = await requireCurrentMember();
 
-  if (!["OWNER", "ADMIN", "MANAGER"].includes(session.membership.role)) {
-    throw new AuthRequiredError("ORG_ADMIN_REQUIRED", "Org admin or manager role is required.", 403);
+  if (!canReadWorkspaceOrgAggregate(session)) {
+    throw new AuthRequiredError("ORG_ADMIN_REQUIRED", "Org admin or scoped manager access is required.", 403);
+  }
+
+  return session;
+}
+
+export async function requireOrgSettingsAdmin(): Promise<AppSession> {
+  const session = await requireCurrentMember();
+
+  if (!canManageWorkspaceOrgSettings(session)) {
+    throw new AuthRequiredError("ORG_SETTINGS_REQUIRED", "Organization owner or admin access is required.", 403);
   }
 
   return session;

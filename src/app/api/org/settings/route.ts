@@ -1,4 +1,4 @@
-import { authErrorResponse, requireOrgAdmin } from "@/lib/auth/current-workspace";
+import { authErrorResponse, requireOrgSettingsAdmin } from "@/lib/auth/current-workspace";
 import {
   getOrgSettings,
   orgSettingsPatchSchema,
@@ -7,7 +7,7 @@ import {
 
 export async function GET() {
   try {
-    const session = await requireOrgAdmin();
+    const session = await requireOrgSettingsAdmin();
     const response = await getOrgSettings(session);
 
     return Response.json(response);
@@ -18,7 +18,7 @@ export async function GET() {
 
 export async function PATCH(req: Request) {
   try {
-    const session = await requireOrgAdmin();
+    const session = await requireOrgSettingsAdmin();
     const parsedBody = orgSettingsPatchSchema.safeParse(await req.json().catch(() => null));
 
     if (!parsedBody.success) {

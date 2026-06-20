@@ -149,8 +149,10 @@ push(
 );
 push(
   workspaceSource.includes("nextDocsRead") &&
-    workspaceSource.includes("15-route-handlers.md"),
-  "workspace bootstrap records Next route handler docs proof",
+    workspaceSource.includes("15-route-handlers.md") &&
+    workspaceSource.includes("routeGuardDocsRead") &&
+    workspaceSource.includes("redirect.md"),
+  "workspace bootstrap records Next route handler and redirect docs proof",
 );
 
 const memberNavigation = buildWorkspaceBootstrapNavigation(session({ role: "MEMBER" }));
@@ -220,9 +222,10 @@ push(
 
 push(
   workspaceRouteGuardAlignment.workspaceBootstrap.guard === "requireCurrentMember" &&
-    workspaceRouteGuardAlignment.orgRoutes.managerScopeStatus ===
-      "navigation-requires-managed-unit-route-guard-follow-up",
-  "route guard alignment records current guard and manager-scope follow-up",
+    workspaceRouteGuardAlignment.orgRoutes.managerScopeStatus === "navigation-policy-aligned" &&
+    workspaceRouteGuardAlignment.orgSettingsRoutes.guard === "requireOrgSettingsRoute" &&
+    workspaceRouteGuardAlignment.orgSettingsRoutes.apiGuard === "requireOrgSettingsAdmin",
+  "route guard alignment records policy-aligned org and org-settings guards",
 );
 push(
   workspaceSettingsRoutePolicy.memberSettings.allowedRoles.includes("COLLABORATOR") &&

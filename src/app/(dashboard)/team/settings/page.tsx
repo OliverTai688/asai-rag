@@ -1,8 +1,8 @@
-import { requireOrgAdminRoute } from "@/lib/auth/route-guards";
+import { requireOrgSettingsRoute } from "@/lib/auth/route-guards";
 import { OrgSettingsClient } from "./settings-client";
 
 export default async function TeamSettingsPage() {
-  await requireOrgAdminRoute();
+  await requireOrgSettingsRoute();
 
   return <OrgSettingsClient />;
 }

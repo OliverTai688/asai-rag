@@ -1,6 +1,7 @@
 import {
   canAccessMemberRoute,
   canAccessOrgAdmin,
+  canManageOrgSettings,
   resolveSidebarSections,
   type OrganizationRole,
   type ResolvedSidebarSection,
@@ -53,7 +54,14 @@ export interface WorkspaceRouteGuardAlignment {
     readonly session: "app";
     readonly guard: "requireOrgAdminRoute";
     readonly navigationPolicy: "canAccessOrgAdmin";
-    readonly managerScopeStatus: "navigation-requires-managed-unit-route-guard-follow-up";
+    readonly managerScopeStatus: "navigation-policy-aligned";
+  };
+  readonly orgSettingsRoutes: {
+    readonly session: "app";
+    readonly guard: "requireOrgSettingsRoute";
+    readonly apiGuard: "requireOrgSettingsAdmin";
+    readonly navigationPolicy: "canManageOrgSettings";
+    readonly managerMode: "scoped-read-only-or-hidden";
   };
   readonly platformRoutes: {
     readonly session: "platform";
@@ -65,6 +73,25 @@ export interface WorkspaceRouteGuardAlignment {
     readonly guard: "requireClientPortalUser";
     readonly navigationPolicy: "client-surface-not-returned-from-workspace-bootstrap";
   };
+}
+
+export interface WorkspaceRouteAccess {
+  readonly href: string;
+  readonly surface: "member" | "orgAdmin" | "platform" | "clientPortal";
+  readonly allowed: boolean;
+  readonly policy:
+    | "canAccessMemberRoute"
+    | "canAccessOrgAdmin"
+    | "canManageOrgSettings"
+    | "platform-session-required"
+    | "client-session-required";
+  readonly dataBoundary:
+    | "member-own-assigned"
+    | "org-aggregate"
+    | "org-settings"
+    | "platform-metadata"
+    | "client-authorized";
+  readonly redirectIfDenied: "/dashboard" | "/team" | "/login" | "/super-admin/login" | "/client-login";
 }
 
 export interface WorkspaceNavigationBootstrap {
@@ -79,6 +106,7 @@ export interface WorkspaceNavigationBootstrap {
   readonly proof: {
     readonly source: "RAS-003";
     readonly nextDocsRead: "node_modules/next/dist/docs/01-app/01-getting-started/15-route-handlers.md";
+    readonly routeGuardDocsRead: "node_modules/next/dist/docs/01-app/03-api-reference/04-functions/redirect.md";
     readonly providerCalls: "none";
     readonly dbWrites: "none";
   };
@@ -220,6 +248,72 @@ export function buildWorkspaceSurfaceSwitches(
   ];
 }
 
+export function canReadWorkspaceOrgAggregate(session: AppSession) {
+  return canAccessOrgAdmin(buildWorkspaceSidebarContext(session, "orgAdmin"));
+}
+
+export function canManageWorkspaceOrgSettings(session: AppSession) {
+  return canManageOrgSettings(buildWorkspaceSidebarContext(session, "orgAdmin"));
+}
+
+export function resolveWorkspaceRouteAccess(session: AppSession, href: string): WorkspaceRouteAccess {
+  if (href.startsWith("/super-admin")) {
+    return {
+      href,
+      surface: "platform",
+      allowed: false,
+      policy: "platform-session-required",
+      dataBoundary: "platform-metadata",
+      redirectIfDenied: "/super-admin/login",
+    };
+  }
+
+  if (href.startsWith("/client") || href.startsWith("/share")) {
+    return {
+      href,
+      surface: "clientPortal",
+      allowed: false,
+      policy: "client-session-required",
+      dataBoundary: "client-authorized",
+      redirectIfDenied: "/client-login",
+    };
+  }
+
+  if (href.startsWith("/team/settings") || href.startsWith("/api/org/settings")) {
+    const allowed = canManageWorkspaceOrgSettings(session);
+    const canReadOrgSurface = canReadWorkspaceOrgAggregate(session);
+
+    return {
+      href,
+      surface: "orgAdmin",
+      allowed,
+      policy: "canManageOrgSettings",
+      dataBoundary: "org-settings",
+      redirectIfDenied: canReadOrgSurface ? "/team" : "/dashboard",
+    };
+  }
+
+  if (href.startsWith("/team") || href.startsWith("/api/org")) {
+    return {
+      href,
+      surface: "orgAdmin",
+      allowed: canReadWorkspaceOrgAggregate(session),
+      policy: "canAccessOrgAdmin",
+      dataBoundary: "org-aggregate",
+      redirectIfDenied: "/dashboard",
+    };
+  }
+
+  return {
+    href,
+    surface: "member",
+    allowed: canAccessMemberRoute(buildWorkspaceSidebarContext(session, "member"), href),
+    policy: "canAccessMemberRoute",
+    dataBoundary: "member-own-assigned",
+    redirectIfDenied: "/dashboard",
+  };
+}
+
 export const workspaceRouteGuardAlignment = {
   workspaceBootstrap: {
     route: "/api/workspace/bootstrap",
@@ -235,7 +329,14 @@ export const workspaceRouteGuardAlignment = {
     session: "app",
     guard: "requireOrgAdminRoute",
     navigationPolicy: "canAccessOrgAdmin",
-    managerScopeStatus: "navigation-requires-managed-unit-route-guard-follow-up",
+    managerScopeStatus: "navigation-policy-aligned",
+  },
+  orgSettingsRoutes: {
+    session: "app",
+    guard: "requireOrgSettingsRoute",
+    apiGuard: "requireOrgSettingsAdmin",
+    navigationPolicy: "canManageOrgSettings",
+    managerMode: "scoped-read-only-or-hidden",
   },
   platformRoutes: {
     session: "platform",
@@ -286,6 +387,7 @@ export function buildWorkspaceBootstrapNavigation(
     proof: {
       source: "RAS-003",
       nextDocsRead: "node_modules/next/dist/docs/01-app/01-getting-started/15-route-handlers.md",
+      routeGuardDocsRead: "node_modules/next/dist/docs/01-app/03-api-reference/04-functions/redirect.md",
       providerCalls: "none",
       dbWrites: "none",
     },

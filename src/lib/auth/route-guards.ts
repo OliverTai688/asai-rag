@@ -4,48 +4,73 @@ import { redirect } from "next/navigation";
 import {
   AuthRequiredError,
   requireCurrentMember,
-  requireOrgAdmin,
   requirePlatformUser,
 } from "@/lib/auth/current-workspace";
+import {
+  canManageWorkspaceOrgSettings,
+  canReadWorkspaceOrgAggregate,
+} from "@/lib/navigation/workspace-sidebar";
 
 export async function requireMemberRoute() {
+  let shouldRedirectToLogin = false;
+
   try {
     return await requireCurrentMember();
   } catch (error) {
     if (error instanceof AuthRequiredError && error.code === "UNAUTHENTICATED") {
-      redirect("/login");
+      shouldRedirectToLogin = true;
+    } else {
+      throw error;
     }
-
-    throw error;
   }
+
+  if (shouldRedirectToLogin) {
+    redirect("/login");
+  }
+
+  throw new Error("UNREACHABLE_MEMBER_ROUTE_GUARD");
 }
 
 export async function requireOrgAdminRoute() {
-  try {
-    return await requireOrgAdmin();
-  } catch (error) {
-    if (error instanceof AuthRequiredError) {
-      if (error.code === "UNAUTHENTICATED") {
-        redirect("/login");
-      }
+  const session = await requireMemberRoute();
 
-      if (error.code === "ORG_ADMIN_REQUIRED") {
-        redirect("/dashboard");
-      }
-    }
-
-    throw error;
+  if (canReadWorkspaceOrgAggregate(session)) {
+    return session;
   }
+
+  redirect("/dashboard");
+}
+
+export async function requireOrgSettingsRoute() {
+  const session = await requireMemberRoute();
+
+  if (canManageWorkspaceOrgSettings(session)) {
+    return session;
+  }
+
+  if (canReadWorkspaceOrgAggregate(session)) {
+    redirect("/team");
+  }
+
+  redirect("/dashboard");
 }
 
 export async function requirePlatformRoute() {
+  let shouldRedirectToLogin = false;
+
   try {
     return await requirePlatformUser();
   } catch (error) {
     if (error instanceof AuthRequiredError) {
-      redirect("/super-admin/login");
+      shouldRedirectToLogin = true;
+    } else {
+      throw error;
     }
-
-    throw error;
   }
+
+  if (shouldRedirectToLogin) {
+    redirect("/super-admin/login");
+  }
+
+  throw new Error("UNREACHABLE_PLATFORM_ROUTE_GUARD");
 }
