@@ -1,15 +1,19 @@
 "use client";
 
-import { InteractionEvent } from "@/domains/event/types";
+import type { ElementType } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDate } from "@/lib/format";
-import { MessageSquare, Theater, FileText, Share2, Info } from "lucide-react";
+import { CalendarDays, CheckSquare, FileText, Info, MessageSquare, Share2, ShieldCheck, Theater } from "lucide-react";
+import type { DashboardActivityDto, DashboardActivityKind } from "@/domains/dashboard/types";
 
-const iconMap = {
+const iconMap: Record<DashboardActivityKind, ElementType> = {
   SPIN: MessageSquare,
   THEATER: Theater,
   REPORT: FileText,
   SHARE_OPEN: Share2,
+  VISIT: CalendarDays,
+  TASK: CheckSquare,
+  COMPLIANCE: ShieldCheck,
   SYSTEM: Info,
 };
 
@@ -18,10 +22,13 @@ const toneMap: Record<string, string> = {
   THEATER: "text-foreground",
   REPORT: "text-foreground",
   SHARE_OPEN: "text-primary",
+  VISIT: "text-foreground",
+  TASK: "text-foreground",
+  COMPLIANCE: "text-primary",
   SYSTEM: "text-muted-foreground",
 };
 
-export function ActivityTimeline({ events }: { events: InteractionEvent[] }) {
+export function ActivityTimeline({ events }: { events: DashboardActivityDto[] }) {
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between border-b border-hairline bg-card px-5 py-3.5">
@@ -29,33 +36,42 @@ export function ActivityTimeline({ events }: { events: InteractionEvent[] }) {
         <span className="text-[11px] text-muted-foreground font-medium">最近 8 筆記錄</span>
       </CardHeader>
       <CardContent className="p-5">
-        <div className="relative space-y-5 before:absolute before:inset-0 before:ml-[18px] before:h-full before:w-px before:bg-hairline">
-          {events.map((event) => {
-            const Icon = iconMap[event.type] || Info;
-            const tone = toneMap[event.type] || toneMap.SYSTEM;
-            return (
-              <div key={event.id} className="relative flex items-start gap-3.5">
-                <div
-                  className="z-10 mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-hairline bg-card"
-                >
-                  <Icon className={`h-3.5 w-3.5 ${tone}`} strokeWidth={1.5} />
-                </div>
-                <div className="flex-1 space-y-0.5 pt-1.5 min-w-0">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-[13px] font-semibold text-foreground leading-none truncate">{event.title}</p>
-                    <time className="text-[10px] font-medium text-muted-foreground shrink-0">
-                      {formatDate(event.timestamp, "HH:mm")}
-                    </time>
+        {events.length > 0 ? (
+          <div className="relative space-y-5 before:absolute before:inset-0 before:ml-[18px] before:h-full before:w-px before:bg-hairline">
+            {events.map((event) => {
+              const Icon = iconMap[event.kind] || Info;
+              const tone = toneMap[event.kind] || toneMap.SYSTEM;
+              return (
+                <div key={event.id} className="relative flex items-start gap-3.5">
+                  <div
+                    className="z-10 mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-hairline bg-card"
+                  >
+                    <Icon className={`h-3.5 w-3.5 ${tone}`} strokeWidth={1.5} />
                   </div>
-                  <p className="text-[12px] text-muted-foreground leading-relaxed">
-                    <span className="text-foreground font-semibold mr-1.5">[{event.clientName}]</span>
-                    {event.description}
-                  </p>
+                  <div className="flex-1 space-y-0.5 pt-1.5 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-[13px] font-semibold text-foreground leading-none truncate">{event.title}</p>
+                      <time className="text-[10px] font-medium text-muted-foreground shrink-0">
+                        {formatDate(event.occurredAt, "HH:mm")}
+                      </time>
+                    </div>
+                    <p className="text-[12px] text-muted-foreground leading-relaxed">
+                      {event.clientName && (
+                        <span className="text-foreground font-semibold mr-1.5">[{event.clientName}]</span>
+                      )}
+                      {event.description}
+                    </p>
+                  </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="rounded-md border border-dashed border-hairline px-4 py-8 text-center">
+            <p className="text-[13px] font-semibold text-muted-foreground">近期沒有新的活動紀錄</p>
+            <p className="mt-1 text-[11px] text-muted-foreground">完成準備包、報告或演練後會出現在這裡。</p>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
