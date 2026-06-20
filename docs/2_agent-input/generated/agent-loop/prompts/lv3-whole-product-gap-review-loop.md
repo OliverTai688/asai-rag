@@ -47,6 +47,9 @@ Evaluation scope:
   states, no training-document dependency for first successful flow.
 - BFF/security/privacy: session ownership, organization/unit scope, client portal boundaries,
   `AiUsageLog`, audit reasons, no private field leakage, no raw provider/cookie/secret evidence.
+- NANDA / AgentFacts protocol readiness: every AI module has an internal AgentFacts-style manifest,
+  declared capabilities, input/output schema, endpoint/action contract, auth/session scope, data class
+  boundary, quota/cost policy, `AiUsageLog` policy, and registry readiness state.
 - QA/evidence: API, DB, browser, mobile, no horizontal overflow, console error checks, deterministic
   acceptance scripts, report hygiene.
 
@@ -71,9 +74,9 @@ Anti-duplicate review gate:
 - If the review would only restate existing docs, stop and recommend the next L2 implementation/proof
   slice or L4 blocker analysis instead.
 
-Five-frame review lens:
+Six-frame review lens:
 
-Use these five frames on every whole-product gap review and on any quiet continuation loop where
+Use these six frames on every whole-product gap review and on any quiet continuation loop where
 there is no immediate user-notification value but development can safely continue:
 
 1. Advisor workflow and onboarding frame: first successful flow, clean-state usability, mobile,
@@ -86,6 +89,9 @@ there is no immediate user-notification value but development can safely continu
    stage map, focus roles, private/group chat, person state updates, and rollback/safety boundaries.
 5. QA, compliance, and release-proof frame: API/browser/DB/mobile proof, console/overflow checks,
    compliance fields, authz boundaries, production approval, build blockers, and evidence hygiene.
+6. NANDA / AgentFacts protocol frame: agent-like AI modules must be discoverable internally,
+   capability-described, least-disclosure, versioned, adapter-ready, and explicitly marked as
+   `internal-only`, `registry-draft`, `external-ready`, or `external-registered`.
 
 For each top gap, record which frame found it, which owner doc should carry it, what evidence already
 exists, what evidence is missing, and the smallest next implementation/proof slice.
@@ -104,7 +110,7 @@ Task:
 
 1. Inventory the target flow and classify each step.
 2. Run the anti-duplicate review gate above and record what changed since the last review.
-3. Review the target flow through all five frames above, then pick the top 10 gaps by severity,
+3. Review the target flow through all six frames above, then pick the top 10 gaps by severity,
    leverage, and dependency order.
 4. Convert the top gaps into next implementation/proof slices. Prefer updating existing PLN/ACC docs
    and `AGENTS.md` workstream state over creating new docs unless no owner exists.
@@ -142,9 +148,10 @@ Constraints:
 Final response must include:
 
 - Whether this was a scheduled fifth-loop review, manually triggered review, or quiet continuation
-  five-frame gap-research documentation loop.
+  six-frame gap-research documentation loop.
 - What changed since the last review and why this report is not duplicate work.
-- The five frames used and the main gap surfaced by each.
+- The six frames used and the main gap surfaced by each.
+- NANDA / AgentFacts protocol readiness summary for ASAI AI modules if any AI workstream is active.
 - Top 5 gaps with severity/leverage.
 - Docs created/updated.
 - Validation commands and pass/fail.

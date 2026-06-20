@@ -53,6 +53,26 @@ Task levels:
   acceptance criteria.
 - L4 architecture/blocker review: repeated blocker or cross-workstream decision analysis with unblock plan.
 
+NANDA / AgentFacts protocol alignment:
+
+- Treat every ASAI AI module as an agent-like capability that should become internally describable,
+  verifiable, and eventually registerable using a NANDA / AgentFacts-style manifest.
+- If the selected slice touches any AI route, provider wrapper, assistant action, interview workflow,
+  theater runtime, SPIN AI, visit/report AI, RAG, or AI registry/readiness surface, include a `NANDA
+  alignment` section in the report.
+- The `NANDA alignment` section must state:
+  - agent/module id and owner surface;
+  - capabilities and endpoints/actions touched;
+  - input/output schema or DTO boundary;
+  - auth/session scope and data classes;
+  - quota/cost and `AiUsageLog` policy;
+  - current registry readiness: `internal-only`, `registry-draft`, `external-ready`, or
+    `external-registered`;
+  - what still blocks external NANDA/third-party registry publication.
+- Do not perform external registry publication, signing, public discovery endpoint exposure, or
+  cross-organization agent access without explicit operator approval. Until then, only implement internal
+  manifests, static schema proof, adapter contracts, and local QA.
+
 Cadence rule:
 
 - Read `docs/2_agent-input/generated/agent-loop/loop-state.json` at the start of every loop.
@@ -75,7 +95,7 @@ Quiet continuation rule:
 - Do not run quiet gap-research documentation loops twice in a row unless the second loop converts the
   prior finding into a concrete L2/L3 implementation/proof slice or an L4 blocker analysis.
 - A quiet gap-research documentation loop is not a broad implementation loop. It studies the next
-  LV3 gap through the five frames below, then turns the finding into the smallest useful doc update
+  LV3 gap through the six frames below, then turns the finding into the smallest useful doc update
   or new owner doc:
   1. Advisor workflow and onboarding frame: does the next advisor action feel obvious, minimal,
      and professional from a clean state?
@@ -87,6 +107,8 @@ Quiet continuation rule:
      memory, and theater stage form one operable environment with safe state-change boundaries?
   5. QA, compliance, and release-proof frame: is there trustworthy API/browser/DB/mobile evidence,
      no raw private payload leakage, and no blocked production approval disguised as completion?
+  6. NANDA / AgentFacts protocol frame: is the touched AI module internally describable, capability
+     declared, adapter-ready, least-disclosure, versioned, and assigned a registry readiness state?
 - Prefer updating an existing `RES-`, `PLN-`, `ACC-`, `AUD-`, `AGENTS.md`, `issue-question.md`, or
   loop report owner over creating a new doc. Create a new doc only when no owner exists.
 - Convert each gap into an implementable next slice with owner file, blocker type, acceptance proof,
@@ -192,10 +214,11 @@ Stop immediately and report if:
 Final response must include:
 
 - Whether this was a normal LV3 implementation/proof loop or a whole-product review loop.
-- If it was a quiet gap-research documentation loop, name that explicitly and list the five frames
+- If it was a quiet gap-research documentation loop, name that explicitly and list the six frames
   used.
 - Last-two-loop classification, task level, and anti-repetition rationale.
 - Selected slice and top-3 score rationale.
+- `NANDA alignment` if any AI module, route, provider wrapper, or agent-like workflow was touched.
 - Files changed and evidence/report paths.
 - Commands run and exact pass/fail result.
 - DB/Prisma operations and target, if any.

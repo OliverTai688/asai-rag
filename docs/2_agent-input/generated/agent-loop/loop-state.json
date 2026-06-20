@@ -23,13 +23,16 @@
     "preferVisibleReasoningTraceWithoutExposingPrivateRawPayload": true,
     "preferCrossSurfaceFlowOverIsolatedPagePolish": true,
     "preferAIInterviewAsCreationAndRefinementEntry": true,
-    "allowResearchBackedPrevisitInterfaceRestructure": true
+    "allowResearchBackedPrevisitInterfaceRestructure": true,
+    "requireNandaAgentFactsProtocolAlignmentForEveryAiModule": true,
+    "preferRegistryReadyAiCapabilitiesOverAdHocAiRoutes": true
   },
   "priorityWorkstreams": [
     "PIM: Realtime Voice / Park-style Memory Interview",
     "ITA: Interview x Theater Dual Agent",
     "LCH: Launch Readiness Three AI / DB-backed Client CRUD",
     "BFF: Full-site server-owned data contracts",
+    "NAP: NANDA / AgentFacts protocol alignment and AI registry readiness",
     "MM/AIS/RAS: Minimal UI, AI-first navigation, role-aware surfaces"
   ],
   "candidateQueue": [
@@ -60,6 +63,10 @@
     {
       "id": "lv3-cross-flow-onboarding-proof",
       "goal": "Prove the entire flow is understandable from a clean browser context with low-noise UI, no raw-ID workflow, mobile safety, and API/browser evidence."
+    },
+    {
+      "id": "lv3-nanda-agentfacts-protocol-readiness",
+      "goal": "Make every ASAI AI module internally describable, capability-declared, least-disclosure, adapter-ready, versioned, and assigned a registry readiness state before any external NANDA or third-party registry publication."
     }
   ],
   "cadenceReview": {
