@@ -64,11 +64,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 4,
+    "normalLoopsSinceLastWholeProductReview": 0,
     "lastWholeProductReviewAt": "2026-06-20",
-    "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-20_lv3-whole-product-gap-review-previsit-route-b.md",
+    "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-20_lv3-whole-product-gap-review-bff-issues-dashboard.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "Scheduled fifth-loop whole-product gap review. Next automation loop should read and execute docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md before choosing the next implementation slice.",
+    "nextRecommendedImplementationSlice": "BFF-106 Issues BFF. Scope: replace /issues MOCK_ISSUES with member-scoped GET/PATCH /api/issues, model issue facts/inferences/unknowns and next actions, keep IRL/internal issue readiness out of client-facing reports, and prove unauth/forbidden/success/refresh/browser mobile with no mock/local truth.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {

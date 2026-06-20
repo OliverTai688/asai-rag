@@ -1180,6 +1180,8 @@ Whole-product review 註記：2026-06-20 第五輪校準選定下一個最高槓
 - [ ] API/browser proof 覆蓋 empty、forbidden、success、refresh。
 - [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
 
+Whole-product review 註記（2026-06-20 after BFF-105）：第五輪校準後的最高安全 implementation slice 改為 `BFF-106 Issues BFF`。原因：reports/share 已 server-owned，`/issues` 仍是 production-facing `MOCK_ISSUES`，且 issue readiness / next action 會被 dashboard、previsit question rationale、org coaching 與 release QA 重複引用。下一輪實作需建立 member-scoped `GET /api/issues` 與 status/action endpoint，DTO 明確分 `fact` / `inference` / `unknown` / `nextAction` / internal IRL，不把推論當事實，不把 internal IRL 暴露到 client-facing report；proof 覆蓋 unauth、forbidden/foreign、empty/success、refresh/new context、desktop/mobile no overflow 與 no mock/local truth。
+
 ### Batch BFF-201 — AI BFF audit gate
 - [ ] 擴充或新增 `pnpm ai:bff-audit`，列出所有 `/api/ai/*`、`/api/rag` route。
 - [ ] 檢查每條 route 是否有 session/token scope、plan capability、quota guard、success/error `AiUsageLog`、input limit。

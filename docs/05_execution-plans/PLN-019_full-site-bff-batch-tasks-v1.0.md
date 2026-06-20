@@ -198,6 +198,8 @@ Whole-product review 註記（2026-06-20）：下一個 LV3 implementation loop 
 - [ ] API/browser proof 覆蓋 empty、forbidden、success、refresh。
 - [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
 
+Whole-product review 註記（2026-06-20 after BFF-105）：下一個 normal LV3 implementation loop 建議選 `BFF-106 Issues BFF`。先把 `src/app/(dashboard)/issues/page.tsx` 從 `MOCK_ISSUES` 改為 member-scoped BFF/cache-first；server DTO 至少包含 issue summary、status、priority、source references、`fact` / `inference` / `unknown` classification、IRL/internal readiness 與 advisor next action。Client-facing report/share 不得顯示 internal IRL 分數；org/manager 後續 aggregate 只能看統計，不讀 member client details。驗收需新增 deterministic API/browser proof：unauth 401、member success、foreign/manager detail forbidden 或 404、empty state、status/action write audit、refresh/new context persistence、desktop/mobile no overflow、response 無 raw private sentinel。
+
 ---
 
 ## Batch BFF-201 - AI BFF Audit Gate
