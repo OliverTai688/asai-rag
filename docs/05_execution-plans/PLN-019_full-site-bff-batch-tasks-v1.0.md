@@ -29,7 +29,7 @@
 | 卡片 | 主題 | 狀態 | 依賴 |
 | --- | --- | --- | --- |
 | BFF-000 | Architecture files and workstream registration | [x] | RES-018 |
-| BFF-001 | Full-site data-source inventory and responsibility matrix | [ ] | BFF-000 |
+| BFF-001 | Full-site data-source inventory and responsibility matrix | [x] | BFF-000 |
 | BFF-002 | Shared API foundation | [ ] | BFF-001 |
 | BFF-101 | Member dashboard BFF | [ ] | BFF-002 |
 | BFF-102 | Member settings BFF hardening | [ ] | BFF-002 |
@@ -74,17 +74,19 @@
 
 目標：盤點全站 production runtime 資料來源，建立 BFF 責任矩陣與 mock/localStorage 禁用 baseline。
 
-- [ ] 盤點所有 `src/app/**/page.tsx`、`src/components/**`、`src/domains/**/service.ts`、`src/domains/**/store.ts` 的 business data source。
-- [ ] 標記每個 surface 是 DB/BFF、server component query、mock API、Zustand local、static fixture、mixed mode。
-- [ ] 產出 `AUD-006_full-site-bff-data-source-inventory-v1.0.md`。
-- [ ] 建立 responsibility matrix：surface、UI route、BFF endpoint、session type、DTO、read/write、audit、QA script。
-- [ ] 新增或擴充 QA script，偵測 production page 直接 import `mocks.ts`、`seed-fixtures.ts` 或 browser storage business truth source。
-- [ ] 不改業務邏輯；不重寫 BFF route。
-- [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+- [x] 盤點所有 `src/app/**/page.tsx`、`src/components/**`、`src/domains/**/service.ts`、`src/domains/**/store.ts` 的 business data source。
+- [x] 標記每個 surface 是 DB/BFF、server component query、mock API、Zustand local、static fixture、mixed mode。
+- [x] 產出 `AUD-006_full-site-bff-data-source-inventory-v1.0.md`。
+- [x] 建立 responsibility matrix：surface、UI route、BFF endpoint、session type、DTO、read/write、audit、QA script。
+- [x] 新增或擴充 QA script，偵測 production page 直接 import `mocks.ts`、`seed-fixtures.ts` 或 browser storage business truth source。
+- [x] 不改業務邏輯；不重寫 BFF route。
+- [x] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
 
 Whole-product review fallback（2026-06-20）：若下一輪無法安全確認 Route B DB target 或 migration approval，BFF-001 是最高安全 fallback。盤點時要特別標出 `/reports` local store/share action、`/issues` static mock、admin demo seed、client service local write methods，以及 theater Route B runtime/source 邊界。
 
 Whole-product review fallback update（2026-06-20 after previsit redesign）：若 `ITA-003e` Route B 互動寫入切片被 provider/env/session 條件阻擋，BFF-001 仍是最高安全 fallback。盤點時要把已完成的 DB-backed client/relationship/visit/Route B session proof 與仍 local/static 的 `/reports`、`/issues`、admin/demo seed、client store local write methods 分開標示，避免後續 LV3 proof 混入 mock/local truth。
+
+完成註記（2026-06-20）：已新增 `docs/06_audits-and-reports/AUD-006_full-site-bff-data-source-inventory-v1.0.md` 與 `pnpm bff:inventory-qa`。Audit 建立全站 responsibility matrix，明確分出 DB/BFF ready、partial BFF/mixed、local/Zustand truth、static fixture/mock、UI-only browser state；並點名 `/reports`、`/issues`、`/team`、admin/pilot demo seed、SPIN mock outline fallback、notification reminder mock route、domain store seed 與 calendar store seed 等 blocker。此卡不呼叫 provider、不做 DB/Prisma 操作、不重寫 BFF route；下一張最低未完成卡為 BFF-002。
 
 ---
 

@@ -64,11 +64,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 1,
+    "normalLoopsSinceLastWholeProductReview": 2,
     "lastWholeProductReviewAt": "2026-06-20",
     "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-20_lv3-whole-product-gap-review-previsit-route-b.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "ITA-003f Route B provider orchestration + AiUsageLog success/error proof. Scope: connect persisted advisor turns to director/character response orchestration behind an explicit provider flag, write AiUsageLog on success and provider error, keep raw provider payload out of storage, preserve private/group visibility, and prove no legacy tension/score contract becomes the new Route B main flow. If real provider/cost approval is unavailable, keep guarded-disabled proof and fallback to BFF-001 full-site data-source inventory and responsibility matrix.",
+    "nextRecommendedImplementationSlice": "BFF-002 Shared API foundation. Scope: add shared response/error/validation/sanitize helpers for new BFF routes, prove 2-3 low-risk endpoints return private no-store responses and sanitized errors, and keep BFF-105 reports / BFF-106 issues ready to implement next. Route B provider orchestration remains blocked until explicit provider/cost approval is granted.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {
