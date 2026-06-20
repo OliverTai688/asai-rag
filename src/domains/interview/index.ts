@@ -1,6 +1,7 @@
 export * from "./types";
 export * from "./service";
 export * from "./memory";
+export * from "./quick-capture";
 export * from "./park-loop";
 export * from "./theater-build";
 export * from "./outlines";

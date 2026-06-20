@@ -82,6 +82,7 @@
     "interview:writeback-qa": "node scripts/interview-writeback-qa.mjs",
     "interview:writeback-browser-qa": "node scripts/interview-writeback-browser-qa.mjs",
     "interview:draft-writeback-qa": "node scripts/interview-draft-writeback-qa.mjs",
+    "interview:quick-capture-bridge-dry-run": "node scripts/interview-quick-capture-bridge-dry-run.mjs",
     "interview:cross-mode-qa": "node scripts/interview-cross-mode-qa.mjs",
     "prisma:generate": "prisma generate",
     "prisma:validate": "prisma validate"

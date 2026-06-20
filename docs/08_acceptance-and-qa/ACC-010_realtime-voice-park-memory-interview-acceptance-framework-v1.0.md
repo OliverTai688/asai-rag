@@ -105,6 +105,8 @@
 
 `PIM-011` 或任何 post-visit quick-capture / notes-to-memory slice 完成前，必須額外滿足：
 
+PIM-011a source-contract proof（2026-06-20）新增 `pnpm interview:quick-capture-bridge-dry-run`，目前只證明 domain helper 的分類、scope、敏感 gate、handoff 與 no-provider posture；尚未證明正式 BFF/API persistence、cross-role denial、refresh/new-context DB readback 或 UI browser proof。
+
 - [ ] Quick-capture note 可先不歸戶，但歸戶或連到 `VisitPlan` / `Client` 時，scope 一律由 server session 推導，不信任前端 `organizationId`、`memberId`、`clientId`、`visitPlanId`。
 - [ ] Note -> memory mapping 保留 source label、note/turn id、`FACT` / `CONFIRMED` / `INFERENCE` / `UNKNOWN`，且 inference 不得寫成 CRM confirmed fact。
 - [ ] 手動筆記與語音 transcript 都可以成為 `InterviewMemory` candidate；raw audio 預設不保存，raw private transcript 不進 report/evidence。
@@ -137,6 +139,7 @@
 - [ ] 需要 DB 實套：local/development `prisma db push` 或 migration dry-run/proof
 - [ ] 動 AI route：success/error `AiUsageLog` proof
 - [ ] 動 UI：Browser/headless desktop/mobile screenshot proof
+- [ ] PIM-011a source contract：`pnpm interview:quick-capture-bridge-dry-run`
 
 ---
 
