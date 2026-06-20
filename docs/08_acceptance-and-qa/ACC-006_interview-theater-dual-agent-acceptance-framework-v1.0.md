@@ -81,6 +81,19 @@
 - [ ] Desktop/mobile 無水平 overflow，mobile 輸入區不遮擋 stage map 主要操作。
 - [ ] 若 Supabase DB/DNS 無法連線，僅可提交 proof-plan、fixture/source contract 或 blocked report；不得把 fixture 當作 DB-backed browser proof。
 
+### 5.2 Route B runtime preflight acceptance
+
+`ITA-003g` 若只做 no-provider runtime preflight，完成前必須額外滿足：
+
+- [ ] `DIRECTOR` / `CHARACTER` / `FEEDBACK` 在 provider gate 前輸出 `runtimeInputPreview` 或等價 safe DTO，且不包含 raw private transcript、raw provider body、email、phone、secret、token、cookie、OTP。
+- [ ] Preview 明確對齊 internal AgentFacts-style manifest：`agentId=asai.theater.route_b`、Route B action id、owner surface、endpoint、`registryReadiness=internal-only`。
+- [ ] Preview 明確列出必填欄位與 `missingFields`；缺 director utterance、未知 character id、缺 director directive 等應回 400 preflight invalid，不得被包裝成 provider-disabled success。
+- [ ] Preview 顯示 visibility-safe history summary；character preview 只能看 group 與自己相關 private history，不可看其他角色私聊或 director-only history。
+- [ ] Preview 顯示 `AiUsageLog` plan：provider 啟用後 director/character/feedback 都必須 success/error logging，且不得儲存 provider body。
+- [ ] Provider 未啟用時回 guarded-disabled，證明 `providerCallAttempted=false`、`aiUsageLogWritten=false`、THEATER `AiUsageLog` count 不變。
+- [ ] 若 provider env flag 已開但 success/error `AiUsageLog` proof 尚未完成，runtime 必須回 provider-not-implemented / blocked posture，不得呼叫 provider。
+- [ ] 需跑 `pnpm theater:route-b-runtime-qa`、`pnpm ai:protocol-registry-qa`、`pnpm ai:bff-audit`、`pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+
 ---
 
 ## 6. Feedback / Compliance Acceptance

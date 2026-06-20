@@ -5,6 +5,7 @@ import { buildRouteBHandoffFixture } from "./fixtures/route-b-handoff-fixture.mj
 
 loadEnvFile(".env");
 
+const runtimeRoutePath = "src/app/api/theater/route-b/runtime/route.ts";
 const baseUrl = process.env.DEMO_QA_BASE_URL ?? process.argv[2] ?? "http://localhost:3000";
 const demoMemberEmail = process.env.DEMO_MEMBER_QA_EMAIL ?? "demo.member@asai.local";
 const dbUrl = process.env.DIRECT_URL ?? process.env.DATABASE_URL;
@@ -36,6 +37,7 @@ if (checks.some((check) => check.status === "fail")) {
 
 async function runProof() {
   const beforeUsageCount = await countTheaterUsageLogs();
+  const routeSource = readFileSync(runtimeRoutePath, "utf8");
 
   const unauth = await fetch(`${baseUrl}/api/theater/route-b/runtime`, {
     method: "POST",
@@ -91,7 +93,37 @@ async function runProof() {
   push(director.body?.routeB?.providerCallAttempted === false, "Route B director does not call provider");
   push(director.body?.routeB?.aiUsageLogWritten === false, "Route B director does not fake AiUsageLog");
   push(director.body?.runtimeInputPreview?.kind === "DIRECTOR", "Route B director response includes safe input preview");
+  push(
+    director.body?.runtimeInputPreview?.sourceAlignment?.agentId === "asai.theater.route_b" &&
+      director.body?.runtimeInputPreview?.sourceAlignment?.actionId === "route-b-director" &&
+      director.body?.runtimeInputPreview?.sourceAlignment?.registryReadiness === "internal-only",
+    "Route B director preview aligns with internal AgentFacts manifest",
+  );
+  push(
+    director.body?.runtimeInputPreview?.inputContract?.validated === true &&
+      director.body?.runtimeInputPreview?.inputContract?.rawPrivateTranscriptIncluded === false,
+    "Route B director preview validates safe input contract",
+  );
+  push(
+    director.body?.runtimeInputPreview?.aiUsageLogPlan?.requiredWhenProviderEnabled === true &&
+      director.body?.runtimeInputPreview?.aiUsageLogPlan?.logOn === "SUCCESS_AND_PROVIDER_ERROR" &&
+      director.body?.runtimeInputPreview?.aiUsageLogPlan?.storesProviderBody === false,
+    "Route B director preview carries success/error AiUsageLog plan",
+  );
+  push(
+    director.body?.runtimeInputPreview?.scopedHistoryVisibilitySummary?.GROUP === 1 &&
+      director.body?.runtimeInputPreview?.scopedHistoryVisibilitySummary?.PRIVATE === 1,
+    "Route B director preview reports scoped history visibility summary",
+  );
   pushNoPrivateSentinel(directorText, "Route B director response has no private sentinel");
+
+  const missingDirector = await memberPost({ intent: "DIRECTOR", handoff });
+  push(missingDirector.status === 400, "Route B director missing utterance returns preflight 400", `status=${missingDirector.status}`);
+  push(
+    missingDirector.body?.error === "ROUTE_B_RUNTIME_PREFLIGHT_INVALID" &&
+      missingDirector.body?.runtimeInputPreview?.inputContract?.missingFields?.includes("salespersonUtterance"),
+    "Route B director preflight reports stable missing field",
+  );
 
   const character = await memberPost({
     intent: "CHARACTER",
@@ -118,13 +150,41 @@ async function runProof() {
   });
   push(character.status === 503, "Route B character returns guarded-disabled when provider off", `status=${character.status}`);
   push(character.body?.runtimeInputPreview?.kind === "CHARACTER", "Route B character response includes safe input preview");
+  push(
+    character.body?.runtimeInputPreview?.sourceAlignment?.actionId === "route-b-character" &&
+      character.body?.runtimeInputPreview?.inputContract?.validated === true,
+    "Route B character preview aligns with source contract",
+  );
   push(character.body?.runtimeInputPreview?.visibleHistoryCount === 1, "Route B character preview filters private history by addressee");
+
+  const unknownCharacter = await memberPost({
+    intent: "CHARACTER",
+    handoff,
+    characterId: "unknown_character",
+    directorDirective: "請回應。",
+  });
+  push(unknownCharacter.status === 400, "Route B character unknown id returns preflight 400", `status=${unknownCharacter.status}`);
+  push(
+    unknownCharacter.body?.runtimeInputPreview?.inputContract?.missingFields?.includes("knownCharacterId"),
+    "Route B character preflight reports stable unknown character field",
+  );
 
   const feedback = await memberPost({ intent: "FEEDBACK", handoff });
   push(feedback.status === 503, "Route B feedback returns guarded-disabled when provider off", `status=${feedback.status}`);
   push(
+    feedback.body?.runtimeInputPreview?.sourceAlignment?.actionId === "route-b-feedback" &&
+      feedback.body?.runtimeInputPreview?.aiUsageLogPlan?.callKind === "FEEDBACK",
+    "Route B feedback preview aligns with source contract and usage plan",
+  );
+  push(
     feedback.body?.runtimeInputPreview?.qualitativePerspectives?.length === 5,
     "Route B feedback preview uses five qualitative perspectives",
+  );
+  push(
+    routeSource.includes('status: "PROVIDER_NOT_IMPLEMENTED"') &&
+      routeSource.includes("ROUTE_B_PROVIDER_IMPLEMENTATION_MISSING") &&
+      routeSource.includes("success/error AiUsageLog proof"),
+    "Route B provider-enabled branch remains blocked until usage proof is implemented",
   );
 
   const afterUsageCount = await countTheaterUsageLogs();

@@ -71,11 +71,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 0,
+    "normalLoopsSinceLastWholeProductReview": 1,
     "lastWholeProductReviewAt": "2026-06-21",
     "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-21_lv3-whole-product-gap-review-nap-routeb-runtime.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "Scheduled fifth-loop whole-product review completed on 2026-06-21. Since PIM-011c and NAP-001/002/004 are now resolved, the next recommended implementation/proof slice is ITA-003g Route B director/character/feedback runtime preflight (guarded-disabled/no-provider unless explicit provider approval), with source alignment for asai.theater.route_b in the AgentFacts manifest chain. Fallback if operator wants no-theater source hardening: NAP-003 per-AI source adoption/alignment.",
+    "nextRecommendedImplementationSlice": "ITA-003g Route B guarded runtime preflight completed on 2026-06-21: /api/theater/route-b/runtime now validates DIRECTOR/CHARACTER/FEEDBACK preflight contracts before provider gating, returns source-aligned runtimeInputPreview DTOs, keeps providerCallAttempted=false and aiUsageLogWritten=false while disabled, and aligns asai.theater.route_b manifest actions/DTO refs. Next safe no-provider slice: NAP-003 per-AI source adoption/alignment for remaining AI modules. If operator explicitly approves live Route B provider usage, switch to provider success/error AiUsageLog proof instead.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {

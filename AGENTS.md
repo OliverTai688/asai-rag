@@ -849,6 +849,8 @@ Whole-product review 註記（2026-06-20 after RAS-001）：端到端 LV3 校準
 
 Whole-product review 註記（2026-06-20 after RAS-004a）：最新校準維持 `ITA-003f/S1 Route B relationship-graph stage map (no-provider)` 為 product-level primary，因它直接補「關係圖 / 準備包 / 訪談草稿 -> 劇場舞台」的沉浸缺口；但目前 DB DNS 仍無法解析，下一輪若 DB 未恢復，先做 `RAS-004b` 讓 role-aware sidebar 實際落地到 UI。AMM meeting module、quick-capture notes、REL-004 edge table 都是後續 source gap；在未有 committed proof 或 schema approval 前，不取代 Route B stage map 作核心主線。
 
+ITA-003g runtime preflight note（2026-06-21）：已完成 Route B director / character / feedback guarded runtime preflight，不呼叫 provider。`POST /api/theater/route-b/runtime` 現在會在 provider gate 前輸出 `runtimeInputPreview`，包含 `sourceAlignment.agentId=asai.theater.route_b`、action id（`route-b-director` / `route-b-character` / `route-b-feedback`）、必填欄位與 missing field、safe input contract、visibility summary、provider boundary、success/error `AiUsageLog` plan 與 `registryReadiness=internal-only`。缺 director utterance 或未知 character id 會回 `400 ROUTE_B_RUNTIME_PREFLIGHT_INVALID`，不再被包成 provider-disabled；provider 未啟用時仍回 `503 ROUTE_B_PROVIDER_DISABLED`，且 `providerCallAttempted=false`、`aiUsageLogWritten=false`。`asai.theater.route_b` manifest 已新增 runtime preflight capability / director-character-feedback actions / `RouteBRuntimeInputPreview` DTO refs。`pnpm theater:route-b-runtime-qa` 通過 unauth 401、invalid handoff 400、draft 200、director/character/feedback guarded-disabled、preflight 400、AgentFacts source alignment、visibility-safe history、private/provider sentinel 0、THEATER `AiUsageLog` count before/after 不變；`pnpm ai:protocol-registry-qa` 與 `pnpm ai:bff-audit` 仍通過。尚未完成：live provider success/error `AiUsageLog`、AI 角色回覆 orchestration、五視角 feedback runtime 與 operator provider approval。
+
 ### Batch ITA-004 — 五視角質化回饋（M4）
 - [ ] 五視角 prompt：教練的耳朵 / 客戶的眼睛 / 沉默裡的需求 / 守門的良心 / 決策的橋。
 - [ ] 結束一次跑五個，可勾選、預設全部（F20/F21）；以 `TheaterFeedback` 取代數值評分。
@@ -1541,6 +1543,7 @@ Context: 將誠問 AI 內所有 AI 能力逐步對齊 MIT Project NANDA / AgentF
 - `AUD-008` 已完成 NAP-001 inventory：`問誠問 AI`、`AI 了解客戶`、quick-capture、Realtime voice、SPIN、訪前規劃、report generation、legacy Theater、Route B Theater、RAG guarded-disabled、AI Meeting / notes prototype 都已映射到 internal AgentFacts-style module inventory；目前全數仍為 `internal-only`。
 - NAP-002 已建立 `AgentProtocolManifest` source schema、11 個 internal-only manifest 與 `pnpm ai:protocol-registry-qa`；多數正式 AI route 已有 session/quota/`AiUsageLog` 或 deterministic no-provider proof。
 - NAP-004 已建立 platform-only internal registry readiness reader、least-disclosure API 與 release-readiness projection；platform user 可讀、member app session 403，且所有 agent 仍為 `internal-only`。
+- ITA-003g 已補 `asai.theater.route_b` manifest source alignment：runtime preflight capability、director/character/feedback actions、`RouteBRuntimeInputPreview` DTO refs、guarded-disabled provider posture、visibility-safe history 與 success/error `AiUsageLog` plan 已有 source/API proof；legacy Theater 與其他 AI modules 仍待 NAP-003 完整對齊。
 - 缺口轉為 NAP-003 的 per-AI source alignment / readiness adoption，以及 NAP-005 local-only adapter/export dry-run。
 - NANDA / AgentFacts 對外 registry publication、signing、public discovery endpoint、cross-org agent access 都需 operator approval；目前只允許 internal manifest / adapter proof。
 
@@ -1567,7 +1570,7 @@ Context: 將誠問 AI 內所有 AI 能力逐步對齊 MIT Project NANDA / AgentF
 - [ ] 將 `INTERVIEW` / `INTERVIEW_OUTPUTS` / quick-capture manifest 對齊 source proof，標明 memory/writeback/confirmation boundary。
 - [ ] 將 `VISIT` / `REPORT` AI manifest 對齊 source proof，標明 provider-safe client snapshot、facts/inferences/unknowns DTO。
 - [ ] 將 `SPIN` manifest 對齊 source proof，明確保留 `SITUATION -> PROBLEM -> IMPLICATION -> NEED_PAYOFF` state machine。
-- [ ] 將 `THEATER` legacy / Route B manifest 對齊 source proof，標明 guarded-disabled provider posture、director/character/feedback readiness 與 private/group visibility。
+- [~] 將 `THEATER` legacy / Route B manifest 對齊 source proof，標明 guarded-disabled provider posture、director/character/feedback readiness 與 private/group visibility。
 - [ ] 將 `RAG` manifest 對齊 source proof，標明 private beta guarded-disabled posture。
 - [ ] 跑 `pnpm ai:bff-audit`、`pnpm ai:protocol-registry-qa`、`pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
 

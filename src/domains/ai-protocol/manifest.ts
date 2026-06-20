@@ -656,7 +656,7 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
       displayName: "Route B relationship theater",
       ownerSurface: "/theater/[sessionId]",
       module: "THEATER",
-      version: "2026-06-21.nap-002",
+      version: "2026-06-21.ita-003g",
       status: "active",
     },
     capabilities: [
@@ -666,6 +666,12 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
         summary: "Persists multi-character stage sessions, group/private turns, and state proposals without provider runtime claims.",
         humanTrigger: "Advisor opens a Route B theater session.",
       },
+      {
+        id: "route-b-runtime-preflight",
+        label: "Route B runtime preflight",
+        summary: "Preflights director, character, and feedback inputs with source alignment, visibility scoping, and AiUsageLog policy before provider enablement.",
+        humanTrigger: "Advisor asks Route B stage to continue, reply as a character, or generate feedback.",
+      },
     ],
     interfaces: {
       endpoints: [
@@ -673,13 +679,30 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
         { id: "route-b-session", route: "/api/theater/route-b/sessions", methods: ["POST"], providerPosture: "deterministic-no-provider", launchPosture: "available", modalities: ["metadata"] },
         { id: "route-b-turn", route: "/api/theater/route-b/sessions/[sessionId]/turns", methods: ["POST"], providerPosture: "deterministic-no-provider", launchPosture: "available", modalities: ["stage-turn"] },
       ],
-      actions: [{ id: "state-proposal", label: "State proposal", actionBoundary: "State patches require confirmation and do not write confirmed CRM facts." }],
+      actions: [
+        { id: "state-proposal", label: "State proposal", actionBoundary: "State patches require confirmation and do not write confirmed CRM facts." },
+        {
+          id: "route-b-director",
+          label: "Director preflight",
+          actionBoundary: "Requires advisor utterance, scoped history, safe input summary, and success/error AiUsageLog plan before provider calls.",
+        },
+        {
+          id: "route-b-character",
+          label: "Character preflight",
+          actionBoundary: "Requires known Route B character id, director directive, visibility-safe history, and private lane filtering.",
+        },
+        {
+          id: "route-b-feedback",
+          label: "Five-view feedback preflight",
+          actionBoundary: "Uses five qualitative perspectives and does not emit legacy score as the new Route B feedback path.",
+        },
+      ],
       exportTargets: defaultExportTargets,
     },
     schemas: {
-      inputDtoRefs: ["TheaterRouteBHandoffPacket", "RouteBTurnInput"],
-      outputDtoRefs: ["RouteBSessionDto", "RouteBTurnDto"],
-      evidenceDtoRefs: ["visibilityScope", "statePatches", "AiUsageLog count unchanged"],
+      inputDtoRefs: ["TheaterRouteBHandoffPacket", "RouteBTurnInput", "RouteBRuntimeRequest"],
+      outputDtoRefs: ["RouteBSessionDto", "RouteBTurnDto", "RouteBRuntimeInputPreview"],
+      evidenceDtoRefs: ["visibilityScope", "statePatches", "runtimeInputPreview.sourceAlignment", "AiUsageLog count unchanged"],
       dtoBoundary: "Stage session DTO is internal; external metadata cannot expose private lane content.",
     },
     auth: {
@@ -706,7 +729,10 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
     proof: {
       sourceAuditModule: "THEATER",
       commands: [...commonProofCommands, "pnpm theater:route-b-runtime-qa", "pnpm theater:route-b-interaction-qa"],
-      knownBlockers: ["Director, character, and feedback provider success/error proof is missing."],
+      knownBlockers: [
+        "Live director, character, and feedback provider success/error proof is missing.",
+        "Provider calls remain disabled until explicit operator approval and AiUsageLog proof.",
+      ],
     },
     registry: commonRegistry,
   },
