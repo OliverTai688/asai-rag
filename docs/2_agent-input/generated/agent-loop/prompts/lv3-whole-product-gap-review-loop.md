@@ -58,6 +58,25 @@ Gap classification:
 - `operator/environment gap`: needs env, session, external provider, production approval, or seed.
 - `product decision`: needs user/operator decision on UX, scope, compliance, or rollout boundary.
 
+Five-frame review lens:
+
+Use these five frames on every whole-product gap review and on any quiet continuation loop where
+there is no immediate user-notification value but development can safely continue:
+
+1. Advisor workflow and onboarding frame: first successful flow, clean-state usability, mobile,
+   no raw-ID workflow, obvious next action, and professional low-noise interface.
+2. Source-of-truth and BFF frame: server-owned contracts, session/org/unit scope, DB persistence,
+   local/mock/runtime-only truth, DTO boundaries, and writeback ownership.
+3. AI reasoning and evidence frame: multi-step generation, facts/inferences/unknowns, question
+   rationale, provider-safe inputs, `AiUsageLog`, quota/cost posture, and no raw provider payload.
+4. Theater/relationship immersion frame: relationship graph, preparation package, interview memory,
+   stage map, focus roles, private/group chat, person state updates, and rollback/safety boundaries.
+5. QA, compliance, and release-proof frame: API/browser/DB/mobile proof, console/overflow checks,
+   compliance fields, authz boundaries, production approval, build blockers, and evidence hygiene.
+
+For each top gap, record which frame found it, which owner doc should carry it, what evidence already
+exists, what evidence is missing, and the smallest next implementation/proof slice.
+
 Score each gap:
 
 - Severity 3: compliance/privacy/data leak/destructive operation/AI cost/authz/core workflow break.
@@ -71,19 +90,27 @@ Score each gap:
 Task:
 
 1. Inventory the target flow and classify each step.
-2. Pick the top 10 gaps by severity, leverage, and dependency order.
+2. Review the target flow through all five frames above, then pick the top 10 gaps by severity,
+   leverage, and dependency order.
 3. Convert the top gaps into next implementation/proof slices. Prefer updating existing PLN/ACC docs
    and `AGENTS.md` workstream state over creating new docs unless no owner exists.
-4. Update `docs/2_agent-input/generated/agent-loop/loop-state.json`:
+4. Convert newly discovered gaps into the relevant owner docs:
+   - `RES-` for research/design/system understanding gaps.
+   - `PLN-` for executable batch-task gaps.
+   - `ACC-` for acceptance/proof gaps.
+   - `AUD-` or report docs for source audits and evidence inventory.
+   - `issue-question.md` only for real operator decisions, approvals, sessions, env, production
+     approval, or external-service blockers.
+5. Update `docs/2_agent-input/generated/agent-loop/loop-state.json`:
    - `cadenceReview.normalLoopsSinceLastWholeProductReview = 0`
    - `cadenceReview.lastWholeProductReviewAt`
    - `cadenceReview.lastWholeProductReviewReport`
    - `cadenceReview.nextRecommendedImplementationSlice`
-5. Write a concise review report under `docs/2_agent-input/generated/agent-loop/reports/` named
+6. Write a concise review report under `docs/2_agent-input/generated/agent-loop/reports/` named
    like `YYYY-MM-DD_lv3-whole-product-gap-review.md`.
-6. Run `git diff --check`. If docs/source changed, still run `pnpm exec tsc --noEmit --pretty false`
+7. Run `git diff --check`. If docs/source changed, still run `pnpm exec tsc --noEmit --pretty false`
    and `pnpm lint:changed` unless a clear environment blocker prevents them.
-7. Stage only this review's related files and commit locally. Do not push while the 2026-06-20 user
+8. Stage only this review's related files and commit locally. Do not push while the 2026-06-20 user
    instruction "先不用 git push" is active. In the report and final response, write `push skipped by
    user instruction`. Resume pushing only after the user explicitly restores push.
 
@@ -100,7 +127,9 @@ Constraints:
 
 Final response must include:
 
-- Whether this was a scheduled fifth-loop review or manually triggered.
+- Whether this was a scheduled fifth-loop review, manually triggered review, or quiet continuation
+  five-frame gap-research documentation loop.
+- The five frames used and the main gap surfaced by each.
 - Top 5 gaps with severity/leverage.
 - Docs created/updated.
 - Validation commands and pass/fail.

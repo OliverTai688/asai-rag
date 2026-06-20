@@ -28,7 +28,6 @@ import {
   Users,
   Users2,
   X,
-  type LucideIcon,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -59,29 +58,6 @@ type RoleAwareSidebarProps = {
   onNavigate?: () => void;
 };
 
-const iconMap: Record<string, LucideIcon> = {
-  Activity,
-  ArrowLeftRight,
-  Bot,
-  Building2,
-  CalendarDays,
-  CircleAlert,
-  CreditCard,
-  FileText,
-  Gauge,
-  LayoutDashboard,
-  ListChecks,
-  MessageSquare,
-  MessageSquareText,
-  Network,
-  Send,
-  Settings,
-  Theater,
-  UserCog,
-  Users,
-  Users2,
-};
-
 const disabledReasonLabels: Record<string, string> = {
   AI_DISABLED: "AI 功能目前未啟用",
   FEATURE_FLAG_OFF: "功能尚未開放",
@@ -92,8 +68,56 @@ const disabledReasonLabels: Record<string, string> = {
   UNIT_SCOPE_REQUIRED: "需要通訊處管理範圍",
 };
 
-function getIcon(iconName: string): LucideIcon {
-  return iconMap[iconName] ?? Circle;
+function SidebarIcon({ name }: { name: string }) {
+  const iconProps = {
+    className: "h-4 w-4 shrink-0",
+    "aria-hidden": true,
+  } as const;
+
+  switch (name) {
+    case "Activity":
+      return <Activity {...iconProps} />;
+    case "ArrowLeftRight":
+      return <ArrowLeftRight {...iconProps} />;
+    case "Bot":
+      return <Bot {...iconProps} />;
+    case "Building2":
+      return <Building2 {...iconProps} />;
+    case "CalendarDays":
+      return <CalendarDays {...iconProps} />;
+    case "CircleAlert":
+      return <CircleAlert {...iconProps} />;
+    case "CreditCard":
+      return <CreditCard {...iconProps} />;
+    case "FileText":
+      return <FileText {...iconProps} />;
+    case "Gauge":
+      return <Gauge {...iconProps} />;
+    case "LayoutDashboard":
+      return <LayoutDashboard {...iconProps} />;
+    case "ListChecks":
+      return <ListChecks {...iconProps} />;
+    case "MessageSquare":
+      return <MessageSquare {...iconProps} />;
+    case "MessageSquareText":
+      return <MessageSquareText {...iconProps} />;
+    case "Network":
+      return <Network {...iconProps} />;
+    case "Send":
+      return <Send {...iconProps} />;
+    case "Settings":
+      return <Settings {...iconProps} />;
+    case "Theater":
+      return <Theater {...iconProps} />;
+    case "UserCog":
+      return <UserCog {...iconProps} />;
+    case "Users":
+      return <Users {...iconProps} />;
+    case "Users2":
+      return <Users2 {...iconProps} />;
+    default:
+      return <Circle {...iconProps} />;
+  }
 }
 
 function normalizePath(pathname: string | null | undefined): string {
@@ -216,13 +240,12 @@ function SidebarItem({
   active: boolean;
   onNavigate: () => void;
 }) {
-  const Icon = getIcon(item.icon);
   const disabledReason = labelForDisabledReason(item.disabledReason ?? null);
   const unavailable = item.disabled || Boolean(disabledReason);
   const content = (
     <>
       <ActiveRail active={active} />
-      <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+      <SidebarIcon name={item.icon} />
       {open ? (
         <>
           <span className="min-w-0 truncate">{item.label}</span>
@@ -300,14 +323,14 @@ function SurfaceSwitch({
   open: boolean;
   onNavigate: () => void;
 }) {
-  const Icon = surfaceSwitch.id === "org-admin" ? Building2 : LayoutDashboard;
+  const iconName = surfaceSwitch.id === "org-admin" ? "Building2" : "LayoutDashboard";
   const disabledReason = labelForDisabledReason(surfaceSwitch.disabledReason ?? null);
   const isUnavailable = !surfaceSwitch.action.available;
   const isCurrent = surfaceSwitch.action.current;
   const content = (
     <>
       <ActiveRail active={isCurrent} />
-      <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+      <SidebarIcon name={iconName} />
       {open ? <span className="min-w-0 truncate">{surfaceSwitch.label}</span> : null}
     </>
   );

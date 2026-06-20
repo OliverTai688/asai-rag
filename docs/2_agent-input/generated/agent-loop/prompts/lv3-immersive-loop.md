@@ -41,6 +41,33 @@ Cadence rule:
   `normalLoopsSinceLastWholeProductReview` by 1.
 - At the end of a whole-product review loop, reset it to 0 and record the review report path.
 
+Quiet continuation rule:
+
+- Heartbeat turns should not end as `DONT_NOTIFY` merely because there is no new human decision,
+  no urgent blocker, or no user-facing notification value.
+- If there is no immediate notification value but development can safely continue, run one quiet
+  gap-research documentation loop instead of stopping.
+- A quiet gap-research documentation loop is not a broad implementation loop. It studies the next
+  LV3 gap through the five frames below, then turns the finding into the smallest useful doc update
+  or new owner doc:
+  1. Advisor workflow and onboarding frame: does the next advisor action feel obvious, minimal,
+     and professional from a clean state?
+  2. Source-of-truth and BFF frame: is the workflow grounded in server-owned, session-scoped,
+     organization-scoped data rather than local/mock/runtime-only state?
+  3. AI reasoning and evidence frame: are facts, inferences, unknowns, question rationale,
+     provider boundaries, and `AiUsageLog` posture explicit?
+  4. Theater/relationship immersion frame: does the client graph, preparation package, interview
+     memory, and theater stage form one operable environment with safe state-change boundaries?
+  5. QA, compliance, and release-proof frame: is there trustworthy API/browser/DB/mobile evidence,
+     no raw private payload leakage, and no blocked production approval disguised as completion?
+- Prefer updating an existing `RES-`, `PLN-`, `ACC-`, `AUD-`, `AGENTS.md`, `issue-question.md`, or
+  loop report owner over creating a new doc. Create a new doc only when no owner exists.
+- Convert each gap into an implementable next slice with owner file, blocker type, acceptance proof,
+  and a suggested prompt for the next automation loop.
+- Quiet gap-research loops still obey the normal loop closure rules: update `loop-state.json`, write
+  a concise report, run required validation, stage only related files, commit locally, and do not push
+  while the 2026-06-20 "先不用 git push" instruction is active.
+
 Required reading before source changes:
 
 - `AGENTS.md`
@@ -98,25 +125,29 @@ Penalize candidate slices:
 Task:
 
 1. Check cadence. If this is the fifth loop, run the whole-product review prompt.
-2. Score the top 3 available implementation/proof slices using the reward/penalty policy.
-3. Pick the highest-scoring slice that can be completed safely in one increment.
-4. Implement or prove only that slice.
-5. Preserve repo architecture: domain logic in `src/domains`, BFF/API in `src/app/api`, UI through
+2. If this is a heartbeat/continuation turn with no new human decision or immediate notification
+   value, but safe work remains, run the quiet gap-research documentation loop from the rule above.
+   In that case, score the top 3 documentation/research slices using the same reward/penalty policy,
+   do not make broad source changes, and convert the chosen gap into docs and next-slice proof plan.
+3. Otherwise, score the top 3 available implementation/proof slices using the reward/penalty policy.
+4. Pick the highest-scoring slice that can be completed safely in one increment.
+5. Implement, prove, or document only that slice.
+6. Preserve repo architecture: domain logic in `src/domains`, BFF/API in `src/app/api`, UI through
    client-safe DTOs, Prisma through repository/server helpers, Zustand only for UI state/cache.
-6. Do not trust client-provided `organizationId`, `ownerId`, `userId`, `unitId`, plan, amount, AI
+7. Do not trust client-provided `organizationId`, `ownerId`, `userId`, `unitId`, plan, amount, AI
    module entitlement, or theater/client ownership.
-7. If schema changes are needed, run `pnpm prisma:validate`, `pnpm prisma:generate`, and only run
+8. If schema changes are needed, run `pnpm prisma:validate`, `pnpm prisma:generate`, and only run
    db push when the DB target and `AGENTS.md` approval boundary allow it.
-8. Always run `pnpm exec tsc --noEmit --pretty false`.
-9. Always run `pnpm lint:changed`.
-10. Run targeted QA for the selected slice, such as `pnpm interview:cross-mode-qa`,
+9. Always run `pnpm exec tsc --noEmit --pretty false`.
+10. Always run `pnpm lint:changed`.
+11. Run targeted QA for the selected slice, such as `pnpm interview:cross-mode-qa`,
     `pnpm demo:three-ai-turn-usage-qa`, `pnpm demo:ai-generation-qa`, `pnpm ai:usage-audit`,
     API proof, DB proof, and/or browser proof.
-11. Update `docs/2_agent-input/generated/agent-loop/loop-state.json`.
-12. Write a concise report under `docs/2_agent-input/generated/agent-loop/reports/`.
-13. Update `docs/2_agent-input/generated/agent-loop/issue-question.md` only for real decisions,
+12. Update `docs/2_agent-input/generated/agent-loop/loop-state.json`.
+13. Write a concise report under `docs/2_agent-input/generated/agent-loop/reports/`.
+14. Update `docs/2_agent-input/generated/agent-loop/issue-question.md` only for real decisions,
     approvals, sessions, seed data, env, or external-service blockers.
-14. Stage only this loop's related files and commit locally with a clear message. Do not push while
+15. Stage only this loop's related files and commit locally with a clear message. Do not push while
     the 2026-06-20 user instruction "先不用 git push" is active. In the report and final response,
     write `push skipped by user instruction` instead of a push target. Resume pushing only after the
     user explicitly restores push.
@@ -132,6 +163,8 @@ Stop immediately and report if:
 Final response must include:
 
 - Whether this was a normal LV3 implementation/proof loop or a whole-product review loop.
+- If it was a quiet gap-research documentation loop, name that explicitly and list the five frames
+  used.
 - Selected slice and top-3 score rationale.
 - Files changed and evidence/report paths.
 - Commands run and exact pass/fail result.

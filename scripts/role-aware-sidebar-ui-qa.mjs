@@ -195,7 +195,6 @@ const workspacePath = resolve("src/lib/navigation/workspace-sidebar.ts");
 const shellPath = resolve("src/components/layout/dashboard-shell.tsx");
 const layoutPath = resolve("src/app/(dashboard)/layout.tsx");
 const roleAwareSidebarPath = resolve("src/components/layout/role-aware-sidebar.tsx");
-const legacySidebarPath = resolve("src/components/layout/sidebar.tsx");
 
 const roleAwareExports = loadTsModule(roleAwarePath);
 const workspaceExports = loadTsModule(workspacePath, {
