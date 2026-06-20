@@ -45,6 +45,7 @@
 | PIM-008 | Confirmation card + CRM/writeback boundary | [x] | PIM-002、PIM-006 |
 | PIM-009 | Cross-mode QA, docs sync, rollback notes | [x] | PIM-002 to PIM-008 |
 | PIM-010 | Interview -> VisitPlan / Theater draft writeback | [x] | PIM-006、PIM-008、BFF-104、ITA-003e |
+| PIM-011 | Post-visit quick-capture -> Park memory bridge | [ ] | PIM-006、PIM-010、BFF-104 |
 
 ---
 
@@ -266,6 +267,24 @@ Whole-product review 註記（2026-06-20）：第五輪校準選定下一個 imp
 
 ---
 
+## Batch PIM-011 - Post-visit quick-capture -> Park memory bridge
+
+目標：把「隨手筆記 / 拜訪後快速捕捉」收進 Park memory 與 LV3 主流程，讓顧問可以在拜訪後先低摩擦記一句，再安全地變成準備包補強、會議摘要、劇場 narrator question 或 CRM writeback candidate。
+
+Quiet gap note（2026-06-20）：本卡由 LV3 heartbeat quiet continuation 的五個視框收斂而來。現況已存在 `VisitPlan.postVisitNotes`、PIM interview memory、PIM-010 visit/theater draft writeback，以及未納入 committed baseline 的 AI meeting / quick note 草稿；下一步不應先接 provider，而是先建立 committed bridge contract 與 no-provider proof。
+
+- [ ] Advisor workflow / onboarding：定義顧問從 `/pre-visit/[id]/notes`、全站 quick-capture 或 meeting workspace 捕捉一則 post-visit note 後，下一步只需選「歸客戶/歸拜訪/保持私人草稿/轉成待確認」之一，不要求一開始就完整分類。
+- [ ] Source-of-truth / BFF：quick-capture bridge 由 server session 推導 organization/member/unit/client/visit scope；可先以 existing `InterviewSession` / `InterviewTurn` / `InterviewMemory` 建立 no-schema adapter，不新增未核可 production migration。
+- [ ] AI reasoning / evidence：每則 note 轉成 memory candidate 時必須保留 `FACT` / `CONFIRMED` / `INFERENCE` / `UNKNOWN`、source label、supporting note/turn id；不得保存 raw audio、raw private transcript 或 raw provider payload。
+- [ ] Theater / relationship immersion：與準備包/劇場的交接只產生 narrator questions、state proposal 或 relationship tension inference；固定 `requiresConfirmation=true`、`writesConfirmedCrmFact=false`，不直接改 confirmed CRM fact。
+- [ ] QA / compliance / release-proof：新增 no-provider proof script，覆蓋 member owner 200、manager/foreign 404 或 403、high-sensitive missing reason blocked、`AiUsageLog` count unchanged、response no private sentinel、refresh/new-context memory readback；UI 若接入需 desktop/mobile no overflow。
+- [ ] 更新 `ACC-010` quick-capture bridge acceptance；若後續需要獨立 `QuickNote` table 或 `AiModule.MEETING`，先記為 product/operator decision，不在本卡偷做。
+- [ ] 跑 `pnpm exec tsc --noEmit --pretty false` 與 `pnpm lint:changed`。
+
+範圍外：不啟用 live Realtime provider；不保存 raw audio；不把 untracked AI meeting/notes prototype 當正式 proof；不新增 production schema migration；不把 inference 寫成 CRM confirmed fact。
+
+---
+
 ## Current Blockers
 
 - Realtime voice 若接 provider，需要可用 OpenAI Realtime model、ephemeral session policy 與 usage/cost evidence。
@@ -273,3 +292,4 @@ Whole-product review 註記（2026-06-20）：第五輪校準選定下一個 imp
 - Prisma schema 改動需要 local/development db push 或 migration proof；production DB mutation 仍需明確 approval。
 - Theater Route B 完整 schema migration 仍依 `PLN-015`/ITA-003/ITA-006 管理。
 - Supabase pgvector 仍需 operator 確認，PIM 不應把 pgvector 當第一階段依賴。
+- Quick-capture / AI meeting prototype files currently visible in the worktree are not committed baseline; future loops must not stage them unless that loop explicitly selects the AMM/quick-capture slice and validates the whole related scope.

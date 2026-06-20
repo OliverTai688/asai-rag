@@ -101,7 +101,21 @@
 
 ---
 
-## 9. UI / Browser QA
+## 9. Quick-capture Bridge Acceptance
+
+`PIM-011` 或任何 post-visit quick-capture / notes-to-memory slice 完成前，必須額外滿足：
+
+- [ ] Quick-capture note 可先不歸戶，但歸戶或連到 `VisitPlan` / `Client` 時，scope 一律由 server session 推導，不信任前端 `organizationId`、`memberId`、`clientId`、`visitPlanId`。
+- [ ] Note -> memory mapping 保留 source label、note/turn id、`FACT` / `CONFIRMED` / `INFERENCE` / `UNKNOWN`，且 inference 不得寫成 CRM confirmed fact。
+- [ ] 手動筆記與語音 transcript 都可以成為 `InterviewMemory` candidate；raw audio 預設不保存，raw private transcript 不進 report/evidence。
+- [ ] Post-visit note 可補強準備包、meeting summary、narrator questions 或 theater state proposal，但 CRM writeback 必須走 confirmation card 與 audit。
+- [ ] High-sensitive client note 缺 reason/riskAccepted 時 blocked 或只能保持 private draft。
+- [ ] No-provider bridge proof 必須顯示 `AiUsageLog` count unchanged；若新增 summary/chat provider route，success/error 都必須寫 `AiUsageLog` 並納入 `pnpm ai:usage-audit`。
+- [ ] Cross-role proof 覆蓋 member owner success 與 manager/foreign denied；org aggregate API 不回 note text、transcript、memory text 或 client private payload。
+
+---
+
+## 10. UI / Browser QA
 
 - [ ] `/interview` desktop 1440x1000 console error 0、無水平 overflow。
 - [ ] `/interview` mobile 390x844 console error 0、無水平 overflow。
@@ -112,7 +126,7 @@
 
 ---
 
-## 10. Verification Commands
+## 11. Verification Commands
 
 每張卡依變更範圍執行：
 
@@ -126,7 +140,7 @@
 
 ---
 
-## 11. Hard Stop Conditions
+## 12. Hard Stop Conditions
 
 不得標完成：
 
@@ -137,4 +151,3 @@
 - Realtime route 繞過 session/quota guard。
 - Theater build packet 把 unknown 當 NPC 事實。
 - AI route 沒有 `AiUsageLog` success/error proof。
-

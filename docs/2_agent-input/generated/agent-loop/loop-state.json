@@ -64,11 +64,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 3,
+    "normalLoopsSinceLastWholeProductReview": 4,
     "lastWholeProductReviewAt": "2026-06-20",
     "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-20_lv3-whole-product-gap-review-after-ras-004a.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "RAS-005 cross-role sidebar QA/docs sync completed with fixture/source/headless Browser proof, plus manager billing/org-write route policy hardening. If Supabase DB/DNS recovers before the next loop, implement ITA-003f/S1 Route B relationship-graph stage map (no-provider) from the PLN-015 and ACC-006 stage-map acceptance notes, then rerun BFF-103d related-list proof. If DB remains blocked, run a quiet five-frame gap-research documentation loop on the next LV3 source gap, likely AI meeting memory / quick-capture notes ownership, without staging unrelated existing dirty files.",
+    "nextRecommendedImplementationSlice": "Quiet five-frame gap documentation completed for PIM-011 post-visit quick-capture -> Park memory bridge. Cadence is now 4, so the next loop should run the scheduled LV3 whole-product gap review prompt. That review should compare DB-recovered ITA-003f/S1 Route B relationship-graph stage map, BFF-103d related-list proof recovery, and PIM-011 quick-capture bridge implementation; do not stage unrelated existing AI meeting/notes dirty files unless that review explicitly selects them.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {
