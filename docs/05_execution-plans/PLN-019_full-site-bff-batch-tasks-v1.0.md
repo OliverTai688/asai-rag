@@ -34,8 +34,8 @@
 | BFF-101 | Member dashboard BFF | [ ] | BFF-002 |
 | BFF-102 | Member settings BFF hardening | [ ] | BFF-002 |
 | BFF-103 | CRM BFF completion | [ ] | BFF-002 |
-| BFF-104 | Visit / pre-visit BFF | [ ] | BFF-002 |
-| BFF-105 | Reports / share action BFF | [ ] | BFF-002 |
+| BFF-104 | Visit / pre-visit BFF | [x] | BFF-002 |
+| BFF-105 | Reports / share action BFF | [x] | BFF-002 |
 | BFF-106 | Issues BFF | [ ] | BFF-002 |
 | BFF-201 | AI BFF audit gate | [ ] | BFF-002 |
 | BFF-202 | Visit/report AI hardening | [ ] | BFF-201 |
@@ -175,13 +175,15 @@ Whole-product review 註記（2026-06-20）：下一個 LV3 implementation loop 
 
 目標：讓 reports library/detail/edit/share action 全部由 BFF 管理。
 
-- [ ] 建立 `GET /api/reports` 與 `GET/PATCH /api/reports/[id]`。
-- [ ] 建立 `POST /api/reports/[id]/share` 或等價 action，產生 share token/server-side CTA config。
-- [ ] Report detail DTO 分 edit/share/preview mode，不回 client-private internal fields 給 public DTO。
-- [ ] `/reports`、`/reports/[reportId]`、CRM report subpage 改 BFF/cache-first。
-- [ ] Share action 寫 audit/event；public share 仍走 `/api/share/[token]`。
-- [ ] API/browser proof 覆蓋 invalid report、foreign org、success share。
-- [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+- [x] 建立 `GET /api/reports` 與 `GET/PATCH /api/reports/[id]`。
+- [x] 建立 `POST /api/reports/[id]/share` 或等價 action，產生 share token/server-side CTA config。
+- [x] Report detail DTO 分 edit/share/preview mode，不回 client-private internal fields 給 public DTO。
+- [x] `/reports`、`/reports/[reportId]`、CRM report subpage 改 BFF/cache-first。
+- [x] Share action 寫 audit/event；public share 仍走 `/api/share/[token]`。
+- [x] API/browser proof 覆蓋 invalid report、foreign org、success share。
+- [x] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+
+完成註記（2026-06-20）：已完成 BFF-105。新增 `src/lib/report/report-repository.ts` 的 member-scoped report list/detail/create/update/share schemas 與 repository 方法、`GET/POST /api/reports`、`GET/PATCH /api/reports/[id]`、`POST /api/reports/[id]/share`，並讓 `/reports`、`/reports/[reportId]`、`/crm/[clientId]/reports` 改走 BFF/cache-first。`Report` DTO 分 member internal sections 與 client-safe sections；public share 仍透過 `/api/share/[token]`，不回 internal/performance section。新增 `pnpm bff:reports-qa`：API proof 覆蓋 unauth 401、member list/create/detail/update/share、invalid section 400、manager foreign read 404、ShareEvent count 增加與 public share no-leak；browser proof 覆蓋 reports list/detail desktop/mobile no overflow。此卡不呼叫 provider、不改 Prisma schema、不做 production write；DB proof 僅新增可辨識 demo/test `Report`、`ReportShare` 與 `ShareEvent` evidence。
 
 ---
 

@@ -54,8 +54,11 @@ export default function ReportListPage() {
 function ReportListContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const isQuickstart = searchParams.get("demo") === "quickstart";
   const reports = useReportStore((state) => state.reports);
   const addReport = useReportStore((state) => state.addReport);
+  const replaceReports = useReportStore((state) => state.replaceReports);
+  const upsertReports = useReportStore((state) => state.upsertReports);
   const spinSessions = useSpinStore((state) => state.sessions);
   const scoresBySession = useTheaterStore((state) => state.scoresBySession);
   const clients = useClientStore((state) => state.clients);
@@ -63,6 +66,8 @@ function ReportListContent() {
   const [sourceOpen, setSourceOpen] = useState(false);
   const [purpose, setPurpose] = useState<ReportPurpose>(DEFAULT_REPORT_PURPOSE);
   const [goal, setGoal] = useState("");
+  const [isLoadingReports, setIsLoadingReports] = useState(!isQuickstart);
+  const [loadError, setLoadError] = useState("");
   const blankReportIdPrefix = useId().replace(/[^a-zA-Z0-9]/g, "");
   const blankReportCounterRef = useRef(0);
   const quickstartCreatedRef = useRef(false);
@@ -72,7 +77,45 @@ function ReportListContent() {
   }, []);
 
   useEffect(() => {
-    const shouldAutoCreate = searchParams.get("demo") === "quickstart" && searchParams.get("autoCreate") === "true";
+    if (isQuickstart) return;
+
+    let ignore = false;
+
+    async function loadReports() {
+      setIsLoadingReports(true);
+      setLoadError("");
+
+      try {
+        const response = await fetch("/api/reports", { cache: "no-store" });
+        const payload = await response.json().catch(() => null);
+
+        if (!response.ok || !Array.isArray(payload?.reports)) {
+          throw new Error(payload?.message || "REPORTS_LOAD_FAILED");
+        }
+
+        if (!ignore) {
+          replaceReports(payload.reports);
+        }
+      } catch {
+        if (!ignore) {
+          setLoadError("報告庫暫時無法同步，請稍後重試。");
+        }
+      } finally {
+        if (!ignore) {
+          setIsLoadingReports(false);
+        }
+      }
+    }
+
+    void loadReports();
+
+    return () => {
+      ignore = true;
+    };
+  }, [isQuickstart, replaceReports]);
+
+  useEffect(() => {
+    const shouldAutoCreate = isQuickstart && searchParams.get("autoCreate") === "true";
     if (!shouldAutoCreate || quickstartCreatedRef.current) return;
     quickstartCreatedRef.current = true;
 
@@ -97,7 +140,7 @@ function ReportListContent() {
 
     addReport(newReport);
     router.replace(`/reports/${newReport.id}?demo=quickstart`);
-  }, [addReport, router, scoresBySession, searchParams, spinSessions]);
+  }, [addReport, isQuickstart, router, scoresBySession, searchParams, spinSessions]);
 
   const filteredReports = useMemo(() => {
     const term = query.trim().toLowerCase();
@@ -121,56 +164,54 @@ function ReportListContent() {
 
   const goalValue = goal.trim() || undefined;
 
-  const handleGenerateFromSpin = (spin: SpinSession) => {
-    const theaterScore = Object.values(scoresBySession)[0];
-    const newReport = reportService.generateReport({
-      clientId: spin.clientId,
-      clientName: spin.clientName,
-      purpose,
-      goal: goalValue,
-      client: clientService.getClientById(spin.clientId),
-      spinSession: spin,
-      theaterScore,
-    });
+  const createServerReport = async (input: { clientId: string; fallbackName: string; title?: string }) => {
+    try {
+      const response = await fetch("/api/reports", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          clientId: input.clientId,
+          purpose,
+          goal: goalValue,
+          title: input.title,
+        }),
+      });
+      const payload = await response.json().catch(() => null);
 
-    addReport(newReport);
-    setSourceOpen(false);
-    toast.success(`${spin.clientName} 的報告已生成`);
-    router.push(`/reports/${newReport.id}`);
+      if (!response.ok || !payload?.report) {
+        throw new Error(payload?.message || "REPORT_CREATE_FAILED");
+      }
+
+      upsertReports([payload.report]);
+      setSourceOpen(false);
+      toast.success(`${payload.report.clientName ?? input.fallbackName} 的報告已建立`);
+      router.push(`/reports/${payload.report.id}`);
+    } catch {
+      toast.error("報告建立失敗，請確認客戶資料仍可讀取。");
+    }
+  };
+
+  const handleGenerateFromSpin = (spin: SpinSession) => {
+    void createServerReport({
+      clientId: spin.clientId,
+      fallbackName: spin.clientName,
+      title: `${spin.clientName} SPIN 決策報告`,
+    });
   };
 
   const handleGenerateForClient = (client: Client) => {
-    const spin = sortedSpinSessions.find((session) => session.clientId === client.id);
-    const theaterScore = Object.values(scoresBySession)[0];
-    const newReport = reportService.generateReport({
+    void createServerReport({
       clientId: client.id,
-      clientName: client.name,
-      purpose,
-      goal: goalValue,
-      client,
-      spinSession: spin,
-      theaterScore,
+      fallbackName: client.name,
+      title: `${client.name} ${REPORT_PURPOSES.find((item) => item.id === purpose)?.label ?? "決策報告"}`,
     });
-
-    addReport(newReport);
-    setSourceOpen(false);
-    toast.success(`${client.name} 的報告已生成`);
-    router.push(`/reports/${newReport.id}`);
   };
 
   const handleGenerateBlank = () => {
     blankReportCounterRef.current += 1;
-    const newReport = reportService.generateReport({
-      clientId: `adhoc_${blankReportIdPrefix}_${blankReportCounterRef.current}`,
-      clientName: "未命名客戶",
-      purpose,
-      goal: goalValue,
+    toast.info("請先選擇一位客戶", {
+      description: `報告已改為 server-owned，需要客戶資料作為持久化來源（${blankReportIdPrefix}-${blankReportCounterRef.current}）。`,
     });
-
-    addReport(newReport);
-    setSourceOpen(false);
-    toast.success("空白報告已生成，可直接編輯");
-    router.push(`/reports/${newReport.id}`);
   };
 
   return (
@@ -305,10 +346,10 @@ function ReportListContent() {
         </Dialog>
       </header>
 
-      {searchParams.get("demo") === "quickstart" ? <QuickstartGuide currentStepId="report" /> : null}
+      {isQuickstart ? <QuickstartGuide currentStepId="report" /> : null}
 
       <section className="grid gap-3 sm:grid-cols-3">
-        <Metric label="全部報告" value={String(stats.total)} helper="本機工作區" />
+        <Metric label="全部報告" value={String(stats.total)} helper="server-owned" />
         <Metric label="已分享" value={String(stats.shared)} helper="已建立公開 token" />
         <Metric label="最近更新" value={stats.updated ? "今日" : "--"} helper={stats.updated ? "依更新時間排序" : "尚無報告"} />
       </section>
@@ -328,7 +369,11 @@ function ReportListContent() {
             <p className="text-sm text-muted-foreground">{filteredReports.length} 份報告</p>
           </div>
 
-          {filteredReports.length ? (
+          {isLoadingReports ? (
+            <ReportListLoading />
+          ) : loadError ? (
+            <ReportListError message={loadError} />
+          ) : filteredReports.length ? (
             <div className="divide-y divide-hairline">
               {filteredReports.map((report) => (
                 <ReportRow key={report.id} report={report} />
@@ -363,7 +408,7 @@ function ReportRow({ report }: { report: Report }) {
           <FileText className="h-4 w-4" />
         </span>
         <span className="min-w-0">
-          <span className="block truncate text-sm font-semibold text-ink">{report.clientName} 決策報告</span>
+          <span className="block truncate text-sm font-semibold text-ink">{report.title ?? `${report.clientName} 決策報告`}</span>
           <span className="mt-1 flex flex-wrap gap-2 text-xs text-muted-foreground">
             <span>V{report.version}.0</span>
             <span>{report.sections.length} 區塊</span>
@@ -387,7 +432,7 @@ function ReportRow({ report }: { report: Report }) {
               <Link
                 href={`/reports/${report.id}`}
                 className="flex h-10 w-10 items-center justify-center rounded-full border border-hairline text-muted-foreground transition hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                aria-label={`開啟 ${report.clientName} 報告`}
+                aria-label={`開啟 ${report.title ?? report.clientName} 報告`}
               />
             }
           >
@@ -401,7 +446,7 @@ function ReportRow({ report }: { report: Report }) {
               <button
                 type="button"
                 className="flex h-10 w-10 items-center justify-center rounded-full border border-hairline text-muted-foreground transition hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                aria-label={`${report.clientName} 更多操作`}
+                aria-label={`${report.title ?? report.clientName} 更多操作`}
               />
             }
           >
@@ -430,4 +475,14 @@ function EmptyReportState({ hasQuery }: { hasQuery: boolean }) {
 
 function ReportListLoading() {
   return <div className="p-10 text-center text-sm font-medium text-muted-foreground">載入報告庫...</div>;
+}
+
+function ReportListError({ message }: { message: string }) {
+  return (
+    <div className="p-10 text-center">
+      <FileText className="mx-auto h-8 w-8 text-muted-foreground" />
+      <h2 className="mt-4 text-base font-semibold text-ink">報告庫同步失敗</h2>
+      <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-muted-foreground">{message}</p>
+    </div>
+  );
 }

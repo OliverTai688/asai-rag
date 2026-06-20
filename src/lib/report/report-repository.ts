@@ -3,13 +3,18 @@ import type { Prisma } from "@/generated/prisma/client";
 import { ClientStatus, ReportStatus } from "@/generated/prisma/enums";
 import { canReadClientDetail } from "@/lib/auth/policies";
 import type { AppSession } from "@/lib/auth/session";
+import { sanitizeShareEventPayload } from "@/lib/api/sanitize";
+import { getReportPurposeMeta } from "@/domains/report/blueprints";
+import { reportService } from "@/domains/report/service";
+import { INTERNAL_ONLY_SECTION_TYPES, type ReportSection, type ReportSectionType } from "@/domains/report/types";
+import { toClientDto, type ClientRecord } from "@/lib/clients/client-dto";
 import { prisma } from "@/lib/prisma";
 import { toReportDto, type ReportRecord } from "./report-dto";
 
 const CUID_PATTERN = /^c[a-z0-9]{20,}$/;
 
 const reportInclude = {
-  client: { select: { id: true, name: true } },
+  client: { select: { id: true, name: true, organizationId: true, unitId: true, ownerId: true } },
   shares: { orderBy: { createdAt: "desc" } },
 } as const;
 
@@ -81,6 +86,233 @@ type InterviewOutput = z.infer<typeof interviewOutputSchema>;
 
 type ReportSectionDraft = { type: string; title: string; content: string };
 
+const reportPurposeSchema = z.enum([
+  "comprehensive",
+  "proposal",
+  "policy_review",
+  "family_protection",
+  "retirement",
+  "follow_up",
+]);
+
+const reportSectionTypeSchema = z.enum([
+  "situation",
+  "problem",
+  "implication",
+  "recommendation",
+  "summary",
+  "performance",
+  "cover",
+  "methodology",
+  "analysis",
+  "family",
+  "action",
+  "compliance",
+  "appendix",
+]);
+
+const reportSectionInputSchema = z.object({
+  id: z.string().trim().max(120).optional(),
+  type: reportSectionTypeSchema.default("summary"),
+  title: z.string().trim().min(1).max(160),
+  content: z.string().trim().min(1).max(20000),
+});
+
+export const createReportInputSchema = z.object({
+  clientId: z.string().trim().min(1).max(120),
+  purpose: reportPurposeSchema.default("comprehensive"),
+  goal: z.string().trim().max(240).optional().or(z.literal("")),
+  title: z.string().trim().max(160).optional().or(z.literal("")),
+  sections: z.array(reportSectionInputSchema).max(12).optional(),
+});
+
+export const updateReportInputSchema = z.object({
+  sectionId: z.string().trim().min(1).max(160),
+  content: z.string().trim().min(1).max(20000),
+});
+
+export const shareReportInputSchema = z
+  .object({
+    source: z.string().trim().max(80).optional(),
+  })
+  .optional()
+  .default({});
+
+export type CreateReportInput = z.infer<typeof createReportInputSchema>;
+export type UpdateReportInput = z.infer<typeof updateReportInputSchema>;
+export type ShareReportInput = z.infer<typeof shareReportInputSchema>;
+
+const clientReportInclude = {
+  complianceChecklist: true,
+  familyMembers: { orderBy: { createdAt: "asc" } },
+  policies: { orderBy: { createdAt: "asc" } },
+} as const;
+
+export async function listReportsForMember(session: AppSession, options: { clientId?: string } = {}) {
+  const records = await prisma.report.findMany({
+    where: {
+      organizationId: session.organization.id,
+      ...(options.clientId ? { clientId: options.clientId } : {}),
+      client: {
+        ownerId: session.user.id,
+        organizationId: session.organization.id,
+        status: { not: ClientStatus.ARCHIVED },
+      },
+    },
+    include: reportInclude,
+    orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }],
+  });
+
+  return records.map((record) => toReportDto(record as ReportRecord));
+}
+
+export async function getReportForMember(session: AppSession, reportId: string) {
+  const record = await findReadableReportRecord(session, reportId);
+  return record ? toReportDto(record) : null;
+}
+
+export async function createReportForMember(session: AppSession, input: CreateReportInput) {
+  const client = await prisma.client.findFirst({
+    where: {
+      id: input.clientId,
+      organizationId: session.organization.id,
+      status: { not: ClientStatus.ARCHIVED },
+    },
+    include: clientReportInclude,
+  });
+
+  if (!client || !canReadClientDetail(session, client)) {
+    return null;
+  }
+
+  const clientDto = toClientDto(client as ClientRecord);
+  const purpose = input.purpose;
+  const meta = getReportPurposeMeta(purpose);
+  const generated = input.sections?.length
+    ? toSectionsFromInput(input.sections)
+    : reportService.generateReport({
+        clientId: clientDto.id,
+        clientName: clientDto.name,
+        purpose,
+        goal: input.goal?.trim() || undefined,
+        client: clientDto,
+      }).sections;
+  const clientSections = toClientSections(generated);
+
+  const record = await prisma.report.create({
+    data: {
+      organizationId: session.organization.id,
+      unitId: client.unitId ?? session.membership.primaryUnitId,
+      clientId: client.id,
+      ownerId: session.user.id,
+      title: input.title?.trim() || `${client.name} ${meta.label}`,
+      status: ReportStatus.DRAFT,
+      internalSections: generated as unknown as Prisma.InputJsonValue,
+      clientSections: clientSections as unknown as Prisma.InputJsonValue,
+    },
+    include: reportInclude,
+  });
+
+  return toReportDto(record as ReportRecord);
+}
+
+export async function updateReportForMember(session: AppSession, reportId: string, input: UpdateReportInput) {
+  const record = await findReadableReportRecord(session, reportId);
+
+  if (!record) {
+    return null;
+  }
+
+  const sections = toEditableSections(record.internalSections ?? record.clientSections);
+  const sectionIndex = sections.findIndex((section) => section.id === input.sectionId);
+
+  if (sectionIndex < 0) {
+    return { error: "REPORT_SECTION_NOT_FOUND" as const };
+  }
+
+  const nextSections = sections.map((section, index) =>
+    index === sectionIndex
+      ? {
+          ...section,
+          content: input.content,
+          isEdited: true,
+        }
+      : section,
+  );
+
+  const updated = await prisma.report.update({
+    where: { id: reportId },
+    data: {
+      internalSections: nextSections as unknown as Prisma.InputJsonValue,
+      clientSections: toClientSections(nextSections) as unknown as Prisma.InputJsonValue,
+      isEdited: true,
+      version: { increment: 1 },
+    },
+    include: reportInclude,
+  });
+
+  return toReportDto(updated as ReportRecord);
+}
+
+export async function shareReportForMember(session: AppSession, reportId: string, input: ShareReportInput = {}) {
+  const record = await findReadableReportRecord(session, reportId);
+
+  if (!record) {
+    return null;
+  }
+
+  const updated = await prisma.$transaction(async (tx) => {
+    const existingShare = await tx.reportShare.findFirst({
+      where: {
+        reportId,
+        organizationId: session.organization.id,
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    const share =
+      existingShare ??
+      (await tx.reportShare.create({
+        data: {
+          organizationId: record.organizationId,
+          unitId: record.unitId,
+          reportId,
+          ctaConfig: {
+            primaryLabel: "預約下一步",
+            primaryHref: "#next-step",
+            secondaryLabel: "登入客戶入口",
+            secondaryHref: "/client-login",
+          },
+          isDemo: record.isDemo,
+          demoScenario: record.demoScenario,
+          demoSeedVersion: record.demoSeedVersion,
+        },
+      }));
+
+    await tx.shareEvent.create({
+      data: {
+        organizationId: share.organizationId,
+        unitId: share.unitId,
+        shareId: share.id,
+        type: "CLICK",
+        payload: sanitizeShareEventPayload({
+          source: input.source || "member_report_share_action",
+          label: existingShare ? "reuse_share_link" : "create_share_link",
+          href: `/share/${share.token}`,
+        }),
+      },
+    });
+
+    return tx.report.update({
+      where: { id: reportId },
+      data: { status: ReportStatus.SHARED },
+      include: reportInclude,
+    });
+  });
+
+  return toReportDto(updated as ReportRecord);
+}
+
 export async function listReportsForClient(session: AppSession, clientId: string) {
   const client = await prisma.client.findFirst({
     where: {
@@ -145,6 +377,74 @@ export async function createReportFromInterview(
   });
 
   return toReportDto(record as ReportRecord);
+}
+
+async function findReadableReportRecord(session: AppSession, reportId: string): Promise<ReportRecord | null> {
+  const record = await prisma.report.findFirst({
+    where: {
+      id: reportId,
+      organizationId: session.organization.id,
+      client: {
+        organizationId: session.organization.id,
+        status: { not: ClientStatus.ARCHIVED },
+      },
+    },
+    include: reportInclude,
+  });
+
+  if (!record || !record.client || !canReadClientDetail(session, record.client)) {
+    return null;
+  }
+
+  return record as ReportRecord;
+}
+
+function toSectionsFromInput(sections: Array<z.infer<typeof reportSectionInputSchema>>): ReportSection[] {
+  return sections.map((section, index) => ({
+    id: section.id?.trim() || `section-${index + 1}`,
+    type: section.type,
+    title: section.title,
+    content: section.content,
+  }));
+}
+
+function toEditableSections(value: unknown): ReportSection[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .map((entry, index): ReportSection | null => {
+      if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+        return null;
+      }
+
+      const raw = entry as Record<string, unknown>;
+      const title = typeof raw.title === "string" && raw.title.trim() ? raw.title.trim() : `報告區塊 ${index + 1}`;
+      const content = typeof raw.content === "string" ? raw.content : "";
+
+      return {
+        id: typeof raw.id === "string" && raw.id ? raw.id : `section-${index + 1}`,
+        type: normalizeReportSectionType(raw.type),
+        title,
+        content,
+        isEdited: raw.isEdited === true,
+      };
+    })
+    .filter((section): section is ReportSection => section !== null);
+}
+
+function toClientSections(sections: ReportSection[]): ReportSection[] {
+  return sections.filter((section) => !INTERNAL_ONLY_SECTION_TYPES.includes(section.type));
+}
+
+function normalizeReportSectionType(value: unknown): ReportSectionType {
+  if (typeof value !== "string") {
+    return "summary";
+  }
+
+  const parsed = reportSectionTypeSchema.safeParse(value.toLowerCase());
+  return parsed.success ? parsed.data : "summary";
 }
 
 async function resolveInterviewSessionId(

@@ -3,10 +3,16 @@ import type {
   Report as DbReport,
   ReportShare as DbReportShare,
 } from "@/generated/prisma/client";
-import type { Report, ReportSection, ReportSectionType, ShareMeta } from "@/domains/report/types";
+import {
+  INTERNAL_ONLY_SECTION_TYPES,
+  type Report,
+  type ReportSection,
+  type ReportSectionType,
+  type ShareMeta,
+} from "@/domains/report/types";
 
 export type ReportRecord = DbReport & {
-  client: Pick<DbClient, "id" | "name"> | null;
+  client: Pick<DbClient, "id" | "name" | "organizationId" | "unitId" | "ownerId"> | null;
   shares: DbReportShare[];
 };
 
@@ -17,11 +23,24 @@ const SECTION_TYPES: ReportSectionType[] = [
   "recommendation",
   "summary",
   "performance",
+  "cover",
+  "methodology",
+  "analysis",
+  "family",
+  "action",
+  "compliance",
+  "appendix",
 ];
 
 export function toReportDto(record: ReportRecord): Report {
+  const internalSections = toSections(record.internalSections ?? record.clientSections);
+  const clientSections = toSections(record.clientSections ?? []).length
+    ? toSections(record.clientSections)
+    : internalSections.filter((section) => !INTERNAL_ONLY_SECTION_TYPES.includes(section.type));
+
   return {
     id: record.id,
+    title: record.title,
     clientId: record.clientId,
     clientName: record.client?.name ?? "未命名客戶",
     spinSessionId: record.spinSessionId ?? undefined,
@@ -29,8 +48,10 @@ export function toReportDto(record: ReportRecord): Report {
     interviewSessionId: record.interviewSessionId ?? undefined,
     // The member-facing report editor renders the internal sections; the
     // client-safe subset is filtered separately at share time.
-    sections: toSections(record.internalSections ?? record.clientSections),
+    sections: internalSections,
+    clientSections,
     share: toShareMeta(record.shares[0]),
+    status: record.status,
     version: record.version,
     createdAt: record.createdAt.toISOString(),
     updatedAt: record.updatedAt.toISOString(),

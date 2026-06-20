@@ -1,7 +1,7 @@
 # AUD-006 Full-site BFF Data Source Inventory v1.0
 
 > 建立日期：2026-06-20  
-> 狀態：BFF-001 baseline complete  
+> 狀態：BFF-001 baseline complete; BFF-105 reports/share BFF complete
 > 對應計畫：`docs/05_execution-plans/PLN-019_full-site-bff-batch-tasks-v1.0.md`  
 > 驗收依據：`docs/08_acceptance-and-qa/ACC-011_full-site-bff-acceptance-framework-v1.0.md`
 
@@ -20,7 +20,7 @@
 ## Executive Summary
 
 - **可作 LV3 server-owned proof 的核心鏈路**：`/crm` client list/detail、`/crm/[clientId]/relationships` relationship graph review、`/pre-visit` list/detail/notes/create/update、`/theater/build` client/visit handoff、Route B `/theater/[sessionId]` persisted session and advisor turns、public `/share/[token]`、client portal、org/platform/settings/pricing APIs。
-- **最高優先 BFF 缺口**：`/reports` 與 `/reports/[reportId]` 仍以 `useReportStore` + client-side `reportService.generateReport()` / share token action 為主；CRM report subpage 雖已有 `/api/clients/[id]/reports` 和 `/api/ai/report`，但 reports library 尚無 `/api/reports` owner-scoped contract。
+- **最高優先 BFF 缺口**：BFF-105 後，member-facing `/reports` library/detail/share action 與 CRM report subpage 已有 `/api/reports` owner-scoped contract；下一批最高風險轉為 `/issues` static mock、`/team` mock aggregate、dashboard client-side aggregation、SPIN mock outline fallback、admin/pilot demo seed 與 notification mock success。
 - **明確 static/mock blockers**：`src/app/(dashboard)/issues/page.tsx` 的 `MOCK_ISSUES`、`src/app/(dashboard)/team/team-page-client.tsx` 的 `MOCK_TEAM_MEMBERS`、`src/app/(admin)/admin/page.tsx` 與 `src/app/(dashboard)/pilot/page.tsx` 的 `@/domains/demo/seed-fixtures`。
 - **local truth baseline**：`src/domains/client/store.ts`、`src/domains/event/store.ts`、`src/domains/report/store.ts`、`src/domains/visit/store.ts`、`src/domains/spin/store.ts` 仍從 demo seed 初始化；其中 visit/client 已有 BFF path，但 store seed 仍需保留為 cache fallback 或 demo-only 並逐步清除 production dependency。
 - **browser storage baseline**：`src/domains/assistant/store.ts` 僅 persist `isPanelOpen`，`src/components/demo/dashboard-welcome-card.tsx` 僅保存 quickstart UI 狀態；`src/domains/calendar/store.ts` persist Google connected flag，但 events 仍有 local seed，需列入 future calendar BFF。
@@ -38,7 +38,7 @@
 | Relationship graph | `/crm/[clientId]/relationships` | DB/BFF ready for review; partial writes complete | `GET /api/clients/[id]/relationship-graph`, `PATCH/DELETE /api/clients/[id]/family-members/[memberId]` | member | relationship graph review DTO, family write DTO | server session | write proof through client repository | `pnpm client:relationship-graph-qa`, `pnpm client:relationship-graph-write-qa` | BFF-103 needs parentMemberId persistence and related subresources. |
 | CRM policies | `/crm/[clientId]/policies` | Partial BFF / mixed | `POST /api/clients/[id]/policies` exists; list/detail BFF partial | member | policy DTO must keep compliance checklist / KYC / sensitivity | server session | policy write audit needed | pending | BFF-103. |
 | CRM timeline | `/crm/[clientId]/timeline` | Partial BFF / local event source | missing related-list BFF | member | interaction/timeline DTO | server session | interaction event source required | pending | BFF-103. |
-| CRM reports subpage | `/crm/[clientId]/reports` | Mixed | `GET /api/clients/[id]/reports`, `/api/ai/report` exists | member | client report list/action DTO | server session | AI generation must write `AiUsageLog`; share/write audit needed | partial existing | BFF-105 plus BFF-202. |
+| CRM reports subpage | `/crm/[clientId]/reports` | DB/BFF ready for deterministic report storage; mixed for AI generation route | `GET /api/reports?clientId=...`, `POST /api/reports`, `/api/ai/report` exists | member | client report list/action DTO | server session | BFF report writes/share events audited; AI generation must write `AiUsageLog` | `pnpm bff:reports-qa`; AI route covered by `pnpm demo:ai-generation-qa` | BFF-105 complete; BFF-202 keeps `/api/ai/report` hardening/audit coverage. |
 | Gap analysis | `/crm/[clientId]/gap-analysis` | Mixed | missing gap-analysis related-list BFF | member | facts/inferences/unknowns recommendation DTO | server session | inference labels required | pending | BFF-103 or BFF-106-like recommendation BFF. |
 | Pre-visit list/create | `/pre-visit` | DB/BFF ready | `GET/POST /api/visits` | member | VisitPlan list/create DTO | server session | no provider call in CRUD path | `pnpm visit:bff-qa` | Complete for BFF-104; keep `/api/ai/visit` separate. |
 | Pre-visit detail | `/pre-visit/[planId]` | DB/BFF ready | `GET/PATCH /api/visits/[id]`, `POST /api/visits/[id]/theater-handoff` | member | preparation package, checklist, reasoning evidence, notes | server session | no raw prompt/provider payload | `pnpm visit:bff-qa` | Complete for BFF-104; provider generation hardening in BFF-202. |
@@ -49,8 +49,8 @@
 | Legacy theater AI | legacy `/api/ai/theater`, `/api/ai/theater/score` | Mixed / legacy | existing AI routes | member/session | legacy persona/score DTO | route-specific | must keep legacy contract and write `AiUsageLog` on provider call | `pnpm ai:usage-audit` | BFF-204; do not change enum outside approved ITA. |
 | SPIN list/session | `/spin`, `/spin/[sessionId]` | Local/Zustand truth with AI routes | `/api/ai/spin`, `/api/ai/spin-suggestions`, mock outline fallback | member/session | SPIN state machine DTO | currently local session store | provider calls must write `AiUsageLog` | pending SPIN hardening | BFF-203; preserve `SITUATION -> PROBLEM -> IMPLICATION -> NEED_PAYOFF`. |
 | Interview workspace | `/interview` | DB/BFF ready for persisted interview; mixed for voice provider | `/api/ai/interview/sessions`, `/turns`, `/reflections`, `/plans`, `/writebacks`, realtime routes | member | Interview session/turn/memory/reflection/writeback DTO | server session | provider session marker / `AiUsageLog` rules already audited | `pnpm interview:cross-mode-qa` | Live realtime provider proof still requires approval. |
-| Reports library | `/reports` | Local/Zustand truth | missing `GET /api/reports` | member | report library DTO | should be server session | share/report write audit required | pending | BFF-105. Current page reads `useReportStore`, `useClientStore`, `useSpinStore`, `useTheaterStore`. |
-| Report detail/share | `/reports/[reportId]` | Local/Zustand truth | missing `GET/PATCH /api/reports/[id]`, `POST /api/reports/[id]/share` | member | edit/share/preview DTO | should be server session | share action must write audit/event | pending | BFF-105. Current share token action is client/local service driven. |
+| Reports library | `/reports` | DB/BFF ready with cache; quickstart local branch | `GET/POST /api/reports` | member | report library DTO | server session | report create/update via repository; no provider call in CRUD path | `pnpm bff:reports-qa` | BFF-105 complete. Blank/orphan report create is intentionally blocked because `Report.clientId` is required. |
+| Report detail/share | `/reports/[reportId]` | DB/BFF ready with cache; quickstart local branch | `GET/PATCH /api/reports/[id]`, `POST /api/reports/[id]/share` | member | member edit DTO plus client-safe sections | server session | share action creates/reuses `ReportShare` and writes sanitized `ShareEvent` | `pnpm bff:reports-qa` | BFF-105 complete. Public preview stays separate through `/api/share/[token]`. |
 | Public shared report | `/share/[token]` | DB/BFF ready | `GET /api/share/[token]`, `POST /api/share/[token]/events` | public token | public report DTO | token-scoped server route | share view events | `pnpm share:token-qa` | Keep separate from member report detail DTO. |
 | Issues | `/issues` | Static fixture/mock | missing `GET /api/issues`, `PATCH /api/issues/[id]` | member | issue/recommendation DTO | should be server session | issue action audit required | pending | BFF-106. Current `src/app/(dashboard)/issues/page.tsx` uses `MOCK_ISSUES`. |
 | Team page | `/team` | Static fixture/mock | missing or partial org aggregate BFF | org manager/member | team coaching summary DTO | server session / role aware | org aggregate must not leak client detail/private transcript | pending | BFF-301. Current `src/app/(dashboard)/team/team-page-client.tsx` uses `MOCK_TEAM_MEMBERS`. |
@@ -77,7 +77,7 @@ The following paths are known production-facing or production-adjacent risk poin
 | `src/app/(dashboard)/spin/[sessionId]/page.tsx` | `/api/mock/ai/spin-outline` | Mock fallback | BFF-203. |
 | `src/domains/client/store.ts` | `demoSeedClients` | Local/Zustand truth seed | BFF-103 store cleanup after remote writes complete. |
 | `src/domains/event/store.ts` | `demoSeedEvents` | Local/Zustand truth seed | BFF-101 / timeline BFF. |
-| `src/domains/report/store.ts` | `demoSeedReports` | Local/Zustand truth seed | BFF-105. |
+| `src/domains/report/store.ts` | `demoSeedReports` | Local cache / quickstart seed after BFF-105 | Keep as cache/demo-only; production report list/detail/share should hydrate from `/api/reports`. |
 | `src/domains/visit/store.ts` | `demoSeedVisitPlans` | Local cache seeded from demo fixtures | BFF-104 already provides BFF path; follow-up can remove production dependency. |
 | `src/domains/spin/store.ts` | `demoSeedSpinSessions`, `demoSeedSpinMessages` | Local/Zustand truth seed | BFF-203. |
 | `src/domains/calendar/store.ts` | persisted store with seeded events | Local/Zustand truth seed | Future calendar BFF. |
@@ -90,18 +90,19 @@ The following paths are known production-facing or production-adjacent risk poin
 ## Existing Server-owned Proofs
 
 - `pnpm visit:bff-qa` proves `/api/visits` and `/api/visits/[id]` create/update/reload, reasoning evidence, notes persistence, theater handoff and no raw private sentinel without provider calls.
+- `pnpm bff:reports-qa` proves `/api/reports` list/create, `/api/reports/[id]` detail/update, `/api/reports/[id]/share`, sanitized `ShareEvent`, public share client-safe sections, invalid/foreign guards, and reports list/detail browser persistence without provider calls.
 - `pnpm client:relationship-graph-qa` and `pnpm client:relationship-graph-write-qa` prove relationship graph review and family member remote-confirmed write path.
 - `pnpm theater:client-build-qa`, `pnpm visit:theater-gate-qa`, `pnpm theater:route-b-persistence-qa`, `pnpm theater:route-b-session-ui-qa`, and `pnpm theater:route-b-interaction-qa` prove Route B handoff/session/turn storage without provider calls.
 - `pnpm share:token-qa`, `pnpm client-portal:qa`, `pnpm public:pricing-qa`, and org/platform QA scripts cover public/client/org/platform BFF islands.
 
 ## Next BFF Queue
 
-1. **BFF-105 Reports / share action BFF**: highest LV3 flow impact after foundation because preparation package and theater proof eventually need a server-owned advisor report/share surface.
-2. **BFF-106 Issues BFF**: remove the visible `MOCK_ISSUES` production-facing page and convert AI recommendations into fact/inference/unknown DTOs.
-3. **BFF-101 Member dashboard BFF**: replace dashboard client-side aggregation with one member-scoped decision-center DTO.
-4. **BFF-301 Team/org aggregate**: replace `MOCK_TEAM_MEMBERS` and ensure manager aggregate never returns client detail, report body, transcript or private memory.
-5. **BFF-203 SPIN hardening**: preserve the SPIN state machine while removing mock outline fallback and local seed truth from production proof.
-6. **BFF-204 / ITA-003f Route B provider orchestration**: only after explicit provider/cost approval; success/error paths must write `AiUsageLog`, and raw provider payload must not be stored.
+1. **BFF-106 Issues BFF**: remove the visible `MOCK_ISSUES` production-facing page and convert AI recommendations into fact/inference/unknown DTOs.
+2. **BFF-101 Member dashboard BFF**: replace dashboard client-side aggregation with one member-scoped decision-center DTO.
+3. **BFF-301 Team/org aggregate**: replace `MOCK_TEAM_MEMBERS` and ensure manager aggregate never returns client detail, report body, transcript or private memory.
+4. **BFF-203 SPIN hardening**: preserve the SPIN state machine while removing mock outline fallback and local seed truth from production proof.
+5. **BFF-204 / ITA-003f Route B provider orchestration**: only after explicit provider/cost approval; success/error paths must write `AiUsageLog`, and raw provider payload must not be stored.
+6. **BFF-202 Visit/report AI hardening follow-up**: keep `/api/ai/visit` and `/api/ai/report` usage/cost/error audit coverage aligned with the server-owned visit/report CRUD surfaces.
 
 ## BFF-001 Validation Notes
 

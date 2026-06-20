@@ -10,6 +10,7 @@ interface ReportState {
   
   // Actions
   addReport: (report: Report) => void;
+  replaceReports: (reports: Report[]) => void;
   upsertReports: (reports: Report[]) => void;
   updateReport: (id: string, updates: Partial<Report>) => void;
   updateSection: (reportId: string, sectionId: string, content: string) => void;
@@ -25,6 +26,10 @@ export const useReportStore = create<ReportState>()((set, get) => ({
 
   addReport: (report) => {
     set((state) => ({ reports: [report, ...state.reports] }));
+  },
+
+  replaceReports: (reports) => {
+    set({ reports });
   },
 
   // Merge DB-backed reports into the cache without dropping in-session reports.

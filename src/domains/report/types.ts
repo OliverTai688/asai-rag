@@ -72,6 +72,7 @@ export interface ShareCtaConfig {
 
 export interface Report {
   id: string;
+  title?: string;
   clientId: string;
   clientName: string;
   purpose?: ReportPurpose;
@@ -80,7 +81,9 @@ export interface Report {
   theaterSessionId?: string;
   interviewSessionId?: string;
   sections: ReportSection[];
+  clientSections?: ReportSection[];
   share?: ShareMeta;
+  status?: "DRAFT" | "READY" | "SHARED" | "ARCHIVED";
   version: number;
   createdAt: string;
   updatedAt: string;

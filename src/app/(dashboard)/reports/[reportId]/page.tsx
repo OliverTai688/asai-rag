@@ -55,6 +55,7 @@ function ReportEditorContent() {
   const searchParams = useSearchParams();
   const reportId = normalizeParam(params.reportId);
   const report = useReportStore((state) => state.reports.find((item) => item.id === reportId));
+  const upsertReports = useReportStore((state) => state.upsertReports);
   const updateSection = useReportStore((state) => state.updateSection);
   const generateShareToken = useReportStore((state) => state.generateShareToken);
   const [mode, setMode] = useState<ReportMode>("preview");
@@ -62,6 +63,46 @@ function ReportEditorContent() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
   const isQuickstart = searchParams.get("demo") === "quickstart";
+  const [isLoadingReport, setIsLoadingReport] = useState(Boolean(reportId && !isQuickstart));
+  const [loadError, setLoadError] = useState("");
+
+  useEffect(() => {
+    if (!reportId || isQuickstart) return;
+
+    let ignore = false;
+
+    async function loadReport() {
+      setIsLoadingReport(true);
+      setLoadError("");
+
+      try {
+        const response = await fetch(`/api/reports/${reportId}`, { cache: "no-store" });
+        const payload = await response.json().catch(() => null);
+
+        if (!response.ok || !payload?.report) {
+          throw new Error(payload?.message || "REPORT_LOAD_FAILED");
+        }
+
+        if (!ignore) {
+          upsertReports([payload.report]);
+        }
+      } catch {
+        if (!ignore) {
+          setLoadError("REPORT_LOAD_FAILED");
+        }
+      } finally {
+        if (!ignore) {
+          setIsLoadingReport(false);
+        }
+      }
+    }
+
+    void loadReport();
+
+    return () => {
+      ignore = true;
+    };
+  }, [isQuickstart, reportId, upsertReports]);
 
   useEffect(() => {
     if (!report && isQuickstart) {
@@ -69,12 +110,16 @@ function ReportEditorContent() {
     }
   }, [isQuickstart, report, router]);
 
-  if (!report || !reportId) {
+  if (isLoadingReport) {
+    return <ReportLoading />;
+  }
+
+  if (!report || !reportId || loadError) {
     return <ReportMissing isQuickstart={isQuickstart} />;
   }
 
   const client = clientService.getClientById(report.clientId);
-  const clientSections = reportService.getClientSections(report);
+  const clientSections = report.clientSections ?? reportService.getClientSections(report);
   const displaySections = audience === "internal" ? report.sections : clientSections;
   const shareUrl = typeof window !== "undefined" && report.share ? `${window.location.origin}/share/${report.share.token}` : "";
 
@@ -85,13 +130,72 @@ function ReportEditorContent() {
   };
 
   const handleSaveEdit = (sectionId: string) => {
-    updateSection(report.id, sectionId, editValue);
-    setEditingId(null);
-    toast.success("區塊已更新");
+    if (isQuickstart) {
+      updateSection(report.id, sectionId, editValue);
+      setEditingId(null);
+      toast.success("區塊已更新");
+      return;
+    }
+
+    void saveSectionEdit(sectionId);
+  };
+
+  const saveSectionEdit = async (sectionId: string) => {
+    try {
+      const response = await fetch(`/api/reports/${report.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sectionId, content: editValue }),
+      });
+      const payload = await response.json().catch(() => null);
+
+      if (!response.ok || !payload?.report) {
+        throw new Error(payload?.message || "REPORT_UPDATE_FAILED");
+      }
+
+      upsertReports([payload.report]);
+      setEditingId(null);
+      toast.success("區塊已更新");
+    } catch {
+      toast.error("區塊更新失敗，請稍後再試。");
+    }
   };
 
   const handleShare = async () => {
-    const token = report.share?.token || generateShareToken(report.id);
+    if (isQuickstart) {
+      const token = report.share?.token || generateShareToken(report.id);
+      const origin = typeof window !== "undefined" ? window.location.origin : "";
+      const url = `${origin}/share/${token}`;
+      try {
+        await navigator.clipboard.writeText(url);
+        toast.success("分享連結已複製");
+      } catch {
+        toast.info("分享連結已建立", { description: url });
+      }
+      setMode("share");
+      return;
+    }
+
+    let payload: { report?: Report } | null = null;
+
+    try {
+      const response = await fetch(`/api/reports/${report.id}/share`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ source: "report_detail_share_button" }),
+      });
+      payload = await response.json().catch(() => null);
+
+      if (!response.ok || !payload?.report?.share?.token) {
+        throw new Error("REPORT_SHARE_FAILED");
+      }
+    } catch {
+      toast.error("分享連結建立失敗，請稍後再試。");
+      return;
+    }
+
+    upsertReports([payload.report]);
+    const token = payload.report.share.token;
     const origin = typeof window !== "undefined" ? window.location.origin : "";
     const url = `${origin}/share/${token}`;
     try {
@@ -133,7 +237,9 @@ function ReportEditorContent() {
             <Badge variant="outline" className="rounded-full">{audience === "internal" ? "內部版" : "客戶版"}</Badge>
             {report.share ? <Badge variant="outline" className="rounded-full">已分享</Badge> : null}
           </div>
-          <h1 className="mt-4 text-3xl font-semibold tracking-tight text-ink sm:text-4xl">{report.clientName} 決策報告</h1>
+          <h1 className="mt-4 text-3xl font-semibold tracking-tight text-ink sm:text-4xl">
+            {report.title ?? `${report.clientName} 決策報告`}
+          </h1>
           {report.goal ? (
             <p className="mt-3 text-sm leading-6 text-ink">目標：{report.goal}</p>
           ) : null}

@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { nanoid } from "nanoid";
 import { toast } from "sonner";
 import { useClientRecord } from "@/components/crm/use-client-record";
 import { Badge } from "@/components/ui/badge";
@@ -40,7 +39,6 @@ export default function ClientReportsPage() {
     () => allReports.filter((report) => report.clientId === normalizedClientId),
     [allReports, normalizedClientId]
   );
-  const addReport = useReportStore((state) => state.addReport);
   const upsertReports = useReportStore((state) => state.upsertReports);
 
   // DB-backed reports (AI 了解客戶 outputs, SPIN/theater/visit reports) are the
@@ -50,7 +48,7 @@ export default function ClientReportsPage() {
 
     async function loadReports() {
       try {
-        const response = await fetch(`/api/clients/${normalizedClientId}/reports`, {
+        const response = await fetch(`/api/reports?clientId=${encodeURIComponent(normalizedClientId)}`, {
           cache: "no-store",
         });
         const payload = await response.json();
@@ -93,24 +91,27 @@ export default function ClientReportsPage() {
       if (!response.ok) throw new Error("生成失敗");
 
       const markdown = await response.text();
-      const newReport = {
-        id: nanoid(),
-        clientId: client.id,
-        clientName: client.name,
-        sections: [
-          {
-            id: nanoid(),
-            type: "summary" as const,
-            title: "AI 生成報告",
-            content: markdown,
-          },
-        ],
-        version: 1,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
+      const saveResponse = await fetch("/api/reports", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          clientId: client.id,
+          purpose: "proposal",
+          title: `${client.name} AI 生成報告`,
+          sections: [
+            {
+              type: "summary",
+              title: "AI 生成報告",
+              content: markdown,
+            },
+          ],
+        }),
+      });
+      const savedPayload = await saveResponse.json().catch(() => null);
 
-      addReport(newReport);
+      if (!saveResponse.ok || !savedPayload?.report) throw new Error("報告儲存失敗");
+
+      upsertReports([savedPayload.report]);
       setShowGenDialog(false);
       setReportPrompt("");
       toast.success("報告生成成功！");

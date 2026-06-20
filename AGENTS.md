@@ -1164,12 +1164,14 @@ Whole-product review 註記：2026-06-20 第五輪校準選定下一個最高槓
 完成註記：2026-06-20 新增 `GET/POST /api/visits`、`GET/PATCH /api/visits/[id]`、`VisitService` remote cache helpers 與 `pnpm visit:bff-qa`。`/pre-visit` list/create/autoCreate、`/pre-visit/[planId]` detail/generate save/material toggle、`/pre-visit/[planId]/notes` save/reload 均改為 member-scoped BFF/cache-first；Quickstart demo branch 保留 local fixture。Proof：`DEMO_QA_BASE_URL=http://localhost:3001 pnpm visit:bff-qa` 通過，覆蓋 unauth 401、demo create/patch/reload、reasoning evidence persistence、notes reload、persisted `visitPlanId` theater handoff、raw private sentinel 0、desktop/mobile no overflow。此 proof 不呼叫 `/api/ai/visit` 或 provider，無 AiUsageLog 需求；DB 僅新增/更新可辨識 demo `VisitPlan` evidence，無 schema/Prisma 變更。
 
 ### Batch BFF-105 — Reports / share action BFF
-- [ ] 建立 reports list/detail/update/share action BFF。
-- [ ] Report detail DTO 分 edit/share/preview mode，不把 public share DTO 與 member private DTO 混用。
-- [ ] Share action 寫 audit/event；public share 仍走 `/api/share/[token]`。
-- [ ] `/reports`、`/reports/[reportId]`、CRM report subpage 改 BFF/cache-first。
-- [ ] API/browser proof 覆蓋 invalid report、foreign org、success share。
-- [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+- [x] 建立 reports list/detail/update/share action BFF。
+- [x] Report detail DTO 分 edit/share/preview mode，不把 public share DTO 與 member private DTO 混用。
+- [x] Share action 寫 audit/event；public share 仍走 `/api/share/[token]`。
+- [x] `/reports`、`/reports/[reportId]`、CRM report subpage 改 BFF/cache-first。
+- [x] API/browser proof 覆蓋 invalid report、foreign org、success share。
+- [x] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+
+完成註記（2026-06-20）：已新增 member-scoped `GET/POST /api/reports`、`GET/PATCH /api/reports/[id]`、`POST /api/reports/[id]/share`、report repository schemas 與 `pnpm bff:reports-qa`。`/reports` library/detail 與 CRM report subpage 改為 BFF/cache-first；quickstart demo 保留 local branch。Member DTO 回 internal editor sections 與 client-safe sections，public `/api/share/[token]` 仍只回 client-safe DTO；share action 會建立/重用 `ReportShare` 並寫 sanitized `ShareEvent`。Proof 覆蓋 unauth 401、member list/detail/create/update/share、invalid section 400、manager foreign read 404、public share 不回 internal/performance section、desktop/mobile no overflow。此 proof 不呼叫 provider，無 AiUsageLog 需求；DB 僅新增可辨識 demo/test `Report`、`ReportShare` 與 `ShareEvent` evidence，無 schema/Prisma 變更。
 
 ### Batch BFF-106 — Issues BFF
 - [ ] 建立 `GET /api/issues` 與 issue status/action endpoint。
