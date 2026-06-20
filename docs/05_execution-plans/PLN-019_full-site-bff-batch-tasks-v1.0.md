@@ -38,7 +38,7 @@
 | BFF-105 | Reports / share action BFF | [x] | BFF-002 |
 | BFF-106 | Issues BFF | [x] | BFF-002 |
 | BFF-201 | AI BFF audit gate | [x] | BFF-002 |
-| BFF-202 | Visit/report AI hardening | [ ] | BFF-201 |
+| BFF-202 | Visit/report AI hardening | [x] | BFF-201 |
 | BFF-203 | SPIN AI hardening | [ ] | BFF-201 |
 | BFF-204 | Theater AI hardening | [ ] | BFF-201 |
 | BFF-205 | Assistant/RAG/interview hardening | [ ] | BFF-201 |
@@ -243,12 +243,15 @@ Whole-product review 註記（2026-06-20 after BFF-105）：下一個 normal LV3
 
 目標：把 `/api/ai/spin` 與 `/api/ai/spin-suggestions` 對齊 AI BFF contract，且不破壞 SPIN 狀態機。
 
-- [ ] Session-scoped，不信任 browser org/user。
+- [x] Session-scoped，不信任 browser org/user。
 - [ ] 保留 `SITUATION -> PROBLEM -> IMPLICATION -> NEED_PAYOFF`。
-- [ ] Success/error path 都寫 `AiUsageLog`。
-- [ ] Quota/capability guard 完整。
+- [x] Success/error path 都寫 `AiUsageLog`。
+- [x] Quota/capability guard 完整。
+- [ ] 移除或替換 `/spin/[sessionId]` 的 `/api/mock/ai/spin-outline` fallback 與 local seed truth，不把 legacy SPIN mock/local session 當正式 proof。
 - [ ] API/browser proof 覆蓋 existing SPIN session flow。
 - [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+
+Whole-product review 註記（2026-06-20）：`AUD-005` 已證明 `/api/ai/spin` 與 `/api/ai/spin-suggestions` route-level session/quota/usage audit pass；BFF-203 仍保持未完成，因 `AUD-006` 指出 `/spin/[sessionId]` 仍呼叫 `/api/mock/ai/spin-outline`，`src/domains/spin/store.ts` 仍以 demo seed/local truth 初始化。下一輪若 PIM-010 被阻擋，fallback 為 `BFF-203a SPIN source-truth hardening`，必須保護 SPIN 狀態機。
 
 ---
 
