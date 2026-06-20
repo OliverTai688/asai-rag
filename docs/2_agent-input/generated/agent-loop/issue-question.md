@@ -34,6 +34,7 @@ Last updated: 2026-06-20
 - 2026-06-20 resolved: BFF-202 已完成 Visit/report AI hardening；`/api/ai/visit` 與 `/api/ai/report` 皆維持 current-member scope、quota guard、success/error `AiUsageLog`，並新增 facts/inferences/unknowns/recommendations DTO boundary。`/api/ai/report` 保留 markdown 相容模式且新增 JSON DTO，CRM report subpage 已改用 JSON。Provider prompt 改用 provider-safe client snapshot，不送 email/phone/raw notes；`pnpm bff:visit-report-ai-qa` 通過 401/400/429/success/provider-error、VISIT/REPORT usage log 增量與 private sentinel 0。
 - 2026-06-20 resolved: 本輪 scheduled fifth-loop whole-product gap review 已完成；cadence counter 重設為 0，下一輪 normal implementation/proof 建議 `PIM-010 Interview -> VisitPlan / Theater draft writeback`。原因：client/relationship/previsit/Route B interaction shell 已有 proof，但 AI 訪談目前只寫 CRM candidate/insight/follow-up，尚未直接建立 persisted 準備包或劇場草稿。Fallback 為 `BFF-203a SPIN source-truth hardening`，移除 legacy `/spin` mock outline/local seed proof gap。
 - 2026-06-20 resolved: PIM-010 已完成 AI 訪談確認卡 -> 準備包草稿 / Route B 劇場草稿 writeback；高敏感缺 draft reason/riskAccepted 會 blocked，approved writeback 建立 persisted `VisitPlan` 與 DB-backed Route B session，保留 facts/inferences/unknowns/reasoning evidence，未知項轉 narrator questions，NPC <= 4，且不建立 confirmed CRM fact。`pnpm interview:draft-writeback-qa` 證明 no-provider、`AiUsageLog` unchanged、API/DB/browser proof；下一輪建議 `BFF-203a SPIN source-truth hardening`。
+- 2026-06-20 resolved: BFF-203a 已完成 SPIN source-truth hardening；正式 `/spin` list/create/detail/outline 使用 member-scoped `spin_sessions` / `spin_messages` BFF，`/spin/[sessionId]` 不再呼叫 `/api/mock/ai/spin-outline`，Quickstart demo seed 保留但不作正式 proof。Server `PATCH` 只允許同階、往下一階或完成，保護 `SITUATION -> PROBLEM -> IMPLICATION -> NEED_PAYOFF`；outline 為 deterministic no-provider proof，不需 `AiUsageLog`。`pnpm spin:source-truth-qa`、Browser completed-session outline proof、`pnpm ai:bff-audit` 通過。下一輪建議 `BFF-103c CRM related-list/archive/update source-truth`，fallback `RAS-001 role-aware navigation contract / legacy SPIN visibility`。
 
 ## Production Approval
 
@@ -41,7 +42,7 @@ Last updated: 2026-06-20
 - ITA-003c 已對目前 `.env` development Supabase Postgres target 執行 Route B additive `db push` 並通過 persisted session proof；production schema migration / rollback plan 仍需明確 approval。
 - 後續若要做 live Realtime provider proof，需要 operator 明確允許打外部 provider，並記錄 usage/cost evidence。
 - 後續若要啟用 Route B director/character/feedback provider calls，需要 operator 明確允許打外部 provider，且 success/error path 都必須寫 `AiUsageLog`；provider 開啟前 UI 需維持 guarded-disabled，不得宣稱可正式互動。
-- BFF-101/BFF-106/BFF-301 後的 production-facing source blockers：admin/pilot 頁仍直接讀 demo seed、SPIN session 仍有 `/api/mock/ai/spin-outline` fallback、notification reminder route 仍是 mock success，CRM related-list/archive/update 仍未完全收斂。這些不得被用作正式 LV3 server-owned proof。Dashboard、Reports library/detail/share action、Issues BFF 與 Team/org aggregate BFF 已可作 server-owned proof；`/api/ai/report` provider generation 仍需 BFF-202 持續守住 AiUsageLog/usage audit。
+- BFF-203a 後的 production-facing source blockers：admin/pilot 頁仍直接讀 demo seed、notification reminder route 仍是 mock success，CRM related-list/archive/update 仍未完全收斂。這些不得被用作正式 LV3 server-owned proof。Dashboard、Reports library/detail/share action、Issues BFF、Team/org aggregate BFF、Visit/pre-visit BFF 與 SPIN session BFF 已可作 server-owned proof；provider routes 仍需持續守住 AiUsageLog/usage audit。
 
 ## Operator 手動處理
 

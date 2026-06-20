@@ -2,6 +2,8 @@
 
 import { useSpinStore } from "@/domains/spin/store";
 import { clientService } from "@/domains/client/service";
+import type { Client } from "@/domains/client/types";
+import type { SpinSession } from "@/domains/spin/types";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { 
@@ -13,7 +15,7 @@ import {
   Search
 } from "lucide-react";
 import Link from "next/link";
-import { useState, useMemo, useEffect, useSyncExternalStore } from "react";
+import { useState, useMemo, useEffect, useRef, useCallback, useSyncExternalStore } from "react";
 import { Input } from "@/components/ui/input";
 import { FormattedTime } from "@/components/ui/formatted-time";
 import { 
@@ -26,20 +28,101 @@ import {
 import { useRouter } from "next/navigation";
 import { QuickstartGuide } from "@/components/demo/quickstart-guide";
 import { getQuickstartSpinFixture } from "@/domains/demo/quickstart";
+import { toast } from "sonner";
 
 function SpinListContent() {
   const router = useRouter();
-  const { sessions, createSession, updateSession, addMessage } = useSpinStore();
+  const { sessions, createSession, updateSession, addMessage, upsertSession } = useSpinStore();
   const searchParams = useCurrentSearchParams();
   const demoParam = searchParams.get("demo");
   const autoCreate = searchParams.get("autoCreate");
   const clientId = searchParams.get("clientId");
   const isQuickstart = demoParam === "quickstart";
+  const autoCreateStartedRef = useRef(false);
   const [search, setSearch] = useState("");
-  const allClients = useMemo(() => clientService.getAllClients(), []);
+  const [serverClients, setServerClients] = useState<Client[]>([]);
+  const [serverSessions, setServerSessions] = useState<SpinSession[]>([]);
+  const [isCreating, setIsCreating] = useState(false);
+  const localClients = useMemo(() => clientService.getAllClients(), []);
+  const allClients = isQuickstart ? localClients : serverClients;
+  const visibleSessions = isQuickstart ? sessions : serverSessions;
+
+  const startServerSession = useCallback(async (selectedClientId: string) => {
+    setIsCreating(true);
+    try {
+      const res = await fetch("/api/spin/sessions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clientId: selectedClientId }),
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to create SPIN session");
+      }
+
+      const payload = await res.json();
+      if (!payload.session) {
+        throw new Error("Missing SPIN session payload");
+      }
+
+      upsertSession(payload.session, payload.messages ?? []);
+      setServerSessions((current) => [payload.session, ...current.filter((session) => session.id !== payload.session.id)]);
+      router.push(`/spin/${payload.session.id}`);
+    } catch {
+      toast.error("建立 SPIN 對話失敗，請稍後再試");
+    } finally {
+      setIsCreating(false);
+    }
+  }, [router, upsertSession]);
+
+  useEffect(() => {
+    if (isQuickstart) return;
+
+    let cancelled = false;
+
+    async function loadWorkspace() {
+      try {
+        const [clientsRes, sessionsRes] = await Promise.all([
+          fetch("/api/clients", { cache: "no-store" }),
+          fetch("/api/spin/sessions", { cache: "no-store" }),
+        ]);
+
+        if (!clientsRes.ok || !sessionsRes.ok) {
+          throw new Error("Failed to load SPIN workspace");
+        }
+
+        const [clientsPayload, sessionsPayload] = await Promise.all([clientsRes.json(), sessionsRes.json()]);
+
+        if (cancelled) return;
+
+        const nextClients: Client[] = Array.isArray(clientsPayload.clients) ? clientsPayload.clients : [];
+        const nextSessions: SpinSession[] = Array.isArray(sessionsPayload.sessions) ? sessionsPayload.sessions : [];
+        setServerClients(nextClients);
+        setServerSessions(nextSessions);
+        nextSessions.forEach((session) => upsertSession(session));
+      } catch {
+        if (!cancelled) {
+          toast.error("讀取 SPIN 對話工作區失敗");
+        }
+      }
+    }
+
+    loadWorkspace();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isQuickstart, upsertSession]);
 
   useEffect(() => { 
     if (autoCreate === "true" && clientId) {
+      if (!isQuickstart) {
+        if (autoCreateStartedRef.current) return;
+        autoCreateStartedRef.current = true;
+        startServerSession(clientId);
+        return;
+      }
+
       const client = allClients.find(c => c.id === clientId);
       if (client) {
         const existingQuickstartSession = isQuickstart
@@ -67,13 +150,18 @@ function SpinListContent() {
         router.replace(`/spin/${session.id}${isQuickstart ? "?demo=quickstart" : ""}`);
       }
     }
-  }, [addMessage, allClients, autoCreate, clientId, createSession, isQuickstart, router, sessions, updateSession]);
+  }, [addMessage, allClients, autoCreate, clientId, createSession, isQuickstart, router, sessions, startServerSession, updateSession]);
 
   const filteredClients = useMemo(() => {
     return allClients.filter(c => c.name.includes(search));
   }, [allClients, search]);
 
   const handleStartSession = (clientId: string, clientName: string) => {
+    if (!isQuickstart) {
+      startServerSession(clientId);
+      return;
+    }
+
     const session = createSession(clientId, clientName);
     router.push(`/spin/${session.id}${isQuickstart ? "?demo=quickstart" : ""}`);
   };
@@ -111,6 +199,7 @@ function SpinListContent() {
                   <button 
                     key={client.id}
                     onClick={() => handleStartSession(client.id, client.name)}
+                    disabled={isCreating}
                     className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors text-left group"
                   >
                     <div className="flex items-center gap-3">
@@ -130,7 +219,7 @@ function SpinListContent() {
 
       <QuickstartGuide currentStepId="spin" />
 
-      {sessions.length === 0 ? (
+      {visibleSessions.length === 0 ? (
         <div className="text-center py-32 bg-white dark:bg-zinc-900 rounded-3xl border-2 border-dashed border-zinc-100 dark:border-zinc-800">
           <div className="w-16 h-16 bg-[#EBF3FB] dark:bg-[#1A3A6B]/20 rounded-full flex items-center justify-center mx-auto mb-4">
             <MessageSquare className="w-8 h-8 text-[#1565C0]" />
@@ -140,7 +229,7 @@ function SpinListContent() {
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4">
-          {sessions.map((session) => (
+          {visibleSessions.map((session) => (
             <Link key={session.id} href={`/spin/${session.id}`}>
               <Card className="rounded-3xl border-zinc-200 dark:border-zinc-800 hover:shadow-md transition-all group overflow-hidden">
                 <CardContent className="p-4 flex items-center justify-between gap-4">

@@ -1,7 +1,7 @@
 "use client";
 
 import { create } from "zustand";
-import { SpinSession, SpinMessage, SpinPhase } from "./types";
+import type { SpinSession, SpinMessage, SpinPhase } from "./types";
 import { demoSeedSpinMessages, demoSeedSpinSessions } from "@/domains/demo/seed-fixtures";
 
 interface SpinState {
@@ -10,6 +10,7 @@ interface SpinState {
   
   // Actions
   createSession: (clientId: string, clientName: string) => SpinSession;
+  upsertSession: (session: SpinSession, messages?: SpinMessage[]) => void;
   addMessage: (sessionId: string, message: SpinMessage) => void;
   updateSession: (sessionId: string, updates: Partial<SpinSession>) => void;
   recordTransition: (sessionId: string, from: SpinPhase, to: SpinPhase, trigger: "AI" | "USER") => void;
@@ -51,6 +52,23 @@ export const useSpinStore = create<SpinState>()((set, get) => ({
     }));
 
     return newSession;
+  },
+
+  upsertSession: (session, messages) => {
+    set((state) => {
+      const exists = state.sessions.some((item) => item.id === session.id);
+      return {
+        sessions: exists
+          ? state.sessions.map((item) => (item.id === session.id ? session : item))
+          : [session, ...state.sessions],
+        messagesBySession: messages
+          ? {
+              ...state.messagesBySession,
+              [session.id]: messages,
+            }
+          : state.messagesBySession,
+      };
+    });
   },
 
   addMessage: (sessionId, message) => {

@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useSpinStore } from "@/domains/spin/store";
 import { spinService } from "@/domains/spin/service";
-import { SpinMessage, SpinPhase, SpinSession } from "@/domains/spin/types";
+import type { SpinMessage, SpinPhase, SpinSession } from "@/domains/spin/types";
+import type { Client } from "@/domains/client/types";
 import { eventService } from "@/domains/event/service";
 import { reportService } from "@/domains/report/service";
 import { useReportStore } from "@/domains/report/store";
@@ -79,7 +80,7 @@ export default function SpinConversationPage() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const messageIdCounterRef = useRef(0);
 
-  const { getSessionById, getMessages, addMessage, updateSession } = useSpinStore();
+  const { getSessionById, getMessages, addMessage, updateSession, upsertSession } = useSpinStore();
   const session = getSessionById(sessionId);
   const initialMessages = getMessages(sessionId);
 
@@ -99,16 +100,19 @@ export default function SpinConversationPage() {
 
   // 客戶輪廓面板
   const [profileOpen, setProfileOpen] = useState(false);
-  const client = session ? clientService.getClientById(session.clientId) : null;
+  const [serverClient, setServerClient] = useState<Client | null>(null);
+  const [serverSessionStatus, setServerSessionStatus] = useState<"idle" | "loading" | "loaded" | "not-found">("loading");
+  const client = serverClient ?? (session ? clientService.getClientById(session.clientId) : null);
 
   // 已儲存的報告 ID（生成大綱時同步儲存）
   const [savedReportId, setSavedReportId] = useState<string | null>(null);
   const isQuickstart = searchParams.get("demo") === "quickstart";
+  const greetingStartedRef = useRef(false);
 
-  const createMessageId = (prefix: string) => {
+  const createMessageId = useCallback((prefix: string) => {
     messageIdCounterRef.current += 1;
     return `${prefix}_${sessionId}_${messageIdCounterRef.current}`;
-  };
+  }, [sessionId]);
 
   useEffect(() => {
     if (isQuickstart && !session) {
@@ -116,11 +120,96 @@ export default function SpinConversationPage() {
     }
   }, [isQuickstart, router, session]);
 
-  // AI 主動開場：新 session 沒有訊息時自動問候
   useEffect(() => {
-    if (initialMessages.length > 0 || !session || session.phase === "COMPLETE") return;
+    if (isQuickstart) return;
 
     let cancelled = false;
+    async function loadSession() {
+      try {
+        const res = await fetch(`/api/spin/sessions/${sessionId}`, { cache: "no-store" });
+
+        if (res.status === 404) {
+          if (!cancelled) setServerSessionStatus("not-found");
+          return;
+        }
+
+        if (!res.ok) {
+          throw new Error("Failed to load SPIN session");
+        }
+
+        const payload = await res.json();
+
+        if (!payload.session) {
+          throw new Error("Missing SPIN session payload");
+        }
+
+        if (cancelled) return;
+        upsertSession(payload.session, payload.messages ?? []);
+        setMessages(payload.messages ?? []);
+        setServerClient(payload.client ?? null);
+        setServerSessionStatus("loaded");
+      } catch {
+        if (!cancelled) {
+          setServerSessionStatus("not-found");
+          toast.error("讀取 SPIN 對話失敗");
+        }
+      }
+    }
+
+    loadSession();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isQuickstart, sessionId, upsertSession]);
+
+  const persistSpinMessage = useCallback(
+    async (message: SpinMessage) => {
+      if (isQuickstart) return;
+
+      await fetch(`/api/spin/sessions/${sessionId}/messages`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: message.id,
+          role: message.role,
+          type: message.type,
+          content: message.content,
+          phase: message.phase,
+        }),
+      });
+    },
+    [isQuickstart, sessionId],
+  );
+
+  const persistSpinSession = useCallback(
+    async (updates: Partial<Pick<SpinSession, "phase" | "mode" | "outputs" | "transitions" | "summary">>) => {
+      if (isQuickstart) return;
+
+      const res = await fetch(`/api/spin/sessions/${sessionId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updates),
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to persist SPIN session");
+      }
+
+      const payload = await res.json();
+      if (payload.session) {
+        upsertSession(payload.session, payload.messages ?? undefined);
+      }
+    },
+    [isQuickstart, sessionId, upsertSession],
+  );
+
+  // AI 主動開場：新 session 沒有訊息時自動問候
+  useEffect(() => {
+    if (isQuickstart || greetingStartedRef.current || initialMessages.length > 0 || !session || session.phase === "COMPLETE") return;
+
+    let cancelled = false;
+    greetingStartedRef.current = true;
     const greetingId = createMessageId("greeting");
 
     (async () => {
@@ -158,14 +247,14 @@ export default function SpinConversationPage() {
         const finalMsg = { ...greetingMsg, content: spinService.cleanResponse(fullText), isStreaming: false };
         setMessages([finalMsg]);
         addMessage(sessionId, finalMsg);
+        await persistSpinMessage(finalMsg);
       } finally {
         if (!cancelled) setIsTyping(false);
       }
     })();
 
     return () => { cancelled = true; };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [addMessage, createMessageId, initialMessages.length, isQuickstart, persistSpinMessage, session, sessionId]);
 
   // 自動捲動
   useEffect(() => {
@@ -177,7 +266,7 @@ export default function SpinConversationPage() {
   if (!session) {
     return (
       <div className="p-20 text-center text-sm font-semibold text-zinc-500">
-        {isQuickstart ? "載入 Quickstart AI 了解客戶..." : "對話不存在"}
+        {isQuickstart || serverSessionStatus === "loading" || serverSessionStatus === "idle" ? "載入 AI 了解客戶..." : "對話不存在"}
       </div>
     );
   }
@@ -200,6 +289,9 @@ export default function SpinConversationPage() {
     setSuggestions([]); // 送出後清空建議
     setMessages(prev => [...prev, userMsg]);
     addMessage(sessionId, userMsg);
+    persistSpinMessage(userMsg).catch(() => {
+      toast.error("同步使用者訊息失敗，請稍後重試");
+    });
 
     setIsTyping(true);
 
@@ -269,6 +361,12 @@ export default function SpinConversationPage() {
           }
         }
       });
+      const latestAfterOutputs = useSpinStore.getState().getSessionById(sessionId);
+      if (latestAfterOutputs) {
+        persistSpinSession({ outputs: latestAfterOutputs.outputs }).catch(() => {
+          toast.error("同步 SPIN 洞察失敗，請稍後重試");
+        });
+      }
 
       // 檢查階段完成
       if (spinService.checkPhaseComplete(fullText)) {
@@ -286,6 +384,7 @@ export default function SpinConversationPage() {
       setMessages(prev => [...prev.slice(0, -1), finalMsg]);
       addMessage(sessionId, finalMsg);
       updateSession(sessionId, { updatedAt: new Date().toISOString() });
+      await persistSpinMessage(finalMsg);
 
       // 串流結束後拉取問題建議（非阻塞）
       if (session.phase !== "COMPLETE") {
@@ -319,6 +418,12 @@ export default function SpinConversationPage() {
     const nextPhase = spinService.getNextPhase(session.phase);
     useSpinStore.getState().recordTransition(sessionId, session.phase, nextPhase, trigger);
     updateSession(sessionId, { phase: nextPhase });
+    const latest = useSpinStore.getState().getSessionById(sessionId);
+    if (latest) {
+      persistSpinSession({ phase: nextPhase, transitions: latest.transitions }).catch(() => {
+        toast.error("同步 SPIN 階段失敗，請稍後重試");
+      });
+    }
     setSuggestions([]);
     toast.success(`已切換至 ${phaseLabel[nextPhase] ?? nextPhase} 階段`);
   };
@@ -326,6 +431,9 @@ export default function SpinConversationPage() {
   const handleModeToggle = () => {
     const nextMode = session.mode === "SELF_CLARIFY" ? "QUESTION_DESIGN" : "SELF_CLARIFY";
     updateSession(sessionId, { mode: nextMode });
+    persistSpinSession({ mode: nextMode }).catch(() => {
+      toast.error("同步 SPIN 模式失敗，請稍後重試");
+    });
     toast.success(`已切換至 ${nextMode === "SELF_CLARIFY" ? "自我釐清" : "問題設計"} 模式`);
   };
 
@@ -340,6 +448,14 @@ export default function SpinConversationPage() {
       phase: "COMPLETE",
       summary: structuredSummary,
       updatedAt: new Date().toISOString(),
+    });
+    persistSpinSession({
+      phase: "COMPLETE",
+      outputs: session.outputs,
+      transitions: session.transitions,
+      summary: structuredSummary,
+    }).catch(() => {
+      toast.error("同步 SPIN 完成摘要失敗，請稍後重試");
     });
     setSuggestions([]);
 
@@ -362,15 +478,21 @@ export default function SpinConversationPage() {
     setOutlineOpen(true);
 
     try {
-      const clientCtx = spinService.getClientContext(session.clientId);
-      const res = await fetch("/api/mock/ai/spin-outline", {
+      await persistSpinSession({
+        phase: session.phase,
+        mode: session.mode,
+        outputs: session.outputs,
+        transitions: session.transitions,
+        summary: session.summary,
+      });
+
+      const res = await fetch(`/api/spin/sessions/${sessionId}/outline`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          session,
-          clientInfo: typeof clientCtx === "object" ? clientCtx.profile : { name: session.clientName },
-        }),
       });
+      if (!res.ok) {
+        throw new Error("Failed to generate SPIN outline");
+      }
       const { outline: md } = await res.json();
       setOutline(md);
 
