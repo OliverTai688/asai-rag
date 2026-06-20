@@ -30,7 +30,7 @@
 | 卡片 | 範圍 | 狀態 | 依賴 |
 | --- | --- | --- | --- |
 | RAS-001 | Role-aware navigation contract | ✅ | `RES-020` |
-| RAS-002 | Server-side sidebar resolver and policy tests | ☐ | RAS-001 |
+| RAS-002 | Server-side sidebar resolver and policy tests | ✅ | RAS-001 |
 | RAS-003 | Workspace bootstrap and route guard alignment | ☐ | RAS-002 |
 | RAS-004 | Sidebar renderer, surface switch, and legacy SPIN visibility | ☐ | RAS-003 |
 | RAS-005 | Cross-role QA, docs sync, and AGENTS status update | ☐ | RAS-004 |
@@ -61,13 +61,15 @@
 
 Whole-product review note（2026-06-20 after RAS-001）：若 Supabase DB/DNS 仍阻擋 BFF/Theater browser proof，RAS-002 是下一個最高安全 fallback。它不需要 DB/provider，即可把 RAS-001 contract 轉成可測試 resolver，驗證 manager / client / platform 不會因 sidebar 顯示取得更寬資料邊界；不得把 resolver proof 宣稱為正式 route guard/browser auth proof。
 
-- [ ] 建立 `resolveSidebarSections(context)` 或同等 helper，輸入 RAS-001 contract，輸出已過濾/標註 disabled 的 sections。
-- [ ] 建立 navigation policy helpers，至少覆蓋 `canAccessMemberRoute`、`canAccessOrgAdmin`、`canManageOrgSettings`、`canReadOrgAggregate`、`canUseAiModule`、`canAccessPlatformTool`。
-- [ ] 補測試或可重複 script 覆蓋 collaborator、member、manager、org admin、org owner、support、finance、super admin、client viewer。
-- [ ] 驗證 manager 只能看 scoped org aggregate 導覽，不因 sidebar 顯示而取得 member 客戶明細。
-- [ ] 驗證 super admin 導覽不會出現在一般 app session；client portal 不會出現 CRM/team/AI prompt/coaching 項目。
-- [ ] Plan capability off 時，resolver 使用 hide/disable/upgrade/surface switch 策略一致。
-- [ ] 跑 `pnpm exec tsc --noEmit --pretty false` 與 `pnpm lint:changed`；若新增測試，跑對應 test command。
+- [x] 建立 `resolveSidebarSections(context)` 或同等 helper，輸入 RAS-001 contract，輸出已過濾/標註 disabled 的 sections。
+- [x] 建立 navigation policy helpers，至少覆蓋 `canAccessMemberRoute`、`canAccessOrgAdmin`、`canManageOrgSettings`、`canReadOrgAggregate`、`canUseAiModule`、`canAccessPlatformTool`。
+- [x] 補測試或可重複 script 覆蓋 collaborator、member、manager、org admin、org owner、support、finance、super admin、client viewer。
+- [x] 驗證 manager 只能看 scoped org aggregate 導覽，不因 sidebar 顯示而取得 member 客戶明細。
+- [x] 驗證 super admin 導覽不會出現在一般 app session；client portal 不會出現 CRM/team/AI prompt/coaching 項目。
+- [x] Plan capability off 時，resolver 使用 hide/disable/upgrade/surface switch 策略一致。
+- [x] 跑 `pnpm exec tsc --noEmit --pretty false` 與 `pnpm lint:changed`；若新增測試，跑對應 test command。
+
+完成註記：2026-06-20 RAS-002 已完成。`src/domains/navigation/role-aware-sidebar.ts` 新增 `resolveSidebarSections()`、policy helpers 與 resolved item diagnostics；`scripts/role-aware-sidebar-resolver-qa.mjs` / `pnpm nav:role-aware-resolver-qa` 以 fixtures 驗證 collaborator、member、scoped manager、manager without unit、org admin、org owner、support、finance、super admin、app-session super admin 與 client viewer。Proof 明確只涵蓋 resolver/policy，不宣稱正式 route guard/browser auth；support/finance 不預設取得 impersonation；client portal 不含內部 CRM/team/AI/platform routes。
 
 範圍外：不處理真實 auth provider migration；不改 Prisma schema，除非另有 PSA 卡明確要求。
 

@@ -137,6 +137,29 @@ export interface SidebarManifest {
   readonly notes: readonly string[];
 }
 
+export interface ResolvedSidebarItemResolution {
+  readonly sourceVisible: boolean;
+  readonly policyAllowed: boolean;
+  readonly roleAllowed: boolean;
+  readonly capabilityAllowed: boolean;
+  readonly featureAllowed: boolean;
+  readonly sessionAllowed: boolean;
+}
+
+export type ResolvedSidebarItem = SidebarItem & {
+  readonly visible: true;
+  readonly disabled: boolean;
+  readonly disabledReason?: SidebarDisabledReason;
+  readonly resolution: ResolvedSidebarItemResolution;
+};
+
+export interface ResolvedSidebarSection {
+  readonly id: string;
+  readonly label: string;
+  readonly priority: number;
+  readonly items: readonly ResolvedSidebarItem[];
+}
+
 export const sidebarContextRequiredFields = [
   "sessionType",
   "surface",
@@ -769,7 +792,7 @@ export const platformSidebarManifest = {
           visibilityStrategy: "hide",
           policy: "canAccessPlatformTool",
           dataBoundary: "platform-audit",
-          platformRoles: ["SUPER_ADMIN", "SUPPORT"],
+          platformRoles: ["SUPER_ADMIN"],
           badge: "internal",
         },
         {
@@ -869,6 +892,292 @@ export const roleAwareSidebarManifests = {
   platform: platformSidebarManifest,
   clientPortal: clientPortalSidebarManifest,
 } as const satisfies Record<SidebarSurface, SidebarManifest>;
+
+const organizationRoleRank = {
+  ORG_OWNER: 5,
+  ORG_ADMIN: 4,
+  MANAGER: 3,
+  MEMBER: 2,
+  COLLABORATOR: 1,
+} as const satisfies Record<OrganizationRole, number>;
+
+function hasOrganizationRole(context: SidebarContext): context is SidebarContext & {
+  readonly organizationRole: OrganizationRole;
+} {
+  return Boolean(context.organizationRole);
+}
+
+function hasPlatformRole(context: SidebarContext): context is SidebarContext & {
+  readonly platformRole: PlatformRole;
+} {
+  return Boolean(context.platformRole);
+}
+
+function hasClientRole(context: SidebarContext): context is SidebarContext & {
+  readonly clientRole: ClientRole;
+} {
+  return Boolean(context.clientRole);
+}
+
+function isOrgRoleAtLeast(
+  context: SidebarContext,
+  minimumRole: "COLLABORATOR" | "MEMBER" | "MANAGER" | "ORG_ADMIN" | "ORG_OWNER",
+) {
+  if (!hasOrganizationRole(context)) {
+    return false;
+  }
+
+  return organizationRoleRank[context.organizationRole] >= organizationRoleRank[minimumRole];
+}
+
+function hasItemOrganizationRole(context: SidebarContext, item: SidebarItem) {
+  return !item.organizationRoles || Boolean(
+    context.organizationRole && item.organizationRoles.includes(context.organizationRole),
+  );
+}
+
+function hasItemPlatformRole(context: SidebarContext, item: SidebarItem) {
+  return !item.platformRoles || Boolean(
+    context.platformRole && item.platformRoles.includes(context.platformRole),
+  );
+}
+
+function hasItemClientRole(context: SidebarContext, item: SidebarItem) {
+  return !item.clientRoles || Boolean(
+    context.clientRole && item.clientRoles.includes(context.clientRole),
+  );
+}
+
+function hasCapability(context: SidebarContext, capability: keyof SidebarPlanCapabilities) {
+  const value = context.planCapabilities[capability];
+
+  if (typeof value === "number") {
+    return value > 0;
+  }
+
+  return value;
+}
+
+function capabilityDisabledReason(capability: keyof SidebarPlanCapabilities): SidebarDisabledReason {
+  return capability === "aiEnabled" ? "AI_DISABLED" : "PLAN_UPGRADE_REQUIRED";
+}
+
+function isSessionCompatible(context: SidebarContext, manifest: SidebarManifest) {
+  if (manifest.surface === "clientPortal") {
+    return context.sessionType === "client" || context.sessionType === "token";
+  }
+
+  return context.sessionType === manifest.defaultSessionType;
+}
+
+function isCandidateVisible(context: SidebarContext, item: SidebarItem) {
+  if (item.visible) {
+    return true;
+  }
+
+  return Boolean(item.requiresFeatureFlag && context.featureFlags[item.requiresFeatureFlag]);
+}
+
+function shouldHideItem(item: SidebarItem, reason?: SidebarDisabledReason) {
+  if (!reason) {
+    return false;
+  }
+
+  if (item.visibilityStrategy === "teaser" || item.visibilityStrategy === "disable") {
+    return false;
+  }
+
+  return item.visibilityStrategy === "hide" ||
+    reason === "ROLE_RESTRICTED" ||
+    reason === "SURFACE_MISMATCH";
+}
+
+export function canAccessMemberRoute(context: SidebarContext, href = "/dashboard") {
+  if (context.sessionType !== "app" || !hasOrganizationRole(context)) {
+    return false;
+  }
+
+  if (
+    href.startsWith("/super-admin") ||
+    href.startsWith("/client") ||
+    href.startsWith("/share")
+  ) {
+    return false;
+  }
+
+  if (href.startsWith("/team/settings")) {
+    return canManageOrgSettings(context);
+  }
+
+  if (href.startsWith("/team")) {
+    return canReadOrgAggregate(context);
+  }
+
+  return isOrgRoleAtLeast(context, "COLLABORATOR");
+}
+
+export function canAccessOrgAdmin(context: SidebarContext) {
+  return context.sessionType === "app" &&
+    context.planCapabilities.orgAdminEnabled &&
+    canReadOrgAggregate(context);
+}
+
+export function canManageOrgSettings(context: SidebarContext) {
+  return context.sessionType === "app" &&
+    context.planCapabilities.orgAdminEnabled &&
+    (context.organizationRole === "ORG_OWNER" || context.organizationRole === "ORG_ADMIN");
+}
+
+export function canReadOrgAggregate(context: SidebarContext) {
+  if (context.sessionType !== "app" || !context.planCapabilities.orgAdminEnabled) {
+    return false;
+  }
+
+  if (context.organizationRole === "ORG_OWNER" || context.organizationRole === "ORG_ADMIN") {
+    return true;
+  }
+
+  return context.organizationRole === "MANAGER" && context.managedUnitIds.length > 0;
+}
+
+export function canManageBilling(context: SidebarContext) {
+  return canManageOrgSettings(context) && context.planCapabilities.billingEnabled;
+}
+
+export function canUseAiModule(context: SidebarContext) {
+  return context.sessionType === "app" &&
+    hasOrganizationRole(context) &&
+    context.planCapabilities.aiEnabled;
+}
+
+export function canUseScopedAssistant(context: SidebarContext) {
+  if (context.surface === "platform") {
+    return canAccessPlatformTool(context);
+  }
+
+  if (context.surface === "clientPortal") {
+    return canReadClientPortal(context);
+  }
+
+  return canUseAiModule(context);
+}
+
+export function canAccessPlatformTool(context: SidebarContext) {
+  return context.sessionType === "platform" &&
+    context.surface === "platform" &&
+    hasPlatformRole(context);
+}
+
+export function canReadClientPortal(context: SidebarContext) {
+  return (context.sessionType === "client" || context.sessionType === "token") &&
+    context.surface === "clientPortal" &&
+    hasClientRole(context) &&
+    context.planCapabilities.clientPortalEnabled;
+}
+
+export function evaluateSidebarPolicy(context: SidebarContext, policy: SidebarPolicyKey) {
+  switch (policy) {
+    case "canReadMemberHome":
+      return canAccessMemberRoute(context);
+    case "canUseScopedAssistant":
+      return canUseScopedAssistant(context);
+    case "canUseAiModule":
+      return canUseAiModule(context);
+    case "canReadOwnOrAssignedClientWork":
+    case "canReadOwnReports":
+    case "canReadIssues":
+      return canAccessMemberRoute(context);
+    case "canReadOrgAggregate":
+      return canReadOrgAggregate(context);
+    case "canManageOrgSettings":
+      return canManageOrgSettings(context);
+    case "canManageBilling":
+      return canManageBilling(context);
+    case "canAccessPlatformTool":
+      return canAccessPlatformTool(context);
+    case "canReadClientPortal":
+      return canReadClientPortal(context);
+    default:
+      policy satisfies never;
+      return false;
+  }
+}
+
+function resolveSidebarItem(
+  context: SidebarContext,
+  manifest: SidebarManifest,
+  item: SidebarItem,
+): ResolvedSidebarItem | null {
+  const sourceVisible = isCandidateVisible(context, item);
+  const sessionAllowed = context.surface === manifest.surface && isSessionCompatible(context, manifest);
+  const roleAllowed = hasItemOrganizationRole(context, item) &&
+    hasItemPlatformRole(context, item) &&
+    hasItemClientRole(context, item);
+  const capabilityAllowed = item.requiresCapability
+    ? hasCapability(context, item.requiresCapability)
+    : true;
+  const featureAllowed = item.requiresFeatureFlag
+    ? context.featureFlags[item.requiresFeatureFlag]
+    : true;
+  const policyAllowed = evaluateSidebarPolicy(context, item.policy);
+
+  if (!sourceVisible) {
+    return null;
+  }
+
+  const disabledReason = !sessionAllowed
+    ? "SURFACE_MISMATCH"
+    : !roleAllowed
+      ? "ROLE_RESTRICTED"
+      : !capabilityAllowed && item.requiresCapability
+        ? capabilityDisabledReason(item.requiresCapability)
+        : !featureAllowed
+          ? "FEATURE_FLAG_OFF"
+          : !policyAllowed && context.organizationRole === "MANAGER"
+            ? "UNIT_SCOPE_REQUIRED"
+            : !policyAllowed
+              ? "ROLE_RESTRICTED"
+              : undefined;
+
+  if (shouldHideItem(item, disabledReason)) {
+    return null;
+  }
+
+  return {
+    ...item,
+    visible: true,
+    disabled: Boolean(disabledReason),
+    disabledReason,
+    resolution: {
+      sourceVisible,
+      policyAllowed,
+      roleAllowed,
+      capabilityAllowed,
+      featureAllowed,
+      sessionAllowed,
+    },
+  };
+}
+
+export function resolveSidebarSections(context: SidebarContext): readonly ResolvedSidebarSection[] {
+  const manifest = roleAwareSidebarManifests[context.surface];
+
+  if (!isSessionCompatible(context, manifest)) {
+    return [];
+  }
+
+  return manifest.sections
+    .map((section) => ({
+      id: section.id,
+      label: section.label,
+      priority: section.priority,
+      items: section.items
+        .map((item) => resolveSidebarItem(context, manifest, item))
+        .filter((item): item is ResolvedSidebarItem => Boolean(item)),
+    }))
+    .filter((section) => section.items.length > 0)
+    .sort((first, second) => first.priority - second.priority);
+}
 
 export const sidebarContextExamples = {
   member: {

@@ -404,13 +404,15 @@ Context: 將 AI-first sidebar 進一步升級為依 session、role、surface、u
 ### Batch RAS-002 — Server-side sidebar resolver and policy tests
 Whole-product review note（2026-06-20 after RAS-001）：若 Supabase DB/DNS 仍阻擋 BFF/Theater browser proof，RAS-002 是下一個最高安全 fallback。它不需要 DB/provider，即可把 RAS-001 contract 轉成可測試 resolver，驗證 manager / client / platform 不會因 sidebar 顯示取得更寬資料邊界；不得把 resolver proof 宣稱為正式 route guard/browser auth proof。
 
-- [ ] 建立 `resolveSidebarSections(context)` 或同等 helper，輸入 RAS-001 contract，輸出已過濾/標註 disabled 的 sections。
-- [ ] 建立 navigation policy helpers，至少覆蓋 `canAccessMemberRoute`、`canAccessOrgAdmin`、`canManageOrgSettings`、`canReadOrgAggregate`、`canUseAiModule`、`canAccessPlatformTool`。
-- [ ] 補測試或可重複 script 覆蓋 collaborator、member、manager、org admin、org owner、support、finance、super admin、client viewer。
-- [ ] 驗證 manager 只能看 scoped org aggregate 導覽，不因 sidebar 顯示而取得 member 客戶明細。
-- [ ] 驗證 super admin 導覽不會出現在一般 app session；client portal 不會出現 CRM/team/AI prompt/coaching 項目。
-- [ ] Plan capability off 時，resolver 使用 hide/disable/upgrade/surface switch 策略一致。
-- [ ] 跑 `pnpm exec tsc --noEmit --pretty false` 與 `pnpm lint:changed`；若新增測試，跑對應 test command。
+- [x] 建立 `resolveSidebarSections(context)` 或同等 helper，輸入 RAS-001 contract，輸出已過濾/標註 disabled 的 sections。
+- [x] 建立 navigation policy helpers，至少覆蓋 `canAccessMemberRoute`、`canAccessOrgAdmin`、`canManageOrgSettings`、`canReadOrgAggregate`、`canUseAiModule`、`canAccessPlatformTool`。
+- [x] 補測試或可重複 script 覆蓋 collaborator、member、manager、org admin、org owner、support、finance、super admin、client viewer。
+- [x] 驗證 manager 只能看 scoped org aggregate 導覽，不因 sidebar 顯示而取得 member 客戶明細。
+- [x] 驗證 super admin 導覽不會出現在一般 app session；client portal 不會出現 CRM/team/AI prompt/coaching 項目。
+- [x] Plan capability off 時，resolver 使用 hide/disable/upgrade/surface switch 策略一致。
+- [x] 跑 `pnpm exec tsc --noEmit --pretty false` 與 `pnpm lint:changed`；若新增測試，跑對應 test command。
+
+完成註記：2026-06-20 新增 role-aware sidebar resolver / policy helper 與 `pnpm nav:role-aware-resolver-qa`。Resolver 會依 surface/session/role/capability/feature flag 回傳已過濾或 disabled 的 sections；fixture proof 覆蓋 collaborator、member、scoped manager、manager without unit、org admin、org owner、support、finance、super admin、app-session super admin 與 client viewer。Manager 只拿 scoped org aggregate navigation，不含 member client-detail routes；support/finance 不預設取得 impersonation；client portal 不含內部 CRM/team/AI/platform route。此卡不接 sidebar UI、不改 route guard、不改 business data、不呼叫 provider。
 
 ### Batch RAS-003 — Workspace bootstrap and route guard alignment
 - [ ] 盤點現有 workspace/session/bootstrap 入口；若不存在正式 endpoint，先建立最小 `/api/workspace/bootstrap` contract 或 server helper。

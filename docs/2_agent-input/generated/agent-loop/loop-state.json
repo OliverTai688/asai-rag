@@ -64,11 +64,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 0,
+    "normalLoopsSinceLastWholeProductReview": 1,
     "lastWholeProductReviewAt": "2026-06-20",
     "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-20_lv3-whole-product-gap-review-stage-map-ras.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "Primary if Supabase DB/DNS is available: ITA-003f/S1 Route B relationship-graph stage map (no-provider) to make /theater/[sessionId] a relationship-graph-centered stage with private/group visibility and guarded-disabled runtime proof. If DB remains blocked: RAS-002 server-side sidebar resolver and policy tests, because it does not require DB/provider and reduces cross-role privacy risk. Separately rerun BFF-103d related-list full proof after DB recovers.",
+    "nextRecommendedImplementationSlice": "Primary if Supabase DB/DNS is available: ITA-003f/S1 Route B relationship-graph stage map (no-provider) to make /theater/[sessionId] a relationship-graph-centered stage with private/group visibility and guarded-disabled runtime proof. If DB remains blocked: RAS-003 workspace bootstrap and route guard alignment, using the RAS-002 resolver without claiming full browser auth until URL guard proof exists. Separately rerun BFF-103d related-list full proof after DB recovers.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {
