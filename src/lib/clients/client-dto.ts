@@ -14,6 +14,10 @@ export type ClientRecord = DbClient & {
   policies: DbPolicy[];
 };
 
+export type ArchivedClientDto = Omit<Client, "status"> & {
+  status: "ARCHIVED";
+};
+
 export function toClientDto(record: ClientRecord): Client {
   const complianceChecklist = toComplianceDto(record.complianceChecklist);
 
@@ -35,6 +39,13 @@ export function toClientDto(record: ClientRecord): Client {
     sensitivityLevel: record.sensitivity,
     kycStatus: complianceChecklist.kycStatus,
     lastInteraction: (record.lastInteractionAt ?? record.updatedAt ?? record.createdAt).toISOString(),
+  };
+}
+
+export function toArchivedClientDto(record: ClientRecord): ArchivedClientDto {
+  return {
+    ...toClientDto(record),
+    status: "ARCHIVED",
   };
 }
 

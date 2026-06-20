@@ -44,6 +44,7 @@
     "bff:reports-qa": "node scripts/bff-reports-qa.mjs",
     "bff:visit-report-ai-qa": "node scripts/bff-visit-report-ai-qa.mjs",
     "bff:issues-qa": "node scripts/bff-issues-qa.mjs",
+    "bff:crm-client-lifecycle-qa": "node scripts/bff-crm-client-lifecycle-qa.mjs",
     "client:relationship-graph-qa": "node scripts/client-relationship-graph-qa.mjs",
     "client:relationship-graph-polish-qa": "node scripts/client-relationship-graph-polish-qa.mjs",
     "client:relationship-graph-write-qa": "node scripts/client-relationship-graph-write-qa.mjs",

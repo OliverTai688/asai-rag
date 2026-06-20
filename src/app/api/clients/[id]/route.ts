@@ -1,5 +1,6 @@
 import { authErrorResponse, requireCurrentMember } from "@/lib/auth/current-workspace";
 import {
+  archiveClientForMember,
   getClientForMember,
   updateClientForMember,
   updateClientInputSchema,
@@ -20,6 +21,33 @@ export async function GET(_req: Request, ctx: ClientRouteContext) {
     }
 
     return Response.json({ client });
+  } catch (error) {
+    return authErrorResponse(error);
+  }
+}
+
+export async function DELETE(_req: Request, ctx: ClientRouteContext) {
+  try {
+    const session = await requireCurrentMember();
+    const { id } = await ctx.params;
+    const client = await archiveClientForMember(session, id);
+
+    if (!client) {
+      return Response.json({ error: "CLIENT_NOT_FOUND" }, { status: 404 });
+    }
+
+    return Response.json({
+      archived: true,
+      client: {
+        id: client.id,
+        name: client.name,
+        status: client.status,
+        complianceChecklist: client.complianceChecklist,
+        sensitivityLevel: client.sensitivityLevel,
+        kycStatus: client.kycStatus,
+        lastInteraction: client.lastInteraction,
+      },
+    });
   } catch (error) {
     return authErrorResponse(error);
   }

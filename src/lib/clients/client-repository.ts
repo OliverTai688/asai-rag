@@ -3,7 +3,7 @@ import { ClientStatus } from "@/generated/prisma/enums";
 import { canReadClientDetail, canWriteClient } from "@/lib/auth/policies";
 import type { AppSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
-import { toClientDto } from "./client-dto";
+import { toArchivedClientDto, toClientDto } from "./client-dto";
 
 export const createClientInputSchema = z.object({
   name: z.string().trim().min(2).max(80),
@@ -152,6 +152,36 @@ export async function updateClientForMember(session: AppSession, clientId: strin
   });
 
   return toClientDto(record);
+}
+
+export async function archiveClientForMember(session: AppSession, clientId: string) {
+  const current = await prisma.client.findFirst({
+    where: {
+      id: clientId,
+      organizationId: session.organization.id,
+      status: { not: ClientStatus.ARCHIVED },
+    },
+    select: {
+      organizationId: true,
+      unitId: true,
+      ownerId: true,
+    },
+  });
+
+  if (!current || !canWriteClient(session, current)) {
+    return null;
+  }
+
+  const record = await prisma.client.update({
+    where: { id: clientId },
+    data: {
+      status: ClientStatus.ARCHIVED,
+      lastInteractionAt: new Date(),
+    },
+    include: clientInclude,
+  });
+
+  return toArchivedClientDto(record);
 }
 
 export async function createFamilyMemberForClient(

@@ -4,6 +4,7 @@ import { nanoid } from "nanoid";
 
 type CreateClientInput = Pick<Client, "name" | "annualIncome" | "status"> &
   Partial<Pick<Client, "email" | "phone" | "birthDate" | "occupation" | "notes">>;
+type UpdateClientInput = Partial<CreateClientInput>;
 
 type ClientListResponse = {
   clients: Client[];
@@ -11,6 +12,15 @@ type ClientListResponse = {
 
 type ClientResponse = {
   client: Client;
+};
+
+type ArchiveClientResponse = {
+  archived: true;
+  client: {
+    id: string;
+    name: string;
+    status: "ARCHIVED";
+  };
 };
 
 type CreateFamilyMemberInput = Omit<FamilyMember, "id">;
@@ -132,6 +142,27 @@ export const clientService = {
   },
 
   /**
+   * 透過 BFF 更新客戶；server 會驗證 current member 是否可寫此客戶。
+   */
+  updateClientRemote: async (id: string, updates: UpdateClientInput) => {
+    const response = await fetch(`/api/clients/${id}`, {
+      method: "PATCH",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify(updates),
+    });
+
+    if (!response.ok) {
+      throw await parseApiError(response);
+    }
+
+    const body = await response.json() as ClientResponse;
+    useClientStore.getState().setClient(body.client);
+    return body.client;
+  },
+
+  /**
    * 透過 BFF 新增關係人；server 會驗證 current member 是否可寫此客戶。
    */
   createFamilyMemberRemote: async (clientId: string, member: CreateFamilyMemberInput) => {
@@ -212,7 +243,25 @@ export const clientService = {
   },
 
   /**
-   * 更新客戶資料
+   * 透過 BFF 封存客戶；server 只做 soft archive，不刪除合規資料。
+   */
+  archiveClientRemote: async (id: string) => {
+    const response = await fetch(`/api/clients/${id}`, {
+      method: "DELETE",
+    });
+
+    if (!response.ok) {
+      throw await parseApiError(response);
+    }
+
+    const body = await response.json() as ArchiveClientResponse;
+    useClientStore.getState().deleteClient(id);
+    return body;
+  },
+
+  /**
+   * 更新客戶資料。
+   * Dev-only local cache helper; production client writes should use updateClientRemote().
    */
   updateClient: (id: string, updates: Partial<Client>) => {
     useClientStore.getState().updateClient(id, {
@@ -222,7 +271,8 @@ export const clientService = {
   },
 
   /**
-   * 刪除客戶
+   * 刪除客戶。
+   * Dev-only local cache helper; production client archive should use archiveClientRemote().
    */
   deleteClient: (id: string) => {
     useClientStore.getState().deleteClient(id);
