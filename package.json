@@ -39,6 +39,7 @@
     "bff:foundation-qa": "node scripts/bff-foundation-qa.mjs",
     "bff:foundation-api-qa": "node scripts/bff-foundation-api-qa.mjs",
     "bff:dashboard-qa": "node scripts/bff-dashboard-qa.mjs",
+    "bff:org-aggregate-qa": "node scripts/bff-org-aggregate-qa.mjs",
     "bff:reports-qa": "node scripts/bff-reports-qa.mjs",
     "bff:issues-qa": "node scripts/bff-issues-qa.mjs",
     "client:relationship-graph-qa": "node scripts/client-relationship-graph-qa.mjs",

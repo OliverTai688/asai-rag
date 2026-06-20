@@ -42,7 +42,7 @@
 | BFF-203 | SPIN AI hardening | [ ] | BFF-201 |
 | BFF-204 | Theater AI hardening | [ ] | BFF-201 |
 | BFF-205 | Assistant/RAG/interview hardening | [ ] | BFF-201 |
-| BFF-301 | Org BFF repository extraction and aggregate QA | [ ] | BFF-002 |
+| BFF-301 | Org BFF repository extraction and aggregate QA | [x] | BFF-002 |
 | BFF-302 | Org writes audit and capability enforcement | [ ] | BFF-301 |
 | BFF-303 | Client portal BFF completion | [ ] | BFF-002 |
 | BFF-304 | Platform BFF completion | [ ] | BFF-002 |
@@ -275,12 +275,14 @@ Whole-product review 註記（2026-06-20 after BFF-105）：下一個 normal LV3
 
 目標：把 org aggregate routes 的 Prisma 聚合抽入 repository，並建立 aggregate privacy proof。
 
-- [ ] 抽 `src/lib/org/*-repository.ts` 或整合既有 org-settings repository。
-- [ ] `/api/org/overview`、coaching、AI usage 只保留 route protocol/session/response。
-- [ ] Manager unit scope 與 `canReadOrgAggregate()` 保留。
-- [ ] Sentinel QA 確認不回 client name/email/phone/report body/transcript/policy detail。
-- [ ] API/browser proof：manager aggregate 200、member 403、unauth 401。
-- [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+- [x] 抽 `src/lib/org/*-repository.ts` 或整合既有 org-settings repository。
+- [x] `/api/org/overview`、coaching、AI usage 只保留 route protocol/session/response。
+- [x] Manager unit scope 與 `canReadOrgAggregate()` 保留。
+- [x] Sentinel QA 確認不回 client name/email/phone/report body/transcript/policy detail。
+- [x] API/browser proof：manager aggregate 200、member 403、unauth 401。
+- [x] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+
+完成註記（2026-06-20）：已完成 BFF-301。新增 `src/domains/org/types.ts`、`src/lib/org/org-aggregate-repository.ts`、`src/lib/org/org-api-errors.ts` 與 `pnpm bff:org-aggregate-qa`；`/api/org/overview`、`/api/org/coaching`、`/api/org/ai-usage` 改為 route protocol/session/response shell，聚合與 manager unit scope 集中在 repository。`/team` 改由 server page 讀 `OrgTeamDashboardDto`，移除 `MOCK_TEAM_MEMBERS`。Proof 覆蓋 unauth 401、member 403、manager aggregate 200、private no-store/request-id、database/org-aggregate visibility、desktop/mobile `/team` no overflow、no client detail/report body/transcript/policy/private memory sentinel；既有 org QA scripts 仍通過。未改 Prisma schema，未呼叫 provider。
 
 ---
 

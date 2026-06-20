@@ -1,8 +1,10 @@
 import { requireOrgAdminRoute } from "@/lib/auth/route-guards";
+import { getOrgTeamDashboardForSession } from "@/lib/org/org-aggregate-repository";
 import { TeamPageClient } from "./team-page-client";
 
 export default async function TeamPage() {
-  await requireOrgAdminRoute();
+  const session = await requireOrgAdminRoute();
+  const dashboard = await getOrgTeamDashboardForSession(session);
 
-  return <TeamPageClient />;
+  return <TeamPageClient dashboard={dashboard} />;
 }
