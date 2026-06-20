@@ -35,7 +35,7 @@
 | Dashboard decision center | `/dashboard` | DB/BFF ready | `GET /api/member/dashboard` | member | `MemberDashboardDto` with today line, KPI, tasks, recent activity, agenda, AI quota | server aggregate from current member scope | no-store private data; no provider call | `pnpm bff:dashboard-qa` | BFF-101 complete. Quickstart welcome card keeps UI-only demo state; future calendar BFF can replace local calendar store. |
 | CRM list | `/crm` | DB/BFF ready with cache | `GET/POST /api/clients` | member | `Client` DTO retaining compliance fields | server session | client write events in repository path | existing client QA | BFF-103 still needs archive/update and store cleanup. |
 | CRM detail | `/crm/[clientId]` | DB/BFF ready with cache | `GET /api/clients/[id]` | member | `Client` detail DTO | server session | no private fields beyond member scope | existing client QA | BFF-103. |
-| Relationship graph | `/crm/[clientId]/relationships` | DB/BFF ready for review; partial writes complete | `GET /api/clients/[id]/relationship-graph`, `PATCH/DELETE /api/clients/[id]/family-members/[memberId]` | member | relationship graph review DTO, family write DTO | server session | write proof through client repository | `pnpm client:relationship-graph-qa`, `pnpm client:relationship-graph-write-qa` | BFF-103 needs parentMemberId persistence and related subresources. |
+| Relationship graph | `/crm/[clientId]/relationships` | DB/BFF ready for review; partial writes complete; source contract gap remains | `GET /api/clients/[id]/relationship-graph`, `PATCH/DELETE /api/clients/[id]/family-members/[memberId]` | member | relationship graph review DTO, family write DTO | server session | write proof through client repository | `pnpm client:relationship-graph-qa`, `pnpm client:relationship-graph-write-qa` | REL-001/002 should remove the `Client.parentMemberId` UI dependency, fix elder edges, and make parent-mode creation server-confirmed before broader BFF-103 related lists. |
 | CRM policies | `/crm/[clientId]/policies` | Partial BFF / mixed | `POST /api/clients/[id]/policies` exists; list/detail BFF partial | member | policy DTO must keep compliance checklist / KYC / sensitivity | server session | policy write audit needed | pending | BFF-103. |
 | CRM timeline | `/crm/[clientId]/timeline` | Partial BFF / local event source | missing related-list BFF | member | interaction/timeline DTO | server session | interaction event source required | pending | BFF-103. |
 | CRM reports subpage | `/crm/[clientId]/reports` | DB/BFF ready for deterministic report storage; mixed for AI generation route | `GET /api/reports?clientId=...`, `POST /api/reports`, `/api/ai/report` exists | member | client report list/action DTO | server session | BFF report writes/share events audited; AI generation must write `AiUsageLog` | `pnpm bff:reports-qa`; AI route covered by `pnpm demo:ai-generation-qa` | BFF-105 complete; BFF-202 keeps `/api/ai/report` hardening/audit coverage. |
@@ -100,10 +100,10 @@ The following paths are known production-facing or production-adjacent risk poin
 
 ## Next BFF Queue
 
-1. **BFF-201 AI BFF audit gate**: refresh `/api/ai/*` and `/api/rag` coverage after the BFF read surfaces, before choosing the next AI hardening card.
+1. **REL-001/REL-002 relationship graph no-schema repair**: remove the `Client.parentMemberId` UI dependency, fix elder node edges, and make parent-mode creation BFF-confirmed with refresh/new-context persistence proof.
 2. **BFF-203 SPIN hardening**: preserve the SPIN state machine while removing mock outline fallback and local seed truth from production proof.
-3. **BFF-204 / ITA-003f Route B provider orchestration**: only after explicit provider/cost approval; success/error paths must write `AiUsageLog`, and raw provider payload must not be stored.
-4. **BFF-202 Visit/report AI hardening follow-up**: keep `/api/ai/visit` and `/api/ai/report` usage/cost/error audit coverage aligned with the server-owned visit/report CRUD surfaces.
+3. **Interview -> VisitPlan/Theater draft writeback**: connect confirmed interview outputs to preparation package and theater build drafts without storing raw private transcripts.
+4. **BFF-204 / ITA-003f Route B provider orchestration**: only after explicit provider/cost approval; success/error paths must write `AiUsageLog`, and raw provider payload must not be stored.
 5. **BFF-103 CRM BFF completion**: finish archive/update, policy/timeline/gap related-list, and remaining local store cleanup while preserving compliance fields.
 
 ## BFF-001 Validation Notes
