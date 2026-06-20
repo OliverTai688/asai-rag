@@ -2,7 +2,7 @@
 
 - 類型：研究與設計（RES）
 - 主題：`/crm/[clientId]/relationships` 人物關係圖的建立/渲染 bug 診斷、關係網絡（network / genogram）實作方法研究、開發缺口盤點
-- 狀態：研究版（research draft）；REL-1 最小 no-schema 修復已於 2026-06-20 完成，REL-2/REL-3 待後續
+- 狀態：研究版（research draft）；REL-1 最小 no-schema 修復與 REL-2 BFF edge 推導/渲染收斂已於 2026-06-20 完成，REL-3 edge schema model 待後續 approval
 - 建立日期：2026-06-20
 - 範圍：診斷現況 bug、研究可行做法、列出開發缺口與建議切片。**本文件不改 code、不動 Prisma schema、不呼叫 provider。**
 - 可執行任務卡：`docs/05_execution-plans/PLN-024_relationship-network-graph-batch-tasks-v1.0.md`（REL workstream，AGENTS.md 鏡像）
@@ -138,9 +138,9 @@ RelationshipEdge（新增 — 這是缺的核心）
 | G1 幽靈欄位 | `Client.parentMemberId` runtime 依賴已移除 | REL-1 完成 | Done |
 | G2 長輩孤立 | 長輩 root edge 已改為長輩→主客戶 | REL-1 完成 | Done |
 | G3 建立路徑不一致 | parent mode 已改走 BFF create + re-parent | REL-1 完成 | Done |
-| G4 單一父指標 | 無 edge 表、無關係型別 | 無法表達雙親/配偶/手足/社會網（Bug E） | P1 |
-| G5 配偶/union 語意 | 配偶被當有向父子邊，無婚姻結合 | 視覺與語意錯（Bug D） | P1 |
-| G6 兩套實作未收斂 | RelationshipMap vs relationship-graph review/BFF | 畫面與真相不一致 | P1 |
+| G4 單一父指標 | BFF 已可由既有 `FamilyMember` 推導 typed edge；仍無正式 edge 表 | 多親/離婚/監護等完整網絡仍待 REL-3 schema | P2 |
+| G5 配偶/union 語意 | 配偶已改由 `SPOUSE_OF` 同 rank edge 呈現 | 仍可在 REL-005 強化 genogram layout polish | Done / P2 polish |
+| G6 兩套實作未收斂 | RelationshipMap 已改吃 relationship-graph review builder 的 nodes/edges | 仍需 REL-005 做跨狀態 UI polish | Done / P2 polish |
 | G7 佈局僅 dagre 樹 | 不處理同輩/社會邊 | 複雜家庭排版差 | P2 |
 | G8 缺驗收 | 無關係圖 create/persist 的 API/Browser proof | 回歸風險 | P1 |
 
@@ -156,7 +156,7 @@ RelationshipEdge（新增 — 這是缺的核心）
   - parent mode 改走 BFF（`createFamilyMemberRemote` + 既有 `PATCH family-members/[memberId]` re-parent），不再 local-only。
   - Proof：`pnpm client:relationship-graph-write-qa` 與 `pnpm client:relationship-graph-qa` 通過。
 
-- **REL-2（P1，BFF edge 推導 + 渲染收斂）**
+- **REL-2（P1，BFF edge 推導 + 渲染收斂）— 已完成 2026-06-20**
   - BFF 由 `FamilyMember` 推導 edge list（PARENT_OF/SPOUSE_OF/SIBLING_OF…），RelationshipMap 改吃 BFF edge，而非自己在前端重算。
   - 配偶改 union/同 rank 結合線；edge label 統一。
 

@@ -44,6 +44,7 @@ export function RelationshipGraphSourceReview({ graph }: RelationshipGraphSource
           </div>
           <div className="flex flex-wrap gap-2">
             <Badge variant="secondary">節點 {graph.sourceSummary.nodeCount}</Badge>
+            <Badge variant="secondary">邊 {graph.sourceSummary.edgeCount}</Badge>
             <Badge variant="success">事實 {graph.sourceSummary.factFields}</Badge>
             <Badge variant="warning">推論 {graph.sourceSummary.inferenceFields}</Badge>
             <Badge variant="outline">待確認 {graph.sourceSummary.unknownFields}</Badge>

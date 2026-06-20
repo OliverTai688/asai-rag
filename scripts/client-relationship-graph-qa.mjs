@@ -64,9 +64,27 @@ async function runApiProof() {
   push(detail.status === 200, "relationship graph detail returns 200", `status=${detail.status}`);
   push(graph?.version === "2026-06-20.relationship-graph-review.v1", "relationship graph DTO has stable version");
   push((graph?.nodes?.length ?? 0) >= 2, "relationship graph has primary and family nodes", `nodes=${graph?.nodes?.length ?? 0}`);
+  push(Array.isArray(graph?.edges) && graph.edges.length === graph.nodes.length - 1, "relationship graph edge list matches family node count", `edges=${graph?.edges?.length ?? 0}`);
+  push(graph?.sourceSummary?.edgeCount === graph?.edges?.length, "relationship graph source summary counts edges", `edges=${graph?.sourceSummary?.edgeCount ?? 0}`);
   push(graph?.sourceSummary?.factFields > 0, "relationship graph source summary counts facts", `facts=${graph?.sourceSummary?.factFields ?? 0}`);
   push(graph?.sourceSummary?.inferenceFields > 0, "relationship graph source summary counts inferences", `inferences=${graph?.sourceSummary?.inferenceFields ?? 0}`);
   push(graph?.sourceSummary?.unknownFields > 0, "relationship graph source summary counts unknowns", `unknowns=${graph?.sourceSummary?.unknownFields ?? 0}`);
+  const edgeTypes = new Set((graph?.edges ?? []).map((edge) => edge.type));
+  push(edgeTypes.has("PARENT_OF"), "relationship graph derives PARENT_OF edge");
+  push(edgeTypes.has("SPOUSE_OF"), "relationship graph derives SPOUSE_OF edge");
+  push(edgeTypes.has("SIBLING_OF"), "relationship graph derives SIBLING_OF edge");
+  push(edgeTypes.has("SOCIAL_TIE"), "relationship graph derives SOCIAL_TIE edge");
+  push(
+    (graph?.edges ?? []).every(
+      (edge) =>
+        edge.edgeKey &&
+        edge.sourceNodeKey &&
+        edge.targetNodeKey &&
+        edge.label &&
+        ["FACT", "INFERENCE", "UNKNOWN"].includes(edge.factStatus),
+    ),
+    "relationship graph edges include typed fact status and stable node keys",
+  );
   push(
     graph?.nodes?.some((node) => node.roleFactStatus === "INFERENCE" && node.fields?.jobTitle?.factStatus === "UNKNOWN"),
     "family node keeps inferred role and unknown job field",
@@ -138,6 +156,7 @@ async function runBrowserProof() {
         hasPrevisit: text.includes("拜訪準備包"),
         hasTheater: text.includes("劇場建場"),
         hasJobIncomeStatus: text.includes("職位/職業") && text.includes("年收入") && text.includes("人物狀態"),
+        edgeCount: document.querySelectorAll(".react-flow__edge").length,
         hidesRawClientId: !text.includes(clientId),
         horizontalOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
       };
@@ -147,6 +166,7 @@ async function runBrowserProof() {
     push(desktopChecks.hasFact && desktopChecks.hasInference && desktopChecks.hasUnknown, "browser shows fact/inference/unknown labels");
     push(desktopChecks.hasPrevisit && desktopChecks.hasTheater, "browser shows previsit and theater readiness");
     push(desktopChecks.hasJobIncomeStatus, "browser shows job/income/status fields");
+    push(desktopChecks.edgeCount >= 4, "browser renders BFF-derived relationship graph edges", `edges=${desktopChecks.edgeCount}`);
     push(desktopChecks.hidesRawClientId, "browser does not expose raw client id in body");
     push(!desktopChecks.horizontalOverflow, "relationship graph desktop has no horizontal overflow");
 
@@ -198,6 +218,20 @@ async function createGraphClient() {
     age: 13,
   });
   push(child.status === 201, "POST second family member creates dependent node", `status=${child.status}`);
+
+  const sibling = await memberRequestJson("POST", `/api/clients/${id}/family-members`, {
+    name: "QA 同輩手足",
+    relation: "姐",
+    age: 45,
+  });
+  push(sibling.status === 201, "POST sibling family member creates same-rank node", `status=${sibling.status}`);
+
+  const friend = await memberRequestJson("POST", `/api/clients/${id}/family-members`, {
+    name: "QA 合作夥伴",
+    relation: "合作夥伴",
+    age: 47,
+  });
+  push(friend.status === 201, "POST social relation member creates context node", `status=${friend.status}`);
 
   const policy = await memberRequestJson("POST", `/api/clients/${id}/policies`, {
     type: "醫療險",

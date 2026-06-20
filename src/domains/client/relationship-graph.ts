@@ -2,6 +2,13 @@ import { RELATION_GENERATION, type Client, type FamilyMember } from "./types";
 
 export type RelationshipGraphFactStatus = "FACT" | "INFERENCE" | "UNKNOWN";
 
+export type RelationshipGraphEdgeType =
+  | "PARENT_OF"
+  | "SPOUSE_OF"
+  | "SIBLING_OF"
+  | "CHILD_OF"
+  | "SOCIAL_TIE";
+
 export type RelationshipGraphSourceType =
   | "client_profile"
   | "relationship_graph"
@@ -51,6 +58,17 @@ export interface RelationshipGraphPersonNode {
   sourceReferenceIds: string[];
 }
 
+export interface RelationshipGraphEdge {
+  edgeKey: string;
+  sourceNodeKey: string;
+  targetNodeKey: string;
+  type: RelationshipGraphEdgeType;
+  label: string;
+  factStatus: RelationshipGraphFactStatus;
+  sourceReferenceIds: string[];
+  rationale: string;
+}
+
 export interface ClientRelationshipGraphReview {
   version: string;
   generatedAt: string;
@@ -61,9 +79,11 @@ export interface ClientRelationshipGraphReview {
     kycStatus: string;
   };
   nodes: RelationshipGraphPersonNode[];
+  edges: RelationshipGraphEdge[];
   sourceReferences: RelationshipGraphSourceReference[];
   sourceSummary: {
     nodeCount: number;
+    edgeCount: number;
     sourceCount: number;
     factFields: number;
     inferenceFields: number;
@@ -122,6 +142,7 @@ export function buildClientRelationshipGraphReview(
 ): ClientRelationshipGraphReview {
   const sourceReferences = buildSourceReferences(client);
   const nodes = [buildPrimaryNode(client), ...client.family.map((member, index) => buildFamilyNode(client, member, index))];
+  const edges = buildRelationshipGraphEdges(client);
   const fieldCounts = countFieldStatuses(nodes);
   const evidenceBuckets = buildEvidenceBuckets(client, nodes);
   const suggestedQuestions = buildSuggestedQuestions(client, nodes);
@@ -136,9 +157,11 @@ export function buildClientRelationshipGraphReview(
       kycStatus: KYC_STATUS_LABELS[client.kycStatus],
     },
     nodes,
+    edges,
     sourceReferences,
     sourceSummary: {
       nodeCount: nodes.length,
+      edgeCount: edges.length,
       sourceCount: sourceReferences.length,
       factFields: fieldCounts.FACT,
       inferenceFields: fieldCounts.INFERENCE,
@@ -248,7 +271,7 @@ function buildFamilyNode(client: Client, member: FamilyMember, index: number): R
   ];
 
   return {
-    nodeKey: `member-${index + 1}`,
+    nodeKey: familyNodeKey(index),
     displayName: member.name,
     relation: member.relation,
     generation: RELATION_GENERATION[member.relation] ?? 0,
@@ -269,6 +292,135 @@ function buildFamilyNode(client: Client, member: FamilyMember, index: number): R
     },
     unknowns,
     sourceReferenceIds: [sourceId],
+  };
+}
+
+function buildRelationshipGraphEdges(client: Client): RelationshipGraphEdge[] {
+  const memberKeyById = new Map<string, string>();
+  const sourceIdByMemberId = new Map<string, string>();
+
+  client.family.forEach((member, index) => {
+    memberKeyById.set(member.id, familyNodeKey(index));
+    sourceIdByMemberId.set(member.id, familySourceId(index));
+  });
+
+  return client.family.map((member, index) => {
+    const targetNodeKey = familyNodeKey(index);
+    const sourceReferenceIds = [familySourceId(index)];
+
+    if (member.parentMemberId) {
+      const parentNodeKey = memberKeyById.get(member.parentMemberId);
+      const parentSourceId = sourceIdByMemberId.get(member.parentMemberId);
+
+      if (parentNodeKey) {
+        return relationshipEdge({
+          sourceNodeKey: parentNodeKey,
+          targetNodeKey,
+          type: "PARENT_OF",
+          label: member.relation,
+          factStatus: "FACT",
+          sourceReferenceIds: parentSourceId ? [parentSourceId, ...sourceReferenceIds] : sourceReferenceIds,
+          rationale: `${member.name} 透過 parentMemberId 明確連結至上層關係人。`,
+        });
+      }
+
+      return relationshipEdge({
+        sourceNodeKey: "primary",
+        targetNodeKey,
+        type: "SOCIAL_TIE",
+        label: member.relation,
+        factStatus: "UNKNOWN",
+        sourceReferenceIds,
+        rationale: `${member.name} 的 parentMemberId 找不到對應節點，暫時接回主客戶並標記待確認。`,
+      });
+    }
+
+    return buildRootConnectedEdge(member, targetNodeKey, sourceReferenceIds);
+  });
+}
+
+function buildRootConnectedEdge(
+  member: FamilyMember,
+  targetNodeKey: string,
+  sourceReferenceIds: string[],
+): RelationshipGraphEdge {
+  const generation = RELATION_GENERATION[member.relation] ?? 0;
+
+  if (isSpouseRelation(member.relation)) {
+    return relationshipEdge({
+      sourceNodeKey: "primary",
+      targetNodeKey,
+      type: "SPOUSE_OF",
+      label: "配偶",
+      factStatus: "FACT",
+      sourceReferenceIds,
+      rationale: `${member.name} 是主客戶的配偶，應呈現為同 rank 的結合關係。`,
+    });
+  }
+
+  if (isSocialRelation(member.relation)) {
+    return relationshipEdge({
+      sourceNodeKey: "primary",
+      targetNodeKey,
+      type: "SOCIAL_TIE",
+      label: member.relation,
+      factStatus: member.relation === "其他" ? "UNKNOWN" : "FACT",
+      sourceReferenceIds,
+      rationale: `${member.name} 是非直系家庭樹人物，作為社會/脈絡關係線處理。`,
+    });
+  }
+
+  if (isSiblingRelation(member.relation)) {
+    return relationshipEdge({
+      sourceNodeKey: "primary",
+      targetNodeKey,
+      type: "SIBLING_OF",
+      label: member.relation,
+      factStatus: "FACT",
+      sourceReferenceIds,
+      rationale: `${member.name} 是主客戶的同輩手足或旁支，應呈現為同 rank 關係。`,
+    });
+  }
+
+  if (generation < 0) {
+    return relationshipEdge({
+      sourceNodeKey: targetNodeKey,
+      targetNodeKey: "primary",
+      type: "PARENT_OF",
+      label: member.relation,
+      factStatus: "FACT",
+      sourceReferenceIds,
+      rationale: `${member.name} 是主客戶的長輩，方向為長輩指向主客戶。`,
+    });
+  }
+
+  if (generation > 0) {
+    return relationshipEdge({
+      sourceNodeKey: "primary",
+      targetNodeKey,
+      type: "PARENT_OF",
+      label: member.relation,
+      factStatus: "FACT",
+      sourceReferenceIds,
+      rationale: `${member.name} 是主客戶的晚輩，方向為主客戶指向晚輩。`,
+    });
+  }
+
+  return relationshipEdge({
+    sourceNodeKey: "primary",
+    targetNodeKey,
+    type: "SOCIAL_TIE",
+    label: member.relation,
+    factStatus: member.relation === "親戚" ? "INFERENCE" : "UNKNOWN",
+    sourceReferenceIds,
+    rationale: `${member.name} 的關係類型不足以推導階層，先以脈絡關係呈現並待訪談確認。`,
+  });
+}
+
+function relationshipEdge(input: Omit<RelationshipGraphEdge, "edgeKey">): RelationshipGraphEdge {
+  return {
+    edgeKey: `edge.${input.type}.${input.sourceNodeKey}.${input.targetNodeKey}`,
+    ...input,
   };
 }
 
@@ -418,6 +570,22 @@ function field(
 
 function familySourceId(index: number): string {
   return `relationship.${index + 1}`;
+}
+
+function familyNodeKey(index: number): string {
+  return `member-${index + 1}`;
+}
+
+function isSpouseRelation(relation: string): boolean {
+  return relation.includes("配偶");
+}
+
+function isSiblingRelation(relation: string): boolean {
+  return ["兄", "弟", "姐", "妹", "堂哥", "堂弟", "堂姐", "堂妹", "表哥", "表弟", "表姐", "表妹"].includes(relation);
+}
+
+function isSocialRelation(relation: string): boolean {
+  return ["朋友", "合作夥伴", "其他"].includes(relation);
 }
 
 function unique(values: string[]): string[] {

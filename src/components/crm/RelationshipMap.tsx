@@ -4,8 +4,6 @@ import React, { useMemo } from "react";
 import ReactFlow, {
   Background,
   Controls,
-  Edge,
-  Node,
   Position,
   useNodesState,
   useEdgesState,
@@ -13,7 +11,15 @@ import ReactFlow, {
   NodeToolbar,
   MarkerType,
 } from "reactflow";
+import type { Edge, Node } from "reactflow";
 import "reactflow/dist/style.css";
+import {
+  buildClientRelationshipGraphReview,
+  type RelationshipGraphEdge,
+  type RelationshipGraphEdgeType,
+  type RelationshipGraphFactStatus,
+  type RelationshipGraphPersonNode,
+} from "@/domains/client/relationship-graph";
 import { Client, RELATION_GENERATION } from "@/domains/client/types";
 import { Users, User, Heart, Baby, Star, Crown, Smile, UserPlus } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -51,6 +57,12 @@ type PersonNodeData = {
   onAddChild?: (memberId: string) => void;
   onAddParent?: (memberId: string) => void;
   memberId: string;
+};
+
+type RelationshipEdgeData = {
+  relationshipType: RelationshipGraphEdgeType;
+  factStatus: RelationshipGraphFactStatus;
+  layoutRole: "hierarchy" | "same-rank" | "association";
 };
 
 const PersonNode = ({
@@ -126,71 +138,149 @@ function buildGraph(
   onAddChild?: (id: string | null) => void,
   onAddParent?: (id: string | null) => void
 ) {
-  const nodes: Node[] = [];
-  const edges: Edge[] = [];
+  const review = buildClientRelationshipGraphReview(client);
+  const nodes: Node<PersonNodeData>[] = [];
+  const nodeIdByKey = new Map<string, string>();
 
-  // Root node
-  nodes.push({
-    id: client.id,
-    type: "person",
-    data: {
-      label: client.name,
-      relation: "主客戶",
-      isRoot: true,
-      generation: 0,
-      memberId: client.id,
-      onAddChild: onAddChild ? () => onAddChild(null) : undefined,
-      onAddParent: onAddParent ? () => onAddParent(null) : undefined,
-    },
-    position: { x: 0, y: 0 },
+  review.nodes.forEach((reviewNode) => {
+    nodeIdByKey.set(reviewNode.nodeKey, getReactFlowNodeId(client, reviewNode));
   });
 
-  // Build member nodes
-  client.family.forEach((member) => {
-    const generation = RELATION_GENERATION[member.relation] ?? 0;
+  review.nodes.forEach((reviewNode) => {
+    const isRoot = reviewNode.nodeKey === "primary";
+    const reactFlowNodeId = getReactFlowNodeId(client, reviewNode);
 
     nodes.push({
-      id: member.id,
+      id: reactFlowNodeId,
       type: "person",
       data: {
-        label: member.name,
-        relation: member.relation,
-        generation,
-        memberId: member.id,
-        onAddChild: onAddChild ? () => onAddChild(member.id) : undefined,
-        onAddParent: onAddParent ? () => onAddParent(member.id) : undefined,
+        label: reviewNode.displayName,
+        relation: reviewNode.relation,
+        isRoot,
+        generation: reviewNode.generation,
+        memberId: reactFlowNodeId,
+        onAddChild: onAddChild ? () => onAddChild(isRoot ? null : reactFlowNodeId) : undefined,
+        onAddParent: onAddParent ? () => onAddParent(isRoot ? null : reactFlowNodeId) : undefined,
       },
       position: { x: 0, y: 0 },
     });
-
-    const isRootConnectedElder = !member.parentMemberId && generation < 0;
-    const sourceId = member.parentMemberId ?? (isRootConnectedElder ? member.id : client.id);
-    const targetId = isRootConnectedElder ? client.id : member.id;
-
-    const isSpouse = member.relation === "配偶";
-    const isCollateral =
-      generation === 0 && !isSpouse; // same-generation but not spouse
-
-    edges.push({
-      id: `e-${sourceId}-${targetId}`,
-      source: sourceId,
-      target: targetId,
-      animated: isSpouse,
-      label: member.relation,
-      labelStyle: { fill: "#888", fontWeight: 700, fontSize: 10 },
-      style: isSpouse
-        ? { stroke: "#F48FB1", strokeWidth: 2, strokeDasharray: "6" }
-        : isCollateral
-        ? { stroke: "#CBD5E1", strokeWidth: 1.5, strokeDasharray: "3 3" }
-        : { stroke: "#90CAF9", strokeWidth: 2 },
-      markerEnd: isSpouse
-        ? undefined
-        : { type: MarkerType.ArrowClosed, color: "#90CAF9", width: 16, height: 16 },
-    });
   });
 
-  const laidOutNodes = applyDagreLayout(nodes, edges, "TB");
+  const edges = review.edges.flatMap((edge): Edge<RelationshipEdgeData>[] => {
+    const source = nodeIdByKey.get(edge.sourceNodeKey);
+    const target = nodeIdByKey.get(edge.targetNodeKey);
+
+    if (!source || !target) return [];
+
+    return [
+      {
+        id: edge.edgeKey,
+        source,
+        target,
+        label: getRelationshipEdgeLabel(edge),
+        labelStyle: { fill: "#52525b", fontWeight: 700, fontSize: 10 },
+        style: getRelationshipEdgeStyle(edge),
+        markerEnd: getRelationshipEdgeMarker(edge),
+        type: edge.type === "SPOUSE_OF" ? "straight" : undefined,
+        data: {
+          relationshipType: edge.type,
+          factStatus: edge.factStatus,
+          layoutRole: getRelationshipEdgeLayoutRole(edge.type),
+        },
+      },
+    ];
+  });
+
+  const hierarchyEdges = edges.filter((edge) => edge.data?.layoutRole === "hierarchy");
+  const laidOutNodes = applySameRankHints(applyDagreLayout(nodes, hierarchyEdges, "TB"), edges);
   return { nodes: laidOutNodes, edges };
+}
+
+function getReactFlowNodeId(client: Client, node: RelationshipGraphPersonNode): string {
+  if (node.nodeKey === "primary") return client.id;
+
+  const memberIndex = getFamilyIndexFromNodeKey(node.nodeKey);
+  return memberIndex === null ? node.nodeKey : client.family[memberIndex]?.id ?? node.nodeKey;
+}
+
+function getFamilyIndexFromNodeKey(nodeKey: string): number | null {
+  const match = /^member-(\d+)$/.exec(nodeKey);
+  if (!match) return null;
+
+  const index = Number(match[1]) - 1;
+  return Number.isInteger(index) && index >= 0 ? index : null;
+}
+
+function getRelationshipEdgeLabel(edge: RelationshipGraphEdge): string {
+  if (edge.type === "SPOUSE_OF") return "配偶結合";
+  return edge.label;
+}
+
+function getRelationshipEdgeStyle(edge: RelationshipGraphEdge) {
+  if (edge.type === "SPOUSE_OF") {
+    return { stroke: "#F48FB1", strokeWidth: 2, strokeDasharray: "6 4" };
+  }
+
+  if (edge.type === "SIBLING_OF") {
+    return { stroke: "#71717a", strokeWidth: 1.5, strokeDasharray: "4 4" };
+  }
+
+  if (edge.type === "SOCIAL_TIE") {
+    return {
+      stroke: edge.factStatus === "UNKNOWN" ? "#a1a1aa" : "#64748b",
+      strokeWidth: 1.5,
+      strokeDasharray: "3 5",
+    };
+  }
+
+  return { stroke: "#90CAF9", strokeWidth: 2 };
+}
+
+function getRelationshipEdgeMarker(edge: RelationshipGraphEdge) {
+  if (edge.type === "PARENT_OF" || edge.type === "CHILD_OF") {
+    return { type: MarkerType.ArrowClosed, color: "#90CAF9", width: 16, height: 16 };
+  }
+
+  return undefined;
+}
+
+function getRelationshipEdgeLayoutRole(type: RelationshipGraphEdgeType): RelationshipEdgeData["layoutRole"] {
+  if (type === "PARENT_OF" || type === "CHILD_OF") return "hierarchy";
+  if (type === "SPOUSE_OF" || type === "SIBLING_OF") return "same-rank";
+  return "association";
+}
+
+function applySameRankHints(
+  nodes: Node<PersonNodeData>[],
+  edges: Edge<RelationshipEdgeData>[],
+): Node<PersonNodeData>[] {
+  const nextNodes = nodes.map((node) => ({ ...node, position: { ...node.position } }));
+  const nodeById = new Map(nextNodes.map((node) => [node.id, node]));
+  const offsetCountBySource = new Map<string, number>();
+
+  return nextNodes.map((node) => {
+    const sameRankEdge = edges.find(
+      (edge) => edge.target === node.id && edge.data?.layoutRole === "same-rank",
+    );
+
+    if (!sameRankEdge) return node;
+
+    const source = nodeById.get(sameRankEdge.source);
+    if (!source) return node;
+
+    const currentOffset = offsetCountBySource.get(source.id) ?? 0;
+    const direction = currentOffset % 2 === 0 ? 1 : -1;
+    const distance = 220 + Math.floor(currentOffset / 2) * 180;
+    offsetCountBySource.set(source.id, currentOffset + 1);
+
+    return {
+      ...node,
+      position: {
+        x: source.position.x + direction * distance,
+        y: source.position.y,
+      },
+    };
+  });
 }
 
 export function RelationshipMap({ client, onAddChild, onAddParent }: RelationshipMapProps) {
