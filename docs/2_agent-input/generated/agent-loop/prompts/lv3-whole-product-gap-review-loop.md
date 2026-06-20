@@ -58,6 +58,19 @@ Gap classification:
 - `operator/environment gap`: needs env, session, external provider, production approval, or seed.
 - `product decision`: needs user/operator decision on UX, scope, compliance, or rollout boundary.
 
+Anti-duplicate review gate:
+
+- Read the latest 3-5 loop reports before ranking gaps.
+- For each top gap, state whether it is new, changed, still blocked, or resolved since the prior review.
+- Do not write another same-shape review for a known blocker unless the report adds one of these:
+  a sharper root cause, a safer fallback, a narrower acceptance proof, a new owner doc, or a concrete
+  operator action.
+- If the same blocker appears in two consecutive reviews, promote it to an L4 blocker analysis with:
+  root cause, affected acceptance items, already-tried proof, safe no-blocker fallback, and the smallest
+  external action needed.
+- If the review would only restate existing docs, stop and recommend the next L2 implementation/proof
+  slice or L4 blocker analysis instead.
+
 Five-frame review lens:
 
 Use these five frames on every whole-product gap review and on any quiet continuation loop where
@@ -90,27 +103,28 @@ Score each gap:
 Task:
 
 1. Inventory the target flow and classify each step.
-2. Review the target flow through all five frames above, then pick the top 10 gaps by severity,
+2. Run the anti-duplicate review gate above and record what changed since the last review.
+3. Review the target flow through all five frames above, then pick the top 10 gaps by severity,
    leverage, and dependency order.
-3. Convert the top gaps into next implementation/proof slices. Prefer updating existing PLN/ACC docs
+4. Convert the top gaps into next implementation/proof slices. Prefer updating existing PLN/ACC docs
    and `AGENTS.md` workstream state over creating new docs unless no owner exists.
-4. Convert newly discovered gaps into the relevant owner docs:
+5. Convert newly discovered gaps into the relevant owner docs:
    - `RES-` for research/design/system understanding gaps.
    - `PLN-` for executable batch-task gaps.
    - `ACC-` for acceptance/proof gaps.
    - `AUD-` or report docs for source audits and evidence inventory.
    - `issue-question.md` only for real operator decisions, approvals, sessions, env, production
      approval, or external-service blockers.
-5. Update `docs/2_agent-input/generated/agent-loop/loop-state.json`:
+6. Update `docs/2_agent-input/generated/agent-loop/loop-state.json`:
    - `cadenceReview.normalLoopsSinceLastWholeProductReview = 0`
    - `cadenceReview.lastWholeProductReviewAt`
    - `cadenceReview.lastWholeProductReviewReport`
    - `cadenceReview.nextRecommendedImplementationSlice`
-6. Write a concise review report under `docs/2_agent-input/generated/agent-loop/reports/` named
+7. Write a concise review report under `docs/2_agent-input/generated/agent-loop/reports/` named
    like `YYYY-MM-DD_lv3-whole-product-gap-review.md`.
-7. Run `git diff --check`. If docs/source changed, still run `pnpm exec tsc --noEmit --pretty false`
+8. Run `git diff --check`. If docs/source changed, still run `pnpm exec tsc --noEmit --pretty false`
    and `pnpm lint:changed` unless a clear environment blocker prevents them.
-8. Stage only this review's related files and commit locally. Do not push while the 2026-06-20 user
+9. Stage only this review's related files and commit locally. Do not push while the 2026-06-20 user
    instruction "先不用 git push" is active. In the report and final response, write `push skipped by
    user instruction`. Resume pushing only after the user explicitly restores push.
 
@@ -129,6 +143,7 @@ Final response must include:
 
 - Whether this was a scheduled fifth-loop review, manually triggered review, or quiet continuation
   five-frame gap-research documentation loop.
+- What changed since the last review and why this report is not duplicate work.
 - The five frames used and the main gap surfaced by each.
 - Top 5 gaps with severity/leverage.
 - Docs created/updated.

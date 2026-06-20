@@ -28,6 +28,31 @@ Important terminology:
   product workflow. It does not mean public production Level 3 release readiness unless the release
   hardening docs, acceptance gates, and operator approvals explicitly say so.
 
+Strategic review and anti-repetition gate:
+
+- Before choosing a slice, read the latest 3-5 loop reports and classify the last two completed loops
+  as implementation, proof, research translation, documentation/checklist, or blocker review.
+- If the last two loops were mostly documentation/checklist/proof-plan/evidence-report work, this loop
+  must not choose another same-type quiet documentation slice. Choose an L2 implementation/proof slice,
+  an L3 research-to-implementation translation, or an L4 blocker analysis/unblock plan instead.
+- A documentation-only loop is allowed only when it directly unblocks a named acceptance item and leaves
+  a runnable proof command or exact next implementation prompt.
+- Every selected slice must map to at least one product capability, research hypothesis, acceptance item,
+  roadmap item, or issue-question entry. If no such mapping exists, downgrade it to L0 hygiene and skip it
+  unless no higher-value safe work exists.
+- When the same DB/auth/env/provider blocker appears twice, stop repeating proof plans and produce a
+  blocker analysis with root cause, affected acceptance items, already-tried proof, safe fallback, and the
+  smallest operator action needed.
+
+Task levels:
+
+- L0 hygiene: typo, formatting, stale checklist sync. Use only when no higher-value safe task exists.
+- L1 proof: static proof, contract test, source audit, build/tsc/lint evidence, or recovery proof plan.
+- L2 implementation slice: small API/BFF/UI/domain change that creates or improves product behavior.
+- L3 research translation: convert research into data model, UI flow, API contract, prototype, test, or
+  acceptance criteria.
+- L4 architecture/blocker review: repeated blocker or cross-workstream decision analysis with unblock plan.
+
 Cadence rule:
 
 - Read `docs/2_agent-input/generated/agent-loop/loop-state.json` at the start of every loop.
@@ -47,6 +72,8 @@ Quiet continuation rule:
   no urgent blocker, or no user-facing notification value.
 - If there is no immediate notification value but development can safely continue, run one quiet
   gap-research documentation loop instead of stopping.
+- Do not run quiet gap-research documentation loops twice in a row unless the second loop converts the
+  prior finding into a concrete L2/L3 implementation/proof slice or an L4 blocker analysis.
 - A quiet gap-research documentation loop is not a broad implementation loop. It studies the next
   LV3 gap through the five frames below, then turns the finding into the smallest useful doc update
   or new owner doc:
@@ -125,29 +152,31 @@ Penalize candidate slices:
 Task:
 
 1. Check cadence. If this is the fifth loop, run the whole-product review prompt.
-2. If this is a heartbeat/continuation turn with no new human decision or immediate notification
+2. Run the strategic review and anti-repetition gate above. Record the last-two-loop classification and
+   why the selected slice is not duplicate work.
+3. If this is a heartbeat/continuation turn with no new human decision or immediate notification
    value, but safe work remains, run the quiet gap-research documentation loop from the rule above.
    In that case, score the top 3 documentation/research slices using the same reward/penalty policy,
    do not make broad source changes, and convert the chosen gap into docs and next-slice proof plan.
-3. Otherwise, score the top 3 available implementation/proof slices using the reward/penalty policy.
-4. Pick the highest-scoring slice that can be completed safely in one increment.
-5. Implement, prove, or document only that slice.
-6. Preserve repo architecture: domain logic in `src/domains`, BFF/API in `src/app/api`, UI through
+4. Otherwise, score the top 3 available implementation/proof slices using the reward/penalty policy.
+5. Pick the highest-scoring slice that can be completed safely in one increment.
+6. Implement, prove, or document only that slice.
+7. Preserve repo architecture: domain logic in `src/domains`, BFF/API in `src/app/api`, UI through
    client-safe DTOs, Prisma through repository/server helpers, Zustand only for UI state/cache.
-7. Do not trust client-provided `organizationId`, `ownerId`, `userId`, `unitId`, plan, amount, AI
+8. Do not trust client-provided `organizationId`, `ownerId`, `userId`, `unitId`, plan, amount, AI
    module entitlement, or theater/client ownership.
-8. If schema changes are needed, run `pnpm prisma:validate`, `pnpm prisma:generate`, and only run
+9. If schema changes are needed, run `pnpm prisma:validate`, `pnpm prisma:generate`, and only run
    db push when the DB target and `AGENTS.md` approval boundary allow it.
-9. Always run `pnpm exec tsc --noEmit --pretty false`.
-10. Always run `pnpm lint:changed`.
-11. Run targeted QA for the selected slice, such as `pnpm interview:cross-mode-qa`,
+10. Always run `pnpm exec tsc --noEmit --pretty false`.
+11. Always run `pnpm lint:changed`.
+12. Run targeted QA for the selected slice, such as `pnpm interview:cross-mode-qa`,
     `pnpm demo:three-ai-turn-usage-qa`, `pnpm demo:ai-generation-qa`, `pnpm ai:usage-audit`,
     API proof, DB proof, and/or browser proof.
-12. Update `docs/2_agent-input/generated/agent-loop/loop-state.json`.
-13. Write a concise report under `docs/2_agent-input/generated/agent-loop/reports/`.
-14. Update `docs/2_agent-input/generated/agent-loop/issue-question.md` only for real decisions,
+13. Update `docs/2_agent-input/generated/agent-loop/loop-state.json`.
+14. Write a concise report under `docs/2_agent-input/generated/agent-loop/reports/`.
+15. Update `docs/2_agent-input/generated/agent-loop/issue-question.md` only for real decisions,
     approvals, sessions, seed data, env, or external-service blockers.
-15. Stage only this loop's related files and commit locally with a clear message. Do not push while
+16. Stage only this loop's related files and commit locally with a clear message. Do not push while
     the 2026-06-20 user instruction "先不用 git push" is active. In the report and final response,
     write `push skipped by user instruction` instead of a push target. Resume pushing only after the
     user explicitly restores push.
@@ -165,6 +194,7 @@ Final response must include:
 - Whether this was a normal LV3 implementation/proof loop or a whole-product review loop.
 - If it was a quiet gap-research documentation loop, name that explicitly and list the five frames
   used.
+- Last-two-loop classification, task level, and anti-repetition rationale.
 - Selected slice and top-3 score rationale.
 - Files changed and evidence/report paths.
 - Commands run and exact pass/fail result.
