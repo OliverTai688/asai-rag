@@ -1,4 +1,6 @@
 import { authErrorResponse, requireCurrentMember } from "@/lib/auth/current-workspace";
+import { privateJsonResponse } from "@/lib/api/response";
+import { parseJsonBody } from "@/lib/api/validation";
 import {
   getMemberSettings,
   memberSettingsPatchSchema,
@@ -10,7 +12,7 @@ export async function GET() {
     const session = await requireCurrentMember();
     const response = await getMemberSettings(session);
 
-    return Response.json(response);
+    return privateJsonResponse(response);
   } catch (error) {
     return authErrorResponse(error);
   }
@@ -19,21 +21,17 @@ export async function GET() {
 export async function PATCH(req: Request) {
   try {
     const session = await requireCurrentMember();
-    const parsedBody = memberSettingsPatchSchema.safeParse(await req.json().catch(() => null));
+    const parsedBody = await parseJsonBody(req, memberSettingsPatchSchema, {
+      error: "INVALID_MEMBER_SETTINGS_INPUT",
+    });
 
     if (!parsedBody.success) {
-      return Response.json(
-        {
-          error: "INVALID_MEMBER_SETTINGS_INPUT",
-          issues: parsedBody.error.flatten().fieldErrors,
-        },
-        { status: 400 },
-      );
+      return parsedBody.response;
     }
 
     const response = await updateMemberSettings(session, parsedBody.data);
 
-    return Response.json(response);
+    return privateJsonResponse(response);
   } catch (error) {
     return authErrorResponse(error);
   }

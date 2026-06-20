@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import type { Prisma } from "@/generated/prisma/client";
+import { sanitizeShareEventPayload } from "@/lib/api/sanitize";
 import { prisma } from "@/lib/prisma";
 import type { Report, ReportSection, ReportSectionType, ShareCtaConfig, ShareMeta } from "@/domains/report/types";
 
@@ -128,7 +129,7 @@ export async function recordShareEvent(input: {
         unitId: share.unitId,
         shareId: share.id,
         type: input.type,
-        payload: toSafePayload(input.payload),
+        payload: sanitizeShareEventPayload(input.payload),
         userAgent: input.userAgent?.slice(0, 600) ?? null,
         ipHash: input.ip ? hashIp(input.ip) : null,
       },
@@ -208,25 +209,6 @@ function toShareCtaConfig(value: Prisma.JsonValue): ShareCtaConfig {
     secondaryLabel: typeof secondaryLabel === "string" ? secondaryLabel : fallbackCta.secondaryLabel,
     secondaryHref: typeof record.secondaryHref === "string" ? record.secondaryHref : fallbackCta.secondaryHref,
   };
-}
-
-function toSafePayload(value: unknown): Prisma.InputJsonValue | undefined {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return undefined;
-  }
-
-  const record = value as Record<string, unknown>;
-  const allowed = ["section", "href", "scrollDepth", "label", "source"];
-  const payload: Record<string, string | number | boolean> = {};
-
-  for (const key of allowed) {
-    const item = record[key];
-    if (typeof item === "string") payload[key] = item.slice(0, 160);
-    if (typeof item === "number" && Number.isFinite(item)) payload[key] = item;
-    if (typeof item === "boolean") payload[key] = item;
-  }
-
-  return payload;
 }
 
 function hashIp(ip: string): string {

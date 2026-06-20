@@ -1,3 +1,5 @@
+import { apiErrors } from "@/lib/api/errors";
+import { apiErrorResponse, privateJsonResponse } from "@/lib/api/response";
 import { getSharedReportByToken } from "@/lib/share/share-repository";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ token: string }> }) {
@@ -5,14 +7,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
   const shared = await getSharedReportByToken(token);
 
   if (!shared) {
-    return Response.json(
-      {
-        error: "SHARE_NOT_FOUND",
-        message: "Share link is invalid or expired.",
-      },
-      { status: 404 },
-    );
+    return apiErrorResponse(apiErrors.notFound("SHARE_NOT_FOUND", "Share link is invalid or expired."));
   }
 
-  return Response.json(shared);
+  return privateJsonResponse(shared);
 }

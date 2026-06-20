@@ -64,11 +64,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 2,
+    "normalLoopsSinceLastWholeProductReview": 3,
     "lastWholeProductReviewAt": "2026-06-20",
     "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-20_lv3-whole-product-gap-review-previsit-route-b.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "BFF-002 Shared API foundation. Scope: add shared response/error/validation/sanitize helpers for new BFF routes, prove 2-3 low-risk endpoints return private no-store responses and sanitized errors, and keep BFF-105 reports / BFF-106 issues ready to implement next. Route B provider orchestration remains blocked until explicit provider/cost approval is granted.",
+    "nextRecommendedImplementationSlice": "BFF-105 Reports / share action BFF. Scope: create member-scoped /api/reports list/detail/share action using the shared API foundation, move /reports and /reports/[reportId] off local report store truth, keep public /api/share/[token] client-safe, and prove invalid report, foreign org, success share audit/event, no raw client-private leakage, and refresh/new-context persistence.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {

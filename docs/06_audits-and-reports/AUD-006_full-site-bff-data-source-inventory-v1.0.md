@@ -96,13 +96,12 @@ The following paths are known production-facing or production-adjacent risk poin
 
 ## Next BFF Queue
 
-1. **BFF-002 Shared API foundation**: create response/error/validation/sanitize helpers before adding more routes. This is the lowest unblocked dependency after BFF-001.
-2. **BFF-105 Reports / share action BFF**: highest LV3 flow impact after foundation because preparation package and theater proof eventually need a server-owned advisor report/share surface.
-3. **BFF-106 Issues BFF**: remove the visible `MOCK_ISSUES` production-facing page and convert AI recommendations into fact/inference/unknown DTOs.
-4. **BFF-101 Member dashboard BFF**: replace dashboard client-side aggregation with one member-scoped decision-center DTO.
-5. **BFF-301 Team/org aggregate**: replace `MOCK_TEAM_MEMBERS` and ensure manager aggregate never returns client detail, report body, transcript or private memory.
-6. **BFF-203 SPIN hardening**: preserve the SPIN state machine while removing mock outline fallback and local seed truth from production proof.
-7. **BFF-204 / ITA-003f Route B provider orchestration**: only after explicit provider/cost approval; success/error paths must write `AiUsageLog`, and raw provider payload must not be stored.
+1. **BFF-105 Reports / share action BFF**: highest LV3 flow impact after foundation because preparation package and theater proof eventually need a server-owned advisor report/share surface.
+2. **BFF-106 Issues BFF**: remove the visible `MOCK_ISSUES` production-facing page and convert AI recommendations into fact/inference/unknown DTOs.
+3. **BFF-101 Member dashboard BFF**: replace dashboard client-side aggregation with one member-scoped decision-center DTO.
+4. **BFF-301 Team/org aggregate**: replace `MOCK_TEAM_MEMBERS` and ensure manager aggregate never returns client detail, report body, transcript or private memory.
+5. **BFF-203 SPIN hardening**: preserve the SPIN state machine while removing mock outline fallback and local seed truth from production proof.
+6. **BFF-204 / ITA-003f Route B provider orchestration**: only after explicit provider/cost approval; success/error paths must write `AiUsageLog`, and raw provider payload must not be stored.
 
 ## BFF-001 Validation Notes
 

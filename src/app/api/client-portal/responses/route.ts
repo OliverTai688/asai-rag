@@ -1,26 +1,40 @@
-import type { Prisma } from "@/generated/prisma/client";
+import { z } from "zod";
 import { InteractionEventType } from "@/generated/prisma/enums";
+import { apiErrors } from "@/lib/api/errors";
+import { apiErrorResponse, privateJsonResponse } from "@/lib/api/response";
+import { sanitizeClientPortalResponseMetadata } from "@/lib/api/sanitize";
+import { parseJsonBody } from "@/lib/api/validation";
 import { authErrorResponse, requireClientPortalUser } from "@/lib/auth/current-workspace";
 import { prisma } from "@/lib/prisma";
 
 type ClientPortalResponseType = "SUPPLEMENT" | "QUESTION" | "BOOKING_INTENT";
 
 const allowedTypes: ClientPortalResponseType[] = ["SUPPLEMENT", "QUESTION", "BOOKING_INTENT"];
+const clientPortalResponseSchema = z.object({
+  type: z.string().trim(),
+  message: z.string().trim().min(1).max(1200),
+  payload: z.unknown().optional(),
+});
 
 export async function POST(request: Request) {
   try {
     const session = await requireClientPortalUser();
-    const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
-    const responseType = normalizeResponseType(body?.type);
-    const message = normalizeMessage(body?.message);
+    const parsedBody = await parseJsonBody(request, clientPortalResponseSchema, {
+      error: "INVALID_CLIENT_PORTAL_RESPONSE",
+      message: "Response type and message are required.",
+    });
 
-    if (!responseType || !message) {
-      return Response.json(
-        {
-          error: "INVALID_CLIENT_PORTAL_RESPONSE",
-          message: "Response type and message are required.",
-        },
-        { status: 400 },
+    if (!parsedBody.success) {
+      return parsedBody.response;
+    }
+
+    const responseType = normalizeResponseType(parsedBody.data.type);
+
+    if (!responseType) {
+      return apiErrorResponse(
+        apiErrors.validation("INVALID_CLIENT_PORTAL_RESPONSE", {
+          type: ["Response type is not supported."],
+        }),
       );
     }
 
@@ -31,13 +45,13 @@ export async function POST(request: Request) {
         clientId: session.clientId,
         type: InteractionEventType.TASK,
         title: toEventTitle(responseType),
-        description: message,
-        metadata: toSafeMetadata({
+        description: parsedBody.data.message,
+        metadata: sanitizeClientPortalResponseMetadata({
           source: "client_portal",
           responseType,
           shareId: session.shareId,
           reportId: session.reportId,
-          payload: body?.payload,
+          payload: parsedBody.data.payload,
         }),
       },
       select: {
@@ -48,7 +62,7 @@ export async function POST(request: Request) {
       },
     });
 
-    return Response.json(
+    return privateJsonResponse(
       {
         response: {
           id: event.id,
@@ -73,15 +87,6 @@ function normalizeResponseType(value: unknown): ClientPortalResponseType | null 
   return allowedTypes.includes(type as ClientPortalResponseType) ? (type as ClientPortalResponseType) : null;
 }
 
-function normalizeMessage(value: unknown): string | null {
-  if (typeof value !== "string") {
-    return null;
-  }
-
-  const message = value.trim().slice(0, 1200);
-  return message.length > 0 ? message : null;
-}
-
 function toEventTitle(type: ClientPortalResponseType): string {
   const titles: Record<ClientPortalResponseType, string> = {
     SUPPLEMENT: "客戶補充資料",
@@ -90,35 +95,4 @@ function toEventTitle(type: ClientPortalResponseType): string {
   };
 
   return titles[type];
-}
-
-function toSafeMetadata(input: {
-  source: string;
-  responseType: ClientPortalResponseType;
-  shareId: string;
-  reportId: string;
-  payload: unknown;
-}): Prisma.InputJsonValue {
-  const payload = input.payload && typeof input.payload === "object" && !Array.isArray(input.payload)
-    ? (input.payload as Record<string, unknown>)
-    : {};
-
-  return {
-    source: input.source,
-    responseType: input.responseType,
-    shareId: input.shareId,
-    reportId: input.reportId,
-    preferredTime: toSafeString(payload.preferredTime, 120),
-    contactMethod: toSafeString(payload.contactMethod, 80),
-    topic: toSafeString(payload.topic, 160),
-  };
-}
-
-function toSafeString(value: unknown, limit: number): string | undefined {
-  if (typeof value !== "string") {
-    return undefined;
-  }
-
-  const text = value.trim().slice(0, limit);
-  return text.length > 0 ? text : undefined;
 }

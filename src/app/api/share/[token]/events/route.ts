@@ -1,5 +1,8 @@
 import { headers } from "next/headers";
 import { z } from "zod";
+import { apiErrors } from "@/lib/api/errors";
+import { apiErrorResponse, jsonResponse } from "@/lib/api/response";
+import { parseJsonBody } from "@/lib/api/validation";
 import { recordShareEvent } from "@/lib/share/share-repository";
 
 const shareEventSchema = z.object({
@@ -9,16 +12,13 @@ const shareEventSchema = z.object({
 
 export async function POST(req: Request, { params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
-  const parsedBody = shareEventSchema.safeParse(await req.json().catch(() => ({})));
+  const parsedBody = await parseJsonBody(req, shareEventSchema, {
+    error: "INVALID_SHARE_EVENT",
+    fallbackBody: {},
+  });
 
   if (!parsedBody.success) {
-    return Response.json(
-      {
-        error: "INVALID_SHARE_EVENT",
-        issues: parsedBody.error.flatten().fieldErrors,
-      },
-      { status: 400 },
-    );
+    return parsedBody.response;
   }
 
   const headerList = await headers();
@@ -31,16 +31,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
   });
 
   if (!result) {
-    return Response.json(
-      {
-        error: "SHARE_NOT_FOUND",
-        message: "Share link is invalid or expired.",
-      },
-      { status: 404 },
-    );
+    return apiErrorResponse(apiErrors.notFound("SHARE_NOT_FOUND", "Share link is invalid or expired."));
   }
 
-  return Response.json(result);
+  return jsonResponse(result);
 }
 
 function getForwardedIp(value: string | null): string | null {
