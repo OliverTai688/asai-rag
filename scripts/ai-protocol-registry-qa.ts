@@ -30,7 +30,7 @@ const forbiddenValuePatterns = [
   /\botp\b/i,
 ];
 
-const nap003aSourceAdoptionRequirements: Record<string, { ownerRefs: string[]; evidenceRefs: string[]; commands: string[] }> = {
+const sourceAdoptionRequirements: Record<string, { ownerRefs: string[]; evidenceRefs: string[]; commands: string[] }> = {
   "asai.chat.assistant": {
     ownerRefs: [
       "src/app/api/ai/chat/route.ts",
@@ -67,6 +67,84 @@ const nap003aSourceAdoptionRequirements: Record<string, { ownerRefs: string[]; e
     evidenceRefs: ["SPIN_PHASES", "isAllowedPhaseTransition", "persistAiGenerationSuccess", "persistAiGenerationFailure"],
     commands: ["pnpm ai:bff-audit", "pnpm ai:protocol-registry-qa", "pnpm spin:source-truth-qa"],
   },
+  "asai.interview.companion": {
+    ownerRefs: [
+      "src/app/api/ai/interview/route.ts",
+      "src/app/api/ai/interview/outputs/route.ts",
+      "src/lib/interview/interview-ai-repository.ts",
+      "src/lib/interview/interview-persistence-repository.ts",
+      "src/lib/interview/interview-writeback-repository.ts",
+      "src/domains/interview/writeback-boundary.ts",
+    ],
+    evidenceRefs: [
+      "interviewRequestSchema",
+      "outputRequestSchema",
+      "buildAdvisorMemoryLoopContext",
+      "persistInterviewTurnSuccess",
+      "persistInterviewOutputSuccess",
+      "persistInterviewFailure",
+      "createPersistentInterviewSession",
+      "appendPersistentInterviewTurn",
+      "createPersistentInterviewReflection",
+      "getInterviewWritebackPreview",
+      "saveInterviewWritebackConfirmation",
+      "evaluateInterviewWriteback",
+      "createDraftWritebacks",
+    ],
+    commands: [
+      "pnpm ai:bff-audit",
+      "pnpm ai:protocol-registry-qa",
+      "pnpm interview:cross-mode-qa",
+      "pnpm interview:draft-writeback-qa",
+    ],
+  },
+  "asai.interview.quick_capture": {
+    ownerRefs: [
+      "src/app/api/ai/interview/quick-captures/route.ts",
+      "src/domains/interview/quick-capture.ts",
+      "src/lib/interview/interview-persistence-repository.ts",
+      "src/app/(dashboard)/pre-visit/[planId]/notes/page.tsx",
+    ],
+    evidenceRefs: [
+      "createQuickCaptureBridgeInputSchema",
+      "buildQuickCaptureMemoryBridge",
+      "createPersistentQuickCaptureBridge",
+      "resolveQuickCaptureScope",
+      "QuickCaptureBridgeResultDto",
+      "QuickCaptureBridgeBlockedDto",
+      "providerCallAttempted",
+      "aiUsageLogRequired",
+      "writesConfirmedCrmFact",
+    ],
+    commands: [
+      "pnpm ai:bff-audit",
+      "pnpm ai:protocol-registry-qa",
+      "pnpm interview:quick-capture-bff-qa",
+      "pnpm interview:quick-capture-ui-qa",
+    ],
+  },
+  "asai.interview.realtime_voice": {
+    ownerRefs: [
+      "src/app/api/ai/interview/realtime-session/route.ts",
+      "src/app/api/ai/interview/realtime-events/route.ts",
+      "src/app/api/ai/interview/transcribe/route.ts",
+      "src/app/api/ai/interview/transcribe-realtime-session/route.ts",
+      "src/lib/interview/realtime-bff.ts",
+    ],
+    evidenceRefs: [
+      "realtimeSessionRequestSchema",
+      "realtimeEventSchema",
+      "createDryRunRealtimeClientSecret",
+      "providerRealtimeSessionRequestEnvelope",
+      "providerTranscriptionSessionRequestEnvelope",
+      "sanitizeRealtimeClientSecretResponse",
+      "findRealtimeEventPayloadViolations",
+      "mirrorRealtimeEventToMemoryCandidates",
+      "responseContainsServerSecret",
+      "writeAiUsageLogSafely",
+    ],
+    commands: ["pnpm ai:bff-audit", "pnpm ai:protocol-registry-qa", "pnpm interview:realtime-bff-qa"],
+  },
 };
 
 runQa();
@@ -99,7 +177,7 @@ function runQa() {
     assertPublicationGate(manifest);
     assertUsagePolicy(manifest);
     assertProofCommands(manifest);
-    assertNap003aSourceAdoption(manifest);
+    assertSourceAdoption(manifest);
     assertNoForbiddenValues(manifest);
   }
 
@@ -192,9 +270,9 @@ function assertProofCommands(manifest: AgentProtocolManifest) {
   }
 }
 
-function assertNap003aSourceAdoption(manifest: AgentProtocolManifest) {
+function assertSourceAdoption(manifest: AgentProtocolManifest) {
   const prefix = manifest.identity.agentId;
-  const requirement = nap003aSourceAdoptionRequirements[prefix];
+  const requirement = sourceAdoptionRequirements[prefix];
 
   if (!requirement) {
     return;
@@ -202,14 +280,14 @@ function assertNap003aSourceAdoption(manifest: AgentProtocolManifest) {
 
   const adoption = manifest.proof.sourceAdoption;
 
-  push(Boolean(adoption), `${prefix} declares NAP-003a source adoption evidence`);
+  push(Boolean(adoption), `${prefix} declares NAP-003 source adoption evidence`);
 
   if (!adoption) {
     return;
   }
 
-  push(adoption.status === "adopted", `${prefix} NAP-003a source adoption is adopted`, adoption.status);
-  push(adoption.notes.length > 0, `${prefix} has NAP-003a source adoption notes`);
+  push(adoption.status === "adopted", `${prefix} NAP-003 source adoption is adopted`, adoption.status);
+  push(adoption.notes.length > 0, `${prefix} has NAP-003 source adoption notes`);
 
   for (const ownerRef of requirement.ownerRefs) {
     push(adoption.ownerRefs.includes(ownerRef), `${prefix} source owner includes ${ownerRef}`);

@@ -1569,7 +1569,7 @@ Context: 將誠問 AI 內所有 AI 能力逐步對齊 MIT Project NANDA / AgentF
 
 ### Batch NAP-003 — Per-AI manifest adoption and source alignment
 - [x] 將 `CHAT` / assistant manifest 對齊 route owner proof，標明 assistant conversation/message persistence、tool allowlist、quota、usage logging。
-- [ ] 將 `INTERVIEW` / `INTERVIEW_OUTPUTS` / quick-capture manifest 對齊 source proof，標明 memory/writeback/confirmation boundary。
+- [x] 將 `INTERVIEW` / `INTERVIEW_OUTPUTS` / quick-capture manifest 對齊 source proof，標明 memory/writeback/confirmation boundary。
 - [x] 將 `VISIT` / `REPORT` AI manifest 對齊 source proof，標明 provider-safe client snapshot、facts/inferences/unknowns DTO。
 - [x] 將 `SPIN` manifest 對齊 source proof，明確保留 `SITUATION -> PROBLEM -> IMPLICATION -> NEED_PAYOFF` state machine。
 - [~] 將 `THEATER` legacy / Route B manifest 對齊 source proof，標明 guarded-disabled provider posture、director/character/feedback readiness 與 private/group visibility。
@@ -1577,6 +1577,8 @@ Context: 將誠問 AI 內所有 AI 能力逐步對齊 MIT Project NANDA / AgentF
 - [x] 跑 `pnpm ai:bff-audit`、`pnpm ai:protocol-registry-qa`、`pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
 
 完成註記（2026-06-21 NAP-003a）：`asai.chat.assistant`、`asai.visit.preparation_package`、`asai.report.generation`、`asai.spin.advisor` 已在 `AgentProtocolManifest` 新增 `proof.sourceAdoption.status=adopted`、source owner refs、evidence refs 與 source adoption notes；`scripts/ai-protocol-registry-qa.ts` 會強制檢查四個 provider-ready module 的 NAP-003a adoption proof。`pnpm bff:visit-report-ai-qa` 會實際觸發 provider 成功路徑，本輪依 no-provider slice 不執行，改以 static/source proof 與非 provider QA 收斂。
+
+完成註記（2026-06-21 NAP-003b）：`asai.interview.companion`、`asai.interview.quick_capture`、`asai.interview.realtime_voice` 已在 `AgentProtocolManifest` 新增 `proof.sourceAdoption.status=adopted`。Evidence 覆蓋 interview provider turn/output 的 memory loop 與 success/error `AiUsageLog` helper、deterministic session/memory/reflection persistence、writeback confirmation/draft handoff、quick-capture no-provider/high-sensitive/no raw note echo proof、realtime dry-run/event-mirror/transcription provider 邊界。`scripts/ai-protocol-registry-qa.ts` 已擴為強制檢查 NAP-003a/b source adoption requirements；live WebRTC 與外部 registry publication 仍是 blocker。
 
 ### Batch NAP-004 — Internal registry and readiness API
 - [x] 建立 internal registry reader（server-only），可列出 AI manifests、readiness、missing proof、operator approval blockers。

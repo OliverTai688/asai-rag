@@ -71,11 +71,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 3,
+    "normalLoopsSinceLastWholeProductReview": 4,
     "lastWholeProductReviewAt": "2026-06-21",
     "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-21_lv3-whole-product-gap-review-nap-routeb-runtime.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "NAP-003a provider-ready AI source adoption completed on 2026-06-21 for CHAT / VISIT / REPORT / SPIN: four manifests now carry proof.sourceAdoption.status=adopted with source owner refs, DTO/evidence refs, quota/AiUsage posture notes, and SPIN state-machine refs. Next safe slice: NAP-003b interview memory + quick-capture source adoption for INTERVIEW / INTERVIEW_OUTPUTS / quick-capture / realtime voice, preferably no-provider/default guarded, mapping memory/reflection/writeback/confirmation boundaries and updating registry QA without touching Theater Route B provider runtime.",
+    "nextRecommendedImplementationSlice": "NAP-003b interview memory + quick-capture/realtime source adoption completed on 2026-06-21: asai.interview.companion, asai.interview.quick_capture, and asai.interview.realtime_voice now carry proof.sourceAdoption.status=adopted with source owner refs, evidence refs, no-provider/usage notes, writeback confirmation boundaries, and realtime dry-run/event-mirror/transcription separation. Because normalLoopsSinceLastWholeProductReview is now 4, the next heartbeat should run the fifth-loop whole-product gap review prompt before resuming implementation; after review compare NAP-003c theater/RAG source adoption vs NAP-005 local-only adapter/export dry-run vs a clean LV3 cross-flow no-provider proof.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {
