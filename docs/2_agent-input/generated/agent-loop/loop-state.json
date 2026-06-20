@@ -64,11 +64,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 2,
+    "normalLoopsSinceLastWholeProductReview": 3,
     "lastWholeProductReviewAt": "2026-06-20",
     "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-20_lv3-whole-product-gap-review-relationship-graph-spin.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "REL-005 relationship graph layout/interaction polish. Scope: keep REL-004 schema work blocked until migration/rollback approval, and instead harden the no-schema graph UI with cross-state browser QA for empty/single-parent/dual-parent/spouse/social ties, tooltip/aria polish for node toolbar actions, reduced-motion/dark-mode checks, and evidence screenshots without changing Prisma schema or calling providers.",
+    "nextRecommendedImplementationSlice": "BFF-202 Visit / report AI hardening. Scope: keep the redesigned previsit package project-context UI and persisted VisitPlan BFF intact, then harden /api/ai/visit and /api/ai/report with current-member scope, quota/capability guard, success/error AiUsageLog proof, structured facts/inferences/unknowns/recommendations DTO boundaries, and 401/400/429/success/provider-error evidence without weakening compliance fields or saving raw provider payloads.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {

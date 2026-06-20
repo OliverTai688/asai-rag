@@ -72,14 +72,28 @@ const PersonNode = ({
   data: PersonNodeData;
   selected: boolean;
 }) => {
+  const [hasKeyboardFocus, setHasKeyboardFocus] = React.useState(false);
   const style = data.isRoot
-    ? { bg: "bg-[#EBF3FB] dark:bg-blue-950/40", border: "border-[#90CAF9]/40", icon: "text-[#1565C0]" }
+    ? { bg: "bg-[#F6F8FA] dark:bg-blue-950/30", border: "border-[#1A3A6B]/30", icon: "text-[#1565C0]" }
     : getGenerationStyle(data.generation);
+  const addParentLabel = `新增父節點：${data.label}`;
+  const addChildLabel = `新增子節點：${data.label}`;
+  const showToolbar = selected || hasKeyboardFocus;
 
   return (
     <div
+      role="group"
+      tabIndex={0}
+      aria-label={`關係圖節點：${data.relation} ${data.label}`}
+      onFocus={() => setHasKeyboardFocus(true)}
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as globalThis.Node | null)) {
+          setHasKeyboardFocus(false);
+        }
+      }}
       className={cn(
-        "px-4 py-3 rounded-2xl border-2 transition-all shadow-sm flex items-center gap-3 min-w-[140px]",
+        "flex min-h-[72px] min-w-[160px] items-center gap-3 rounded-xl border px-4 py-3 shadow-none transition-colors motion-reduce:transition-none",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1A3A6B] focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-zinc-950",
         style.bg,
         style.border,
         selected && "border-[#1565C0] ring-2 ring-[#1565C0]/20"
@@ -88,7 +102,7 @@ const PersonNode = ({
       <Handle type="target" position={Position.Top} className="opacity-0" />
       <div
         className={cn(
-          "w-10 h-10 rounded-xl flex items-center justify-center shrink-0",
+          "flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-hairline",
           data.isRoot ? "bg-white" : "bg-white/60 dark:bg-zinc-800/60"
         )}
       >
@@ -102,19 +116,25 @@ const PersonNode = ({
       <Handle type="target" position={Position.Top} className="opacity-0" />
 
       {(data.onAddChild || data.onAddParent) && (
-        <NodeToolbar isVisible={selected} position={Position.Bottom} className="flex gap-2">
+        <NodeToolbar isVisible={showToolbar} position={Position.Bottom} className="flex gap-2">
           {data.onAddParent && (
             <button
+              type="button"
+              aria-label={addParentLabel}
+              title={addParentLabel}
               onClick={() => data.onAddParent!(data.memberId)}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-zinc-800 text-white text-xs font-bold shadow-lg hover:bg-zinc-700 transition-colors"
+              className="flex min-h-10 items-center gap-1 rounded-full bg-zinc-900 px-3 py-1.5 text-xs font-bold text-white shadow-none transition-colors hover:bg-zinc-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1A3A6B] focus-visible:ring-offset-2 motion-reduce:transition-none dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-zinc-200"
             >
               <UserPlus className="w-3 h-3" /> 新增父節點
             </button>
           )}
           {data.onAddChild && (
             <button
+              type="button"
+              aria-label={addChildLabel}
+              title={addChildLabel}
               onClick={() => data.onAddChild!(data.memberId)}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-[#1A3A6B] text-white text-xs font-bold shadow-lg hover:bg-[#1565C0] transition-colors"
+              className="flex min-h-10 items-center gap-1 rounded-full bg-[#1A3A6B] px-3 py-1.5 text-xs font-bold text-white shadow-none transition-colors hover:bg-[#1565C0] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1A3A6B] focus-visible:ring-offset-2 motion-reduce:transition-none"
             >
               <UserPlus className="w-3 h-3" /> 新增子節點
             </button>
@@ -269,8 +289,8 @@ function applySameRankHints(
     if (!source) return node;
 
     const currentOffset = offsetCountBySource.get(source.id) ?? 0;
-    const direction = currentOffset % 2 === 0 ? 1 : -1;
-    const distance = 220 + Math.floor(currentOffset / 2) * 180;
+    const direction = getSameRankDirection(sameRankEdge, currentOffset);
+    const distance = getSameRankDistance(sameRankEdge, currentOffset);
     offsetCountBySource.set(source.id, currentOffset + 1);
 
     return {
@@ -281,6 +301,22 @@ function applySameRankHints(
       },
     };
   });
+}
+
+function getSameRankDirection(edge: Edge<RelationshipEdgeData>, offsetIndex: number): number {
+  if (edge.data?.relationshipType === "SPOUSE_OF") return 1;
+  if (edge.data?.relationshipType === "SIBLING_OF") return offsetIndex % 2 === 0 ? -1 : 1;
+  return offsetIndex % 2 === 0 ? 1 : -1;
+}
+
+function getSameRankDistance(edge: Edge<RelationshipEdgeData>, offsetIndex: number): number {
+  const baseDistance =
+    edge.data?.relationshipType === "SPOUSE_OF"
+      ? 210
+      : edge.data?.relationshipType === "SIBLING_OF"
+        ? 230
+        : 320;
+  return baseDistance + Math.floor(offsetIndex / 2) * 160;
 }
 
 export function RelationshipMap({ client, onAddChild, onAddParent }: RelationshipMapProps) {
@@ -301,8 +337,9 @@ export function RelationshipMap({ client, onAddChild, onAddParent }: Relationshi
   }, [client]);
 
   return (
-    <div className="w-full h-[600px] bg-zinc-50 dark:bg-zinc-950 rounded-3xl border border-zinc-200 dark:border-zinc-800 overflow-hidden relative shadow-inner">
+    <div className="relative h-[600px] w-full overflow-hidden rounded-xl border border-hairline bg-zinc-50 shadow-none dark:bg-zinc-950">
       <ReactFlow
+        aria-label="人物關係圖互動畫布"
         nodes={nodes}
         edges={edges}
         onNodesChange={onNodesChange}
@@ -314,16 +351,17 @@ export function RelationshipMap({ client, onAddChild, onAddParent }: Relationshi
         <Background color="#cbd5e1" gap={20} size={1} />
         <Controls
           showInteractive={false}
-          className="bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800"
+          aria-label="人物關係圖縮放控制"
+          className="border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900"
         />
       </ReactFlow>
 
       {/* Legend */}
-      <div className="absolute top-4 left-4 p-4 rounded-2xl bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md border border-white dark:border-zinc-800 shadow-lg z-10">
+      <div className="absolute left-4 top-4 z-10 rounded-xl border border-hairline bg-white/90 p-4 shadow-none backdrop-blur-md dark:bg-zinc-900/90">
         <h3 className="text-sm font-bold flex items-center gap-2">
           <Users className="w-4 h-4 text-[#1565C0]" /> 人物關係圖
         </h3>
-        <p className="text-[10px] text-zinc-500 mt-1">點選節點可新增子節點</p>
+        <p className="text-[10px] text-zinc-500 mt-1">點選或聚焦節點可新增父/子節點</p>
         <div className="mt-2 space-y-1">
           {[
             { color: "bg-purple-200", label: "祖父母輩" },
