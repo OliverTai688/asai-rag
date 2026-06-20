@@ -52,6 +52,8 @@ Full-site BFF 驗收重點不是 endpoint 數量，而是資料邊界、session 
 - No-provider proof 顯示 `AiUsageLog` count unchanged；若任何 related-list action 後續接 AI provider，success/error path 必須另寫 `AiUsageLog`。
 - 若 Supabase DB/DNS 無法連線，只能提交 proof-plan 或 blocked report，不得把 fixture/mock output 當 DB-backed proof。
 
+Recovery evidence（2026-06-21）：`DEMO_QA_BASE_URL=http://localhost:3000 pnpm bff:crm-related-lists-qa` 已通過上述恢復 gates。DB-backed proof 建立 demo/test client、family member、policy、visit plan 與 report，驗證 member 200/201、manager 403、DTO 合規欄位保留、raw report body / raw section field / email / phone / policyNumber 不外洩、policies/timeline/gap-analysis/reports desktop no overflow、gap-analysis mobile no overflow、`AiUsageLog` count 147->147。後續若 DB/DNS 再中斷，新的 proof 仍需重新跑同等命令，不得沿用舊截圖宣稱當前通過。
+
 ### 2.3 Org Admin
 
 - Member without org role gets 403.

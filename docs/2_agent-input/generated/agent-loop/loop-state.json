@@ -71,11 +71,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 2,
+    "normalLoopsSinceLastWholeProductReview": 3,
     "lastWholeProductReviewAt": "2026-06-21",
     "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-21_lv3-whole-product-gap-review-db-blocker-build-fallback.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "Normal ITA-003f/S1 implementation loop completed on 2026-06-21: current environment can reach the Supabase DB direct host through IPv6 AAAA even though IPv4 A lookup remains ENODATA; DATABASE_URL port 6543 and DIRECT_URL port 5432 both passed pg read select 1. Route B /theater/[sessionId] now renders a persisted relationship-graph-centered stage map with relationship evidence, known/inference/unknown counts, click-to-private-chat, no-provider proof, state proposal boundaries, desktop/mobile QA, and AiUsageLog unchanged proof. Next highest implementation slice: BFF-103d related-list recovery proof now that DB is reachable, using DEMO_QA_BASE_URL=http://localhost:3000 or an available local dev port and the existing bff:crm-related-lists-qa command. Secondary slice: ITA-003g provider runtime contract preflight for director/character/feedback success/error AiUsageLog, but do not enable live provider calls without explicit operator approval.",
+    "nextRecommendedImplementationSlice": "Normal BFF-103d recovery-proof loop completed on 2026-06-21: DB-backed CRM related-list proof now passes with DEMO_QA_BASE_URL=http://localhost:3000 pnpm bff:crm-related-lists-qa, covering member-owned policies/timeline/reports/gap-analysis DTO, manager denial, compliance fields, raw-private sentinel exclusion, desktop/mobile browser proof, and AiUsageLog unchanged 147->147. Next highest implementation slice: PIM-011 BFF/API quick-capture -> Park memory bridge proof now that DB is reachable; it should prove owner create/read/readback, manager/foreign denial, high-sensitive gate, no-provider/AiUsageLog unchanged, refresh/new-context memory retrieval, and no raw private sentinel. Secondary slice: ITA-003g Route B provider runtime contract preflight, guarded-disabled unless explicit operator approval enables live provider calls.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {

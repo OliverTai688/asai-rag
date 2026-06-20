@@ -251,7 +251,7 @@ async function runBrowserProof() {
 
     await page.goto(`${baseUrl}/crm/${createdClientId}/reports`, { waitUntil: "domcontentloaded", timeout: 60000 });
     await page.getByRole("heading", { name: "報告歷史" }).waitFor({ timeout: 30000 });
-    await page.getByText(qaReportSectionTitle).waitFor({ timeout: 30000 });
+    await page.getByText(qaReportSectionTitle).first().waitFor({ timeout: 30000 });
     const reportChecks = await page.evaluate((sectionTitle) => {
       const text = document.body.innerText;
       return {
