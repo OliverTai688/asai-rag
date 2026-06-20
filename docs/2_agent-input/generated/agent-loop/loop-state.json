@@ -71,11 +71,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 4,
+    "normalLoopsSinceLastWholeProductReview": 0,
     "lastWholeProductReviewAt": "2026-06-21",
-    "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-21_lv3-whole-product-gap-review-pim-ui-nap-routeb.md",
+    "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-21_lv3-whole-product-gap-review-nap-routeb-runtime.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "NAP-004 source/API/proof loop completed on 2026-06-21: src/domains/ai-protocol now exposes getAgentProtocolRegistryReadiness(), /api/platform/ai-protocol/registry is platform-only/no-store, and platform release readiness includes least-disclosure aiProtocol readiness. pnpm ai:protocol-readiness-qa passes both source and DEMO_QA_BASE_URL HTTP proof. Cadence counter is now 4, so the next automation loop should run the fifth-loop whole-product gap review prompt before more implementation unless the operator gives an urgent override.",
+    "nextRecommendedImplementationSlice": "Scheduled fifth-loop whole-product review completed on 2026-06-21. Since PIM-011c and NAP-001/002/004 are now resolved, the next recommended implementation/proof slice is ITA-003g Route B director/character/feedback runtime preflight (guarded-disabled/no-provider unless explicit provider approval), with source alignment for asai.theater.route_b in the AgentFacts manifest chain. Fallback if operator wants no-theater source hardening: NAP-003 per-AI source adoption/alignment.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {
