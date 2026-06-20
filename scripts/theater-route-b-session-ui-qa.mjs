@@ -102,25 +102,38 @@ async function assertStageViewport(browser, viewportName, viewport) {
       const text = document.body.innerText;
       return {
         hasRouteB: text.includes("Route B"),
+        hasRelationshipStageMap: text.includes("客戶關係舞台") && /relationship\s+stage\s+map/i.test(text),
+        hasRelationshipEvidence: text.includes("關係證據") && text.includes("林先生與林太太是共同決策關係。"),
         hasGroupLane: text.includes("群聊"),
         hasPrivateLane: text.includes("私聊"),
         hasFocusCharacter: text.includes("林先生"),
         hasDecisionMaker: text.includes("林太太"),
         hasProviderGuard: text.includes("guarded-disabled") && text.includes("callAttempted=false"),
         hasNoFakeUsage: text.includes("usageLogWritten=false"),
+        hasStateProposalBoundary: text.includes("requiresConfirmation=true") && text.includes("writesConfirmedCrmFact=false"),
         hasVisibilityProof: text.includes("Scoped turn columns") && text.includes("Owner read"),
         hasHorizontalOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
       };
     });
 
     push(checksFromDom.hasRouteB, `${viewportName} stage renders Route B label`);
+    push(checksFromDom.hasRelationshipStageMap, `${viewportName} stage renders relationship stage map`);
+    push(checksFromDom.hasRelationshipEvidence, `${viewportName} stage renders relationship evidence`);
     push(checksFromDom.hasGroupLane, `${viewportName} stage renders group-chat lane`);
     push(checksFromDom.hasPrivateLane, `${viewportName} stage renders private-chat lane`);
     push(checksFromDom.hasFocusCharacter && checksFromDom.hasDecisionMaker, `${viewportName} stage renders focus and decision-maker characters`);
     push(checksFromDom.hasProviderGuard, `${viewportName} stage renders guarded-disabled provider proof`);
     push(checksFromDom.hasNoFakeUsage, `${viewportName} stage renders no fake AiUsageLog proof`);
+    push(checksFromDom.hasStateProposalBoundary, `${viewportName} stage renders state proposal write boundary`);
     push(checksFromDom.hasVisibilityProof, `${viewportName} stage renders visibility proof`);
     push(!checksFromDom.hasHorizontalOverflow, `${viewportName} stage has no horizontal overflow`);
+
+    await page.getByRole("button", { name: /與 林太太 私聊/ }).click();
+    const scopeSelect = page.getByLabel("選擇 Route B 發話範圍");
+    const addresseeSelect = page.getByLabel("選擇 Route B 私聊對象");
+    await addresseeSelect.waitFor({ state: "visible", timeout: 10000 });
+    push((await scopeSelect.inputValue()) === "PRIVATE", `${viewportName} stage-map character click switches composer to private`);
+    push((await addresseeSelect.inputValue()) === "character_spouse", `${viewportName} stage-map character click selects decision-maker addressee`);
 
     const guardedButton = page.getByRole("button", { name: /待 provider proof/ }).first();
     push(await guardedButton.isDisabled(), `${viewportName} provider action is disabled until usage-log proof exists`);

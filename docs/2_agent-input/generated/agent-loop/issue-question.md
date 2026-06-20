@@ -63,7 +63,7 @@ Last updated: 2026-06-21
 ## Session / Seed Data / Env / External Service
 
 - 2026-06-20 blocker: BFF-103d related-list targeted proof 被 Supabase DB DNS/connection 中斷阻擋。初次 `pnpm bff:crm-related-lists-qa` 已完成 partial proof：unauth 401、member client/family/policy/visit/report create 201、related-lists 200、manager 403、policies/timeline desktop screenshots；後續 browser gap-analysis proof 時 Prisma pool 失敗 `EHOSTUNREACH/P1001`，重跑時 direct DNS 解析 `db.wwocdcicvpmbdmqvskzi.supabase.co` 回 `ENOTFOUND`，`/api/clients` 也回 500。待 Supabase DNS/DB 恢復後，重跑 `DEMO_QA_BASE_URL=http://localhost:3029 pnpm bff:crm-related-lists-qa` 補 full API/browser/AiUsageLog unchanged proof。
-- 2026-06-21 blocker status: 同一 Supabase host 再測仍回 `No answer`。DB/DNS 未恢復前，只能做 no-DB source contract、quiet six-frame docs、L4 blocker analysis 或 no-DB protocol inventory；不得把 fixture/mock/local proof 寫成 DB-backed proof。LCH-009 production build fallback 已於 2026-06-21 以 `pnpm build` pass proof 收斂，不應再重複當作下一輪 fallback。
+- 2026-06-21 recovery status: 同一 Supabase DB direct host 仍無 IPv4 A record（`resolve4=ENODATA`），但有 IPv6 AAAA，且本輪從目前開發環境確認 `DATABASE_URL` pooler port 6543 與 `DIRECT_URL` direct port 5432 皆可 TCP/pg read `select 1`。DB-backed BFF/ITA proof 可恢復執行；若後續在 IPv4-only runtime 再失敗，需改用 Supabase pooler/IPv4-compatible connection string 或請 operator 更新 env。不得再把 LCH-009 font/build fallback 當下一輪替代。
 - PIM-006 已 resolved；本輪 proof 使用 `ALLOW_DEV_AUTH_HEADER=true` 的 local dev server 與 demo member/manager header。
 - PIM-008 已 resolved；browser writeback proof 使用 demo member header 與自動建立 demo client 完成。
 - PIM-009 已 resolved；cross-mode QA 使用 local dev server、demo member/manager header、development Supabase DB proof 與 headless browser desktop/mobile proof 完成。

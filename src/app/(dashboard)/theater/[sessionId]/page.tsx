@@ -429,12 +429,22 @@ function RouteBSessionStage({
   snapshot: RouteBSessionSnapshot;
 }) {
   const focusCharacter = snapshot.characters.find((character) => character.isFocus) ?? snapshot.characters[0];
+  const [privateFocusCharacterId, setPrivateFocusCharacterId] = useState<string | null>(null);
+  const [composerVisibilityScope, setComposerVisibilityScope] = useState<"GROUP" | "PRIVATE">("GROUP");
+  const [composerAddresseeRouteBCharacterId, setComposerAddresseeRouteBCharacterId] = useState("");
+  const [composerStatePatchTargetRouteBCharacterId, setComposerStatePatchTargetRouteBCharacterId] = useState("");
   const relationships = routeBRecords(snapshot.scene.relationships);
   const narratorQuestions = routeBRecords(snapshot.scene.narratorQuestions);
   const visibilityRules = routeBRecords(snapshot.scene.visibilityRules);
   const directorTurns = snapshot.turns.filter((turn) => turn.visibilityScope === "DIRECTOR_ONLY");
   const groupTurns = snapshot.turns.filter((turn) => turn.visibilityScope === "GROUP" || !turn.visibilityScope);
   const provider = snapshot.session.provider;
+  const handlePrivateFocus = (routeBCharacterId: string) => {
+    setPrivateFocusCharacterId(routeBCharacterId);
+    setComposerVisibilityScope("PRIVATE");
+    setComposerAddresseeRouteBCharacterId(routeBCharacterId);
+    setComposerStatePatchTargetRouteBCharacterId(routeBCharacterId);
+  };
 
   return (
     <div className="mx-auto flex min-h-[calc(100vh-88px)] w-full max-w-7xl flex-col gap-4 px-4 py-4 sm:px-6 lg:px-8">
@@ -473,6 +483,15 @@ function RouteBSessionStage({
 
       <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
         <main className="grid min-h-0 gap-4 xl:grid-cols-[320px_minmax(0,1fr)]">
+          <section className="xl:col-span-2">
+            <RouteBRelationshipStageMap
+              snapshot={snapshot}
+              relationships={relationships}
+              privateFocusCharacterId={privateFocusCharacterId}
+              onPrivateFocus={handlePrivateFocus}
+            />
+          </section>
+
           <section className="rounded-lg border border-hairline bg-background p-4">
             <div className="flex items-center justify-between gap-3">
               <div>
@@ -552,7 +571,16 @@ function RouteBSessionStage({
             </div>
 
             <div className="space-y-3 border-t border-hairline bg-paper p-3">
-              <RouteBAdvisorComposer snapshot={snapshot} onSnapshotUpdate={onSnapshotUpdate} />
+              <RouteBAdvisorComposer
+                snapshot={snapshot}
+                onSnapshotUpdate={onSnapshotUpdate}
+                visibilityScope={composerVisibilityScope}
+                onVisibilityScopeChange={setComposerVisibilityScope}
+                addresseeRouteBCharacterId={composerAddresseeRouteBCharacterId}
+                onAddresseeRouteBCharacterIdChange={setComposerAddresseeRouteBCharacterId}
+                statePatchTargetRouteBCharacterId={composerStatePatchTargetRouteBCharacterId}
+                onStatePatchTargetRouteBCharacterIdChange={setComposerStatePatchTargetRouteBCharacterId}
+              />
               <div className="mx-auto grid max-w-3xl gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
                 <div className="rounded-lg border border-hairline bg-background px-3 py-3 text-sm text-muted-foreground">
                   Provider 目前關閉；互動只寫入顧問 turn 與待確認狀態，不產生角色訊息、不寫假 `AiUsageLog`。
@@ -607,18 +635,211 @@ function RouteBSessionStage({
   );
 }
 
-function RouteBAdvisorComposer({
-  onSnapshotUpdate,
+function RouteBRelationshipStageMap({
+  onPrivateFocus,
+  privateFocusCharacterId,
+  relationships,
   snapshot,
 }: {
-  onSnapshotUpdate: (snapshot: RouteBSessionSnapshot) => void;
+  onPrivateFocus: (characterId: string) => void;
+  privateFocusCharacterId: string | null;
+  relationships: Array<Record<string, unknown>>;
   snapshot: RouteBSessionSnapshot;
+}) {
+  const latestTurn = latestRouteBTurn(snapshot.turns);
+  const focusCharacterId =
+    privateFocusCharacterId ??
+    latestTurn?.speakerRouteBCharacterId ??
+    latestTurn?.addresseeRouteBCharacterId ??
+    snapshot.characters.find((character) => character.isFocus)?.routeBCharacterId ??
+    null;
+  const provider = snapshot.session.provider;
+
+  return (
+    <Card className="border-hairline shadow-none">
+      <CardContent className="p-0">
+        <div className="border-b border-hairline p-4">
+          <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+            <div className="space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                Relationship Stage Map
+              </p>
+              <h2 className="text-2xl font-semibold tracking-[-0.02em] text-ink">
+                客戶關係舞台
+              </h2>
+              <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
+                從交接包的關係圖、未知項與狀態 proposal 建立演練環境；點選人物即可把發話範圍切到私聊，不寫回 CRM 既成事實。
+              </p>
+            </div>
+
+            <div className="grid gap-2 text-[11px] text-muted-foreground sm:grid-cols-2 xl:min-w-[440px]">
+              <span className="rounded-md border border-hairline bg-paper px-2.5 py-2 text-center">
+                providerCallAttempted={String(provider.callAttempted)}
+              </span>
+              <span className="rounded-md border border-hairline bg-paper px-2.5 py-2 text-center">
+                usageLogWritten={String(provider.usageLogWritten)}
+              </span>
+              <span className="rounded-md border border-hairline bg-paper px-2.5 py-2 text-center">
+                requiresConfirmation=true
+              </span>
+              <span className="rounded-md border border-hairline bg-paper px-2.5 py-2 text-center">
+                writesConfirmedCrmFact=false
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid gap-4 p-4 xl:grid-cols-[minmax(0,1fr)_320px]">
+          <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-3">
+            {snapshot.characters.map((character) => {
+              const knownFacts = routeBRecords(character.knownFacts);
+              const unknowns = routeBRecords(character.unknowns);
+              const personaHints = routeBRecords(character.personaHints);
+              const isLatestSpeaker =
+                latestTurn?.speakerRouteBCharacterId === character.routeBCharacterId;
+              const isLatestAddressee =
+                latestTurn?.addresseeRouteBCharacterId === character.routeBCharacterId;
+              const isFocused = focusCharacterId === character.routeBCharacterId;
+
+              return (
+                <button
+                  key={character.id}
+                  type="button"
+                  className={cn(
+                    "group min-h-[190px] rounded-lg border border-hairline bg-paper p-4 text-left transition hover:border-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                    isFocused && "border-ink bg-background",
+                  )}
+                  aria-label={`與 ${character.displayName} 私聊`}
+                  onClick={() => onPrivateFocus(character.routeBCharacterId)}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-base font-semibold text-ink">
+                        {character.displayName}
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {ROUTE_B_ROLE_LABEL[character.role] ?? character.role}
+                      </p>
+                    </div>
+                    <Badge
+                      variant={character.isFocus ? "default" : "outline"}
+                      className="shrink-0 rounded-full"
+                    >
+                      {character.isFocus ? "Focus" : "NPC"}
+                    </Badge>
+                  </div>
+
+                  <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+                    <RouteBMiniCount label="已知" value={knownFacts.length} />
+                    <RouteBMiniCount label="推論" value={personaHints.length} />
+                    <RouteBMiniCount label="未知" value={unknowns.length} />
+                  </div>
+
+                  <div className="mt-4 space-y-2 text-xs text-muted-foreground">
+                    <div className="flex items-center justify-between gap-2">
+                      <span>狀態 proposal</span>
+                      <span className="font-mono text-ink">
+                        {character.statePatchCount}
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                      {isLatestSpeaker ? (
+                        <span className="rounded-full bg-ink px-2 py-1 text-[10px] text-paper">
+                          latest speaker
+                        </span>
+                      ) : null}
+                      {isLatestAddressee ? (
+                        <span className="rounded-full border border-hairline bg-background px-2 py-1 text-[10px] text-ink">
+                          private addressee
+                        </span>
+                      ) : null}
+                      <span className="rounded-full border border-hairline bg-background px-2 py-1 text-[10px] text-ink">
+                        私聊焦點
+                      </span>
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          <aside className="space-y-3 rounded-lg border border-hairline bg-paper p-4">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                Relationship Evidence
+              </p>
+              <h3 className="mt-1 text-base font-semibold text-ink">關係證據</h3>
+            </div>
+
+            <div className="space-y-3">
+              {relationships.length ? (
+                relationships.map((relationship, index) => (
+                  <div
+                    key={`route-b-stage-relationship-${index}`}
+                    className="rounded-lg border border-hairline bg-background p-3"
+                  >
+                    <p className="text-sm font-medium leading-6 text-ink">
+                      {routeBRecordText(relationship)}
+                    </p>
+                    <div className="mt-2 grid grid-cols-2 gap-2 text-[11px] text-muted-foreground">
+                      <span>
+                        status{" "}
+                        <strong className="font-mono text-ink">
+                          {routeBRecordField(relationship, "factStatus", "UNKNOWN")}
+                        </strong>
+                      </span>
+                      <span>
+                        scope{" "}
+                        <strong className="font-mono text-ink">
+                          {routeBRecordField(relationship, "visibilityScope", "SCENE")}
+                        </strong>
+                      </span>
+                      <span>
+                        sources{" "}
+                        <strong className="font-mono text-ink">
+                          {routeBSourceCount(relationship)}
+                        </strong>
+                      </span>
+                      <span>
+                        mode <strong className="font-mono text-ink">stage</strong>
+                      </span>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <p className="rounded-lg border border-dashed border-hairline bg-background p-3 text-sm leading-6 text-muted-foreground">
+                  目前交接包沒有可渲染的關係證據；劇場仍保留未知與旁白補問欄位。
+                </p>
+              )}
+            </div>
+          </aside>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function RouteBAdvisorComposer({
+  addresseeRouteBCharacterId,
+  onAddresseeRouteBCharacterIdChange,
+  onSnapshotUpdate,
+  onStatePatchTargetRouteBCharacterIdChange,
+  onVisibilityScopeChange,
+  snapshot,
+  statePatchTargetRouteBCharacterId,
+  visibilityScope,
+}: {
+  addresseeRouteBCharacterId: string;
+  onAddresseeRouteBCharacterIdChange: (value: string) => void;
+  onSnapshotUpdate: (snapshot: RouteBSessionSnapshot) => void;
+  onStatePatchTargetRouteBCharacterIdChange: (value: string) => void;
+  onVisibilityScopeChange: (value: "GROUP" | "PRIVATE") => void;
+  snapshot: RouteBSessionSnapshot;
+  statePatchTargetRouteBCharacterId: string;
+  visibilityScope: "GROUP" | "PRIVATE";
 }) {
   const defaultCharacterId = snapshot.characters[0]?.routeBCharacterId ?? "";
   const [content, setContent] = useState("");
-  const [visibilityScope, setVisibilityScope] = useState<"GROUP" | "PRIVATE">("GROUP");
-  const [addresseeRouteBCharacterId, setAddresseeRouteBCharacterId] = useState(defaultCharacterId);
-  const [statePatchTargetRouteBCharacterId, setStatePatchTargetRouteBCharacterId] = useState(defaultCharacterId);
   const [statePatchSummary, setStatePatchSummary] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const selectedAddresseeId = addresseeRouteBCharacterId || defaultCharacterId;
@@ -676,7 +897,7 @@ function RouteBAdvisorComposer({
           發話範圍
           <select
             value={visibilityScope}
-            onChange={(event) => setVisibilityScope(event.target.value === "PRIVATE" ? "PRIVATE" : "GROUP")}
+            onChange={(event) => onVisibilityScopeChange(event.target.value === "PRIVATE" ? "PRIVATE" : "GROUP")}
             className="h-10 rounded-lg border border-hairline bg-background px-3 text-sm font-medium text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             aria-label="選擇 Route B 發話範圍"
           >
@@ -691,8 +912,8 @@ function RouteBAdvisorComposer({
             <select
               value={selectedAddresseeId}
               onChange={(event) => {
-                setAddresseeRouteBCharacterId(event.target.value);
-                setStatePatchTargetRouteBCharacterId(event.target.value);
+                onAddresseeRouteBCharacterIdChange(event.target.value);
+                onStatePatchTargetRouteBCharacterIdChange(event.target.value);
               }}
               className="h-10 rounded-lg border border-hairline bg-background px-3 text-sm font-medium text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               aria-label="選擇 Route B 私聊對象"
@@ -734,7 +955,7 @@ function RouteBAdvisorComposer({
           狀態對象
           <select
             value={selectedStatePatchTargetId}
-            onChange={(event) => setStatePatchTargetRouteBCharacterId(event.target.value)}
+            onChange={(event) => onStatePatchTargetRouteBCharacterIdChange(event.target.value)}
             className="h-10 rounded-lg border border-hairline bg-background px-3 text-sm font-medium text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             aria-label="選擇 Route B 狀態更新對象"
           >
@@ -880,6 +1101,26 @@ function routeBRecordText(record: Record<string, unknown>): string {
     if (typeof value === "string" && value.trim()) return value;
   }
   return "未命名項目";
+}
+
+function routeBRecordField(record: Record<string, unknown>, key: string, fallback: string): string {
+  const value = record[key];
+  return typeof value === "string" && value.trim() ? value : fallback;
+}
+
+function routeBSourceCount(record: Record<string, unknown>): string {
+  const sourceRefs = record.sourceRefs;
+  return Array.isArray(sourceRefs) ? String(sourceRefs.length) : "0";
+}
+
+function latestRouteBTurn(turns: RouteBSessionSnapshot["turns"]) {
+  return [...turns]
+    .reverse()
+    .find(
+      (turn) =>
+        turn.role !== "DIRECTOR" &&
+        (turn.speakerRouteBCharacterId || turn.addresseeRouteBCharacterId),
+    );
 }
 
 function routeBVisibilityText(record: Record<string, unknown>): string {

@@ -71,11 +71,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 1,
+    "normalLoopsSinceLastWholeProductReview": 2,
     "lastWholeProductReviewAt": "2026-06-21",
     "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-21_lv3-whole-product-gap-review-db-blocker-build-fallback.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "Normal LCH-009 release-proof loop completed on 2026-06-21: Supabase DB/DNS still returns no answer, but the previously recorded Next/Turbopack Google font production build blocker is proof-resolved in the current worktree because pnpm build completed successfully after reading the bundled Next 16 fonts/build/Turbopack docs. Primary next slice remains ITA-003f/S1 Route B relationship-graph stage map (no-provider) as soon as Supabase DB/DNS recovers; it must prove persisted session owner read, manager/foreign denial, private visibility, stage map desktop/mobile, no private sentinel, and AiUsageLog unchanged. If DB/DNS remains blocked, do not repeat the build-font fallback; use an L4 Supabase DB/DNS blocker analysis/unblock plan or a no-DB L3 protocol/documentation slice such as NAP-001 AI module inventory and NANDA/AgentFacts mapping. After DB recovery, rerun BFF-103d related-list proof with DEMO_QA_BASE_URL=http://localhost:3029 pnpm bff:crm-related-lists-qa or current equivalent.",
+    "nextRecommendedImplementationSlice": "Normal ITA-003f/S1 implementation loop completed on 2026-06-21: current environment can reach the Supabase DB direct host through IPv6 AAAA even though IPv4 A lookup remains ENODATA; DATABASE_URL port 6543 and DIRECT_URL port 5432 both passed pg read select 1. Route B /theater/[sessionId] now renders a persisted relationship-graph-centered stage map with relationship evidence, known/inference/unknown counts, click-to-private-chat, no-provider proof, state proposal boundaries, desktop/mobile QA, and AiUsageLog unchanged proof. Next highest implementation slice: BFF-103d related-list recovery proof now that DB is reachable, using DEMO_QA_BASE_URL=http://localhost:3000 or an available local dev port and the existing bff:crm-related-lists-qa command. Secondary slice: ITA-003g provider runtime contract preflight for director/character/feedback success/error AiUsageLog, but do not enable live provider calls without explicit operator approval.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {
