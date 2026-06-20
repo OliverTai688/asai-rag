@@ -1313,6 +1313,8 @@ Whole-product review 註記（2026-06-20）：`AUD-005` 已證明 `/api/ai/spin`
 - [ ] API/browser proof 覆蓋 theater list/session basic flow。
 - [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
 
+Quiet gap-research note（2026-06-21）：下一輪若選 BFF-204，優先切 `BFF-204a legacy theater launch gate and guarded Route B boundary proof`。驗收要用 `/theater` list/session、`/api/ai/theater`/score audit、Route B guarded runtime/interactions 與 no-provider `AiUsageLog` unchanged proof，明確保留 staging/demo gate，不改 legacy enum/scoring，不宣稱 Route B live multi-character provider ready。
+
 ### Batch BFF-205 — Assistant / RAG / interview hardening
 - [ ] `/api/ai/chat`、`/api/ai/interview`、`/api/ai/interview/outputs` audit gap = 0。
 - [ ] `/api/rag` 若 disabled，回 guarded 503，不呼叫 provider、不寫假 usage。
@@ -1320,6 +1322,8 @@ Whole-product review 註記（2026-06-20）：`AUD-005` 已證明 `/api/ai/spin`
 - [ ] Interview output DTO 分 fact/inference/unknown，保存 supporting evidence。
 - [ ] API proof：401、400、429/503、success、provider error。
 - [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+
+Quiet gap-research note（2026-06-21）：下一輪若選 BFF-205，優先切 `BFF-205a RAG guarded-disabled + assistant/interview persistence hygiene proof`。驗收要跑 `pnpm ai:bff-audit`、`pnpm rag:launch-posture-qa`、`pnpm ai:protocol-registry-qa` 或等價 proof；`/api/rag` disabled 時必須 503、providerAttempted=false、RAG `AiUsageLog` unchanged，不得用 mock answer/fake usage 冒充 retrieval。
 
 ### Batch BFF-301 — Org BFF repository extraction and aggregate QA
 - [x] 抽 `src/lib/org/*-repository.ts` 或整合既有 org repository。

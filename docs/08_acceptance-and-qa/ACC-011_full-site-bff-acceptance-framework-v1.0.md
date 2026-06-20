@@ -90,6 +90,26 @@ Every AI route must prove:
 - SPIN state machine remains unchanged.
 - Theater legacy contract remains unchanged unless an approved ITA migration card is active.
 
+### 3.1 Theater / RAG Hardening Addendum
+
+`BFF-204` / `BFF-205` 的驗收不得只看 `pnpm ai:bff-audit` route manifest pass；還必須證明 launch posture、source ownership、evidence boundary 與 no-provider posture 沒有被誤寫成正式 AI 成功。
+
+`BFF-204` Theater hardening acceptance：
+
+- Legacy `/api/ai/theater` 與 `/api/ai/theater/score` 保持 session/quota/input/success-error `AiUsageLog` proof，但不得改 legacy persona enum、score JSON 或 SPIN-adjacent contract。
+- Route B provider-disabled proof 需明確回 guarded 503 或 deterministic preflight；no-provider path 必須證明不呼叫 provider、不寫 fake `AiUsageLog`。
+- `/theater` list/session browser proof 要顯示 staging/demo gate 或 guarded-disabled 狀態；不得宣稱 Route B director/character/feedback live provider 已 production-ready。
+- Relationship graph / VisitPlan / quick-capture source 進劇場時要保留 fact / inference / unknown / source reference；人物狀態 proposal 不得直接寫入 confirmed CRM facts。
+- 若啟用 live Route B director/character/feedback provider，需 operator 明確批准，且 success/error 都要寫 `AiUsageLog` 後才能把該 provider path 記為 pass。
+
+`BFF-205` Assistant / RAG / Interview hardening acceptance：
+
+- `/api/rag` private-beta disabled posture 必須回 503 guarded disabled、`providerAttempted=false`、RAG `AiUsageLog` count unchanged；不得用 mock answer 或 fake usage 冒充 retrieval proof。
+- `/api/ai/chat` persistence / assistant memory 若新增或調整，response/evidence 不得包含 raw tool payload、secret、token、cookie、raw private transcript 或 provider raw payload。
+- Interview output / quick-capture / writeback DTO 需維持 fact / inference / unknown / supporting evidence；inference 不得升格為 CRM confirmed fact 或 theater confirmed role fact。
+- NANDA / AgentFacts local manifests 只可作 internal capability / source adoption proof；external registry publication、public discovery endpoint、signing、cross-org access 仍需 operator approval。
+- Suggested targeted proof set：`pnpm ai:bff-audit`、`pnpm rag:launch-posture-qa`、`pnpm ai:protocol-registry-qa`，加上被改 route 的 401/400/429/503/success/provider-error proof。
+
 Suggested command:
 
 ```bash

@@ -283,6 +283,15 @@ Whole-product review 註記（2026-06-20）：`AUD-005` 已證明 `/api/ai/spin`
 - [ ] API/browser proof 覆蓋 theater list/session basic flow。
 - [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
 
+Quiet gap-research note（2026-06-21）：本輪未改 runtime source，改用六視框把 BFF-204 拆成下一輪可驗收 implementation slices，避免把 provider approval blocker 誤當可直接完成的工程卡。
+
+1. Advisor workflow / onboarding：legacy theater list/session proof 要證明顧問能從 `/theater` 看到 staging/demo gate、現有 session、Route B no-provider handoff 狀態與下一步；不得用 raw session id workflow 當主要 proof。
+2. Source-of-truth / BFF：`/api/ai/theater`、`/api/ai/theater/score` 只負責 legacy provider turn/score，Route B persisted session/turns 仍走 `/api/theater/route-b/*`；下一輪需明確標示兩條 contract，不互相偷渡。
+3. AI reasoning / evidence：legacy score/turn response 要保留 fact/inference/unknown 或 equivalent coaching evidence；Route B guarded runtime preflight 可作 provider boundary proof，但不能宣稱 live multi-character AI 已可用。
+4. Theater / relationship immersion：BFF-204 的安全可做 slice 應先驗 legacy theater gate + Route B source adoption/readiness，而不是改 enum/scoring；角色狀態 proposal 不得寫成 confirmed CRM fact。
+5. QA / compliance / release-proof：下一輪若無 live provider approval，建議先做 `BFF-204a legacy theater launch gate and guarded Route B boundary proof`，跑 `pnpm ai:bff-audit`、`pnpm theater:route-b-runtime-qa`、`pnpm theater:route-b-interaction-qa` 或等價 proof，並證明 `AiUsageLog` unchanged for guarded/no-provider paths。
+6. NANDA / AgentFacts protocol：`asai.theater.legacy` 與 `asai.theater.route_b` manifest 已有 local adapter/export proof；BFF-204 完成前需保持 internal-only、revocable、no external registry publication。
+
 ---
 
 ## Batch BFF-205 - Assistant / RAG / Interview Hardening
@@ -295,6 +304,15 @@ Whole-product review 註記（2026-06-20）：`AUD-005` 已證明 `/api/ai/spin`
 - [ ] Interview output DTO 分 fact/inference/unknown，保存 supporting evidence。
 - [ ] API proof：401、400、429/503、success、provider error。
 - [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+
+Quiet gap-research note（2026-06-21）：BFF-205 不應一次混做 Assistant、RAG、Interview 與 external provider launch。下一輪 implementation 應拆成 private-beta posture proof，再逐步補 persistence / evidence hygiene。
+
+1. Advisor workflow / onboarding：Assistant/RAG/Interview 要支援顧問從已知客戶、訪談記憶、準備包與劇場缺口進入；若 RAG disabled，UI/API 需清楚回 guarded 503 與 next-safe action，不可假裝查到知識庫。
+2. Source-of-truth / BFF：`/api/ai/chat` provider route、interview provider route、deterministic interview BFF route、`/api/rag` disabled route 必須各自有 manifest/audit posture；Zustand/browser storage 不得成為 assistant conversation 或 interview output 的正式 truth。
+3. AI reasoning / evidence：interview outputs、quick-capture、visit/theater handoff 都要維持 fact / inference / unknown / supporting evidence；assistant persistence 不得保存 raw tool payload、secret、token、raw private transcript 或 provider raw payload。
+4. Theater / relationship immersion：Interview writeback 到 VisitPlan / Route B session 已有 no-provider proof；BFF-205 下一步應確認 Assistant/RAG 不會把 relationship graph inference 升格成 theater fact。
+5. QA / compliance / release-proof：建議下一輪若選 BFF-205，先做 `BFF-205a RAG guarded-disabled + assistant/interview persistence hygiene proof`，跑 `pnpm ai:bff-audit`、`pnpm rag:launch-posture-qa`、`pnpm ai:protocol-registry-qa`，並用 targeted API proof 覆蓋 401/400/503/no fake usage。
+6. NANDA / AgentFacts protocol：`asai.rag.private_beta` 必須維持 `sourceAdoption.status=adopted` 但 `launchPosture=disabled_guarded`；任何 public discovery、registry publication、cross-org agent access 或 provider-backed RAG retrieval 都需 operator 逐項批准。
 
 ---
 
