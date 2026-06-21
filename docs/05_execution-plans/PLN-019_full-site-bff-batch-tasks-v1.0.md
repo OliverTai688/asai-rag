@@ -432,6 +432,19 @@ Research-to-executable note（2026-06-21 after BFF-304a）：BFF-304a 已關閉 
 - [ ] API proof：unauth 401、invalid plan 400、disabled 503 或 sandbox 200。
 - [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
 
+### Batch BFF-401a - Checkout Disabled/Sandbox Server-Payload Proof
+
+目標：先建立 server-owned checkout BFF contract，證明 production payment 尚未 proof-ready 時 fail closed；不啟用真付款、不寫 pending order、不做 notification/query/idempotency。
+
+- [x] 建立 `POST /api/billing/checkout`，必須 current member session。
+- [x] Server 驗證 self-serve paid plan；不得信任 client amount、organizationId、ownerId 或 payment provider payload。
+- [x] Production payment proof 未完成時回 503 disabled posture，且 `orderCreated=false`、`transactionCreated=false`、`providerAttempted=false`。
+- [x] Response 不回 HashKey、HashIV、CheckMacValue、provider raw payload、payment token、card data、raw payment data 或 browser-generated checksum。
+- [x] API/DB proof 覆蓋 unauth 401、invalid plan 400、disabled 503、subscription order/payment transaction count unchanged、private/payment sentinel 0。
+- [x] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`、`pnpm billing:checkout-qa`。
+
+完成註記（2026-06-21 BFF-401a checkout disabled/sandbox server-payload proof）：已新增 `POST /api/billing/checkout`、versioned checkout disabled DTO、server-side repository 與 `pnpm billing:checkout-qa`。Proof 覆蓋 unauth 401、non-self-serve plan 400、PRO checkout 503 disabled、no-store/request-id、no provider attempt、no redirect payload、no order/transaction insert、browser checksum generation 不允許、redirect-only activation 不允許、HashKey/HashIV/CheckMacValue/provider raw payload/card/payment token/private env sentinel 0。此切片不啟用 real payment、real email、real notification、不產生 ECPay signed payload、不寫 pending order；BFF-402 notification/query/idempotency 與真正 sandbox/production checkout 仍待後續 proof。
+
 ---
 
 ## Batch BFF-402 - ECPay Notification / Query / Idempotency

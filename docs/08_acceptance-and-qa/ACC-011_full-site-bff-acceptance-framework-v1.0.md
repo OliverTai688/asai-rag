@@ -157,6 +157,17 @@ If the command does not exist yet, the responsible card must create or update it
 - Transaction ledger and audit evidence exist.
 - Production credentials/callback domain are explicitly approved before live mode.
 
+`BFF-401a` disabled/sandbox proof is acceptable before full payment launch only if:
+
+- `POST /api/billing/checkout` requires current member auth and rejects unauthenticated requests with 401.
+- Invalid or non-self-serve plans return 400; server must not trust client amount, organizationId, ownerId, provider, or raw payment payload.
+- Disabled posture returns 503 and explicitly proves `orderCreated=false`, `transactionCreated=false`, `providerAttempted=false`, and no redirect payload.
+- Response and logs do not expose HashKey, HashIV, CheckMacValue, provider raw payload, payment token, card data, raw payment data, raw cookie, secret, or env values.
+- DB proof confirms disabled posture does not insert `subscription_orders` or `payment_transactions`.
+- This proof does not satisfy BFF-402: notification validation, query confirmation, duplicate notify idempotency, refund/void/manual review, and real plan activation remain blocked.
+
+Evidence（2026-06-21 BFF-401a）：`BILLING_CHECKOUT_QA_BASE_URL=http://127.0.0.1:3046 pnpm billing:checkout-qa` covers unauth 401, invalid/non-self-serve plan 400, disabled 503, no-store/request-id, no provider attempt, no redirect payload, no order/transaction insert, redirect-only activation disabled, browser checksum generation disabled, and payment/private sentinel 0.
+
 ---
 
 ## 5. Data-source Inventory Gates

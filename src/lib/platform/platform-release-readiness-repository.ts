@@ -96,9 +96,13 @@ function bffSurfaceGates() {
     {
       key: "billing_bff",
       surface: "billing",
-      status: "blocked",
-      evidenceCommand: "BFF-401/BFF-402 pending",
-      detail: "Checkout and notification/query idempotency BFF gates are not complete.",
+      status: projectFileExists("scripts/billing-checkout-qa.mjs") ? "warning" : "blocked",
+      evidenceCommand: projectFileExists("scripts/billing-checkout-qa.mjs")
+        ? "pnpm billing:checkout-qa"
+        : "BFF-401/BFF-402 pending",
+      detail: projectFileExists("scripts/billing-checkout-qa.mjs")
+        ? "Checkout disabled/sandbox BFF contract is proven; notification/query/idempotency remains blocked before real payment."
+        : "Checkout and notification/query idempotency BFF gates are not complete.",
     },
   ] satisfies Array<{
     key: string;
