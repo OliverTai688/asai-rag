@@ -1475,6 +1475,8 @@ Context: 參考 Notion AI Meeting，做一個**全站 AI 會議模組**：即時
 - [ ] mapping helper：transcript turns + 手動筆記 → summary 骨架（pure，不呼叫 provider，未知不升格成 fact）。
 - [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`；動 schema 才跑 Prisma。
 
+Whole-product review note（2026-06-21 after BFF-401a）：第五輪 LV3 校準確認 billing/public/platform release gates 已大幅收斂，下一個最高槓桿核心產品缺口轉為 AI Meeting / notes prototype 尚未成為 committed baseline。下一輪建議先做 `AMM-001a formal meeting contract + no-provider summary skeleton proof`：只採用必要 source，新增/驗證 `MeetingSummary`、`MeetingCitation`、action item / participant types 與 transcript/manual-note → summary skeleton mapping helper，補 dry-run script 證明 citation 不幻覺、unknown 不升格 fact、no provider / no DB write / no raw audio / no raw private transcript。不要在同輪順手 stage 既有未追蹤 meeting UI prototype；若需要採用 prototype，必須在 AMM-owned source/proof slice 中完整驗收。BFF-402 仍是 release-hardening 次順位，Route B live provider proof 仍需 provider env 與 success/error `AiUsageLog`。
+
 ### Batch AMM-002 — 捕捉層重用
 - [ ] `POST /api/ai/meeting/sessions`、`GET /api/ai/meeting/sessions/[id]`、`POST .../turns`（手動/文字/語音 final transcript）；語音沿用既有 interview realtime/transcribe；raw audio 不存。
 - [ ] API proof：unauth 401、member create/turn 201/200、清空 storage 可重讀。

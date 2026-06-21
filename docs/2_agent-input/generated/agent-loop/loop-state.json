@@ -83,11 +83,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 4,
-    "lastWholeProductReviewAt": "2026-06-21",
-    "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-21_lv3-whole-product-gap-review-platform-public-bff.md",
+    "normalLoopsSinceLastWholeProductReview": 0,
+    "lastWholeProductReviewAt": "2026-06-21T03:29:06Z",
+    "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-21_lv3-whole-product-gap-review-after-billing-gate.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "Completed normal loop 4/4 after the 2026-06-21 whole-product review: `BFF-401a checkout disabled/sandbox server-payload proof` is closed. `POST /api/billing/checkout` now requires current member auth, validates self-serve paid plans server-side, returns 503 disabled posture before payment proof, proves no provider attempt, no redirect payload, no order/transaction insert, no browser checksum generation, no redirect-only activation, no HashKey/HashIV/CheckMacValue/provider raw payload/card/payment token/private env leakage, and no real payment/email/notification side effect. BFF-402 notification/query/idempotency and true sandbox/production checkout remain blocked. Cadence counter is now 4, so the next automation loop must run the scheduled whole-product review prompt before another normal implementation loop unless a critical security/compliance fix overrides cadence.",
+    "nextRecommendedImplementationSlice": "Scheduled fifth-loop whole-product review after BFF-401a selected `AMM-001a formal meeting contract + no-provider summary skeleton proof` as the next normal source-backed slice. Implement or validate MeetingSummary/MeetingCitation/action item/participant pure types and a transcript/manual-note -> summary skeleton helper, add an executable dry-run proof that citations only reference existing turns/memories, unknowns do not become facts, no provider is attempted, no DB write occurs, no raw audio/private transcript/provider payload is persisted, and existing untracked meeting/notes prototype files are not staged unless the loop explicitly adopts and validates the whole AMM-owned scope. BFF-402 billing notification/query/idempotency remains the release-hardening fallback; Route B live provider proof remains gated by provider env plus success/error AiUsageLog evidence.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {
