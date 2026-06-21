@@ -83,11 +83,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 4,
-    "lastWholeProductReviewAt": "2026-06-21T03:29:06Z",
-    "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-21_lv3-whole-product-gap-review-after-billing-gate.md",
+    "normalLoopsSinceLastWholeProductReview": 0,
+    "lastWholeProductReviewAt": "2026-06-21T05:11:35Z",
+    "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-21_lv3-whole-product-gap-review-after-amm-summary.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "AMM-003a is now implemented as source/DB/API-backed deterministic meeting summary persistence: member-scoped `POST /api/ai/meeting/sessions/[sessionId]/summary` builds a cited summary skeleton from stored CLIENT_MEETING turns/memories and upserts `InterviewMeetingSummary` without provider, proves raw provider-like payload blocked, overwrite guard, manager 404, DB citations/sourceTurnIds/guardEvidence, provider/model/usageLogId null, and `AiUsageLog` unchanged. Cadence is now 4, so the next automation loop should run the scheduled whole-product architecture/experience/interface/safety review prompt before resuming implementation. After that review, likely next normal slices are AMM-003b provider JSON-mode summary with success/error AiUsageLog proof, AMM-004 cross-meeting memory/chat, or BFF-402 billing notification/query/idempotency depending on review scoring. Do not stage existing untracked meeting/notes UI prototype unless the loop explicitly adopts and validates that UI slice.",
+    "nextRecommendedImplementationSlice": "Scheduled whole-product review after AMM-003a is complete. The next normal loop should run `AMM-005a visible meeting workspace entrypoint`: connect the accepted AMM BFF/session/turn/summary contract to a low-noise no-raw-ID advisor UI entrypoint from `/pre-visit/[planId]` first, optionally adopting existing untracked meeting/notes prototype only if the loop explicitly inspects, scopes, validates, and stages the AMM-owned subset. Required proof: desktop/mobile browser no overflow/console error 0, create/read CLIENT_MEETING session, append manual/final-transcript turn, generate deterministic summary via existing summary route, refresh/new-context persistence, manager/foreign denial, raw provider/audio/private sentinel blocked, `AiUsageLog` unchanged for no-provider paths, plus `pnpm exec tsc --noEmit --pretty false` and `pnpm lint:changed`. This avoids docs-only proof and makes the recently proven AMM backend operable before deeper provider or cross-memory work. Secondary candidates are `AMM-004a cross-meeting client memory/chat no-provider contract` and `AMM-003b provider JSON summary with success/error AiUsageLog proof`.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {
