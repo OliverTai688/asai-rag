@@ -1315,6 +1315,8 @@ Whole-product review 註記（2026-06-20）：`AUD-005` 已證明 `/api/ai/spin`
 
 Quiet gap-research note（2026-06-21）：下一輪若選 BFF-204，優先切 `BFF-204a legacy theater launch gate and guarded Route B boundary proof`。驗收要用 `/theater` list/session、`/api/ai/theater`/score audit、Route B guarded runtime/interactions 與 no-provider `AiUsageLog` unchanged proof，明確保留 staging/demo gate，不改 legacy enum/scoring，不宣稱 Route B live multi-character provider ready。
 
+Whole-product review note（2026-06-21 after NAP-005 / BFF-204-205 gap research）：第五輪校準確認 cross-flow no-provider proof、NAP source adoption 與 local-only adapter/export dry-run 已完成；下一個最高槓桿 implementation slice 是 `BFF-204a legacy theater launch gate and guarded Route B boundary proof`。原因：劇場仍是「準備包 -> 演練舞台」最容易被誤宣稱 live-ready 的核心表面，需用 `/theater` UI、legacy AI routes、Route B guarded runtime、no-provider `AiUsageLog` unchanged 與 staging/demo gate 證明邊界。若 Theater proof 被 env/session 阻擋，fallback 為 `BFF-205a RAG guarded-disabled + assistant/interview persistence hygiene proof`；既有未追蹤 AI meeting / notes prototype 不屬 committed baseline，不得在未選 AMM slice 前 stage 或宣稱已完成。
+
 ### Batch BFF-205 — Assistant / RAG / interview hardening
 - [ ] `/api/ai/chat`、`/api/ai/interview`、`/api/ai/interview/outputs` audit gap = 0。
 - [ ] `/api/rag` 若 disabled，回 guarded 503，不呼叫 provider、不寫假 usage。
@@ -1324,6 +1326,8 @@ Quiet gap-research note（2026-06-21）：下一輪若選 BFF-204，優先切 `B
 - [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
 
 Quiet gap-research note（2026-06-21）：下一輪若選 BFF-205，優先切 `BFF-205a RAG guarded-disabled + assistant/interview persistence hygiene proof`。驗收要跑 `pnpm ai:bff-audit`、`pnpm rag:launch-posture-qa`、`pnpm ai:protocol-registry-qa` 或等價 proof；`/api/rag` disabled 時必須 503、providerAttempted=false、RAG `AiUsageLog` unchanged，不得用 mock answer/fake usage 冒充 retrieval。
+
+Whole-product review fallback note（2026-06-21）：BFF-205a 是 BFF-204a 的次順位安全切片，而非同輪混做項。若執行本 fallback，優先證明 RAG disabled_guarded posture、Assistant/Interview persistence DTO hygiene、fact/inference/unknown/evidence 邊界與 no fake usage；不得啟用 provider-backed retrieval、external registry publication、public discovery 或 cross-org agent access。
 
 ### Batch BFF-301 — Org BFF repository extraction and aggregate QA
 - [x] 抽 `src/lib/org/*-repository.ts` 或整合既有 org repository。
