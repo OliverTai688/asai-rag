@@ -78,9 +78,9 @@
 - [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
 
 ## Batch AMM-005 — 全站入口與拜訪後筆記升級
-- [ ] AMM-005a：先從 `/pre-visit/[planId]` 或 `/pre-visit/[planId]/meeting` 建立正式 meeting workspace 入口，接 accepted AMM BFF（create/read `CLIENT_MEETING`、append manual/final-transcript turn、generate deterministic summary），不得要求 raw ID。
-- [ ] AMM-005a：若採用既有未追蹤 meeting/notes prototype，必須在本卡明確檢查、限縮 AMM-owned subset、補 Browser/API proof，不能把 prototype 當既成 proof。
-- [ ] AMM-005a Browser/API proof：desktop/mobile console error 0、無水平 overflow、refresh/new-context persistence、manager/foreign denial、raw provider/audio/private sentinel blocked、no-provider `AiUsageLog` unchanged。
+- [x] AMM-005a：先從 `/pre-visit/[planId]` 或 `/pre-visit/[planId]/meeting` 建立正式 meeting workspace 入口，接 accepted AMM BFF（create/read `CLIENT_MEETING`、append manual/final-transcript turn、generate deterministic summary），不得要求 raw ID。
+- [x] AMM-005a：若採用既有未追蹤 meeting/notes prototype，必須在本卡明確檢查、限縮 AMM-owned subset、補 Browser/API proof，不能把 prototype 當既成 proof。
+- [x] AMM-005a Browser/API proof：desktop/mobile console error 0、無水平 overflow、refresh/new-context persistence、manager/foreign denial、raw provider/audio/private sentinel blocked、no-provider `AiUsageLog` unchanged。
 - [ ] `拜訪後筆記`（`/pre-visit/[planId]/notes`）升級為會議工作台：手動筆記 + 可選即時轉寫 + 自動摘要 + 對答，對齊同一 `CLIENT_MEETING` session。
 - [ ] `postVisitNotes` / `postVisitAnalysis` 保留為手動輸入來源，相容並存，不破壞既有資料。
 - [ ] 入口：dashboard「最近會議」、CRM client detail「會議」分頁、訪前規劃詳情皆可開始/檢視會議。
@@ -89,6 +89,8 @@
 - [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
 
 Whole-product review note（2026-06-21 after AMM-003a）：第五輪校準確認 backend foundation 已 source/DB/API-backed，但 AMM 仍不是「容易操作」的 advisor workflow，因為顧問尚缺從 visit/client context 進入 meeting workspace 的正式入口。下一輪 normal loop 建議 `AMM-005a visible meeting workspace entrypoint`，先把 accepted BFF 和 deterministic summary route 接到低噪音 UI，留下 browser/API proof；`AMM-004a` cross-meeting memory/chat 與 `AMM-003b` provider JSON summary 是第二、第三順位。
+
+完成註記：2026-06-21 AMM-005a 已採納既有 meeting UI prototype 的 AMM-owned subset，改為 `/pre-visit/[planId]` 可點擊進入 `/pre-visit/[planId]/meeting` 的正式工作台；workspace 只用 accepted meeting BFF 自動建立/讀取 `CLIENT_MEETING`、append manual note/final transcript、POST deterministic summary，並以 GET summary 支援 refresh/new-context persistence。`pnpm meeting:workspace-ui-qa` 覆蓋 desktop/mobile no overflow、console error 0、manager denial、raw provider/audio sentinel blocked、owner summary GET、AiUsageLog unchanged。未追蹤 notes UI 與 note domain prototype 仍未採納。
 
 ## Batch AMM-006 — 寫回邊界（行動項 / CRM）
 - [ ] 沿用 `src/domains/interview/writeback-boundary.ts`：行動項 → follow-up task、confirmed fact → CRM candidate、inference → insight、unknown → follow-up。

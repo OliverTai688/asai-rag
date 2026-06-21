@@ -83,11 +83,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 0,
+    "normalLoopsSinceLastWholeProductReview": 1,
     "lastWholeProductReviewAt": "2026-06-21T05:11:35Z",
     "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-21_lv3-whole-product-gap-review-after-amm-summary.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "Scheduled whole-product review after AMM-003a is complete. The next normal loop should run `AMM-005a visible meeting workspace entrypoint`: connect the accepted AMM BFF/session/turn/summary contract to a low-noise no-raw-ID advisor UI entrypoint from `/pre-visit/[planId]` first, optionally adopting existing untracked meeting/notes prototype only if the loop explicitly inspects, scopes, validates, and stages the AMM-owned subset. Required proof: desktop/mobile browser no overflow/console error 0, create/read CLIENT_MEETING session, append manual/final-transcript turn, generate deterministic summary via existing summary route, refresh/new-context persistence, manager/foreign denial, raw provider/audio/private sentinel blocked, `AiUsageLog` unchanged for no-provider paths, plus `pnpm exec tsc --noEmit --pretty false` and `pnpm lint:changed`. This avoids docs-only proof and makes the recently proven AMM backend operable before deeper provider or cross-memory work. Secondary candidates are `AMM-004a cross-meeting client memory/chat no-provider contract` and `AMM-003b provider JSON summary with success/error AiUsageLog proof`.",
+    "nextRecommendedImplementationSlice": "AMM-005a is complete. Next normal loop should run `AMM-004a cross-meeting client memory/chat`: add the first meeting/client memory chat BFF contract grounded in current meeting turns, persisted meeting summaries, and prior client memories; keep citations split into facts/inferences/unknowns, enforce member ownership, block raw provider/audio/private sentinel payloads, and either run no-provider deterministic retrieval proof or, if a provider call is added, write success/error AiUsageLog with usage/cost evidence. Required proof: owner can ask a meeting/client memory question with citations, manager/foreign access denied, response does not expose raw transcript/provider payload/contact/policy sentinel, refresh/new-context readback, AiUsageLog unchanged for no-provider or increased for provider success/error, `pnpm exec tsc --noEmit --pretty false`, `pnpm lint:changed`, `pnpm ai:bff-audit`, and targeted API/browser proof. Secondary candidates: `AMM-003b provider JSON summary with success/error AiUsageLog proof` and `AMM-006a meeting summary action-item/CRM writeback candidate boundary`.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {
@@ -155,5 +155,5 @@
     "lv3ImmersiveLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-immersive-loop.md",
     "lv3WholeProductGapReviewLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md"
   },
-  "updatedAt": "2026-06-21"
+  "updatedAt": "2026-06-21T05:49:00Z"
 }

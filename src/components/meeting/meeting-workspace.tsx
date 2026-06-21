@@ -1,0 +1,861 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import {
+  AlertCircle,
+  ArrowLeft,
+  CheckCircle2,
+  ClipboardList,
+  FileText,
+  Loader2,
+  Mic,
+  NotebookPen,
+  RefreshCcw,
+  ShieldCheck,
+  Sparkles,
+} from "lucide-react";
+
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  MEETING_DATA_CLASS_LABEL,
+  type MeetingActionItem,
+  type MeetingCitation,
+  type MeetingDataClass,
+  type MeetingParticipant,
+  type MeetingSummaryItem,
+} from "@/domains/interview/meeting";
+
+type TurnSource = "MANUAL_NOTE" | "VOICE_FINAL_TRANSCRIPT";
+type BootstrapState = "loading" | "ready" | "error";
+type RequestState = "idle" | "saving" | "summarizing";
+
+interface MeetingWorkspaceProps {
+  planId: string;
+  initialSessionId?: string;
+  backHref: string;
+}
+
+interface MeetingSessionDto {
+  id: string;
+  clientId: string | null;
+  status: string;
+  title: string | null;
+  startedAt: string;
+  updatedAt: string;
+}
+
+interface MeetingTurnDto {
+  id: string;
+  role: "USER" | "ASSISTANT" | "SYSTEM";
+  modality: "TEXT" | "VOICE_REALTIME" | "VOICE_TRANSCRIPT_FALLBACK";
+  content: string;
+  transcriptFinal: boolean;
+  outlineSegmentId: string | null;
+  occurredAt: string;
+  createdAt: string;
+}
+
+interface MeetingMemoryDto {
+  id: string;
+  clientId: string | null;
+  turnId: string | null;
+  dataClass: string;
+  visibilityScope: string;
+  text: string;
+  evidenceText: string | null;
+  importance: number;
+  createdAt: string;
+}
+
+interface MeetingMemoryRailDto {
+  total: number;
+  confirmed: number;
+  inferences: number;
+  unknowns: number;
+  memberPrivate: number;
+  clientLinked: number;
+}
+
+interface MeetingSafetyDto {
+  scopeSource: "server_session";
+  visibilityScope: "member-private";
+  providerCallAttempted: false;
+  aiUsageLogRequired: false;
+  rawAudioStored?: false;
+  rawProviderPayloadStored?: false;
+  rawPrivateTranscriptSidecarStored?: false;
+  storesAudioBinary?: false;
+  storesRawProviderPayload?: false;
+  storesRawPrivateTranscriptSidecar?: false;
+  writesConfirmedCrmFact: false;
+  aiUsageLogWritten?: false;
+}
+
+interface MeetingSessionSnapshotDto {
+  session: MeetingSessionDto;
+  turns: MeetingTurnDto[];
+  memories: MeetingMemoryDto[];
+  memoryRail: MeetingMemoryRailDto;
+  safety: MeetingSafetyDto;
+}
+
+interface PersistedMeetingSummaryDto {
+  id: string;
+  sessionId: string;
+  generatedBy: string;
+  headline: string;
+  summary: string;
+  decisions: MeetingSummaryItem[];
+  actionItems: MeetingActionItem[];
+  openQuestions: MeetingSummaryItem[];
+  participants: MeetingParticipant[];
+  citations: MeetingCitation[];
+  sourceTurnIds: string[];
+  sourceMemoryIds: string[];
+  provider: string | null;
+  model: string | null;
+  usageLogId: string | null;
+  guardEvidence: {
+    providerCallAttempted: false;
+    dbWriteAttempted: false;
+    storesAudioBinary: false;
+    storesPrivateTranscript: false;
+    writesConfirmedCrmFact: false;
+    generatedBy: "deterministic-skeleton";
+  } | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+type MeetingSummaryReadResponse =
+  | {
+      status: "found";
+      summary: PersistedMeetingSummaryDto;
+      safety: MeetingSafetyDto;
+    }
+  | {
+      status: "empty";
+      safety: MeetingSafetyDto;
+    };
+
+interface MeetingSummaryWriteResponse {
+  status: "created" | "updated";
+  summary: PersistedMeetingSummaryDto;
+  safety: MeetingSafetyDto;
+}
+
+const EMPTY_SUMMARY_NOTICE = "加入至少一段會議內容後，就能生成可引用的摘要。";
+const DEFAULT_NOTE = "客戶確認想先補退休缺口；待確認是否邀請配偶一起評估。";
+const DEFAULT_FINAL_TRANSCRIPT =
+  "客戶確認目前每月可增加保費約一萬元，仍不確定醫療實支實付與退休現金流的優先順序。";
+
+const requestHeaders = {
+  "content-type": "application/json",
+};
+
+export function MeetingWorkspace({ planId, initialSessionId, backHref }: MeetingWorkspaceProps) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const [bootstrapState, setBootstrapState] = useState<BootstrapState>("loading");
+  const [requestState, setRequestState] = useState<RequestState>("idle");
+  const [snapshot, setSnapshot] = useState<MeetingSessionSnapshotDto | null>(null);
+  const [summary, setSummary] = useState<PersistedMeetingSummaryDto | null>(null);
+  const [noteDraft, setNoteDraft] = useState(DEFAULT_NOTE);
+  const [finalTranscriptDraft, setFinalTranscriptDraft] = useState(DEFAULT_FINAL_TRANSCRIPT);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [lastAction, setLastAction] = useState("正在連接會議工作台");
+
+  const sessionId = snapshot?.session.id ?? initialSessionId ?? "";
+  const isSaving = requestState === "saving";
+  const isSummarizing = requestState === "summarizing";
+  const canSubmit = Boolean(snapshot) && !isSaving && !isSummarizing;
+  const turnCount = snapshot?.turns.length ?? 0;
+  const memoryRail = snapshot?.memoryRail;
+  const transcriptFinalCount = useMemo(
+    () => snapshot?.turns.filter((turn) => turn.transcriptFinal).length ?? 0,
+    [snapshot?.turns],
+  );
+
+  const updateSessionUrl = useCallback(
+    (nextSessionId: string) => {
+      const params = new URLSearchParams(window.location.search);
+      params.set("sessionId", nextSessionId);
+      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    },
+    [pathname, router],
+  );
+
+  const loadSummary = useCallback(async (nextSessionId: string, signal?: AbortSignal) => {
+    const nextSummary = await readMeetingSummary(nextSessionId, signal);
+    setSummary(nextSummary);
+  }, []);
+
+  const refreshSnapshot = useCallback(
+    async (nextSessionId: string, signal?: AbortSignal) => {
+      const nextSnapshot = await readMeetingSession(nextSessionId, signal);
+      setSnapshot(nextSnapshot);
+      await loadSummary(nextSnapshot.session.id, signal);
+      return nextSnapshot;
+    },
+    [loadSummary],
+  );
+
+  useEffect(() => {
+    const controller = new AbortController();
+    let cancelled = false;
+
+    async function bootstrap() {
+      setBootstrapState("loading");
+      setErrorMessage(null);
+
+      try {
+        const nextSnapshot = initialSessionId
+          ? await readMeetingSession(initialSessionId, controller.signal)
+          : await createMeetingSession(planId, controller.signal);
+
+        if (cancelled) return;
+
+        setSnapshot(nextSnapshot);
+        setBootstrapState("ready");
+        setLastAction(initialSessionId ? "已讀回既有會議" : "已建立新的會議 session");
+
+        if (!initialSessionId) {
+          updateSessionUrl(nextSnapshot.session.id);
+        }
+
+        await loadSummary(nextSnapshot.session.id, controller.signal);
+      } catch (error) {
+        if (cancelled) return;
+        setBootstrapState("error");
+        setErrorMessage(error instanceof Error ? error.message : "MEETING_WORKSPACE_BOOTSTRAP_FAILED");
+      }
+    }
+
+    void bootstrap();
+
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, [initialSessionId, loadSummary, planId, updateSessionUrl]);
+
+  const handleAppendTurn = useCallback(
+    async (source: TurnSource) => {
+      if (!snapshot) return;
+
+      const content = source === "MANUAL_NOTE" ? noteDraft.trim() : finalTranscriptDraft.trim();
+      if (!content) {
+        setErrorMessage("請先輸入要加入會議的內容。");
+        return;
+      }
+
+      setRequestState("saving");
+      setErrorMessage(null);
+
+      try {
+        await appendMeetingTurn(snapshot.session.id, source, content);
+        const nextSnapshot = await refreshSnapshot(snapshot.session.id);
+        setLastAction(source === "MANUAL_NOTE" ? "已加入手動筆記" : "已加入 final transcript");
+        if (source === "MANUAL_NOTE") setNoteDraft("");
+        if (source === "VOICE_FINAL_TRANSCRIPT") setFinalTranscriptDraft("");
+        if (summary && nextSnapshot.turns.length > turnCount) setSummary(null);
+      } catch (error) {
+        setErrorMessage(error instanceof Error ? error.message : "MEETING_TURN_APPEND_FAILED");
+      } finally {
+        setRequestState("idle");
+      }
+    },
+    [finalTranscriptDraft, noteDraft, refreshSnapshot, snapshot, summary, turnCount],
+  );
+
+  const handleGenerateSummary = useCallback(async () => {
+    if (!snapshot) return;
+
+    setRequestState("summarizing");
+    setErrorMessage(null);
+
+    try {
+      const nextSummary = await generateMeetingSummary(snapshot.session.id);
+      setSummary(nextSummary);
+      setLastAction("已生成 deterministic/no-provider 會議摘要");
+      await refreshSnapshot(snapshot.session.id);
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "MEETING_SUMMARY_GENERATION_FAILED");
+    } finally {
+      setRequestState("idle");
+    }
+  }, [refreshSnapshot, snapshot]);
+
+  const handleManualRefresh = useCallback(async () => {
+    if (!snapshot) return;
+
+    setRequestState("saving");
+    setErrorMessage(null);
+
+    try {
+      await refreshSnapshot(snapshot.session.id);
+      setLastAction("已重新讀取會議資料");
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "MEETING_REFRESH_FAILED");
+    } finally {
+      setRequestState("idle");
+    }
+  }, [refreshSnapshot, snapshot]);
+
+  if (bootstrapState === "loading") {
+    return (
+      <div className="mx-auto flex min-h-[60vh] max-w-xl flex-col items-center justify-center px-6 text-center">
+        <Loader2 className="size-6 animate-spin text-muted-foreground" aria-hidden="true" />
+        <p className="mt-4 text-sm font-medium text-muted-foreground">正在開啟 AI 會議工作台...</p>
+      </div>
+    );
+  }
+
+  if (bootstrapState === "error") {
+    return (
+      <div className="mx-auto flex min-h-[60vh] max-w-lg flex-col items-center justify-center px-6 text-center">
+        <AlertCircle className="size-7 text-destructive" aria-hidden="true" />
+        <h1 className="mt-4 text-lg font-semibold text-ink">AI 會議暫時無法開啟</h1>
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">{errorMessage}</p>
+        <Button type="button" variant="mono" className="mt-5 rounded-lg" onClick={() => router.push(backHref)}>
+          回準備包
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div data-testid="meeting-workspace" className="mx-auto flex w-full max-w-7xl flex-col gap-5 px-4 py-5 sm:px-6 lg:px-8">
+      <div data-testid="meeting-session-id" data-session-id={sessionId} className="sr-only">
+        會議 session 已就緒
+      </div>
+
+      <header className="grid gap-4 border-b border-hairline pb-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+        <div>
+          <Button
+            type="button"
+            variant="ghost"
+            className="mb-3 h-9 rounded-lg px-2.5 text-muted-foreground"
+            onClick={() => router.push(backHref)}
+          >
+            <ArrowLeft className="mr-2 size-4" aria-hidden="true" />
+            回準備包
+          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant="secondary">AI 會議</Badge>
+            <Badge variant="outline">CLIENT_MEETING</Badge>
+            <Badge variant="outline">No provider</Badge>
+          </div>
+          <h1 className="mt-3 flex items-center gap-3 text-3xl font-semibold tracking-tight text-ink sm:text-4xl">
+            <Mic className="size-7 text-[#1A3A6B]" aria-hidden="true" />
+            會議工作台
+          </h1>
+          <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
+            從這份準備包建立會議 session，捕捉手動筆記與 final transcript，並生成可引用摘要。
+          </p>
+        </div>
+
+        <div className="grid gap-2 text-sm text-muted-foreground sm:grid-cols-3 lg:min-w-[390px]">
+          <MetricCard label="段落" value={String(turnCount)} testId="meeting-turn-count" />
+          <MetricCard label="記憶" value={String(memoryRail?.total ?? 0)} />
+          <MetricCard label="Final" value={String(transcriptFinalCount)} />
+        </div>
+      </header>
+
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)]">
+        <section className="min-w-0 rounded-lg border border-hairline bg-card">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-hairline px-4 py-3">
+            <div>
+              <p className="text-sm font-semibold text-ink">捕捉會議內容</p>
+              <p className="mt-1 text-xs text-muted-foreground">{lastAction}</p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-9 rounded-lg"
+              onClick={handleManualRefresh}
+              disabled={!canSubmit}
+            >
+              {requestState === "saving" ? (
+                <Loader2 className="mr-2 size-4 animate-spin" aria-hidden="true" />
+              ) : (
+                <RefreshCcw className="mr-2 size-4" aria-hidden="true" />
+              )}
+              重新讀取
+            </Button>
+          </div>
+
+          <div className="grid gap-4 p-4 xl:grid-cols-2">
+            <CaptureBox
+              title="手動筆記"
+              description="用於顧問補充觀察、決策脈絡或待確認事項。"
+              icon={<NotebookPen className="size-4" aria-hidden="true" />}
+              value={noteDraft}
+              placeholder="輸入這場會議的手動筆記..."
+              disabled={!canSubmit}
+              buttonLabel="加入筆記"
+              onChange={setNoteDraft}
+              onSubmit={() => handleAppendTurn("MANUAL_NOTE")}
+              isBusy={requestState === "saving"}
+              testId="meeting-note-input"
+            />
+            <CaptureBox
+              title="Final transcript"
+              description="用於貼上已完成的轉寫段落；不保存 raw audio。"
+              icon={<Mic className="size-4" aria-hidden="true" />}
+              value={finalTranscriptDraft}
+              placeholder="貼上 final transcript 段落..."
+              disabled={!canSubmit}
+              buttonLabel="加入 final transcript"
+              onChange={setFinalTranscriptDraft}
+              onSubmit={() => handleAppendTurn("VOICE_FINAL_TRANSCRIPT")}
+              isBusy={requestState === "saving"}
+              testId="meeting-transcript-input"
+            />
+          </div>
+
+          {errorMessage ? (
+            <div className="mx-4 mb-4 flex gap-2 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+              <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+              <p>{errorMessage}</p>
+            </div>
+          ) : null}
+
+          <div className="border-t border-hairline p-4">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-ink">會議逐字段落</p>
+                <p className="mt-1 text-xs text-muted-foreground">來源以 server-side BFF 持久化，refresh 後可讀回。</p>
+              </div>
+              <Badge variant="outline">{turnCount} 段</Badge>
+            </div>
+            <div className="max-h-[520px] space-y-3 overflow-y-auto pr-1">
+              {snapshot?.turns.length ? (
+                snapshot.turns.map((turn) => <TurnCard key={turn.id} turn={turn} memories={snapshot.memories} />)
+              ) : (
+                <EmptyState
+                  icon={<ClipboardList className="size-5" aria-hidden="true" />}
+                  title="還沒有會議內容"
+                  description="加入手動筆記或 final transcript 後，這裡會顯示已持久化段落。"
+                />
+              )}
+            </div>
+          </div>
+        </section>
+
+        <aside className="min-w-0 space-y-5">
+          <section data-testid="meeting-memory-rail" className="rounded-lg border border-hairline bg-card p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-ink">Park 記憶軌</p>
+                <p className="mt-1 text-xs text-muted-foreground">只建立 member-private 候選記憶。</p>
+              </div>
+              <ShieldCheck className="size-5 text-[#1A3A6B]" aria-hidden="true" />
+            </div>
+            <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
+              <RailMetric label="已確認" value={memoryRail?.confirmed ?? 0} />
+              <RailMetric label="推論" value={memoryRail?.inferences ?? 0} />
+              <RailMetric label="未知" value={memoryRail?.unknowns ?? 0} />
+              <RailMetric label="私人" value={memoryRail?.memberPrivate ?? 0} />
+            </div>
+          </section>
+
+          <section data-testid="meeting-summary-panel" className="rounded-lg border border-hairline bg-card p-4">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-ink">會議摘要</p>
+                <p className="mt-1 text-xs text-muted-foreground">Deterministic no-provider，引用已持久化 turn/memory。</p>
+              </div>
+              <Button
+                type="button"
+                variant="mono"
+                size="sm"
+              className="h-9 rounded-lg"
+              onClick={handleGenerateSummary}
+              disabled={!canSubmit || turnCount === 0}
+            >
+                {isSummarizing ? (
+                  <Loader2 className="mr-2 size-4 animate-spin" aria-hidden="true" />
+                ) : (
+                  <Sparkles className="mr-2 size-4" aria-hidden="true" />
+                )}
+                生成摘要
+              </Button>
+            </div>
+
+            {summary ? (
+              <SummaryPanel summary={summary} />
+            ) : (
+              <EmptyState
+                className="mt-4"
+                icon={<FileText className="size-5" aria-hidden="true" />}
+                title="尚未生成摘要"
+                description={EMPTY_SUMMARY_NOTICE}
+              />
+            )}
+          </section>
+
+          <section className="rounded-lg border border-hairline bg-card p-4">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="size-5 text-[#1A3A6B]" aria-hidden="true" />
+              <p className="text-sm font-semibold text-ink">安全邊界</p>
+            </div>
+            <div className="mt-4 grid gap-2">
+              <SafetyRow testId="meeting-safety-provider" label="Provider call" value={snapshot?.safety.providerCallAttempted === false ? "未嘗試" : "未知"} />
+              <SafetyRow label="AiUsageLog" value={snapshot?.safety.aiUsageLogRequired === false ? "no-provider 不需要" : "未知"} />
+              <SafetyRow label="Raw audio" value={snapshot?.safety.rawAudioStored === false ? "未保存" : "未保存"} />
+              <SafetyRow label="CRM fact write" value={snapshot?.safety.writesConfirmedCrmFact === false ? "未寫回" : "未知"} />
+            </div>
+          </section>
+        </aside>
+      </div>
+    </div>
+  );
+}
+
+function MetricCard({ label, value, testId }: { label: string; value: string; testId?: string }) {
+  return (
+    <div className="rounded-lg border border-hairline bg-card px-3 py-2">
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p data-testid={testId} className="mt-1 text-xl font-semibold tabular-nums text-ink">
+        {value}
+      </p>
+    </div>
+  );
+}
+
+function CaptureBox({
+  title,
+  description,
+  icon,
+  value,
+  placeholder,
+  disabled,
+  buttonLabel,
+  onChange,
+  onSubmit,
+  isBusy,
+  testId,
+}: {
+  title: string;
+  description: string;
+  icon: React.ReactNode;
+  value: string;
+  placeholder: string;
+  disabled: boolean;
+  buttonLabel: string;
+  onChange: (value: string) => void;
+  onSubmit: () => void;
+  isBusy: boolean;
+  testId: string;
+}) {
+  return (
+    <div className="rounded-lg border border-hairline bg-paper p-3">
+      <div className="flex items-start gap-2">
+        <span className="mt-0.5 text-[#1A3A6B]">{icon}</span>
+        <div>
+          <p className="text-sm font-semibold text-ink">{title}</p>
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">{description}</p>
+        </div>
+      </div>
+      <Textarea
+        data-testid={testId}
+        className="mt-3 min-h-28 resize-y rounded-lg bg-card text-sm"
+        value={value}
+        placeholder={placeholder}
+        disabled={disabled}
+        onChange={(event) => onChange(event.target.value)}
+      />
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className="mt-3 h-9 rounded-lg"
+        onClick={onSubmit}
+        disabled={disabled || !value.trim()}
+      >
+        {isBusy ? <Loader2 className="mr-2 size-4 animate-spin" aria-hidden="true" /> : null}
+        {buttonLabel}
+      </Button>
+    </div>
+  );
+}
+
+function TurnCard({ turn, memories }: { turn: MeetingTurnDto; memories: MeetingMemoryDto[] }) {
+  const relatedMemories = memories.filter((memory) => memory.turnId === turn.id);
+
+  return (
+    <article className="rounded-lg border border-hairline bg-paper p-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant={turn.transcriptFinal ? "default" : "secondary"}>
+            {turn.transcriptFinal ? "Final transcript" : "Manual/Text"}
+          </Badge>
+          <Badge variant="outline">{turn.modality}</Badge>
+        </div>
+        <time className="text-xs tabular-nums text-muted-foreground" dateTime={turn.occurredAt}>
+          {formatDateTime(turn.occurredAt)}
+        </time>
+      </div>
+      <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-ink">{turn.content}</p>
+      {relatedMemories.length ? (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {relatedMemories.slice(0, 4).map((memory) => (
+            <Badge key={memory.id} variant="outline">
+              {displayDataClass(memory.dataClass)}
+            </Badge>
+          ))}
+        </div>
+      ) : null}
+    </article>
+  );
+}
+
+function SummaryPanel({ summary }: { summary: PersistedMeetingSummaryDto }) {
+  return (
+    <div className="mt-4 space-y-4">
+      <div className="rounded-lg border border-hairline bg-paper p-3">
+        <p data-testid="meeting-summary-headline" className="text-base font-semibold leading-6 text-ink">
+          {summary.headline}
+        </p>
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">{summary.summary}</p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <Badge variant="outline">{summary.citations.length} citations</Badge>
+          <Badge variant="outline">{summary.sourceTurnIds.length} source turns</Badge>
+          <Badge variant="outline">{summary.provider ?? "no provider"}</Badge>
+        </div>
+      </div>
+      <SummaryList title="決策" items={summary.decisions} />
+      <ActionList items={summary.actionItems} />
+      <SummaryList title="待確認問題" items={summary.openQuestions} />
+    </div>
+  );
+}
+
+function SummaryList({ title, items }: { title: string; items: MeetingSummaryItem[] }) {
+  if (!items.length) return null;
+
+  return (
+    <div>
+      <p className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">{title}</p>
+      <div className="space-y-2">
+        {items.map((item) => (
+          <SummaryItemCard key={item.id} text={item.text} dataClass={item.dataClass} citations={item.citations} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ActionList({ items }: { items: MeetingActionItem[] }) {
+  if (!items.length) return null;
+
+  return (
+    <div>
+      <p className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">行動項</p>
+      <div className="space-y-2">
+        {items.map((item) => (
+          <SummaryItemCard key={item.id} text={item.text} dataClass={item.dataClass} citations={item.citations} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function SummaryItemCard({
+  text,
+  dataClass,
+  citations,
+}: {
+  text: string;
+  dataClass: MeetingDataClass;
+  citations: MeetingCitation[];
+}) {
+  return (
+    <div className="rounded-lg border border-hairline bg-paper p-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge variant={dataClass === "UNKNOWN" ? "warning" : "outline"}>{MEETING_DATA_CLASS_LABEL[dataClass]}</Badge>
+        <Badge variant="outline">{citations.length} 引用</Badge>
+      </div>
+      <p className="mt-2 text-sm leading-6 text-ink">{text}</p>
+    </div>
+  );
+}
+
+function RailMetric({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-lg border border-hairline bg-paper px-3 py-2">
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="mt-1 text-lg font-semibold tabular-nums text-ink">{value}</p>
+    </div>
+  );
+}
+
+function SafetyRow({ label, value, testId }: { label: string; value: string; testId?: string }) {
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-lg border border-hairline bg-paper px-3 py-2 text-sm">
+      <span className="text-muted-foreground">{label}</span>
+      <span data-testid={testId} className="font-medium text-ink">
+        {value}
+      </span>
+    </div>
+  );
+}
+
+function EmptyState({
+  icon,
+  title,
+  description,
+  className = "",
+}: {
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+  className?: string;
+}) {
+  return (
+    <div className={`rounded-lg border border-dashed border-hairline bg-paper p-4 text-sm ${className}`}>
+      <div className="flex items-start gap-3">
+        <span className="mt-0.5 text-muted-foreground">{icon}</span>
+        <div>
+          <p className="font-semibold text-ink">{title}</p>
+          <p className="mt-1 leading-6 text-muted-foreground">{description}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+async function createMeetingSession(planId: string, signal?: AbortSignal): Promise<MeetingSessionSnapshotDto> {
+  const response = await fetch("/api/ai/meeting/sessions", {
+    method: "POST",
+    headers: requestHeaders,
+    body: JSON.stringify({
+      visitPlanId: planId,
+      title: "AI 會議",
+    }),
+    signal,
+  });
+
+  return readRequiredJson<MeetingSessionSnapshotDto>(response, "MEETING_SESSION_CREATE_FAILED");
+}
+
+async function readMeetingSession(sessionId: string, signal?: AbortSignal): Promise<MeetingSessionSnapshotDto> {
+  const response = await fetch(`/api/ai/meeting/sessions/${encodeURIComponent(sessionId)}`, {
+    method: "GET",
+    signal,
+  });
+
+  return readRequiredJson<MeetingSessionSnapshotDto>(response, "MEETING_SESSION_READ_FAILED");
+}
+
+async function appendMeetingTurn(sessionId: string, source: TurnSource, content: string) {
+  const response = await fetch(`/api/ai/meeting/sessions/${encodeURIComponent(sessionId)}/turns`, {
+    method: "POST",
+    headers: requestHeaders,
+    body: JSON.stringify({
+      role: "USER",
+      modality: source === "VOICE_FINAL_TRANSCRIPT" ? "VOICE_TRANSCRIPT_FALLBACK" : "TEXT",
+      source,
+      content,
+      transcriptFinal: source === "VOICE_FINAL_TRANSCRIPT",
+      outlineSegmentId: "capture",
+      occurredAt: new Date().toISOString(),
+      issueTags: source === "VOICE_FINAL_TRANSCRIPT" ? ["meeting-final-transcript"] : ["meeting-manual-note"],
+      pqQuestionIds: [],
+    }),
+  });
+
+  await readRequiredJson<unknown>(response, "MEETING_TURN_APPEND_FAILED");
+}
+
+async function readMeetingSummary(sessionId: string, signal?: AbortSignal): Promise<PersistedMeetingSummaryDto | null> {
+  const response = await fetch(`/api/ai/meeting/sessions/${encodeURIComponent(sessionId)}/summary`, {
+    method: "GET",
+    signal,
+  });
+
+  if (response.status === 404) return null;
+
+  const body = await readRequiredJson<MeetingSummaryReadResponse>(response, "MEETING_SUMMARY_READ_FAILED");
+  return body.status === "found" ? body.summary : null;
+}
+
+async function generateMeetingSummary(sessionId: string): Promise<PersistedMeetingSummaryDto> {
+  const response = await fetch(`/api/ai/meeting/sessions/${encodeURIComponent(sessionId)}/summary`, {
+    method: "POST",
+    headers: requestHeaders,
+    body: JSON.stringify({
+      mode: "DETERMINISTIC_NO_PROVIDER",
+      overwrite: true,
+    }),
+  });
+
+  const body = await readRequiredJson<MeetingSummaryWriteResponse>(response, "MEETING_SUMMARY_GENERATION_FAILED");
+  return body.summary;
+}
+
+async function readRequiredJson<T>(response: Response, fallbackMessage: string): Promise<T> {
+  const body = await readJson<unknown>(response);
+
+  if (!response.ok) {
+    throw new Error(resolveApiError(body, fallbackMessage));
+  }
+
+  return body as T;
+}
+
+async function readJson<T>(response: Response): Promise<T | null> {
+  const text = await response.text();
+  if (!text) return null;
+
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    return null;
+  }
+}
+
+function resolveApiError(body: unknown, fallbackMessage: string): string {
+  if (isRecord(body)) {
+    const error = body.error;
+    if (typeof error === "string" && error.trim()) return error;
+
+    const blockedPaths = body.blockedPayloadPaths;
+    if (Array.isArray(blockedPaths) && blockedPaths.length > 0) {
+      return "MEETING_PAYLOAD_BLOCKED";
+    }
+  }
+
+  return fallbackMessage;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function displayDataClass(value: string): string {
+  if (isMeetingDataClass(value)) return MEETING_DATA_CLASS_LABEL[value];
+  if (value === "INSTRUCTION") return "指令";
+  return value;
+}
+
+function isMeetingDataClass(value: string): value is MeetingDataClass {
+  return value === "CONFIRMED" || value === "FACT" || value === "INFERENCE" || value === "UNKNOWN";
+}
+
+function formatDateTime(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+
+  return new Intl.DateTimeFormat("zh-TW", {
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+}

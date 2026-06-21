@@ -16,6 +16,7 @@ import {
   Lightbulb,
   Loader2,
   MessageSquare,
+  Mic,
   Network,
   NotebookPen,
   PackageCheck,
@@ -408,6 +409,15 @@ function VisitPlanDetailContent() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2 lg:justify-end">
+          <Button
+            type="button"
+            variant="outline"
+            className="h-10 rounded-lg"
+            onClick={() => router.push(`/pre-visit/${plan.id}/meeting${isQuickstart ? "?demo=quickstart" : ""}`)}
+          >
+            <Mic className="mr-2 h-4 w-4" />
+            AI 會議
+          </Button>
           <Button
             type="button"
             variant="outline"

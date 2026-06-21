@@ -117,6 +117,17 @@ export type GenerateMeetingSummaryResult =
       safety: MeetingSummaryRouteSafety;
     };
 
+export type ReadMeetingSummaryResult =
+  | {
+      status: "found";
+      summary: PersistedMeetingSummaryDto;
+      safety: MeetingSummaryRouteSafety;
+    }
+  | {
+      status: "empty";
+      safety: MeetingSummaryRouteSafety;
+    };
+
 export interface MeetingSummarySourceEvidence {
   sourceTurnCount: number;
   sourceMemoryCount: number;
@@ -293,6 +304,38 @@ export async function generateMeetingSummaryForMember(
       sourceMemoryIds: draft.sourceMemoryIds,
     },
     safety: meetingSummaryRouteSafety(true),
+  };
+}
+
+export async function readMeetingSummaryForMember(
+  session: AppSession,
+  sessionId: string,
+): Promise<ReadMeetingSummaryResult | null> {
+  const snapshot = await getMeetingSessionSnapshotForMember(session, sessionId);
+
+  if (!snapshot) {
+    return null;
+  }
+
+  const existing = await prisma.interviewMeetingSummary.findFirst({
+    where: {
+      sessionId: snapshot.session.id,
+      organizationId: session.organization.id,
+      ownerId: session.user.id,
+    },
+  });
+
+  if (!existing) {
+    return {
+      status: "empty",
+      safety: meetingSummaryRouteSafety(false),
+    };
+  }
+
+  return {
+    status: "found",
+    summary: toPersistedMeetingSummaryDto(existing),
+    safety: meetingSummaryRouteSafety(false),
   };
 }
 

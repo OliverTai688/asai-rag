@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { authErrorResponse, requireCurrentMember } from "@/lib/auth/current-workspace";
 import { findMeetingPayloadViolations } from "@/lib/interview/meeting-session-repository";
-import { generateMeetingSummaryForMember } from "@/lib/interview/meeting-summary-repository";
+import { generateMeetingSummaryForMember, readMeetingSummaryForMember } from "@/lib/interview/meeting-summary-repository";
 
 const generateMeetingSummaryInputSchema = z
   .object({
@@ -12,6 +12,26 @@ const generateMeetingSummaryInputSchema = z
 
 interface MeetingSummaryRouteContext {
   params: Promise<{ sessionId: string }>;
+}
+
+export async function GET(_req: Request, ctx: MeetingSummaryRouteContext) {
+  try {
+    const session = await requireCurrentMember();
+    const { sessionId } = await ctx.params;
+    const result = await readMeetingSummaryForMember(session, sessionId);
+
+    if (!result) {
+      return Response.json({ error: "MEETING_SESSION_NOT_FOUND" }, { status: 404 });
+    }
+
+    if (result.status === "empty") {
+      return Response.json(result);
+    }
+
+    return Response.json(result);
+  } catch (error) {
+    return authErrorResponse(error);
+  }
 }
 
 export async function POST(req: Request, ctx: MeetingSummaryRouteContext) {
