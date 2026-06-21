@@ -83,11 +83,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 4,
-    "lastWholeProductReviewAt": "2026-06-21T05:11:35Z",
-    "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-21_lv3-whole-product-gap-review-after-amm-summary.md",
+    "normalLoopsSinceLastWholeProductReview": 0,
+    "lastWholeProductReviewAt": "2026-06-21T06:56:08Z",
+    "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-21_lv3-whole-product-gap-review-after-provider-summary.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "Cadence counter is now 4, so the next loop should run `lv3-whole-product-gap-review-loop.md` before another implementation slice unless a critical regression appears. Review should score the now-completed AMM foundation (capture, deterministic/provider summaries, deterministic memory-chat, workspace entrypoint, writeback boundary) against the core LV3 flow and pick the next source/proof slice. Likely candidates after review: `AMM-005b meeting workspace writeback confirmation cards/global dashboard+CRM entrypoints`, `AMM-004b provider-backed memory-chat quota/error AiUsageLog contract`, or a cross-flow client -> relationship graph -> previsit -> meeting/theater acceptance proof. Avoid docs-only proof while safe source work exists.",
+    "nextRecommendedImplementationSlice": "Run `AMM-006b meeting workspace writeback confirmation cards` as the next normal source-backed loop. The route-level writeback boundary exists, but the meeting workspace does not yet consume `GET/POST /api/ai/meeting/sessions/[sessionId]/writebacks`; next slice should render confirmation cards, require reason/riskAccepted for sensitive candidates, POST selected candidates, show created/blocked/skipped results, and prove inference never becomes CRM fact, confirmed only creates CRM candidate audit, action/unknown create follow-up tasks, manager denied, raw private sentinel blocked, desktop/mobile browser safe, and no-provider AiUsageLog unchanged. Secondary candidates: dashboard/CRM global meeting entrypoints, then AMM-004b provider-backed memory-chat.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {
@@ -155,5 +155,5 @@
     "lv3ImmersiveLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-immersive-loop.md",
     "lv3WholeProductGapReviewLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md"
   },
-  "updatedAt": "2026-06-21T06:50:00Z"
+  "updatedAt": "2026-06-21T06:56:08Z"
 }

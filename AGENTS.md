@@ -1527,9 +1527,14 @@ Whole-product review note（2026-06-21 after AMM-003a）：第五輪校準確認
 ### Batch AMM-006 — 寫回邊界
 - [x] 沿用 `writeback-boundary`：行動項→task、confirmed→CRM candidate、inference→insight、unknown→follow-up；confirmed+勾選才寫回；敏感客戶 reason/riskAccepted；皆 audit。
 - [x] API proof：inference checked 不變 CRM fact；confirmed checked 才寫回。
+- [ ] AMM-006b：meeting workspace 顯示 `/writebacks` preview / confirmation cards；顧問可勾選 confirmed / inference / action / unknown 候選，需 reason/riskAccepted 的項目有明確輸入，提交後顯示 created/blocked/skipped。
+- [ ] AMM-006b：UI 不把 inference 寫成 CRM fact；confirmed 仍只建立 CRM candidate audit event；action item / unknown 只建立 follow-up task。
+- [ ] AMM-006b Browser/API proof：desktop/mobile console error 0、無水平 overflow、summary missing 顯示「先生成摘要」、manager/foreign denied、raw provider/private sentinel blocked、no-provider `AiUsageLog` unchanged。
 - [x] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
 
 完成註記（2026-06-21 AMM-006a）：新增 meeting writeback boundary / repository / route 與 `pnpm meeting:writeback-qa`，將 persisted meeting summary 的 confirmed decision / inference / action item / unknown/open question 轉成顧問確認候選；confirmed fact 僅建立 CRM candidate `InteractionEvent`，inference 永不建立 CRM fact，action item 與 unknown 只建立 follow-up task，高敏感 confirmed fact 需 reason/riskAccepted。Proof 覆蓋 manager 404、raw provider-like payload 409/no echo、DB audit count、`writesConfirmedCrmFact=false` 與 no-provider `AiUsageLog` unchanged。Workspace UI confirmation cards、dashboard/CRM global entrypoints 與 AMM-004b provider memory-chat 仍待後續。
+
+Whole-product review note（2026-06-21 after AMM-003b）：第五輪校準確認 AMM 已具備 capture、workspace entrypoint、deterministic/provider cited summary、deterministic memory-chat 與 writeback API boundary；目前最高槓桿缺口不再是 backend，而是顧問在 meeting workspace 內看不到可操作的 writeback confirmation cards。下一輪 normal loop 建議 `AMM-006b meeting workspace writeback confirmation cards`：接 `GET/POST /api/ai/meeting/sessions/[sessionId]/writebacks`，以低噪音確認卡把 confirmed/inference/action/unknown 轉成 CRM candidate / insight / follow-up task，並以 browser/API/DB proof 驗證 no raw-ID、inference 不成 CRM fact、高敏感 reason/riskAccepted、manager denied、no-provider `AiUsageLog` unchanged。第二順位為 dashboard/CRM global meeting entrypoints；第三順位為 AMM-004b provider-backed memory-chat。
 
 ### Batch AMM-007 — pgvector 規模化（operator 依賴）
 - [ ] `InterviewMemory.embeddingStatus` 接 embedding，Supabase 啟用 pgvector；未啟用前 lexical fallback 並標 blocker。
