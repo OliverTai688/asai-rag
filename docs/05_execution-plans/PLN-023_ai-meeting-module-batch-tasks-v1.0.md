@@ -23,7 +23,7 @@
 - `interview` domain 已有完整 Park-memory + realtime voice + persistence，但綁在 `/interview`，未成為全站「會議」物件。
 - `retrieveInterviewMemories()` 已有 client-scoped deterministic memory-chat route 與 provider-backed live memory-chat mode；pgvector retrieval 仍待 AMM-007。
 - 已有 `MeetingSummary` / `MeetingCitation` contract、additive `InterviewMeetingSummary` schema、member-scoped meeting capture BFF、deterministic cited summary persistence proof、provider JSON summary success/error `AiUsageLog` proof、pre-visit meeting workspace 入口、dashboard / CRM client detail 全站入口、deterministic writeback boundary 與 workspace confirmation cards。
-- 仍缺 `/pre-visit/[planId]/notes` 與 `postVisitNotes` 相容升級、pgvector retrieval、cross-state browser QA。
+- 仍缺 `/pre-visit/[planId]/notes` 與 `postVisitNotes` 相容升級、pgvector retrieval。AMM-008 已補 cross-state proof pack。
 
 ---
 
@@ -118,7 +118,7 @@ Whole-product review note（2026-06-21 after AMM-003a）：第五輪校準確認
 
 Whole-product review note（2026-06-21 after AMM-003b）：最新 fifth-loop review 將下一個 normal loop 指向 `AMM-006b meeting workspace writeback confirmation cards`。理由：AMM backend/provider foundation 已完成，但 `src/components/meeting/meeting-workspace.tsx` 尚未消費 `/writebacks` preview/POST；這直接阻斷「AI 會議/訪談補強客戶資料與待辦」的可操作閉環。下一輪需做 source-backed UI/API/DB/browser proof，不得只更新 docs 或 proof plan。
 
-完成註記：2026-06-21 AMM-006b 已完成 meeting workspace writeback confirmation cards；`src/components/meeting/meeting-workspace.tsx` 摘要就緒後會讀取 `/writebacks` preview，顯示 confirmed/inference/action/unknown 候選、reason/riskAccepted、高敏感 blocked 與 created/blocked/skipped 結果。新增 `scripts/meeting-workspace-writeback-ui-qa.mjs` / `pnpm meeting:workspace-writeback-ui-qa`，證明 summary-required UI、desktop/mobile console error 0、無水平 overflow、owner createdEvents、manager 404、raw provider/private sentinel 409/no echo、confirmed approved -> CRM candidate audit、inference CRM fact count = 0、action/unknown -> follow-up task、`writesConfirmedCrmFact=false`、no-provider `AiUsageLog` 153->153 unchanged。Provider-backed memory-chat、pgvector 與 AMM-008 cross-state proof pack 仍未完成。
+完成註記：2026-06-21 AMM-006b 已完成 meeting workspace writeback confirmation cards；`src/components/meeting/meeting-workspace.tsx` 摘要就緒後會讀取 `/writebacks` preview，顯示 confirmed/inference/action/unknown 候選、reason/riskAccepted、高敏感 blocked 與 created/blocked/skipped 結果。新增 `scripts/meeting-workspace-writeback-ui-qa.mjs` / `pnpm meeting:workspace-writeback-ui-qa`，證明 summary-required UI、desktop/mobile console error 0、無水平 overflow、owner createdEvents、manager 404、raw provider/private sentinel 409/no echo、confirmed approved -> CRM candidate audit、inference CRM fact count = 0、action/unknown -> follow-up task、`writesConfirmedCrmFact=false`、no-provider `AiUsageLog` 153->153 unchanged。AMM-008 cross-state proof pack 已補上；pgvector 與 notes/postVisitNotes 相容升級仍未完成。
 
 ## Batch AMM-007 — pgvector 規模化（operator 依賴）
 - [ ] `InterviewMemory.embeddingStatus` 接 embedding 寫入流程；Supabase 啟用 pgvector + 向量索引。
@@ -128,13 +128,15 @@ Whole-product review note（2026-06-21 after AMM-003b）：最新 fifth-loop rev
 - [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
 
 ## Batch AMM-008 — 跨狀態 QA、docs sync、rollback note
-- [ ] 端到端 proof：建立會議 → 累積 transcript → 生成 summary（含 citation）→ 與客戶對答引用過去會議。
-- [ ] 隱私 proof：org manager aggregate API 不回 transcript/memory/客戶明細；raw audio 不入庫。
-- [ ] 用量 proof：summary/chat/realtime provider call 皆寫 `AiUsageLog`（success/error）；quota 429 不呼叫 provider。
-- [ ] Persistence proof：清空 browser storage / 重新登入後會議與摘要可從 DB 恢復。
-- [ ] Rollback note：`CLIENT_MEETING` 停用、`MeetingSummary` migration revert、pgvector/realtime 降級策略。
-- [ ] 更新 `AGENTS.md`、`PLN-023`、必要 report / issue-question；保存 desktop/mobile 截圖。
-- [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`、必要 Prisma 與 Browser QA。
+- [x] 端到端 proof：建立會議 → 累積 transcript → 生成 summary（含 citation）→ 與客戶對答引用過去會議。
+- [x] 隱私 proof：org manager aggregate API 不回 transcript/memory/客戶明細；raw audio 不入庫。
+- [x] 用量 proof：summary/chat/realtime provider call 皆寫 `AiUsageLog`（success/error）；quota 429 不呼叫 provider。
+- [x] Persistence proof：清空 browser storage / 重新登入後會議與摘要可從 DB 恢復。
+- [x] Rollback note：`CLIENT_MEETING` 停用、`MeetingSummary` migration revert、pgvector/realtime 降級策略。
+- [x] 更新 `AGENTS.md`、`PLN-023`、必要 report / issue-question；保存 desktop/mobile 截圖。
+- [x] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`、必要 Prisma 與 Browser QA。
+
+完成註記：2026-06-21 AMM-008 新增 `scripts/meeting-cross-state-qa.mjs` / `pnpm meeting:cross-state-qa`，以單一可重跑 proof pack 覆蓋 member 建客戶/visit/meeting、workspace manual note + final transcript、provider summary citation、new browser context persistence、writeback confirmation、provider memory-chat、Realtime `CLIENT_MEETING` provider path / quota guard、manager aggregate privacy 與 raw sentinel DB scan。Rollback：`CLIENT_MEETING` meeting entrypoints 可 feature flag/route gate 停用；`InterviewMeetingSummary` 為 additive migration，可依 production rollback plan revert；pgvector 未啟用時保留 lexical fallback；Realtime provider/env 不可用時走 guarded-disabled/quota path 且不保存 raw audio。
 
 ---
 

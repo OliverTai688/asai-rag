@@ -1459,7 +1459,7 @@ Context: 參考 Notion AI Meeting，做一個**全站 AI 會議模組**：即時
 - 拜訪後筆記只是 `VisitPlan.postVisitNotes` 純文字，無 transcript / 結構化摘要 / 行動項 / citation / 跨會議記憶。
 - `interview` domain 已有 Park-memory + realtime voice + persistence，但綁在 `/interview`，未成為全站「會議」物件。
 - `retrieveInterviewMemories()` 已支援 client-scoped 跨 session deterministic grounding，且 meeting/client memory-chat route 已有 deterministic fallback 與 provider JSON mode；AMM-004b 已補 live provider-backed memory-chat success/error `AiUsageLog`、quota 429 與 provider-disabled 503 proof。
-- 已有 `MeetingSummary` / `MeetingCitation` 契約骨架、additive persistence schema、AMM-002a meeting capture BFF、AMM-003a deterministic cited summary persistence、AMM-003b provider JSON summary + success/error `AiUsageLog` proof、AMM-004a deterministic memory-chat、AMM-004b provider memory-chat、AMM-005a 訪前規劃 meeting workspace 入口、AMM-005b dashboard / CRM 全站入口與 AMM-006a/b meeting writeback boundary + workspace confirmation proof；仍缺 `/pre-visit/[planId]/notes` 與 `postVisitNotes` 相容升級、pgvector retrieval 與 AMM cross-state proof pack。
+- 已有 `MeetingSummary` / `MeetingCitation` 契約骨架、additive persistence schema、AMM-002a meeting capture BFF、AMM-003a deterministic cited summary persistence、AMM-003b provider JSON summary + success/error `AiUsageLog` proof、AMM-004a deterministic memory-chat、AMM-004b provider memory-chat、AMM-005a 訪前規劃 meeting workspace 入口、AMM-005b dashboard / CRM 全站入口、AMM-006a/b meeting writeback boundary + workspace confirmation proof 與 AMM-008 cross-state proof pack；仍缺 `/pre-visit/[planId]/notes` 與 `postVisitNotes` 相容升級、pgvector retrieval。
 
 ### Batch AMM-000 — 文件與 workstream 登錄
 - [x] 新增 `RES-023`、`ARC-010`、`PLN-023`、`ACC-015`。
@@ -1551,8 +1551,10 @@ Whole-product review note（2026-06-21 after AMM-003b）：第五輪校準確認
 - [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
 
 ### Batch AMM-008 — 跨狀態 QA、docs sync、rollback note
-- [ ] 端到端 + 隱私 + 用量 + persistence proof；rollback note；更新 `AGENTS.md`/`PLN-023`/report/issue-question；保存截圖。
-- [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`、必要 Prisma 與 Browser QA。
+- [x] 端到端 + 隱私 + 用量 + persistence proof；rollback note；更新 `AGENTS.md`/`PLN-023`/report/issue-question；保存截圖。
+- [x] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`、必要 Prisma 與 Browser QA。
+
+完成註記（2026-06-21 AMM-008）：新增 `scripts/meeting-cross-state-qa.mjs` / `pnpm meeting:cross-state-qa`，以單一可重跑 proof pack 串起 demo member 建客戶/關係來源/保單/visit、pre-visit meeting workspace、manual note + final transcript、provider summary citation、new mobile context DB persistence、writeback confirmation、provider session/client memory-chat、Realtime `CLIENT_MEETING` provider path / quota guard、manager org overview privacy 與 raw sentinel DB scan。Rollback：可用 feature flag / route gate 停用 `CLIENT_MEETING` meeting entrypoints；`InterviewMeetingSummary` 為 additive table，可依 production migration rollback 流程 drop/revert；pgvector 未啟用時維持 lexical fallback；Realtime provider/env 不可用時保留 guarded-disabled / quota path 與 no raw-audio persistence。外部 NANDA registry publication 仍未批准。
 
 ### Current AI Meeting Blockers
 - `MeetingSummary` 正式表 development db push 已於 AMM-002a 對目前 `.env` target 執行；production migration / rollback plan 仍需明確 approval。

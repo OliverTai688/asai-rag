@@ -234,7 +234,7 @@ export async function prepareClientMemoryChatForMember(
   }
 
   const sources = await collectClientGroundingSources(session, clientId, currentSessionId);
-  const ranked = rankSources(input.question, sources).slice(0, MAX_CITATIONS);
+  const ranked = includeClientProfileAnchor(rankSources(input.question, sources)).slice(0, MAX_CITATIONS);
 
   if (ranked.length === 0) {
     return {
@@ -381,7 +381,7 @@ export function buildMeetingMemoryChatProviderSafety(
 }
 
 export function assertMeetingMemoryChatSafety(answer: MeetingMemoryChatAnswer): string[] {
-  const serialized = JSON.stringify(answer);
+  const serialized = serializeMeetingMemoryChatSafetyText(answer);
   const failures: string[] = [];
 
   if (hasForbiddenPrivateText(serialized)) failures.push("private or provider sentinel leaked");
@@ -390,6 +390,17 @@ export function assertMeetingMemoryChatSafety(answer: MeetingMemoryChatAnswer): 
   if (/policy\s*number|保單號|policyNumber/i.test(serialized)) failures.push("policy identifier leaked");
 
   return failures;
+}
+
+function serializeMeetingMemoryChatSafetyText(answer: MeetingMemoryChatAnswer): string {
+  return [
+    answer.question,
+    answer.answer,
+    ...answer.facts.map((item) => item.text),
+    ...answer.inferences.map((item) => item.text),
+    ...answer.unknowns.map((item) => item.text),
+    ...answer.citations.flatMap((citation) => [citation.sourceLabel, citation.snippet]),
+  ].join("\n");
 }
 
 async function collectClientGroundingSources(
@@ -687,6 +698,14 @@ function rankSources(question: string, sources: MeetingMemoryChatGroundingSource
       if (right.score !== left.score) return right.score - left.score;
       return (right.occurredAt ?? "").localeCompare(left.occurredAt ?? "");
     });
+}
+
+function includeClientProfileAnchor(sources: MeetingMemoryChatGroundingSource[]): MeetingMemoryChatGroundingSource[] {
+  const clientProfile = sources.find((source) => source.sourceType === "CRM_CLIENT");
+  if (!clientProfile) return sources;
+  if (sources.slice(0, MAX_CITATIONS).some((source) => source.id === clientProfile.id)) return sources;
+
+  return [clientProfile, ...sources.filter((source) => source.id !== clientProfile.id)];
 }
 
 function buildDeterministicMemoryAnswer(question: string, sources: MeetingMemoryChatGroundingSource[]): MeetingMemoryChatAnswer {

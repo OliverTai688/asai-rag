@@ -41,6 +41,7 @@
     "meeting:global-entrypoints-qa": "node scripts/meeting-global-entrypoints-qa.mjs",
     "meeting:memory-chat-qa": "node scripts/meeting-memory-chat-qa.mjs",
     "meeting:memory-chat-provider-qa": "node scripts/meeting-memory-chat-provider-qa.mjs",
+    "meeting:cross-state-qa": "node scripts/meeting-cross-state-qa.mjs",
     "meeting:writeback-qa": "node scripts/meeting-writeback-qa.mjs",
     "visit:theater-handoff-dry-run": "node scripts/visit-theater-handoff-dry-run.mjs",
     "visit:theater-bff-qa": "node scripts/visit-theater-bff-qa.mjs",
