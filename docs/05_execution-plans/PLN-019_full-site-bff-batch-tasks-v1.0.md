@@ -45,7 +45,7 @@
 | BFF-301 | Org BFF repository extraction and aggregate QA | [x] | BFF-002 |
 | BFF-302 | Org writes audit and capability enforcement | [x] | BFF-301 |
 | BFF-303 | Client portal BFF completion | [x] | BFF-002 |
-| BFF-304 | Platform BFF completion | [ ] | BFF-002 |
+| BFF-304 | Platform BFF completion | [x] | BFF-002 |
 | BFF-305 | Public BFF completion | [ ] | BFF-002 |
 | BFF-401 | ECPay checkout BFF | [ ] | BFF-002 |
 | BFF-402 | ECPay notification/query/idempotency | [ ] | BFF-401 |
@@ -376,13 +376,15 @@ Whole-product review fallback note（2026-06-21）：若 BFF-204a 被 env/sessio
 
 Whole-product review note（2026-06-21 after BFF-303）：BFF-204/205/302/303 已分別補上 Theater/RAG/Assistant/Interview/org writes/client portal 的 launch boundary proof；下一個 full-site BFF 最高槓桿缺口轉為 platform surface。`BFF-304a` 下一輪應先做 platform session separation + metadata/audit proof：app session 打 platform APIs 必須 401/403，platform session 讀 organizations / AI usage / audit logs 只能回 metadata/aggregate，敏感讀必寫 `AuditLog` 並回 proof id，break-glass/impersonation 需要 reason/scope/expiry/actor/target。此 slice 不啟用 production impersonation、不做 production write、不接真 payment/email/notification；若 platform session/env 不可用，fallback 是 deterministic source/fixture proof，但不得宣稱 live platform auth matrix 完成。
 
-- [ ] Platform session 與 app session 分離 proof。
-- [ ] Organizations/AI usage/audit logs 預設 metadata/aggregate。
-- [ ] Impersonation/break-glass 必填 reason、scope、expiry、actor/target。
-- [ ] Sensitive read 每次寫 `AuditLog`，且 response 可回報 proof id。
-- [ ] Release readiness 聚合 auth、AI、billing、monitoring、backup、BFF gates。
-- [ ] API proof 覆蓋 app session rejected、platform success、break-glass audit。
-- [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+- [x] Platform session 與 app session 分離 proof。
+- [x] Organizations/AI usage/audit logs 預設 metadata/aggregate。
+- [x] Impersonation/break-glass 必填 reason、scope、expiry、actor/target。
+- [x] Sensitive read 每次寫 `AuditLog`，且 response 可回報 proof id。
+- [x] Release readiness 聚合 auth、AI、billing、monitoring、backup、BFF gates。
+- [x] API proof 覆蓋 app session rejected、platform success、break-glass audit。
+- [x] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+
+完成註記（2026-06-21 BFF-304a）：已完成 platform BFF completion。新增 `pnpm bff:platform-qa` 聚合 proof，並補 `IMPERSONATED_READ` response-visible audit proof id 與 release-readiness `bff_surface_gates` / `bffGates` 投影。Proof 覆蓋 unauth/member/manager/client token 呼叫 `/api/platform/organizations` 皆 401/403、platform organizations/detail/AI usage/audit logs/release-readiness 200 且只回 metadata/aggregate、release-readiness 顯示 `platform_bff=pass` 且不 overclaim `billing_bff=blocked`、impersonation 缺 reason 400/expiry too long 403/start 201/read-proof 200 + `AuditLog` id、break-glass 缺 reason/risk 400/expiry too long 403/success 201 + `AuditLog` id、default/read/break-glass response private sentinel 0、`AiUsageLog` 150→150 unchanged。此卡未啟用 production impersonation、未做 real payment/email/notification、未呼叫 provider、不改 Prisma schema；僅新增可辨識 demo/test report/share/audit evidence。
 
 ---
 

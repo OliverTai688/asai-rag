@@ -310,7 +310,7 @@ export async function recordImpersonatedReadProof(
     });
     const reports = await tx.report.count({ where: { organizationId: active.impersonationSession.targetOrgId } });
 
-    await tx.auditLog.create({
+    const audit = await tx.auditLog.create({
       data: {
         organizationId: active.impersonationSession.targetOrgId,
         actorUserId: session.user.id,
@@ -327,6 +327,7 @@ export async function recordImpersonatedReadProof(
           fields: ["plan", "status", "monthlyAiQuota", "monthlyAiUsed", "activeMembers", "clients", "reports"],
         },
       },
+      select: { id: true, createdAt: true },
     });
 
     return {
@@ -349,9 +350,11 @@ export async function recordImpersonatedReadProof(
         },
       },
       audit: {
+        id: audit.id,
         action: "IMPERSONATED_READ",
         sensitivity: "BREAK_GLASS",
         impersonationSessionId: active.impersonationSession.id,
+        createdAt: audit.createdAt.toISOString(),
       },
     };
   });

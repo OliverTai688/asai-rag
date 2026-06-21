@@ -49,6 +49,71 @@ function projectFileExists(path: string) {
   return existsSync(join(/* turbopackIgnore: true */ process.cwd(), path));
 }
 
+function bffSurfaceGates() {
+  const gates = [
+    {
+      key: "member_bff",
+      surface: "member",
+      status: projectFileExists("scripts/bff-dashboard-qa.mjs") ? "pass" : "blocked",
+      evidenceCommand: "pnpm bff:dashboard-qa",
+      detail: "Member dashboard is expected to use member-scoped BFF DTOs.",
+    },
+    {
+      key: "org_bff",
+      surface: "org",
+      status: projectFileExists("scripts/bff-org-writes-qa.mjs") ? "pass" : "blocked",
+      evidenceCommand: "pnpm bff:org-writes-qa",
+      detail: "Org aggregate/write paths require capability and audit proof.",
+    },
+    {
+      key: "ai_bff",
+      surface: "ai",
+      status: projectFileExists("scripts/bff-ai-boundary-qa.mjs") ? "pass" : "blocked",
+      evidenceCommand: "pnpm bff:ai-boundary-qa",
+      detail: "AI routes require capability, quota, launch posture, and AiUsageLog proof.",
+    },
+    {
+      key: "client_portal_bff",
+      surface: "client",
+      status: projectFileExists("scripts/bff-client-portal-qa.mjs") ? "pass" : "blocked",
+      evidenceCommand: "pnpm bff:client-portal-qa",
+      detail: "Client portal token lifecycle and internal API isolation must be proven.",
+    },
+    {
+      key: "platform_bff",
+      surface: "platform",
+      status: projectFileExists("scripts/bff-platform-qa.mjs") ? "pass" : "blocked",
+      evidenceCommand: "pnpm bff:platform-qa",
+      detail: "Platform session separation, metadata-only reads, audit proof ids, and break-glass proof are required.",
+    },
+    {
+      key: "public_bff",
+      surface: "public",
+      status: "warning",
+      evidenceCommand: "pnpm public:pricing-qa",
+      detail: "Public pricing proof exists; public status/CTA availability BFF is still tracked by BFF-305.",
+    },
+    {
+      key: "billing_bff",
+      surface: "billing",
+      status: "blocked",
+      evidenceCommand: "BFF-401/BFF-402 pending",
+      detail: "Checkout and notification/query idempotency BFF gates are not complete.",
+    },
+  ] satisfies Array<{
+    key: string;
+    surface: string;
+    status: ReleaseGateStatus;
+    evidenceCommand: string;
+    detail: string;
+  }>;
+
+  return {
+    status: worstStatus(gates.map((item) => item.status)),
+    gates,
+  };
+}
+
 function readinessLabel(status: ReleaseGateStatus) {
   if (status === "pass") return "Private beta gate clear";
   if (status === "warning") return "Needs operator review";
@@ -119,6 +184,7 @@ export async function getPlatformReleaseReadiness() {
     projectFileExists("src/app/(public)/terms/page.tsx");
   const backupRunbookReady = projectFileExists("docs/08_acceptance-and-qa/ACC-007_release-rollback-and-backup-runbook.md");
   const ecpayChecklistReady = projectFileExists("docs/08_acceptance-and-qa/ACC-008_ecpay-test-flow-checklist.md");
+  const bffGates = bffSurfaceGates();
 
   const controls = [
     gate(quotaStatus, "ai_quota", "AI quota guard", `${quotaWarnings.length} organization(s) at or above 80% usage.`),
@@ -178,6 +244,12 @@ export async function getPlatformReleaseReadiness() {
       "ecpay_checklist",
       "ECPay test checklist",
       "ECPay test flow, CheckMacValue, callback, and query proof are still missing.",
+    ),
+    gate(
+      bffGates.status,
+      "bff_surface_gates",
+      "Full-site BFF surface gates",
+      `${bffGates.gates.filter((item) => item.status === "pass").length}/${bffGates.gates.length} BFF surface gate(s) have proof commands available.`,
     ),
   ];
 
@@ -241,5 +313,6 @@ export async function getPlatformReleaseReadiness() {
       pendingBillingOrders,
       controls,
     },
+    bffGates,
   };
 }

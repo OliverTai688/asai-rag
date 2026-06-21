@@ -59,6 +59,7 @@ try {
     "legal_pages",
     "backup_restore",
     "ecpay_checklist",
+    "bff_surface_gates",
   ];
   const missingControls = requiredControls.filter((key) => !controlKeys.includes(key));
 
@@ -71,6 +72,11 @@ try {
   push(controlStatus.legal_pages === "pass", "Legal pages release gate is pass", `${controlStatus.legal_pages ?? "missing"}`);
   push(controlStatus.backup_restore === "pass", "Backup/restore runbook release gate is pass", `${controlStatus.backup_restore ?? "missing"}`);
   push(controlStatus.ecpay_checklist === "pass", "ECPay checklist release gate is pass", `${controlStatus.ecpay_checklist ?? "missing"}`);
+  push(Boolean(readiness?.bffGates), "Release readiness returns BFF surface gate summary");
+  push(
+    readiness?.bffGates?.gates?.some((gate) => gate.key === "platform_bff" && gate.status === "pass"),
+    "Release readiness includes platform BFF proof gate",
+  );
 
   const readinessText = JSON.stringify(platformReadiness.body);
   const forbiddenFieldNames = [
