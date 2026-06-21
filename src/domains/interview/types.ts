@@ -2,7 +2,7 @@ export type InterviewMode = "INDEPENDENT" | "CLIENT_CONTEXT";
 
 export type InterviewFramework = "SPIN_HIDDEN" | "SCHEIN_3LAYER";
 
-export type InterviewKind = "ADVISOR_COMPANION" | "THEATER_FIELD_BUILD";
+export type InterviewKind = "ADVISOR_COMPANION" | "CLIENT_MEETING" | "THEATER_FIELD_BUILD";
 
 export type InterviewTurnRole = "USER" | "ASSISTANT" | "SYSTEM";
 

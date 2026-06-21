@@ -19,7 +19,7 @@ export const realtimeSessionRequestSchema = z.object({
   clientId: z.string().trim().max(80).optional(),
   sessionId: z.string().trim().max(120).optional(),
   currentSegmentId: z.string().trim().max(120).optional(),
-  interviewKind: z.enum(["ADVISOR_COMPANION", "THEATER_FIELD_BUILD"]).default("ADVISOR_COMPANION"),
+  interviewKind: z.enum(["ADVISOR_COMPANION", "CLIENT_MEETING", "THEATER_FIELD_BUILD"]).default("ADVISOR_COMPANION"),
   dryRun: z.boolean().optional(),
 });
 
@@ -38,7 +38,7 @@ export const realtimeEventSchema = z.object({
   turnId: z.string().trim().max(120).optional(),
   providerEventId: z.string().trim().max(160).optional(),
   currentSegmentId: z.string().trim().max(120).optional(),
-  interviewKind: z.enum(["ADVISOR_COMPANION", "THEATER_FIELD_BUILD"]).default("ADVISOR_COMPANION"),
+  interviewKind: z.enum(["ADVISOR_COMPANION", "CLIENT_MEETING", "THEATER_FIELD_BUILD"]).default("ADVISOR_COMPANION"),
   text: z.string().trim().max(4000).optional(),
   transcriptFinal: z.boolean().default(true),
   supersedesMemoryId: z.string().trim().max(160).optional(),

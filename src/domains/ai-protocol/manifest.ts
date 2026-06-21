@@ -6,7 +6,7 @@ export type AgentProtocolRegistryReadiness =
 
 export type AgentProtocolStatus = "active" | "guarded-disabled" | "prototype" | "planned";
 
-export type AgentProtocolModule = "CHAT" | "INTERVIEW" | "RAG" | "REPORT" | "SPIN" | "THEATER" | "VISIT";
+export type AgentProtocolModule = "CHAT" | "INTERVIEW" | "MEETING" | "RAG" | "REPORT" | "SPIN" | "THEATER" | "VISIT";
 
 export type AgentProtocolProviderPosture =
   | "provider-ready"
@@ -1059,15 +1059,15 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
       agentId: "asai.meeting.prototype",
       displayName: "AI Meeting summary contract",
       ownerSurface: "AI Meeting / visit notes contract",
-      module: "INTERVIEW",
-      version: "2026-06-21.amm-001a",
+      module: "MEETING",
+      version: "2026-06-21.amm-001b",
       status: "planned",
     },
     capabilities: [
       {
         id: "meeting-summary-contract-skeleton",
         label: "Meeting summary contract skeleton",
-        summary: "Defines a deterministic meeting summary contract that maps transcript/manual-note turns to cited decisions, action items, and unknowns without provider or DB writes.",
+        summary: "Defines a deterministic meeting summary contract that maps transcript/manual-note turns to cited decisions, action items, unknowns, and an additive persistence draft without provider calls.",
         humanTrigger: "Future advisor meeting workspace or visit notes capture asks for a structured meeting summary draft.",
       },
     ],
@@ -1079,27 +1079,32 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
           label: "Build no-provider meeting summary skeleton",
           actionBoundary: "Pure domain helper only; every cited item must reference an existing MeetingTranscriptTurn and cannot write CRM facts.",
         },
+        {
+          id: "build-meeting-summary-persistence-draft",
+          label: "Build meeting summary persistence draft",
+          actionBoundary: "Maps MeetingSummary into the additive InterviewMeetingSummary shape with CLIENT_MEETING scope, MEETING usage classification, cited source turn ids, and no DB write side effect.",
+        },
       ],
       exportTargets: defaultExportTargets,
     },
     schemas: {
-      inputDtoRefs: ["BuildMeetingSummarySkeletonInput", "MeetingTranscriptTurn"],
-      outputDtoRefs: ["MeetingSummary", "MeetingSummaryItem", "MeetingActionItem"],
-      evidenceDtoRefs: ["MeetingCitation", "MeetingSummaryGuardEvidence"],
+      inputDtoRefs: ["BuildMeetingSummarySkeletonInput", "MeetingTranscriptTurn", "BuildMeetingSummaryPersistenceDraftInput"],
+      outputDtoRefs: ["MeetingSummary", "MeetingSummaryItem", "MeetingActionItem", "MeetingSummaryPersistenceDraft"],
+      evidenceDtoRefs: ["MeetingCitation", "MeetingSummaryGuardEvidence", "InterviewMeetingSummary", "InterviewKind.CLIENT_MEETING", "AiModule.MEETING"],
       dtoBoundary: "Registry metadata may describe the contract shape only; it must not include transcript text, advisor notes, policy identifiers, contact data, prompts, or provider payloads.",
     },
     auth: {
       sessionType: "not-accepted",
-      scopeDerivation: "AMM-001a has no route yet. Future BFF must derive organization/member scope with requireCurrentMember before accepting meeting turns.",
+      scopeDerivation: "AMM-001b has no route yet. Future BFF must derive organization/member scope with requireCurrentMember before accepting meeting turns or summary persistence.",
       roleRestrictions: ["future member workspace"],
     },
     dataClasses: {
       allowed: ["CONVERSATION_SUMMARY", "CLIENT_FACTS", "CLIENT_INFERENCES", "CLIENT_UNKNOWNS"],
       restricted: ["VOICE_TRANSCRIPT_SUMMARY", "AUDIO_BINARY", "HIGH_SENSITIVITY_APPROVAL"],
-      persisted: [],
+      persisted: ["CONVERSATION_SUMMARY", "CLIENT_FACTS", "CLIENT_INFERENCES", "CLIENT_UNKNOWNS"],
     },
     privacy: {
-      retention: "AMM-001a is deterministic in-memory contract proof only. Future persistence requires an accepted retention rule before any meeting note storage.",
+      retention: "AMM-001b defines additive InterviewMeetingSummary persistence for structured summaries only; route-level storage and migration execution remain separate proof slices.",
       redaction: "Contract exports cite turn identifiers and schema fields only; transcript text and manual notes remain app-internal and are excluded from registry metadata.",
       forbiddenDisclosureCodes: [...standardForbiddenDisclosureCodes, "ORG_INTERNAL_BREAK_GLASS_REASON"],
       leastDisclosureNote: "Do not expose meeting transcript text, audio, personal contact data, policy identifiers, provider payloads, or advisor private notes in protocol metadata.",
@@ -1110,29 +1115,45 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
       providerCostPosture: "deterministic-no-provider",
     },
     proof: {
-      sourceAuditModule: "INTERVIEW",
-      commands: ["pnpm ai:bff-audit", "pnpm ai:protocol-registry-qa", "pnpm meeting:contract-dry-run"],
+      sourceAuditModule: "MEETING",
+      commands: [
+        "pnpm ai:bff-audit",
+        "pnpm ai:protocol-registry-qa",
+        "pnpm meeting:contract-dry-run",
+        "pnpm meeting:persistence-contract-dry-run",
+        "pnpm prisma:validate",
+        "pnpm prisma:generate",
+      ],
       sourceAdoption: {
         status: "partial",
-        ownerRefs: ["src/domains/interview/meeting.ts"],
+        ownerRefs: [
+          "src/domains/interview/meeting.ts",
+          "src/lib/interview/meeting-summary-repository.ts",
+          "prisma/schema.prisma",
+        ],
         evidenceRefs: [
           "buildMeetingSummarySkeleton",
+          "buildMeetingSummaryPersistenceDraft",
           "assertMeetingSummarySkeletonSafety",
+          "assertMeetingSummaryPersistenceDraftSafety",
           "MeetingCitation",
           "MeetingSummaryGuardEvidence",
+          "InterviewMeetingSummary",
+          "CLIENT_MEETING",
+          "MEETING",
           "providerCallAttempted=false",
           "dbWriteAttempted=false",
           "writesConfirmedCrmFact=false",
         ],
         notes: [
-          "AMM-001a adopts only the pure domain contract and deterministic skeleton mapper.",
+          "AMM-001b adopts the pure domain contract, deterministic skeleton mapper, additive Prisma summary model, and persistence draft boundary.",
           "Untracked meeting UI, notes UI, and note domain prototype files remain outside accepted scope.",
-          "Future BFF, persistence, and provider summary routes require separate session, DB, and AiUsageLog proof.",
+          "Future BFF route, db push/migration execution, and provider summary routes require separate session, DB, and AiUsageLog proof.",
         ],
       },
       knownBlockers: [
         "No accepted AI Meeting BFF/session route exists yet.",
-        "No persistence schema or retention policy is accepted for meeting summaries yet.",
+        "InterviewMeetingSummary schema is additive and validated, but no DB push/migration execution was performed in AMM-001b.",
         "External registry publication remains disabled until operator approval and adapter proof.",
       ],
     },

@@ -206,6 +206,7 @@ enum AiProvider {
 enum AiModule {
   CHAT
   INTERVIEW
+  MEETING
   SPIN
   THEATER
   VISIT
@@ -215,6 +216,7 @@ enum AiModule {
 
 enum InterviewKind {
   ADVISOR_COMPANION
+  CLIENT_MEETING
   THEATER_FIELD_BUILD
 }
 
@@ -424,6 +426,7 @@ model Organization {
   assistantConversations AssistantConversation[]
   aiUsageLogs            AiUsageLog[]
   interviewSessions      InterviewSession[]
+  interviewMeetingSummaries InterviewMeetingSummary[]
   interviewTurns         InterviewTurn[]
   interviewMemories      InterviewMemory[]
   interviewReflections   InterviewReflection[]
@@ -520,6 +523,7 @@ model OrganizationUnit {
   assistantConversations AssistantConversation[]
   aiUsageLogs     AiUsageLog[]
   interviewSessions InterviewSession[]
+  interviewMeetingSummaries InterviewMeetingSummary[]
   interviewTurns   InterviewTurn[]
   interviewMemories InterviewMemory[]
   interviewReflections InterviewReflection[]
@@ -558,6 +562,7 @@ model User {
   assistantConversations AssistantConversation[] @relation("AssistantConversationOwner")
   aiUsageLogs            AiUsageLog[]
   interviewSessions      InterviewSession[] @relation("InterviewSessionOwner")
+  interviewMeetingSummaries InterviewMeetingSummary[] @relation("InterviewMeetingSummaryOwner")
   interviewTurns         InterviewTurn[] @relation("InterviewTurnActor")
   interviewMemories      InterviewMemory[] @relation("InterviewMemoryMember")
   issuesReported         Issue[]    @relation("IssueReporter")
@@ -660,6 +665,7 @@ model Client {
   aiUsageLogs         AiUsageLog[]
   assistantConversations AssistantConversation[]
   interviewSessions   InterviewSession[]
+  interviewMeetingSummaries InterviewMeetingSummary[]
   interviewTurns      InterviewTurn[]
   interviewMemories   InterviewMemory[]
   interviewReflections InterviewReflection[]
@@ -1057,6 +1063,7 @@ model InterviewSession {
   turns             InterviewTurn[]
   memories          InterviewMemory[]
   reflections       InterviewReflection[]
+  meetingSummary    InterviewMeetingSummary?
   reports           Report[]               @relation("InterviewSessionReports")
 
   @@index([organizationId, updatedAt])
@@ -1065,6 +1072,45 @@ model InterviewSession {
   @@index([clientId, updatedAt])
   @@index([interviewKind, status])
   @@map("interview_sessions")
+}
+
+model InterviewMeetingSummary {
+  id              String      @id @default(cuid())
+  organizationId  String      @map("organization_id")
+  unitId          String?     @map("unit_id")
+  clientId        String?     @map("client_id")
+  sessionId       String      @unique @map("session_id")
+  ownerId         String?     @map("owner_id")
+  generatedBy     String      @map("generated_by")
+  schemaVersion   String      @default("asai.meeting.summary.v1") @map("schema_version")
+  headline        String      @db.Text
+  summary         String      @db.Text
+  decisions       Json
+  actionItems     Json        @map("action_items")
+  openQuestions   Json        @map("open_questions")
+  participants    Json
+  citations       Json
+  sourceTurnIds   String[]    @map("source_turn_ids")
+  sourceMemoryIds String[]    @map("source_memory_ids")
+  provider        AiProvider?
+  model           String?
+  usageLogId      String?     @map("usage_log_id")
+  guardEvidence   Json?       @map("guard_evidence")
+  createdAt       DateTime    @default(now()) @map("created_at")
+  updatedAt       DateTime    @updatedAt @map("updated_at")
+
+  organization    Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  unit            OrganizationUnit?  @relation(fields: [unitId], references: [id], onDelete: SetNull)
+  client          Client?            @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  session         InterviewSession   @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  owner           User?              @relation("InterviewMeetingSummaryOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, updatedAt])
+  @@index([organizationId, unitId])
+  @@index([clientId, updatedAt])
+  @@index([ownerId, updatedAt])
+  @@index([usageLogId])
+  @@map("interview_meeting_summaries")
 }
 
 model InterviewTurn {

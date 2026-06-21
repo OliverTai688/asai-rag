@@ -14,7 +14,7 @@ import { prisma } from "@/lib/prisma";
 
 export const createInterviewSessionInputSchema = z.object({
   clientId: z.string().trim().min(1).max(120).optional(),
-  interviewKind: z.enum(["ADVISOR_COMPANION", "THEATER_FIELD_BUILD"]).default("ADVISOR_COMPANION"),
+  interviewKind: z.enum(["ADVISOR_COMPANION", "CLIENT_MEETING", "THEATER_FIELD_BUILD"]).default("ADVISOR_COMPANION"),
   outlineId: z.string().trim().min(1).max(120).default("advisor-companion"),
   currentSegmentId: z.string().trim().max(120).optional(),
   title: z.string().trim().max(160).optional(),

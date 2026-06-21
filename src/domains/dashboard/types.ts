@@ -105,7 +105,7 @@ export interface DashboardAiQuotaSummaryDto {
   periodLabel: string;
   totalCallsThisMonth: number;
   totalTokensThisMonth: number;
-  moduleCounts: Partial<Record<"CHAT" | "INTERVIEW" | "SPIN" | "THEATER" | "VISIT" | "REPORT" | "RAG", number>>;
+  moduleCounts: Partial<Record<"CHAT" | "INTERVIEW" | "MEETING" | "SPIN" | "THEATER" | "VISIT" | "REPORT" | "RAG", number>>;
 }
 
 export interface MemberDashboardDto {
