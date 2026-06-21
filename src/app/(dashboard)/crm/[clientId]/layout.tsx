@@ -7,6 +7,7 @@ import {
   ChevronLeft,
   FileText,
   Mail,
+  Mic,
   Phone,
   ShieldCheck,
   Users,
@@ -143,6 +144,14 @@ function IdentityRail({ client, mounted }: { client: Client; mounted: boolean })
               className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-full bg-ink px-4 text-sm font-semibold text-paper transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
             >
               開始訪前規劃
+            </Link>
+            <Link
+              data-testid="crm-meeting-entrypoint"
+              href={`/crm/${client.id}/meeting`}
+              className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-full border border-hairline bg-card px-4 text-sm font-semibold text-foreground transition-colors hover:border-hairline-2 hover:bg-paper-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+            >
+              <Mic className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
+              AI 會議工作台
             </Link>
           </div>
 

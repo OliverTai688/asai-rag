@@ -37,9 +37,11 @@ type MeetingWritebackTarget = "CRM_CANDIDATE" | "INTERVIEW_INSIGHT" | "FOLLOW_UP
 type MeetingWritebackSensitivity = "NORMAL" | "SENSITIVE" | "HIGHLY_SENSITIVE";
 
 interface MeetingWorkspaceProps {
-  planId: string;
+  planId?: string;
+  clientId?: string;
   initialSessionId?: string;
   backHref: string;
+  backLabel?: string;
 }
 
 interface MeetingSessionDto {
@@ -246,7 +248,13 @@ const requestHeaders = {
   "content-type": "application/json",
 };
 
-export function MeetingWorkspace({ planId, initialSessionId, backHref }: MeetingWorkspaceProps) {
+export function MeetingWorkspace({
+  planId,
+  clientId,
+  initialSessionId,
+  backHref,
+  backLabel,
+}: MeetingWorkspaceProps) {
   const router = useRouter();
   const pathname = usePathname();
   const [bootstrapState, setBootstrapState] = useState<BootstrapState>("loading");
@@ -270,6 +278,11 @@ export function MeetingWorkspace({ planId, initialSessionId, backHref }: Meeting
   const canSubmit = Boolean(snapshot) && !isSaving && !isSummarizing;
   const turnCount = snapshot?.turns.length ?? 0;
   const memoryRail = snapshot?.memoryRail;
+  const workspaceScopeLabel = planId ? "準備包會議" : "客戶會議";
+  const resolvedBackLabel = backLabel ?? (planId ? "回準備包" : "回客戶總覽");
+  const workspaceDescription = planId
+    ? "從這份準備包建立會議 session，捕捉手動筆記與 final transcript，並生成可引用摘要。"
+    : "從客戶工作台直接建立會議 session，捕捉手動筆記與 final transcript，並生成可引用摘要。";
   const transcriptFinalCount = useMemo(
     () => snapshot?.turns.filter((turn) => turn.transcriptFinal).length ?? 0,
     [snapshot?.turns],
@@ -360,7 +373,7 @@ export function MeetingWorkspace({ planId, initialSessionId, backHref }: Meeting
       try {
         const nextSnapshot = initialSessionId
           ? await readMeetingSession(initialSessionId, controller.signal)
-          : await createMeetingSession(planId, controller.signal);
+          : await createMeetingSession({ planId, clientId }, controller.signal);
 
         if (cancelled) return;
 
@@ -386,7 +399,7 @@ export function MeetingWorkspace({ planId, initialSessionId, backHref }: Meeting
       cancelled = true;
       controller.abort();
     };
-  }, [initialSessionId, loadSummary, planId, updateSessionUrl]);
+  }, [clientId, initialSessionId, loadSummary, planId, updateSessionUrl]);
 
   const handleAppendTurn = useCallback(
     async (source: TurnSource) => {
@@ -547,7 +560,7 @@ export function MeetingWorkspace({ planId, initialSessionId, backHref }: Meeting
         <h1 className="mt-4 text-lg font-semibold text-ink">AI 會議暫時無法開啟</h1>
         <p className="mt-2 text-sm leading-6 text-muted-foreground">{errorMessage}</p>
         <Button type="button" variant="mono" className="mt-5 rounded-lg" onClick={() => router.push(backHref)}>
-          回準備包
+          {resolvedBackLabel}
         </Button>
       </div>
     );
@@ -568,11 +581,12 @@ export function MeetingWorkspace({ planId, initialSessionId, backHref }: Meeting
             onClick={() => router.push(backHref)}
           >
             <ArrowLeft className="mr-2 size-4" aria-hidden="true" />
-            回準備包
+            {resolvedBackLabel}
           </Button>
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant="secondary">AI 會議</Badge>
             <Badge variant="outline">CLIENT_MEETING</Badge>
+            <Badge variant="outline">{workspaceScopeLabel}</Badge>
             <Badge variant="outline">No provider</Badge>
           </div>
           <h1 className="mt-3 flex items-center gap-3 text-3xl font-semibold tracking-tight text-ink sm:text-4xl">
@@ -580,7 +594,7 @@ export function MeetingWorkspace({ planId, initialSessionId, backHref }: Meeting
             會議工作台
           </h1>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
-            從這份準備包建立會議 session，捕捉手動筆記與 final transcript，並生成可引用摘要。
+            {workspaceDescription}
           </p>
         </div>
 
@@ -1244,13 +1258,17 @@ function EmptyState({
   );
 }
 
-async function createMeetingSession(planId: string, signal?: AbortSignal): Promise<MeetingSessionSnapshotDto> {
+async function createMeetingSession(
+  scope: { planId?: string; clientId?: string },
+  signal?: AbortSignal,
+): Promise<MeetingSessionSnapshotDto> {
   const response = await fetch("/api/ai/meeting/sessions", {
     method: "POST",
     headers: requestHeaders,
     body: JSON.stringify({
-      visitPlanId: planId,
-      title: "AI 會議",
+      ...(scope.planId ? { visitPlanId: scope.planId } : {}),
+      ...(scope.clientId ? { clientId: scope.clientId } : {}),
+      title: scope.planId ? "AI 拜訪會議" : "AI 客戶會議",
     }),
     signal,
   });

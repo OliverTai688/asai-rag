@@ -1057,10 +1057,10 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
   {
     identity: {
       agentId: "asai.meeting.prototype",
-      displayName: "AI Meeting capture, provider summary, memory chat, and writeback boundary",
+      displayName: "AI Meeting capture, global entrypoints, provider summary, memory chat, and writeback boundary",
       ownerSurface: "AI Meeting / visit notes capture",
       module: "MEETING",
-      version: "2026-06-21.amm-006b",
+      version: "2026-06-21.amm-005b",
       status: "active",
     },
     capabilities: [
@@ -1087,6 +1087,12 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
         label: "Meeting workspace entrypoint",
         summary: "Opens a low-noise meeting workspace from a visit plan, auto-creates or resumes an owner-scoped CLIENT_MEETING session, and displays persisted turns plus cited summary without raw ID entry.",
         humanTrigger: "Advisor clicks AI Meeting from the pre-visit preparation package.",
+      },
+      {
+        id: "meeting-global-entrypoints",
+        label: "Dashboard and CRM meeting entrypoints",
+        summary: "Starts or resumes the same member-private meeting workspace from dashboard recent meeting context or CRM client detail without raw ID workflows.",
+        humanTrigger: "Advisor clicks recent meeting from the dashboard or AI meeting workspace from a client record.",
       },
       {
         id: "meeting-client-memory-chat",
@@ -1203,6 +1209,11 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
           actionBoundary: "UI receives only visitPlanId/sessionId route context, lets the BFF derive owner/client scope, and never asks advisors to paste raw meeting IDs.",
         },
         {
+          id: "open-meeting-workspace-from-dashboard-or-crm",
+          label: "Open meeting workspace from dashboard or CRM client detail",
+          actionBoundary: "Dashboard links to a server-owned visit meeting route, while CRM detail passes only clientId to the meeting BFF; owner/client scope is rechecked server-side and the UI persists sessionId in the URL for refresh only.",
+        },
+        {
           id: "read-deterministic-meeting-summary",
           label: "Read deterministic meeting summary",
           actionBoundary: "GET summary route returns the owner-scoped persisted summary or a safe not-found response; it performs no provider call and writes no AiUsageLog.",
@@ -1271,7 +1282,7 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
     },
     auth: {
       sessionType: "app-member",
-      scopeDerivation: "AMM-006b BFF derives organization/member scope with requireCurrentMember, requires owner-scoped CLIENT_MEETING sessions or owner-scoped Client records, and keeps meeting snapshots/summaries/memory-chat/writeback previews member-private.",
+      scopeDerivation: "AMM-005b BFF derives organization/member scope with requireCurrentMember, requires owner-scoped CLIENT_MEETING sessions or owner-scoped Client records, and keeps meeting snapshots/summaries/memory-chat/writeback previews member-private.",
       roleRestrictions: ["advisor member owner"],
     },
     dataClasses: {
@@ -1280,7 +1291,7 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
       persisted: ["CONVERSATION_SUMMARY", "CLIENT_FACTS", "CLIENT_INFERENCES", "CLIENT_UNKNOWNS"],
     },
     privacy: {
-      retention: "AMM-006b persists member-private CLIENT_MEETING sessions, text/final transcript turns, Park-style memory candidates, deterministic or provider cited InterviewMeetingSummary rows, provider summary AiUsageLog rows, and selected writeback InteractionEvent candidates/tasks. Workspace writeback UI stores only advisor-confirmed API results in React state; memory chat is deterministic response-only and does not persist chat transcripts.",
+      retention: "AMM-005b persists member-private CLIENT_MEETING sessions, text/final transcript turns, Park-style memory candidates, deterministic or provider cited InterviewMeetingSummary rows, provider summary AiUsageLog rows, and selected writeback InteractionEvent candidates/tasks. Global dashboard/CRM entrypoints store only route/session state in the browser; workspace writeback UI stores only advisor-confirmed API results in React state; memory chat is deterministic response-only and does not persist chat transcripts.",
       redaction: "BFF responses are owner-scoped app data. Registry/export metadata may cite route and schema names only; transcript text, summary bodies, citation snippets, and manual notes remain app-internal.",
       forbiddenDisclosureCodes: [...standardForbiddenDisclosureCodes, "ORG_INTERNAL_BREAK_GLASS_REASON"],
       leastDisclosureNote: "Do not expose meeting transcript text, audio, personal contact data, policy identifiers, provider payloads, or advisor private notes in protocol metadata.",
@@ -1299,6 +1310,7 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
         "pnpm meeting:writeback-qa",
         "pnpm meeting:workspace-ui-qa",
         "pnpm meeting:workspace-writeback-ui-qa",
+        "pnpm meeting:global-entrypoints-qa",
         "pnpm meeting:summary-provider-qa",
         "pnpm meeting:summary-bff-qa",
         "pnpm meeting:bff-qa",
@@ -1318,6 +1330,9 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
           "src/app/api/ai/clients/[clientId]/memory-chat/route.ts",
           "src/app/(dashboard)/pre-visit/[planId]/page.tsx",
           "src/app/(dashboard)/pre-visit/[planId]/meeting/page.tsx",
+          "src/app/(dashboard)/crm/[clientId]/meeting/page.tsx",
+          "src/app/(dashboard)/crm/[clientId]/layout.tsx",
+          "src/app/(dashboard)/dashboard/dashboard-page-client.tsx",
           "src/components/meeting/meeting-workspace.tsx",
           "src/lib/interview/meeting-session-repository.ts",
           "src/domains/interview/meeting.ts",
@@ -1328,6 +1343,7 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
         "scripts/meeting-summary-provider-qa.mjs",
         "scripts/meeting-workspace-ui-qa.mjs",
         "scripts/meeting-workspace-writeback-ui-qa.mjs",
+        "scripts/meeting-global-entrypoints-qa.mjs",
           "scripts/meeting-memory-chat-qa.mjs",
           "scripts/meeting-writeback-qa.mjs",
           "prisma/schema.prisma",
@@ -1356,6 +1372,9 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
           "meeting-writeback-candidate",
           "meeting-writeback-result",
           "/pre-visit/[planId]/meeting?sessionId=",
+          "/crm/[clientId]/meeting?sessionId=",
+          "dashboard-meeting-entrypoint",
+          "crm-meeting-entrypoint",
           "MeetingCaptureSafety",
           "MeetingSummaryRouteSafety",
         "MeetingMemoryRailDto",

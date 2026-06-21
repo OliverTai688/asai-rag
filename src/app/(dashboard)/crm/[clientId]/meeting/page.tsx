@@ -1,22 +1,21 @@
 import { MeetingWorkspace } from "@/components/meeting/meeting-workspace";
 
-interface MeetingPageProps {
-  params: Promise<{ planId: string }>;
+interface ClientMeetingPageProps {
+  params: Promise<{ clientId: string }>;
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }
 
-export default async function MeetingPage({ params, searchParams }: MeetingPageProps) {
-  const { planId } = await params;
+export default async function ClientMeetingPage({ params, searchParams }: ClientMeetingPageProps) {
+  const { clientId } = await params;
   const resolvedSearchParams = searchParams ? await searchParams : {};
   const sessionId = firstParam(resolvedSearchParams.sessionId);
-  const isQuickstart = firstParam(resolvedSearchParams.demo) === "quickstart";
 
   return (
     <MeetingWorkspace
-      planId={planId}
+      clientId={clientId}
       initialSessionId={sessionId}
-      backHref={`/pre-visit/${planId}${isQuickstart ? "?demo=quickstart" : ""}`}
-      backLabel="回準備包"
+      backHref={`/crm/${clientId}`}
+      backLabel="回客戶總覽"
     />
   );
 }
