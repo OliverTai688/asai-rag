@@ -35,6 +35,7 @@
     "meeting:persistence-contract-dry-run": "node scripts/meeting-persistence-contract-dry-run.mjs",
     "meeting:bff-qa": "node scripts/meeting-bff-qa.mjs",
     "meeting:summary-bff-qa": "node scripts/meeting-summary-bff-qa.mjs",
+    "meeting:summary-provider-qa": "node scripts/meeting-summary-provider-qa.mjs",
     "meeting:workspace-ui-qa": "node scripts/meeting-workspace-ui-qa.mjs",
     "meeting:memory-chat-qa": "node scripts/meeting-memory-chat-qa.mjs",
     "meeting:writeback-qa": "node scripts/meeting-writeback-qa.mjs",

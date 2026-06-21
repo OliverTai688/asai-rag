@@ -50,12 +50,13 @@ export interface MeetingActionItem {
 }
 
 export interface MeetingSummaryGuardEvidence {
-  providerCallAttempted: false;
+  providerCallAttempted: boolean;
   dbWriteAttempted: false;
   storesAudioBinary: false;
   storesPrivateTranscript: false;
+  storesRawProviderPayload?: false;
   writesConfirmedCrmFact: false;
-  generatedBy: "deterministic-skeleton";
+  generatedBy: "deterministic-skeleton" | "provider-json";
 }
 
 export interface MeetingSummary {
@@ -77,6 +78,42 @@ export interface BuildMeetingSummarySkeletonInput {
   clientName: string;
   generatedAt: string;
   turns: MeetingTranscriptTurn[];
+}
+
+export interface ProviderMeetingSummaryItemInput {
+  id?: string;
+  text: string;
+  dataClass: MeetingDataClass;
+  citationTurnIds: string[];
+}
+
+export interface ProviderMeetingActionItemInput {
+  id?: string;
+  text: string;
+  ownerHint?: string | null;
+  dueHint?: string | null;
+  dataClass: MeetingDataClass;
+  citationTurnIds: string[];
+}
+
+export interface ProviderMeetingParticipantInput {
+  id?: string;
+  name: string;
+  role: MeetingParticipantRole;
+  mentionCount: number;
+}
+
+export interface BuildProviderMeetingSummaryInput {
+  meetingId: string;
+  clientName: string;
+  generatedAt: string;
+  turns: MeetingTranscriptTurn[];
+  headline: string;
+  summary: string;
+  participants?: ProviderMeetingParticipantInput[];
+  decisions: ProviderMeetingSummaryItemInput[];
+  actionItems: ProviderMeetingActionItemInput[];
+  openQuestions: ProviderMeetingSummaryItemInput[];
 }
 
 type NormalizedMeetingTranscriptTurn = MeetingTranscriptTurn & {
@@ -156,6 +193,48 @@ export function buildMeetingSummarySkeleton(input: BuildMeetingSummarySkeletonIn
   };
 }
 
+export function buildProviderMeetingSummary(input: BuildProviderMeetingSummaryInput): MeetingSummary {
+  const turns = normalizeTurns(input.turns);
+  const turnsById = new Map(turns.map((turn) => [turn.id, turn]));
+  const participants = input.participants?.length
+    ? input.participants.map((participant, index) => ({
+        id: sanitizeSummaryId(participant.id || `provider-participant-${index + 1}`),
+        name: collapseWhitespace(participant.name).slice(0, 80) || `參與者 ${index + 1}`,
+        role: normalizeParticipantRole(participant.role),
+        mentionCount: Math.max(0, Number(participant.mentionCount) || 0),
+      }))
+    : buildParticipants(turns);
+
+  return {
+    schemaVersion: "asai.meeting.summary.v1",
+    meetingId: input.meetingId,
+    clientName: input.clientName,
+    generatedAt: input.generatedAt,
+    headline: collapseWhitespace(input.headline).slice(0, 240),
+    summary: collapseWhitespace(input.summary).slice(0, 2400),
+    participants,
+    decisions: input.decisions.slice(0, MAX_DECISIONS).map((item, index) =>
+      buildProviderSummaryItem(`provider-decision-${index + 1}`, item, turnsById),
+    ),
+    actionItems: input.actionItems.slice(0, MAX_ACTION_ITEMS).map((item, index) =>
+      buildProviderActionItem(`provider-action-${index + 1}`, item, turnsById),
+    ),
+    openQuestions: input.openQuestions.slice(0, MAX_OPEN_QUESTIONS).map((item, index) => ({
+      ...buildProviderSummaryItem(`provider-question-${index + 1}`, item, turnsById),
+      dataClass: "UNKNOWN",
+    })),
+    guardEvidence: {
+      providerCallAttempted: true,
+      dbWriteAttempted: false,
+      storesAudioBinary: false,
+      storesPrivateTranscript: false,
+      storesRawProviderPayload: false,
+      writesConfirmedCrmFact: false,
+      generatedBy: "provider-json",
+    },
+  };
+}
+
 export function assertMeetingSummarySkeletonSafety(summary: MeetingSummary, knownTurnIds: Iterable<string>): string[] {
   const failures: string[] = [];
   const allowedTurnIds = new Set(knownTurnIds);
@@ -165,10 +244,16 @@ export function assertMeetingSummarySkeletonSafety(summary: MeetingSummary, know
     ...summary.openQuestions,
   ];
 
-  if (summary.guardEvidence.providerCallAttempted) failures.push("provider call attempted");
+  if (summary.guardEvidence.providerCallAttempted && summary.guardEvidence.generatedBy !== "provider-json") {
+    failures.push("unexpected provider call attempted");
+  }
+  if (!summary.guardEvidence.providerCallAttempted && summary.guardEvidence.generatedBy === "provider-json") {
+    failures.push("provider summary missing provider call evidence");
+  }
   if (summary.guardEvidence.dbWriteAttempted) failures.push("db write attempted");
   if (summary.guardEvidence.storesAudioBinary) failures.push("audio binary storage attempted");
   if (summary.guardEvidence.storesPrivateTranscript) failures.push("private transcript storage attempted");
+  if (summary.guardEvidence.storesRawProviderPayload) failures.push("raw provider payload storage attempted");
   if (summary.guardEvidence.writesConfirmedCrmFact) failures.push("confirmed CRM write attempted");
 
   for (const item of allItems) {
@@ -196,6 +281,47 @@ export function assertMeetingSummarySkeletonSafety(summary: MeetingSummary, know
   }
 
   return failures;
+}
+
+function buildProviderSummaryItem(
+  fallbackId: string,
+  item: ProviderMeetingSummaryItemInput,
+  turnsById: Map<string, NormalizedMeetingTranscriptTurn>,
+): MeetingSummaryItem {
+  return {
+    id: sanitizeSummaryId(item.id || fallbackId),
+    text: collapseWhitespace(item.text).slice(0, 900),
+    dataClass: item.dataClass,
+    citations: buildProviderCitations(item.citationTurnIds, turnsById),
+  };
+}
+
+function buildProviderActionItem(
+  fallbackId: string,
+  item: ProviderMeetingActionItemInput,
+  turnsById: Map<string, NormalizedMeetingTranscriptTurn>,
+): MeetingActionItem {
+  const dataClass = item.dataClass === "FACT" ? "INFERENCE" : item.dataClass;
+
+  return {
+    id: sanitizeSummaryId(item.id || fallbackId),
+    text: collapseWhitespace(item.text).slice(0, 900),
+    ownerHint: normalizeNullableText(item.ownerHint),
+    dueHint: normalizeNullableText(item.dueHint),
+    dataClass,
+    citations: buildProviderCitations(item.citationTurnIds, turnsById),
+    writesConfirmedCrmFact: false,
+  };
+}
+
+function buildProviderCitations(
+  citationTurnIds: string[],
+  turnsById: Map<string, NormalizedMeetingTranscriptTurn>,
+): MeetingCitation[] {
+  return uniqueStrings(citationTurnIds)
+    .map((turnId) => turnsById.get(turnId))
+    .filter((turn): turn is NormalizedMeetingTranscriptTurn => Boolean(turn))
+    .map(buildCitation);
 }
 
 function buildParticipants(turns: NormalizedMeetingTranscriptTurn[]): MeetingParticipant[] {
@@ -316,6 +442,29 @@ function collapseWhitespace(text: string): string {
 
 function resolveSpeakerName(turn: MeetingTranscriptTurn): string {
   return collapseWhitespace(turn.speakerName ?? turn.speaker ?? "") || "未命名參與者";
+}
+
+function sanitizeSummaryId(value: string): string {
+  return (
+    value
+      .toLowerCase()
+      .replace(/[^a-z0-9-]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 80) || "provider-item"
+  );
+}
+
+function normalizeParticipantRole(value: MeetingParticipantRole): MeetingParticipantRole {
+  if (value === "FOCUS_CLIENT" || value === "FAMILY" || value === "ADVISOR" || value === "OTHER") {
+    return value;
+  }
+
+  return "OTHER";
+}
+
+function normalizeNullableText(value: string | null | undefined): string | null {
+  const normalized = collapseWhitespace(value ?? "");
+  return normalized ? normalized.slice(0, 120) : null;
 }
 
 function uniqueStrings(values: string[]): string[] {

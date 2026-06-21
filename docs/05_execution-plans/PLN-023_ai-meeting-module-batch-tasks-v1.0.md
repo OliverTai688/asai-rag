@@ -13,7 +13,7 @@
 > 2. 即時轉寫 = **只做現場 AI 麥克風**（mic-only realtime），視訊系統音訊延後。
 > 3. 建置順序 = **先專注刻介面（UI-first）**：先做 `AMM-005` 會議工作台介面（本地/demo state），再回頭補 `AMM-001`~`AMM-004` 的 types/BFF/schema 與接線。介面層先用本地 state + demo fixture 呈現摘要/對答，後端隨後補。
 >
-> **2026-06-21 implementation reality**：後端 foundation 已先行完成 `AMM-001a/001b`、`AMM-002a`、`AMM-003a`，下一個最高槓桿切片改為把 accepted BFF/session/summary contract 接成正式可操作入口，而不是再用本地/demo-only prototype 作 proof。
+> **2026-06-21 implementation reality**：後端 foundation 已先行完成 `AMM-001a/001b`、`AMM-002a`、`AMM-003a/003b`、`AMM-004a`、`AMM-005a`、`AMM-006a`；下一個最高槓桿切片應避開 docs-only proof，優先把 meeting writeback UI / global entrypoints 或 provider-backed memory-chat 接成正式可操作入口。
 
 ---
 
@@ -21,9 +21,9 @@
 
 - 拜訪後筆記只是 `VisitPlan.postVisitNotes` 純文字，無 transcript / 結構化摘要 / 行動項 / citation / 跨會議記憶。
 - `interview` domain 已有完整 Park-memory + realtime voice + persistence，但綁在 `/interview`，未成為全站「會議」物件。
-- `retrieveInterviewMemories()` 為 session-scoped；缺 client-scoped 跨 session 檢索與會議/客戶對答 route。
-- 已有 `MeetingSummary` / `MeetingCitation` contract、additive `InterviewMeetingSummary` schema、member-scoped meeting capture BFF 與 deterministic cited summary persistence proof。
-- 仍缺正式可操作 meeting workspace 入口（dashboard / CRM client detail / 訪前規劃）、cross-meeting memory/chat、provider JSON summary success/error `AiUsageLog` proof、writeback boundary 與 cross-state browser QA。
+- `retrieveInterviewMemories()` 已有 client-scoped deterministic memory-chat route；provider-backed live memory chat 與 pgvector retrieval 仍待 AMM-004b/AMM-007。
+- 已有 `MeetingSummary` / `MeetingCitation` contract、additive `InterviewMeetingSummary` schema、member-scoped meeting capture BFF、deterministic cited summary persistence proof、provider JSON summary success/error `AiUsageLog` proof、pre-visit meeting workspace 入口與 deterministic writeback boundary。
+- 仍缺 dashboard / CRM client detail 全站入口、meeting workspace 寫回確認 UI、provider-backed memory-chat、pgvector retrieval、cross-state browser QA。
 
 ---
 
@@ -61,12 +61,15 @@
 - [x] AMM-003a：新增 deterministic/no-provider `POST /api/ai/meeting/sessions/[id]/summary`，由已持久化 turns/memories 產生並 upsert `InterviewMeetingSummary`。
 - [x] AMM-003a：每要點/行動項帶 `citations`（turnId + occurredAt + memoryIds），只引用已存在 turn/memory（防幻覺）。
 - [x] AMM-003a：手動筆記與 final transcript 一起餵 deterministic summary skeleton；支援明確 `overwrite`。
-- [ ] AMM-003b：JSON mode provider 生成正式 `MeetingSummary`（headline/summary/decisions/actionItems/openQuestions/participants）；success/error 寫 `AiUsageLog`；quota-blocked 回 429 不呼叫 provider。
-- [ ] AMM-003b：provider summary 可重生覆蓋（supersedes 前一份），不污染 transcript。
-- [ ] AMM-003b：API proof 覆蓋 401、429、success summary 含 citation、provider error 寫 error log。
+- [x] AMM-003b：JSON mode provider 生成正式 `MeetingSummary`（headline/summary/decisions/actionItems/openQuestions/participants）；success/error 寫 `AiUsageLog`；quota-blocked 回 429 不呼叫 provider。
+- [x] AMM-003b：provider summary 可重生覆蓋（supersedes 前一份），不污染 transcript。
+- [x] AMM-003b：API proof 覆蓋 401、429、success summary 含 citation、provider error 寫 error log。
 - [x] AMM-003a 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`、`pnpm meeting:summary-bff-qa`。
+- [x] AMM-003b 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`、`pnpm meeting:summary-provider-qa`。
 
 完成註記：2026-06-21 AMM-003a 已新增 `src/app/api/ai/meeting/sessions/[sessionId]/summary/route.ts` 與 `generateMeetingSummaryForMember()`；`pnpm meeting:summary-bff-qa` 證明 unauth 401、空來源 409、owner summary create 201、raw provider-like payload 409 且不落 row、overwrite=false 409、overwrite=true 200、manager 404、DB `InterviewMeetingSummary` citations/sourceTurnIds/guardEvidence/provider-null proof、`AiUsageLog` unchanged。AMM-003b provider JSON mode 仍未完成。
+
+完成註記：2026-06-21 AMM-003b 已新增 provider JSON summary path 與 `pnpm meeting:summary-provider-qa`；proof 覆蓋 unauth 401、raw provider-like payload 409/no row、provider-disabled 503/no fake usage、quota 429/no provider、forced provider error 502 + error log/no summary row、success 201 + citations + provider/model/usageLogId、overwrite=false 不重打 provider、overwrite=true 更新同一 summary row 並新增 success log、manager 404/no log、DB `generated_by='provider-json'`、`provider='OPENAI'`、`usage_log_id IS NOT NULL`、guardEvidence `providerCallAttempted=true` / `storesRawProviderPayload=false` / `writesConfirmedCrmFact=false`。Deterministic no-provider summary path 仍保留作 fallback。
 
 ## Batch AMM-004 — 跨會議客戶記憶 + 對答
 - [x] AMM-004a：擴充 `retrieveInterviewMemories()` 支援可選 `clientId`（跨 session），保留 `visibilityScope` 過濾。
@@ -102,7 +105,7 @@ Whole-product review note（2026-06-21 after AMM-003a）：第五輪校準確認
 - [x] API proof：inference checked 不變 CRM fact；confirmed checked 才寫回；audit 建立。
 - [x] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
 
-完成註記：2026-06-21 AMM-006a 已完成 deterministic/no-provider meeting writeback boundary；新增 `src/domains/interview/meeting-writeback-boundary.ts`、`src/lib/interview/meeting-writeback-repository.ts`、`/api/ai/meeting/sessions/[sessionId]/writebacks` 與 `pnpm meeting:writeback-qa`。Proof 覆蓋 summary_required / summary missing 409、raw provider-like payload 409 且不 echo sentinel、confirmed decision → CRM candidate、inference → insight 且 CRM fact count = 0、action item / unknown → follow-up task、高敏感 confirmed fact 缺 reason/riskAccepted blocked、manager 404、DB `InteractionEvent` audit evidence 與 no-provider `AiUsageLog` 150->150 unchanged。尚未完成的是 meeting workspace UI confirmation cards、dashboard/CRM 全站入口、AMM-003b live provider JSON summary 與 AMM-004b provider-backed memory-chat。
+完成註記：2026-06-21 AMM-006a 已完成 deterministic/no-provider meeting writeback boundary；新增 `src/domains/interview/meeting-writeback-boundary.ts`、`src/lib/interview/meeting-writeback-repository.ts`、`/api/ai/meeting/sessions/[sessionId]/writebacks` 與 `pnpm meeting:writeback-qa`。Proof 覆蓋 summary_required / summary missing 409、raw provider-like payload 409 且不 echo sentinel、confirmed decision → CRM candidate、inference → insight 且 CRM fact count = 0、action item / unknown → follow-up task、高敏感 confirmed fact 缺 reason/riskAccepted blocked、manager 404、DB `InteractionEvent` audit evidence 與 no-provider `AiUsageLog` 150->150 unchanged。尚未完成的是 meeting workspace UI confirmation cards、dashboard/CRM 全站入口與 AMM-004b provider-backed memory-chat。
 
 ## Batch AMM-007 — pgvector 規模化（operator 依賴）
 - [ ] `InterviewMemory.embeddingStatus` 接 embedding 寫入流程；Supabase 啟用 pgvector + 向量索引。

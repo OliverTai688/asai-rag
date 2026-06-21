@@ -83,11 +83,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 3,
+    "normalLoopsSinceLastWholeProductReview": 4,
     "lastWholeProductReviewAt": "2026-06-21T05:11:35Z",
     "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-21_lv3-whole-product-gap-review-after-amm-summary.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "AMM-006a deterministic/no-provider meeting writeback boundary is complete. Next normal loop should avoid docs-only proof and run `AMM-003b provider JSON summary with success/error AiUsageLog proof`: add guarded live-provider JSON mode for persisted CLIENT_MEETING summaries, preserve deterministic fallback, enforce quota 429 before provider, validate no raw transcript/provider payload storage, write AiUsageLog on success and provider error, and prove overwrite/regeneration behavior. Required proof: provider-disabled guarded path, quota 429 no provider call, success/error AiUsageLog increments when provider env is enabled, summary citations remain tied to existing turn/memory ids, private sentinel not echoed/stored, `pnpm exec tsc --noEmit --pretty false`, `pnpm lint:changed`, `pnpm ai:bff-audit`, and targeted API proof. Secondary candidates: `AMM-004b provider-backed memory-chat quota/error AiUsageLog contract` or `AMM-005b meeting workspace confirmation cards/global entrypoints` to surface AMM-006 writeback candidates in UI.",
+    "nextRecommendedImplementationSlice": "Cadence counter is now 4, so the next loop should run `lv3-whole-product-gap-review-loop.md` before another implementation slice unless a critical regression appears. Review should score the now-completed AMM foundation (capture, deterministic/provider summaries, deterministic memory-chat, workspace entrypoint, writeback boundary) against the core LV3 flow and pick the next source/proof slice. Likely candidates after review: `AMM-005b meeting workspace writeback confirmation cards/global dashboard+CRM entrypoints`, `AMM-004b provider-backed memory-chat quota/error AiUsageLog contract`, or a cross-flow client -> relationship graph -> previsit -> meeting/theater acceptance proof. Avoid docs-only proof while safe source work exists.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {
@@ -155,5 +155,5 @@
     "lv3ImmersiveLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-immersive-loop.md",
     "lv3WholeProductGapReviewLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md"
   },
-  "updatedAt": "2026-06-21T06:27:19Z"
+  "updatedAt": "2026-06-21T06:50:00Z"
 }

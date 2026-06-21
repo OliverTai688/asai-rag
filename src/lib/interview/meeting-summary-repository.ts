@@ -11,7 +11,9 @@ import type {
 } from "../../domains/interview/meeting";
 import { buildMeetingSummarySkeleton } from "../../domains/interview/meeting";
 import type { Prisma } from "@/generated/prisma/client";
+import { AiModule, AiProvider } from "@/generated/prisma/enums";
 import type { InterviewMeetingSummaryModel } from "@/generated/prisma/models";
+import { writeAiUsageLogSafely } from "@/lib/ai/usage-log";
 import type { AppSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
 import { getMeetingSessionSnapshotForMember, type MeetingSessionSnapshotDto } from "./meeting-session-repository";
@@ -64,7 +66,7 @@ export interface MeetingSummaryPersistenceDraft {
 }
 
 export interface GenerateMeetingSummaryInput {
-  mode: "DETERMINISTIC_NO_PROVIDER";
+  mode: "DETERMINISTIC_NO_PROVIDER" | "PROVIDER_JSON";
   overwrite: boolean;
 }
 
@@ -138,15 +140,47 @@ export interface MeetingSummarySourceEvidence {
 export interface MeetingSummaryRouteSafety {
   scopeSource: "server_session";
   visibilityScope: "member-private";
-  providerCallAttempted: false;
-  aiUsageLogRequired: false;
-  aiUsageLogWritten: false;
+  providerCallAttempted: boolean;
+  aiUsageLogRequired: boolean;
+  aiUsageLogWritten: boolean;
   dbWriteAttempted: boolean;
   storesAudioBinary: false;
   storesRawProviderPayload: false;
   storesRawPrivateTranscriptSidecar: false;
   writesConfirmedCrmFact: false;
-  generatedBy: "deterministic-skeleton";
+  generatedBy: "deterministic-skeleton" | "provider-json";
+  provider: MeetingPersistenceProvider | null;
+  quotaChecked: boolean;
+  quotaBlocked: boolean;
+}
+
+export type MeetingSummaryGenerationPreparation =
+  | {
+      status: "ready";
+      snapshot: MeetingSessionSnapshotDto;
+      clientName: string;
+      sourceTurns: MeetingTranscriptTurn[];
+      source: MeetingSummarySourceEvidence;
+      existingSummary: PersistedMeetingSummaryDto | null;
+      safety: MeetingSummaryRouteSafety;
+    }
+  | {
+      status: "already_exists";
+      summary: PersistedMeetingSummaryDto;
+      safety: MeetingSummaryRouteSafety;
+    }
+  | {
+      status: "source_empty";
+      safety: MeetingSummaryRouteSafety;
+    };
+
+export interface MeetingSummaryProviderUsage {
+  model: string;
+  requestId?: string;
+  promptTokens?: number;
+  completionTokens?: number;
+  totalTokens?: number;
+  latencyMs: number;
 }
 
 export function buildMeetingSummaryPersistenceDraft(
@@ -193,10 +227,16 @@ export function assertMeetingSummaryPersistenceDraftSafety(
   if (draft.schemaVersion !== MEETING_SUMMARY_SCHEMA_VERSION) failures.push("schema version mismatch");
   if (draft.aiUsageLogModule !== MEETING_AI_MODULE) failures.push("AiUsageLog module mismatch");
   if (draft.interviewKind !== MEETING_INTERVIEW_KIND) failures.push("interview kind mismatch");
-  if (draft.guardEvidence.providerCallAttempted) failures.push("provider call attempted");
+  if (draft.guardEvidence.providerCallAttempted && draft.guardEvidence.generatedBy !== "provider-json") {
+    failures.push("unexpected provider call attempted");
+  }
+  if (!draft.guardEvidence.providerCallAttempted && draft.guardEvidence.generatedBy === "provider-json") {
+    failures.push("provider summary missing provider call evidence");
+  }
   if (draft.guardEvidence.dbWriteAttempted) failures.push("db write attempted");
   if (draft.guardEvidence.storesAudioBinary) failures.push("audio binary storage attempted");
   if (draft.guardEvidence.storesPrivateTranscript) failures.push("raw private transcript storage attempted");
+  if (draft.guardEvidence.storesRawProviderPayload) failures.push("raw provider payload storage attempted");
   if (draft.guardEvidence.writesConfirmedCrmFact) failures.push("confirmed CRM write attempted");
   if (draft.provider && !draft.usageLogId) failures.push("provider summary requires usageLogId");
   if (!draft.provider && draft.usageLogId) failures.push("usageLogId set without provider");
@@ -218,6 +258,209 @@ export function assertMeetingSummaryPersistenceDraftSafety(
   }
 
   return failures;
+}
+
+export async function prepareMeetingSummaryGenerationForMember(
+  session: AppSession,
+  sessionId: string,
+  input: Pick<GenerateMeetingSummaryInput, "overwrite">,
+): Promise<MeetingSummaryGenerationPreparation | null> {
+  const snapshot = await getMeetingSessionSnapshotForMember(session, sessionId);
+
+  if (!snapshot) {
+    return null;
+  }
+
+  const existing = await prisma.interviewMeetingSummary.findFirst({
+    where: {
+      sessionId: snapshot.session.id,
+      organizationId: session.organization.id,
+      ownerId: session.user.id,
+    },
+  });
+
+  if (existing && !input.overwrite) {
+    return {
+      status: "already_exists",
+      summary: toPersistedMeetingSummaryDto(existing),
+      safety: meetingSummaryRouteSafety(false),
+    };
+  }
+
+  if (snapshot.turns.length === 0) {
+    return {
+      status: "source_empty",
+      safety: meetingSummaryRouteSafety(false),
+    };
+  }
+
+  const sourceTurns = toMeetingTranscriptTurns(snapshot);
+  const clientName = await resolveMeetingClientName(snapshot);
+  const sourceMemoryIds = uniqueStrings(snapshot.memories.map((memory) => memory.id));
+
+  return {
+    status: "ready",
+    snapshot,
+    clientName,
+    sourceTurns,
+    source: {
+      sourceTurnCount: snapshot.turns.length,
+      sourceMemoryCount: snapshot.memories.length,
+      sourceTurnIds: sourceTurns.map((turn) => turn.id),
+      sourceMemoryIds,
+    },
+    existingSummary: existing ? toPersistedMeetingSummaryDto(existing) : null,
+    safety: meetingSummaryRouteSafety(false),
+  };
+}
+
+export async function persistPreparedMeetingSummary(
+  preparation: Extract<MeetingSummaryGenerationPreparation, { status: "ready" }>,
+  summary: MeetingSummary,
+  input: {
+    provider: MeetingPersistenceProvider | null;
+    model: string | null;
+    usageLogId: string | null;
+  },
+): Promise<GenerateMeetingSummaryResult> {
+  const draft = buildMeetingSummaryPersistenceDraft({
+    scope: {
+      organizationId: preparation.snapshot.session.organizationId,
+      unitId: preparation.snapshot.session.unitId,
+      clientId: preparation.snapshot.session.clientId,
+      sessionId: preparation.snapshot.session.id,
+      ownerId: preparation.snapshot.session.ownerId,
+    },
+    summary,
+    provider: input.provider,
+    model: input.model,
+    usageLogId: input.usageLogId,
+  });
+  const safetyFailures = assertMeetingSummaryPersistenceDraftSafety(
+    draft,
+    preparation.snapshot.turns.map((turn) => turn.id),
+  );
+
+  if (safetyFailures.length > 0) {
+    return {
+      status: "safety_failed",
+      safetyFailures,
+      safety: meetingSummaryRouteSafety(false, {
+        providerCallAttempted: Boolean(input.provider),
+        aiUsageLogRequired: Boolean(input.provider),
+        aiUsageLogWritten: Boolean(input.usageLogId),
+        generatedBy: summary.guardEvidence.generatedBy,
+        provider: input.provider,
+      }),
+    };
+  }
+
+  const record = await prisma.interviewMeetingSummary.upsert({
+    where: { sessionId: draft.sessionId },
+    create: toMeetingSummaryCreateInput(draft),
+    update: toMeetingSummaryUpdateInput(draft),
+  });
+
+  return {
+    status: preparation.existingSummary ? "updated" : "created",
+    summary: toPersistedMeetingSummaryDto(record),
+    draft,
+    source: preparation.source,
+    safety: meetingSummaryRouteSafety(true, {
+      providerCallAttempted: Boolean(input.provider),
+      aiUsageLogRequired: Boolean(input.provider),
+      aiUsageLogWritten: Boolean(input.usageLogId),
+      generatedBy: summary.guardEvidence.generatedBy,
+      provider: input.provider,
+    }),
+  };
+}
+
+export async function persistMeetingSummaryProviderSuccess(input: {
+  session: AppSession;
+  clientId?: string | null;
+  interviewSessionId: string;
+  usage: MeetingSummaryProviderUsage;
+}): Promise<string> {
+  const log = await prisma.$transaction(async (tx) => {
+    const usageLog = await tx.aiUsageLog.create({
+      data: {
+        organizationId: input.session.organization.id,
+        unitId: input.session.membership.primaryUnitId,
+        userId: input.session.user.id,
+        clientId: normalizeOptionalId(input.clientId),
+        provider: AiProvider.OPENAI,
+        module: AiModule.MEETING,
+        model: input.usage.model,
+        requestId: input.usage.requestId,
+        promptTokens: input.usage.promptTokens,
+        completionTokens: input.usage.completionTokens,
+        totalTokens: input.usage.totalTokens,
+        latencyMs: input.usage.latencyMs,
+        traceSource: "interview",
+        interviewSessionId: input.interviewSessionId,
+      },
+      select: { id: true },
+    });
+
+    await tx.organization.update({
+      where: { id: input.session.organization.id },
+      data: {
+        monthlyAiUsed: { increment: 1 },
+      },
+    });
+
+    return usageLog;
+  });
+
+  return log.id;
+}
+
+export async function persistMeetingSummaryProviderFailure(input: {
+  session: AppSession;
+  clientId?: string | null;
+  interviewSessionId?: string | null;
+  usage: MeetingSummaryProviderUsage;
+  error: string;
+}): Promise<void> {
+  await writeAiUsageLogSafely({
+    organizationId: input.session.organization.id,
+    unitId: input.session.membership.primaryUnitId ?? undefined,
+    userId: input.session.user.id,
+    clientId: normalizeOptionalId(input.clientId) ?? undefined,
+    provider: AiProvider.OPENAI,
+    module: AiModule.MEETING,
+    model: input.usage.model,
+    requestId: input.usage.requestId,
+    promptTokens: input.usage.promptTokens,
+    completionTokens: input.usage.completionTokens,
+    totalTokens: input.usage.totalTokens,
+    latencyMs: input.usage.latencyMs,
+    error: input.error.slice(0, 500),
+    trace: {
+      traceSource: "interview",
+      interviewSessionId: normalizeOptionalId(input.interviewSessionId) ?? undefined,
+    },
+  });
+}
+
+export function buildMeetingSummaryProviderSafety(
+  overrides: Partial<
+    Pick<
+      MeetingSummaryRouteSafety,
+      "providerCallAttempted" | "aiUsageLogRequired" | "aiUsageLogWritten" | "dbWriteAttempted" | "quotaChecked" | "quotaBlocked"
+    >
+  > = {},
+): MeetingSummaryRouteSafety {
+  return meetingSummaryRouteSafety(overrides.dbWriteAttempted ?? false, {
+    providerCallAttempted: overrides.providerCallAttempted ?? false,
+    aiUsageLogRequired: overrides.aiUsageLogRequired ?? true,
+    aiUsageLogWritten: overrides.aiUsageLogWritten ?? false,
+    generatedBy: "provider-json",
+    provider: "OPENAI",
+    quotaChecked: overrides.quotaChecked ?? true,
+    quotaBlocked: overrides.quotaBlocked ?? false,
+  });
 }
 
 export async function generateMeetingSummaryForMember(
@@ -513,19 +756,36 @@ function toJsonInput(value: unknown): Prisma.InputJsonValue {
   return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
 }
 
-function meetingSummaryRouteSafety(dbWriteAttempted: boolean): MeetingSummaryRouteSafety {
+function meetingSummaryRouteSafety(
+  dbWriteAttempted: boolean,
+  overrides: Partial<
+    Pick<
+      MeetingSummaryRouteSafety,
+      | "providerCallAttempted"
+      | "aiUsageLogRequired"
+      | "aiUsageLogWritten"
+      | "generatedBy"
+      | "provider"
+      | "quotaChecked"
+      | "quotaBlocked"
+    >
+  > = {},
+): MeetingSummaryRouteSafety {
   return {
     scopeSource: "server_session",
     visibilityScope: "member-private",
-    providerCallAttempted: false,
-    aiUsageLogRequired: false,
-    aiUsageLogWritten: false,
+    providerCallAttempted: overrides.providerCallAttempted ?? false,
+    aiUsageLogRequired: overrides.aiUsageLogRequired ?? false,
+    aiUsageLogWritten: overrides.aiUsageLogWritten ?? false,
     dbWriteAttempted,
     storesAudioBinary: false,
     storesRawProviderPayload: false,
     storesRawPrivateTranscriptSidecar: false,
     writesConfirmedCrmFact: false,
-    generatedBy: "deterministic-skeleton",
+    generatedBy: overrides.generatedBy ?? "deterministic-skeleton",
+    provider: overrides.provider ?? null,
+    quotaChecked: overrides.quotaChecked ?? false,
+    quotaBlocked: overrides.quotaBlocked ?? false,
   };
 }
 
