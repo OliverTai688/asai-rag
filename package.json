@@ -36,6 +36,7 @@
     "meeting:bff-qa": "node scripts/meeting-bff-qa.mjs",
     "meeting:summary-bff-qa": "node scripts/meeting-summary-bff-qa.mjs",
     "meeting:workspace-ui-qa": "node scripts/meeting-workspace-ui-qa.mjs",
+    "meeting:memory-chat-qa": "node scripts/meeting-memory-chat-qa.mjs",
     "visit:theater-handoff-dry-run": "node scripts/visit-theater-handoff-dry-run.mjs",
     "visit:theater-bff-qa": "node scripts/visit-theater-bff-qa.mjs",
     "visit:theater-gate-qa": "node scripts/visit-theater-gate-qa.mjs",

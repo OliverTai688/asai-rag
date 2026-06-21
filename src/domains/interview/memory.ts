@@ -231,8 +231,19 @@ function isMemoryVisibleForQuery(memory: InterviewMemory, query: InterviewMemory
   if (!query.includeSuperseded && memory.supersededByMemoryId) return false;
   if (query.interviewKind && memory.interviewKind !== query.interviewKind) return false;
   if (query.memberId && memory.visibilityScope !== "ORG_AGGREGATE_ONLY" && memory.memberId !== query.memberId) return false;
+  if (query.clientId !== undefined && memory.clientId !== query.clientId) return false;
   if (query.interviewSessionId && memory.interviewSessionId === query.interviewSessionId) return true;
-  if (query.includeCrossSessionClientMemories && query.clientId && memory.clientId === query.clientId && memory.dataClass === "CONFIRMED") return true;
+  if (
+    query.includeCrossSessionClientMemories &&
+    query.clientId &&
+    memory.clientId === query.clientId &&
+    (memory.dataClass === "CONFIRMED" ||
+      memory.dataClass === "FACT" ||
+      memory.dataClass === "INFERENCE" ||
+      memory.dataClass === "UNKNOWN")
+  ) {
+    return true;
+  }
   return !query.interviewSessionId;
 }
 
