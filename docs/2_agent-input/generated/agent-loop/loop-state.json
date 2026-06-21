@@ -71,11 +71,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 1,
+    "normalLoopsSinceLastWholeProductReview": 2,
     "lastWholeProductReviewAt": "2026-06-21",
     "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-21_lv3-whole-product-gap-review-bff-204-theater-rag-hardening.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "BFF-204a theater launch-boundary proof completed on 2026-06-21. Next normal implementation slice: `BFF-205a RAG guarded-disabled + assistant/interview persistence hygiene proof`. It should prove `/api/rag` disabled_guarded posture (503, providerAttempted=false, RAG AiUsageLog unchanged), Assistant/Interview persistence DTO hygiene, fact/inference/unknown/evidence boundaries, and no fake usage. Do not enable provider-backed retrieval, external registry publication, public discovery, cross-org agent access, or stage the untracked AI meeting / notes prototype unless a later loop explicitly selects AMM/quick-capture workspace.",
+    "nextRecommendedImplementationSlice": "BFF-205a RAG guarded-disabled + assistant/interview persistence hygiene proof completed on 2026-06-21. Next normal implementation slice: `BFF-302 org writes audit and capability enforcement`, because BFF-301 read-side aggregate proof is complete and the next launch-relevant gap is write-side route capability/session enforcement with sentinel proof. Keep scope to org write routes, capability gates, no private client detail leakage, and targeted API/browser proof. Do not enable production writes, provider-backed RAG retrieval, external registry publication, public discovery, cross-org agent access, or stage the untracked AI meeting / notes prototype unless a later loop explicitly selects that slice.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {

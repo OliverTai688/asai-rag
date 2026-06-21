@@ -60,6 +60,7 @@
     "theater:route-b-interaction-qa": "node scripts/theater-route-b-interaction-qa.mjs",
     "theater:launch-boundary-qa": "node scripts/theater-launch-boundary-qa.mjs",
     "demo:three-ai-turn-usage-qa": "node scripts/three-ai-turn-usage-qa.mjs",
+    "bff:ai-boundary-qa": "node scripts/bff-ai-boundary-qa.mjs",
     "rag:launch-posture-qa": "node scripts/rag-launch-posture-qa.mjs",
     "ai:usage-audit": "node scripts/ai-usage-route-audit.mjs",
     "ai:bff-audit": "node scripts/ai-usage-route-audit.mjs",
