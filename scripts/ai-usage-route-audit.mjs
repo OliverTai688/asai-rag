@@ -142,6 +142,14 @@ const routeManifest = [
     inputEvidence: ["appendMeetingTurnInputSchema", "findMeetingPayloadViolations", "safeParse"],
     noProviderEvidence: ["requireCurrentMember", "appendMeetingTurnForMember"],
   }),
+  deterministicRoute({
+    route: "/api/ai/meeting/sessions/[sessionId]/summary",
+    file: "src/app/api/ai/meeting/sessions/[sessionId]/summary/route.ts",
+    module: "MEETING",
+    methods: ["POST"],
+    inputEvidence: ["generateMeetingSummaryInputSchema", "findMeetingPayloadViolations", "safeParse"],
+    noProviderEvidence: ["requireCurrentMember", "generateMeetingSummaryForMember"],
+  }),
   providerRoute({
     route: "/api/ai/interview/transcribe",
     file: "src/app/api/ai/interview/transcribe/route.ts",

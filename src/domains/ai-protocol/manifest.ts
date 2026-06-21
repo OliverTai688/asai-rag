@@ -1060,7 +1060,7 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
       displayName: "AI Meeting capture and summary contract",
       ownerSurface: "AI Meeting / visit notes capture",
       module: "MEETING",
-      version: "2026-06-21.amm-002a",
+      version: "2026-06-21.amm-003a",
       status: "planned",
     },
     capabilities: [
@@ -1073,8 +1073,8 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
       {
         id: "meeting-summary-contract-skeleton",
         label: "Meeting summary contract skeleton",
-        summary: "Defines a deterministic meeting summary contract that maps captured turns to cited decisions, action items, unknowns, and an additive persistence draft without provider calls.",
-        humanTrigger: "Future advisor meeting workspace or visit notes capture asks for a structured meeting summary draft.",
+        summary: "Builds and persists a deterministic cited meeting summary from captured turns and memories without provider calls.",
+        humanTrigger: "Advisor asks for a structured meeting summary draft from a captured client meeting before provider-backed generation is enabled.",
       },
     ],
     interfaces: {
@@ -1103,6 +1103,14 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
           launchPosture: "available",
           modalities: ["text", "voice", "metadata", "structured-json"],
         },
+        {
+          id: "generate-meeting-summary",
+          route: "/api/ai/meeting/sessions/[sessionId]/summary",
+          methods: ["POST"],
+          providerPosture: "deterministic-no-provider",
+          launchPosture: "available",
+          modalities: ["text", "metadata", "structured-json"],
+        },
       ],
       actions: [
         {
@@ -1125,6 +1133,11 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
           label: "Build meeting summary persistence draft",
           actionBoundary: "Maps MeetingSummary into the additive InterviewMeetingSummary shape with CLIENT_MEETING scope, MEETING usage classification, cited source turn ids, and no DB write side effect.",
         },
+        {
+          id: "persist-deterministic-meeting-summary",
+          label: "Persist deterministic cited meeting summary",
+          actionBoundary: "Owner-scoped BFF upserts InterviewMeetingSummary from stored CLIENT_MEETING turns/memories only; overwrite is explicit, provider/model/usageLogId stay null, and confirmed CRM facts are not written.",
+        },
       ],
       exportTargets: defaultExportTargets,
     },
@@ -1132,6 +1145,7 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
       inputDtoRefs: [
         "CreateMeetingSessionInput",
         "AppendMeetingTurnInput",
+        "GenerateMeetingSummaryInput",
         "BuildMeetingSummarySkeletonInput",
         "MeetingTranscriptTurn",
         "BuildMeetingSummaryPersistenceDraftInput",
@@ -1139,6 +1153,8 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
       outputDtoRefs: [
         "MeetingSessionSnapshotDto",
         "MeetingTurnAppendDto",
+        "PersistedMeetingSummaryDto",
+        "GenerateMeetingSummaryResult",
         "MeetingSummary",
         "MeetingSummaryItem",
         "MeetingActionItem",
@@ -1157,7 +1173,7 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
     },
     auth: {
       sessionType: "app-member",
-      scopeDerivation: "AMM-002a BFF derives organization/member scope with requireCurrentMember, requires owner-scoped client or visitPlan when provided, and keeps meeting snapshots member-private.",
+      scopeDerivation: "AMM-003a BFF derives organization/member scope with requireCurrentMember, requires owner-scoped CLIENT_MEETING sessions, and keeps meeting snapshots/summaries member-private.",
       roleRestrictions: ["advisor member owner"],
     },
     dataClasses: {
@@ -1166,8 +1182,8 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
       persisted: ["CONVERSATION_SUMMARY", "CLIENT_FACTS", "CLIENT_INFERENCES", "CLIENT_UNKNOWNS"],
     },
     privacy: {
-      retention: "AMM-002a persists member-private CLIENT_MEETING sessions, text/final transcript turns, and Park-style memory candidates; structured summary persistence remains a later route slice.",
-      redaction: "BFF responses are owner-scoped app data. Registry/export metadata may cite route and schema names only; transcript text and manual notes remain app-internal.",
+      retention: "AMM-003a persists member-private CLIENT_MEETING sessions, text/final transcript turns, Park-style memory candidates, and deterministic cited InterviewMeetingSummary rows; provider summary generation remains a later route slice.",
+      redaction: "BFF responses are owner-scoped app data. Registry/export metadata may cite route and schema names only; transcript text, summary bodies, citation snippets, and manual notes remain app-internal.",
       forbiddenDisclosureCodes: [...standardForbiddenDisclosureCodes, "ORG_INTERNAL_BREAK_GLASS_REASON"],
       leastDisclosureNote: "Do not expose meeting transcript text, audio, personal contact data, policy identifiers, provider payloads, or advisor private notes in protocol metadata.",
     },
@@ -1181,6 +1197,7 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
       commands: [
         "pnpm ai:bff-audit",
         "pnpm ai:protocol-registry-qa",
+        "pnpm meeting:summary-bff-qa",
         "pnpm meeting:bff-qa",
         "pnpm meeting:contract-dry-run",
         "pnpm meeting:persistence-contract-dry-run",
@@ -1192,6 +1209,7 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
           "src/app/api/ai/meeting/sessions/route.ts",
           "src/app/api/ai/meeting/sessions/[sessionId]/route.ts",
           "src/app/api/ai/meeting/sessions/[sessionId]/turns/route.ts",
+          "src/app/api/ai/meeting/sessions/[sessionId]/summary/route.ts",
           "src/lib/interview/meeting-session-repository.ts",
           "src/domains/interview/meeting.ts",
           "src/lib/interview/meeting-summary-repository.ts",
@@ -1204,7 +1222,9 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
           "createMeetingSessionForMember",
           "getMeetingSessionSnapshotForMember",
           "appendMeetingTurnForMember",
+          "generateMeetingSummaryForMember",
           "MeetingCaptureSafety",
+          "MeetingSummaryRouteSafety",
           "MeetingMemoryRailDto",
           "buildMeetingSummarySkeleton",
           "buildMeetingSummaryPersistenceDraft",
@@ -1213,20 +1233,21 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
           "MeetingCitation",
           "MeetingSummaryGuardEvidence",
           "InterviewMeetingSummary",
+          "PersistedMeetingSummaryDto",
           "CLIENT_MEETING",
           "MEETING",
           "providerCallAttempted=false",
           "writesConfirmedCrmFact=false",
         ],
         notes: [
-          "AMM-002a adopts the member-scoped capture/read/turn BFF while keeping summary provider generation out of scope.",
-          "Meeting capture is deterministic no-provider; API proof verifies AiUsageLog count is unchanged.",
+          "AMM-003a adopts deterministic meeting summary persistence while keeping live summary provider generation out of scope.",
+          "Meeting capture and deterministic summary are no-provider; API proof verifies AiUsageLog count is unchanged.",
           "Untracked meeting UI, notes UI, and note domain prototype files remain outside accepted scope.",
           "Future summary provider, meeting chat, cross-meeting retrieval, UI entrypoint, and writeback routes require separate source/proof slices.",
         ],
       },
       knownBlockers: [
-        "Meeting summary provider route and success/error AiUsageLog proof are not implemented yet.",
+        "Meeting summary provider route and success/error AiUsageLog proof are not implemented yet; AMM-003a only persists deterministic no-provider summaries.",
         "Meeting UI entrypoints remain prototype/untracked unless a later AMM slice explicitly adopts and validates them.",
         "Cross-meeting client memory retrieval, meeting chat, and writeback boundaries remain future AMM slices.",
         "External registry publication remains disabled until operator approval and adapter proof.",
