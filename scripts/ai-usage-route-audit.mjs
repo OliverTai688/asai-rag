@@ -151,6 +151,14 @@ const routeManifest = [
     noProviderEvidence: ["requireCurrentMember", "generateMeetingSummaryForMember"],
   }),
   deterministicRoute({
+    route: "/api/ai/meeting/sessions/[sessionId]/writebacks",
+    file: "src/app/api/ai/meeting/sessions/[sessionId]/writebacks/route.ts",
+    module: "MEETING",
+    methods: ["GET", "POST"],
+    inputEvidence: ["meetingWritebackInputSchema", "findMeetingPayloadViolations", "safeParse"],
+    noProviderEvidence: ["requireCurrentMember", "saveMeetingWritebackConfirmation"],
+  }),
+  deterministicRoute({
     route: "/api/ai/meeting/sessions/[sessionId]/chat",
     file: "src/app/api/ai/meeting/sessions/[sessionId]/chat/route.ts",
     module: "MEETING",

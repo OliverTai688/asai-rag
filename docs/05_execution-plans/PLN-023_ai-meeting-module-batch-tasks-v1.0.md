@@ -95,12 +95,14 @@ Whole-product review note（2026-06-21 after AMM-003a）：第五輪校準確認
 完成註記：2026-06-21 AMM-005a 已採納既有 meeting UI prototype 的 AMM-owned subset，改為 `/pre-visit/[planId]` 可點擊進入 `/pre-visit/[planId]/meeting` 的正式工作台；workspace 只用 accepted meeting BFF 自動建立/讀取 `CLIENT_MEETING`、append manual note/final transcript、POST deterministic summary，並以 GET summary 支援 refresh/new-context persistence。`pnpm meeting:workspace-ui-qa` 覆蓋 desktop/mobile no overflow、console error 0、manager denial、raw provider/audio sentinel blocked、owner summary GET、AiUsageLog unchanged。未追蹤 notes UI 與 note domain prototype 仍未採納。
 
 ## Batch AMM-006 — 寫回邊界（行動項 / CRM）
-- [ ] 沿用 `src/domains/interview/writeback-boundary.ts`：行動項 → follow-up task、confirmed fact → CRM candidate、inference → insight、unknown → follow-up。
-- [ ] confirmed + 人工勾選才寫回；inference 永不變 CRM fact。
-- [ ] 敏感客戶寫回需 reason/riskAccepted；所有寫回建立 audit/interaction event。
-- [ ] 不刪改 `complianceChecklist`、`sensitivityLevel`、`kycStatus`。
-- [ ] API proof：inference checked 不變 CRM fact；confirmed checked 才寫回；audit 建立。
-- [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+- [x] 沿用 `src/domains/interview/writeback-boundary.ts`：行動項 → follow-up task、confirmed fact → CRM candidate、inference → insight、unknown → follow-up。
+- [x] confirmed + 人工勾選才寫回；inference 永不變 CRM fact。
+- [x] 敏感客戶寫回需 reason/riskAccepted；所有寫回建立 audit/interaction event。
+- [x] 不刪改 `complianceChecklist`、`sensitivityLevel`、`kycStatus`。
+- [x] API proof：inference checked 不變 CRM fact；confirmed checked 才寫回；audit 建立。
+- [x] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+
+完成註記：2026-06-21 AMM-006a 已完成 deterministic/no-provider meeting writeback boundary；新增 `src/domains/interview/meeting-writeback-boundary.ts`、`src/lib/interview/meeting-writeback-repository.ts`、`/api/ai/meeting/sessions/[sessionId]/writebacks` 與 `pnpm meeting:writeback-qa`。Proof 覆蓋 summary_required / summary missing 409、raw provider-like payload 409 且不 echo sentinel、confirmed decision → CRM candidate、inference → insight 且 CRM fact count = 0、action item / unknown → follow-up task、高敏感 confirmed fact 缺 reason/riskAccepted blocked、manager 404、DB `InteractionEvent` audit evidence 與 no-provider `AiUsageLog` 150->150 unchanged。尚未完成的是 meeting workspace UI confirmation cards、dashboard/CRM 全站入口、AMM-003b live provider JSON summary 與 AMM-004b provider-backed memory-chat。
 
 ## Batch AMM-007 — pgvector 規模化（operator 依賴）
 - [ ] `InterviewMemory.embeddingStatus` 接 embedding 寫入流程；Supabase 啟用 pgvector + 向量索引。

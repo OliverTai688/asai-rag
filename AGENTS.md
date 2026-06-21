@@ -1458,8 +1458,8 @@ Context: 參考 Notion AI Meeting，做一個**全站 AI 會議模組**：即時
 ### Current AI Meeting Gaps
 - 拜訪後筆記只是 `VisitPlan.postVisitNotes` 純文字，無 transcript / 結構化摘要 / 行動項 / citation / 跨會議記憶。
 - `interview` domain 已有 Park-memory + realtime voice + persistence，但綁在 `/interview`，未成為全站「會議」物件。
-- `retrieveInterviewMemories()` 為 session-scoped；缺 client-scoped 跨 session 檢索與會議/客戶對答 route。
-- 已有 `MeetingSummary` / `MeetingCitation` no-provider 契約骨架、additive persistence schema、AMM-002a meeting capture BFF 與 AMM-003a deterministic cited summary persistence DB/API proof；仍缺 provider JSON summary、跨會議對答與全站入口（dashboard / CRM client detail / 訪前規劃）。
+- `retrieveInterviewMemories()` 已支援 client-scoped 跨 session deterministic grounding，且已有 meeting/client memory-chat route；live provider-backed memory chat 仍待 AMM-004b。
+- 已有 `MeetingSummary` / `MeetingCitation` no-provider 契約骨架、additive persistence schema、AMM-002a meeting capture BFF、AMM-003a deterministic cited summary persistence、AMM-004a deterministic memory-chat、AMM-005a 訪前規劃 meeting workspace 入口與 AMM-006a meeting writeback boundary DB/API proof；仍缺 provider JSON summary、provider-backed memory-chat、workspace 寫回確認 UI 與 dashboard / CRM client detail 全站入口。
 
 ### Batch AMM-000 — 文件與 workstream 登錄
 - [x] 新增 `RES-023`、`ARC-010`、`PLN-023`、`ACC-015`。
@@ -1523,9 +1523,11 @@ Whole-product review note（2026-06-21 after AMM-003a）：第五輪校準確認
 完成註記：2026-06-21 AMM-005a 已採納既有 meeting UI prototype 的 AMM-owned subset，改為 `/pre-visit/[planId]` 可點擊進入 `/pre-visit/[planId]/meeting` 的正式工作台；workspace 只用 accepted meeting BFF 自動建立/讀取 `CLIENT_MEETING`、append manual note/final transcript、POST deterministic summary，並以 GET summary 支援 refresh/new-context persistence。`pnpm meeting:workspace-ui-qa` 覆蓋 desktop/mobile no overflow、console error 0、manager denial、raw provider/audio sentinel blocked、owner summary GET、AiUsageLog unchanged。未追蹤 notes UI 與 note domain prototype 仍未採納。
 
 ### Batch AMM-006 — 寫回邊界
-- [ ] 沿用 `writeback-boundary`：行動項→task、confirmed→CRM candidate、inference→insight、unknown→follow-up；confirmed+勾選才寫回；敏感客戶 reason/riskAccepted；皆 audit。
-- [ ] API proof：inference checked 不變 CRM fact；confirmed checked 才寫回。
-- [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+- [x] 沿用 `writeback-boundary`：行動項→task、confirmed→CRM candidate、inference→insight、unknown→follow-up；confirmed+勾選才寫回；敏感客戶 reason/riskAccepted；皆 audit。
+- [x] API proof：inference checked 不變 CRM fact；confirmed checked 才寫回。
+- [x] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+
+完成註記（2026-06-21 AMM-006a）：新增 meeting writeback boundary / repository / route 與 `pnpm meeting:writeback-qa`，將 persisted meeting summary 的 confirmed decision / inference / action item / unknown/open question 轉成顧問確認候選；confirmed fact 僅建立 CRM candidate `InteractionEvent`，inference 永不建立 CRM fact，action item 與 unknown 只建立 follow-up task，高敏感 confirmed fact 需 reason/riskAccepted。Proof 覆蓋 manager 404、raw provider-like payload 409/no echo、DB audit count、`writesConfirmedCrmFact=false` 與 no-provider `AiUsageLog` unchanged。Workspace UI confirmation cards、dashboard/CRM global entrypoints、AMM-003b provider summary 與 AMM-004b provider memory-chat 仍待後續。
 
 ### Batch AMM-007 — pgvector 規模化（operator 依賴）
 - [ ] `InterviewMemory.embeddingStatus` 接 embedding，Supabase 啟用 pgvector；未啟用前 lexical fallback 並標 blocker。
