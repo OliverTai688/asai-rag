@@ -47,6 +47,12 @@ Strategic review and anti-repetition gate:
 - A proof-only loop is acceptable only when it runs or creates executable proof against real source/API/DB/
   browser behavior. Static source audits and reports are supporting evidence, not a substitute for
   runnable proof when runtime proof is safe.
+- Self-runnable residual evidence handoff: after the selected slice has its mandatory validation and
+  targeted proof, do not keep looping only to collect extra evidence that the user can verify by running
+  one clearly named command or checking one clearly named local surface. Record the command/surface and
+  tell the user to review it themselves. This handoff cannot replace proof for changed source behavior,
+  authz/privacy boundaries, provider success/error `AiUsageLog`, DB safety, production approvals, or any
+  claim that would otherwise be unverifiable.
 - Every selected slice must map to at least one product capability, research hypothesis, acceptance item,
   roadmap item, or issue-question entry. If no such mapping exists, downgrade it to L0 hygiene and skip it
   unless no higher-value safe work exists.
@@ -214,6 +220,8 @@ Task:
 12. Run targeted QA for the selected slice, such as `pnpm interview:cross-mode-qa`,
     `pnpm demo:three-ai-turn-usage-qa`, `pnpm demo:ai-generation-qa`, `pnpm ai:usage-audit`,
     API proof, DB proof, and/or browser proof.
+    If only residual, self-runnable evidence remains after mandatory proof passes, stop collecting it and
+    hand the exact command/URL/checklist to the user instead of blocking the loop.
 13. Update `docs/2_agent-input/generated/agent-loop/loop-state.json`.
 14. Write a concise report under `docs/2_agent-input/generated/agent-loop/reports/`.
 15. Update `docs/2_agent-input/generated/agent-loop/issue-question.md` only for real decisions,
@@ -241,6 +249,7 @@ Final response must include:
 - `NANDA alignment` if any AI module, route, provider wrapper, or agent-like workflow was touched.
 - Files changed and evidence/report paths.
 - Commands run and exact pass/fail result.
+- Any residual evidence intentionally delegated to the user, with the exact command/URL/checklist to run.
 - DB/Prisma operations and target, if any.
 - Git status summary, commit hash, and push target; while push is paused, write `push skipped by user
   instruction`. If commit fails, include the exact commit blocker.

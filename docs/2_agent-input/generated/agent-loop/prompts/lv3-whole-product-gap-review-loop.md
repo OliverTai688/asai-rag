@@ -145,6 +145,11 @@ Constraints:
 - Because this prompt is a scheduled review, docs-only output is allowed here. However, it must point
   the next normal loop at a source-backed implementation/proof slice unless every safe source path is
   blocked and the report explicitly records the blocker root cause and smallest unblock action.
+- For evidence planning, distinguish mandatory proof from residual evidence the user can verify by
+  running one command or checking one local surface. Do not let residual screenshot/checklist collection
+  block the review; record the exact self-runnable command/URL/checklist instead. This cannot replace
+  proof for authz/privacy boundaries, provider `AiUsageLog`, DB safety, production approvals, or changed
+  source behavior.
 - Do not run production mutations, real email/notification, real payment/refund, Prisma reset/drop,
   destructive DB changes, or secret-bearing proof.
 - Do not duplicate known reports. If a gap is already known, refine the source slice, owner doc,
@@ -162,6 +167,7 @@ Final response must include:
 - Top 5 gaps with severity/leverage.
 - Docs created/updated.
 - Validation commands and pass/fail.
+- Residual evidence delegated to the user, if any, with exact command/URL/checklist.
 - Updated next implementation slice.
 - Git status summary, commit hash, and push target; while push is paused, write `push skipped by user
   instruction`. If commit fails, include the exact commit blocker.
