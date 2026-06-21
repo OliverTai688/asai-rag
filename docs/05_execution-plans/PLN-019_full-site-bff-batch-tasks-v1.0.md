@@ -44,7 +44,7 @@
 | BFF-205 | Assistant/RAG/interview hardening | [x] | BFF-201 |
 | BFF-301 | Org BFF repository extraction and aggregate QA | [x] | BFF-002 |
 | BFF-302 | Org writes audit and capability enforcement | [x] | BFF-301 |
-| BFF-303 | Client portal BFF completion | [ ] | BFF-002 |
+| BFF-303 | Client portal BFF completion | [x] | BFF-002 |
 | BFF-304 | Platform BFF completion | [ ] | BFF-002 |
 | BFF-305 | Public BFF completion | [ ] | BFF-002 |
 | BFF-401 | ECPay checkout BFF | [ ] | BFF-002 |
@@ -358,13 +358,15 @@ Whole-product review fallback note（2026-06-21）：若 BFF-204a 被 env/sessio
 
 目標：補齊 client portal token session lifecycle、response boundary 與 revocation proof。
 
-- [ ] Share token session 支援 expiry/rotation/revocation。
-- [ ] `/api/client-portal/bootstrap` 僅回 authorized report/client-safe sections。
-- [ ] `/api/client-portal/responses` payload whitelist，支援補資料、提問、預約意向。
-- [ ] 若新增附件 route，必須 size/type allowlist、signed URL、virus-scan strategy。
-- [ ] Client token 打 workspace/member/org/platform APIs 必須 401/403。
-- [ ] Browser/API proof 覆蓋 authorized/invalid/expired/revoked。
-- [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+- [x] Share token session 支援 expiry/rotation/revocation。
+- [x] `/api/client-portal/bootstrap` 僅回 authorized report/client-safe sections。
+- [x] `/api/client-portal/responses` payload whitelist，支援補資料、提問、預約意向。
+- [x] 若新增附件 route，必須 size/type allowlist、signed URL、virus-scan strategy。
+- [x] Client token 打 workspace/member/org/platform APIs 必須 401/403。
+- [x] Browser/API proof 覆蓋 authorized/invalid/expired/revoked。
+- [x] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+
+完成註記（2026-06-21）：已完成 BFF-303。`/api/reports/[id]/share` 透過 repository 支援 `ensure`、`rotate`、`revoke` 與 1-365 天到期設定；rotate/revoke 會讓現有 active share 過期並寫 `ShareEvent` audit label，revoke 後 report 回 `READY`。新增 `pnpm bff:client-portal-qa`，proof 覆蓋 missing session 401、authorized share/bootstrap 200、client-safe sections/private sentinel、client token 打 workspace/member/org/platform 401/403、response whitelist 與 unsafe metadata 不落 DB、invalid/expired/rotated-old/revoked token 404 或 401、rotate/revoke audit event、revoke 後 active shares=0。Browser proof 覆蓋 authorized share、client-login authorized、expired/invalid/revoked missing state、mobile no overflow；截圖在 `docs/06_audits-and-reports/screenshots/lv3-client-portal-bff/`。本輪未新增附件 route，故附件 size/type/signed URL/virus-scan gate 無新增攻擊面；未呼叫 provider、不改 Prisma schema、不做 production write，僅新增可辨識 demo/test report/share/portal response evidence。
 
 ---
 

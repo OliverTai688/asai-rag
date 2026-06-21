@@ -131,12 +131,16 @@ export const updateReportInputSchema = z.object({
   content: z.string().trim().min(1).max(20000),
 });
 
+const defaultShareReportInput = { action: "ensure" as const };
+
 export const shareReportInputSchema = z
   .object({
+    action: z.enum(["ensure", "rotate", "revoke"]).default("ensure"),
     source: z.string().trim().max(80).optional(),
+    expiresInDays: z.coerce.number().int().min(1).max(365).optional(),
   })
   .optional()
-  .default({});
+  .default(defaultShareReportInput);
 
 export type CreateReportInput = z.infer<typeof createReportInputSchema>;
 export type UpdateReportInput = z.infer<typeof updateReportInputSchema>;
@@ -254,22 +258,87 @@ export async function updateReportForMember(session: AppSession, reportId: strin
   return toReportDto(updated as ReportRecord);
 }
 
-export async function shareReportForMember(session: AppSession, reportId: string, input: ShareReportInput = {}) {
+export async function shareReportForMember(
+  session: AppSession,
+  reportId: string,
+  input: ShareReportInput = defaultShareReportInput,
+) {
   const record = await findReadableReportRecord(session, reportId);
 
   if (!record) {
     return null;
   }
 
+  const action = input.action ?? "ensure";
+  const source = input.source || "member_report_share_action";
+  const expiresAt = input.expiresInDays ? daysFromNow(input.expiresInDays) : null;
+
   const updated = await prisma.$transaction(async (tx) => {
-    const existingShare = await tx.reportShare.findFirst({
-      where: {
-        reportId,
-        organizationId: session.organization.id,
-      },
+    const now = new Date();
+    const activeShareWhere = {
+      reportId,
+      organizationId: session.organization.id,
+      OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+    } satisfies Prisma.ReportShareWhereInput;
+
+    const activeShares = await tx.reportShare.findMany({
+      where: activeShareWhere,
       orderBy: { createdAt: "desc" },
     });
 
+    if (action === "revoke") {
+      await tx.reportShare.updateMany({
+        where: activeShareWhere,
+        data: { expiresAt: now },
+      });
+
+      for (const share of activeShares) {
+        await tx.shareEvent.create({
+          data: {
+            organizationId: share.organizationId,
+            unitId: share.unitId,
+            shareId: share.id,
+            type: "EXIT",
+            payload: sanitizeShareEventPayload({
+              source,
+              label: "revoke_share_link",
+              href: `/share/${share.token}`,
+            }),
+          },
+        });
+      }
+
+      return tx.report.update({
+        where: { id: reportId },
+        data: { status: ReportStatus.READY },
+        include: reportInclude,
+      });
+    }
+
+    if (action === "rotate" && activeShares.length > 0) {
+      await tx.reportShare.updateMany({
+        where: activeShareWhere,
+        data: { expiresAt: now },
+      });
+
+      for (const share of activeShares) {
+        await tx.shareEvent.create({
+          data: {
+            organizationId: share.organizationId,
+            unitId: share.unitId,
+            shareId: share.id,
+            type: "EXIT",
+            payload: sanitizeShareEventPayload({
+              source,
+              label: "rotate_revoke_previous_share_link",
+              href: `/share/${share.token}`,
+            }),
+          },
+        });
+      }
+    }
+
+    const existingShare = action === "ensure" ? activeShares[0] : null;
     const share =
       existingShare ??
       (await tx.reportShare.create({
@@ -277,6 +346,7 @@ export async function shareReportForMember(session: AppSession, reportId: string
           organizationId: record.organizationId,
           unitId: record.unitId,
           reportId,
+          expiresAt,
           ctaConfig: {
             primaryLabel: "預約下一步",
             primaryHref: "#next-step",
@@ -296,8 +366,8 @@ export async function shareReportForMember(session: AppSession, reportId: string
         shareId: share.id,
         type: "CLICK",
         payload: sanitizeShareEventPayload({
-          source: input.source || "member_report_share_action",
-          label: existingShare ? "reuse_share_link" : "create_share_link",
+          source,
+          label: existingShare ? "reuse_share_link" : action === "rotate" ? "rotate_share_link" : "create_share_link",
           href: `/share/${share.token}`,
         }),
       },
@@ -311,6 +381,10 @@ export async function shareReportForMember(session: AppSession, reportId: string
   });
 
   return toReportDto(updated as ReportRecord);
+}
+
+function daysFromNow(days: number): Date {
+  return new Date(Date.now() + days * 24 * 60 * 60 * 1000);
 }
 
 export async function listReportsForClient(session: AppSession, clientId: string) {
@@ -338,7 +412,6 @@ export async function listReportsForClient(session: AppSession, clientId: string
 
   return records.map((record) => toReportDto(record as ReportRecord));
 }
-
 export async function createReportFromInterview(
   session: AppSession,
   clientId: string,

@@ -43,6 +43,7 @@
     "bff:dashboard-qa": "node scripts/bff-dashboard-qa.mjs",
     "bff:org-aggregate-qa": "node scripts/bff-org-aggregate-qa.mjs",
     "bff:org-writes-qa": "node scripts/bff-org-writes-qa.mjs",
+    "bff:client-portal-qa": "node scripts/bff-client-portal-qa.mjs",
     "bff:reports-qa": "node scripts/bff-reports-qa.mjs",
     "bff:visit-report-ai-qa": "node scripts/bff-visit-report-ai-qa.mjs",
     "bff:issues-qa": "node scripts/bff-issues-qa.mjs",

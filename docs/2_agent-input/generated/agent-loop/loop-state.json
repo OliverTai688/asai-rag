@@ -71,11 +71,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 3,
+    "normalLoopsSinceLastWholeProductReview": 4,
     "lastWholeProductReviewAt": "2026-06-21",
     "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-21_lv3-whole-product-gap-review-bff-204-theater-rag-hardening.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "BFF-302a org writes audit and capability enforcement completed on 2026-06-21. Next normal implementation slice: `BFF-303 client portal BFF completion`, because org read/write BFF gates are now covered and the next launch-relevant gap is client-facing token lifecycle, bootstrap boundary, response whitelist, revocation/expiry proof, and portal-to-workspace API isolation. Keep scope to client portal/share-token BFF source and proof. Do not enable production writes, public discovery, external registry publication, cross-org agent access, provider-backed RAG retrieval, real notification/email/payment, or stage the untracked AI meeting / notes prototype unless a later loop explicitly selects that slice.",
+    "nextRecommendedImplementationSlice": "BFF-303a client portal token lifecycle and isolation proof completed on 2026-06-21. The cadence counter is now 4, so the next heartbeat should run the scheduled fifth-loop whole-product gap review via `docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md` before choosing another implementation slice. After review, likely candidates are BFF-304 platform BFF completion, BFF-305 public BFF completion, BFF-401 billing checkout disabled/sandbox posture, or BFF-102 member settings hardening depending on whole-product scoring. Do not enable production writes, public discovery, external registry publication, cross-org agent access, provider-backed RAG retrieval, real notification/email/payment, or stage the untracked AI meeting / notes prototype unless a later loop explicitly selects that slice.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {
