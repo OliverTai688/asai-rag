@@ -293,32 +293,59 @@ export async function POST(req: Request) {
       select: { isDemo: true, demoScenario: true, demoSeedVersion: true },
     });
 
-    const unit = await prisma.organizationUnit.create({
-      data: {
-        organizationId: session.organization.id,
-        parentId: parent?.id ?? null,
-        type: input.type,
-        name: input.name,
-        slug,
-        brandColor: input.brandColor ?? null,
-        logoUrl: input.logoUrl ?? null,
-        isDemo: organization?.isDemo ?? false,
-        demoScenario: organization?.isDemo ? organization.demoScenario : null,
-        demoSeedVersion: organization?.isDemo ? organization.demoSeedVersion : null,
-        settings: input.reason ? { createdReason: input.reason } : undefined,
-      },
-      select: {
-        id: true,
-        parentId: true,
-        type: true,
-        name: true,
-        slug: true,
-        logoUrl: true,
-        brandColor: true,
-        isActive: true,
-        createdAt: true,
-        updatedAt: true,
-      },
+    const unit = await prisma.$transaction(async (tx) => {
+      const createdUnit = await tx.organizationUnit.create({
+        data: {
+          organizationId: session.organization.id,
+          parentId: parent?.id ?? null,
+          type: input.type,
+          name: input.name,
+          slug,
+          brandColor: input.brandColor ?? null,
+          logoUrl: input.logoUrl ?? null,
+          isDemo: organization?.isDemo ?? false,
+          demoScenario: organization?.isDemo ? organization.demoScenario : null,
+          demoSeedVersion: organization?.isDemo ? organization.demoSeedVersion : null,
+          settings: input.reason ? { createdReason: input.reason } : undefined,
+        },
+        select: {
+          id: true,
+          parentId: true,
+          type: true,
+          name: true,
+          slug: true,
+          logoUrl: true,
+          brandColor: true,
+          isActive: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          organizationId: session.organization.id,
+          actorUserId: session.user.id,
+          action: "SUPPORT_NOTE",
+          sensitivity: "MEDIUM",
+          resourceType: "ORG_UNIT",
+          resourceId: createdUnit.id,
+          reason: input.reason ?? "Org unit created by owner/admin.",
+          metadata: {
+            unitType: input.type,
+            parentUnitId: parent?.id ?? null,
+            parentType: parent?.type ?? null,
+            slug,
+            planUsageBeforeCreate: {
+              activeUnits: planUsage.activeUnits,
+              maxUnits: planUsage.maxUnits,
+              remaining: planUsage.remaining,
+            },
+          },
+        },
+      });
+
+      return createdUnit;
     });
 
     return Response.json({ unit: toUnitDto(unit), planUsage: await getPlanUsage(session) }, { status: 201 });

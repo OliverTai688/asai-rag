@@ -43,7 +43,7 @@
 | BFF-204 | Theater AI hardening | [x] | BFF-201 |
 | BFF-205 | Assistant/RAG/interview hardening | [x] | BFF-201 |
 | BFF-301 | Org BFF repository extraction and aggregate QA | [x] | BFF-002 |
-| BFF-302 | Org writes audit and capability enforcement | [ ] | BFF-301 |
+| BFF-302 | Org writes audit and capability enforcement | [x] | BFF-301 |
 | BFF-303 | Client portal BFF completion | [ ] | BFF-002 |
 | BFF-304 | Platform BFF completion | [ ] | BFF-002 |
 | BFF-305 | Public BFF completion | [ ] | BFF-002 |
@@ -343,12 +343,14 @@ Whole-product review fallback note（2026-06-21）：若 BFF-204a 被 env/sessio
 
 目標：讓 org members/units/invites/settings writes 都有 plan capability 與 audit。
 
-- [ ] Members/invites 套 max members/collaborators/seat limits。
-- [ ] Units 套 max units 與 hierarchy validation。
-- [ ] Settings writes 寫 `AuditLog`，保留 actor/resource/reason。
-- [ ] Manager read-only 或 limited-write policy 清楚。
-- [ ] API proof 覆蓋 forbidden、limit exceeded、audit created。
-- [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+- [x] Members/invites 套 max members/collaborators/seat limits。
+- [x] Units 套 max units 與 hierarchy validation。
+- [x] Settings writes 寫 `AuditLog`，保留 actor/resource/reason。
+- [x] Manager read-only 或 limited-write policy 清楚。
+- [x] API proof 覆蓋 forbidden、limit exceeded、audit created。
+- [x] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+
+完成註記（2026-06-21）：已完成 BFF-302。`/api/org/units` 成功建立 unit 時改為 transaction 內同步寫 `AuditLog(resourceType=ORG_UNIT)`，metadata 僅含 unit type、parent、slug 與 plan usage snapshot，不保存私人客戶細節。新增 `pnpm bff:org-writes-qa`，proof 覆蓋 owner members/units/settings/invites 讀寫邊界、unscoped manager 對 org aggregate/settings/units/invites 403、unit max limit 403 且 no create、settings patch 產生 `ORG_SETTINGS` audit、invite create 產生 `ORG_INVITE` audit、collaborator cap 403 且 no membership increase、response 無 client/private sentinel，並串跑 `pnpm nav:route-guard-qa`。此卡未呼叫 provider、不改 Prisma schema；DB proof 僅新增/更新可辨識 demo/test org settings 與 invite evidence。
 
 ---
 

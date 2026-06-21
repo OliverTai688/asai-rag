@@ -83,6 +83,7 @@ try {
   push(managerPost.body?.error === "ORG_UNITS_WRITE_FORBIDDEN", "Manager POST returns role guard error", managerPost.body?.error ?? "missing");
 
   const beforeOwnerPostCount = await countUnits(org.id);
+  const beforeOrgUnitAuditCount = await countOrgUnitAudit(org.id);
   const ownerPost = await request("POST", "/api/org/units", demoOwnerEmail, {
     type: "BRANCH",
     name: "Demo QA Max Units Branch",
@@ -91,6 +92,7 @@ try {
     reason: "qa maxUnits guard proof",
   });
   const afterOwnerPostCount = await countUnits(org.id);
+  const afterOrgUnitAuditCount = await countOrgUnitAudit(org.id);
 
   if (dbPlanUsage.activeUnits >= dbPlanUsage.maxUnits) {
     push(ownerPost.status === 403, "Owner POST /api/org/units respects maxUnits", `status=${ownerPost.status}`);
@@ -99,6 +101,11 @@ try {
   } else {
     push(ownerPost.status === 201, "Owner POST /api/org/units creates a unit when below maxUnits", `status=${ownerPost.status}`);
     push(afterOwnerPostCount === beforeOwnerPostCount + 1, "Owner POST increments unit count when allowed", `${beforeOwnerPostCount}->${afterOwnerPostCount}`);
+    push(
+      afterOrgUnitAuditCount > beforeOrgUnitAuditCount,
+      "Owner POST /api/org/units writes AuditLog when unit is created",
+      `${beforeOrgUnitAuditCount}->${afterOrgUnitAuditCount}`,
+    );
   }
 
   console.log(
@@ -119,6 +126,7 @@ try {
           managerPost: { status: managerPost.status, error: managerPost.body?.error },
           ownerPost: { status: ownerPost.status, error: ownerPost.body?.error ?? null },
         },
+        orgUnitAuditCount: { before: beforeOrgUnitAuditCount, after: afterOrgUnitAuditCount },
         forbiddenSentinelsChecked: forbidden.length,
       },
       null,
@@ -250,6 +258,17 @@ async function countUnits(organizationId) {
     `SELECT COUNT(*)::int AS count
      FROM organization_units
      WHERE organization_id = $1 AND is_active = true`,
+    [organizationId],
+  );
+
+  return Number(result.rows[0]?.count ?? 0);
+}
+
+async function countOrgUnitAudit(organizationId) {
+  const result = await db.query(
+    `SELECT COUNT(*)::int AS count
+     FROM audit_logs
+     WHERE organization_id = $1 AND resource_type = 'ORG_UNIT'`,
     [organizationId],
   );
 
