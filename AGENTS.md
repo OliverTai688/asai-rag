@@ -1306,16 +1306,18 @@ Whole-product review 註記（2026-06-20）：`AUD-005` 已證明 `/api/ai/spin`
 完成註記（2026-06-20）：已完成 BFF-203a SPIN source-truth hardening。新增 persisted SPIN session BFF：`GET/POST /api/spin/sessions`、`GET/PATCH /api/spin/sessions/[sessionId]`、`POST /messages`、`POST /outline`，正式 `/spin` list/create 與 `/spin/[sessionId]` detail/outline 改讀寫 `spin_sessions` / `spin_messages`；Quickstart demo seed 保留但不作正式 proof。`PATCH` server-side 保護階段只能同階、往下一階或完成，維持 `SITUATION → PROBLEM → IMPLICATION → NEED_PAYOFF` 狀態機。`/spin/[sessionId]` 不再呼叫 `/api/mock/ai/spin-outline`；正式 outline 走 deterministic domain helper，response 帶 no-provider proof，不需 `AiUsageLog`。Proof：`pnpm spin:source-truth-qa` 通過 unauth 401、member create/read/write/outline、manager foreign 404、non-sequential jump 409、raw sentinel 0；Browser proof 以 dev member one-click login 開啟 completed BFF session，生成訪談大綱 sheet 含 QA stamp、console error 0、無水平 overflow；`pnpm ai:bff-audit` 仍通過。
 
 ### Batch BFF-204 — Theater AI hardening
-- [ ] `/api/ai/theater` 與 `/api/ai/theater/score` session-scoped。
-- [ ] Success/error path 都寫 `AiUsageLog`；quota/capability guard 完整。
-- [ ] Legacy Theater 若未 Route B migration，維持 staging/demo gate，不宣稱 production-ready。
-- [ ] 不改 legacy enum/scoring 型別；Route B migration 另依 ITA。
-- [ ] API/browser proof 覆蓋 theater list/session basic flow。
-- [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+- [x] `/api/ai/theater` 與 `/api/ai/theater/score` session-scoped。
+- [x] Success/error path 都寫 `AiUsageLog`；quota/capability guard 完整。
+- [x] Legacy Theater 若未 Route B migration，維持 staging/demo gate，不宣稱 production-ready。
+- [x] 不改 legacy enum/scoring 型別；Route B migration 另依 ITA。
+- [x] API/browser proof 覆蓋 theater list/session basic flow。
+- [x] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
 
 Quiet gap-research note（2026-06-21）：下一輪若選 BFF-204，優先切 `BFF-204a legacy theater launch gate and guarded Route B boundary proof`。驗收要用 `/theater` list/session、`/api/ai/theater`/score audit、Route B guarded runtime/interactions 與 no-provider `AiUsageLog` unchanged proof，明確保留 staging/demo gate，不改 legacy enum/scoring，不宣稱 Route B live multi-character provider ready。
 
 Whole-product review note（2026-06-21 after NAP-005 / BFF-204-205 gap research）：第五輪校準確認 cross-flow no-provider proof、NAP source adoption 與 local-only adapter/export dry-run 已完成；下一個最高槓桿 implementation slice 是 `BFF-204a legacy theater launch gate and guarded Route B boundary proof`。原因：劇場仍是「準備包 -> 演練舞台」最容易被誤宣稱 live-ready 的核心表面，需用 `/theater` UI、legacy AI routes、Route B guarded runtime、no-provider `AiUsageLog` unchanged 與 staging/demo gate 證明邊界。若 Theater proof 被 env/session 阻擋，fallback 為 `BFF-205a RAG guarded-disabled + assistant/interview persistence hygiene proof`；既有未追蹤 AI meeting / notes prototype 不屬 committed baseline，不得在未選 AMM slice 前 stage 或宣稱已完成。
+
+完成註記（2026-06-21 BFF-204a）：已完成 Theater launch-boundary proof。新增 `pnpm theater:launch-boundary-qa`，聚合 static gate 檢查、`/theater` desktop/mobile browser proof、`pnpm ai:bff-audit`、`pnpm ai:protocol-registry-qa`、`pnpm theater:route-b-runtime-qa`、`pnpm theater:route-b-session-ui-qa`、`pnpm theater:route-b-interaction-qa`。證據顯示 legacy `/api/ai/theater` 與 `/api/ai/theater/score` 保留 session/quota/success-error usage contract 與 production staging/demo gate；Route B runtime/session/interaction 維持 provider guarded-disabled、`providerCallAttempted=false`、`aiUsageLogWritten=false`、THEATER `AiUsageLog` count unchanged（10 → 10）、角色狀態 proposal 不寫 confirmed CRM fact。未宣稱 Route B live multi-character provider ready；live provider/five-view feedback 與 external registry/public discovery 仍屬後續 approval blocker。
 
 ### Batch BFF-205 — Assistant / RAG / interview hardening
 - [ ] `/api/ai/chat`、`/api/ai/interview`、`/api/ai/interview/outputs` audit gap = 0。

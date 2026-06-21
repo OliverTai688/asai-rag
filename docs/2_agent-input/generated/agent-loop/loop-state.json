@@ -71,11 +71,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 0,
+    "normalLoopsSinceLastWholeProductReview": 1,
     "lastWholeProductReviewAt": "2026-06-21",
     "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-21_lv3-whole-product-gap-review-bff-204-theater-rag-hardening.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "Whole-product review completed on 2026-06-21. Next normal implementation slice: `BFF-204a legacy theater launch gate and guarded Route B boundary proof`. It should prove `/theater` list/session basic flow, `/api/ai/theater` and score audit posture, Route B guarded runtime/interactions, staging/demo gate clarity, and no-provider `AiUsageLog` unchanged, without changing legacy enum/scoring or claiming Route B live multi-character provider readiness. Secondary fallback: `BFF-205a RAG guarded-disabled + assistant/interview persistence hygiene proof`. Untracked AI meeting / notes prototype remains outside committed baseline unless a later loop explicitly selects AMM/quick-capture workspace.",
+    "nextRecommendedImplementationSlice": "BFF-204a theater launch-boundary proof completed on 2026-06-21. Next normal implementation slice: `BFF-205a RAG guarded-disabled + assistant/interview persistence hygiene proof`. It should prove `/api/rag` disabled_guarded posture (503, providerAttempted=false, RAG AiUsageLog unchanged), Assistant/Interview persistence DTO hygiene, fact/inference/unknown/evidence boundaries, and no fake usage. Do not enable provider-backed retrieval, external registry publication, public discovery, cross-org agent access, or stage the untracked AI meeting / notes prototype unless a later loop explicitly selects AMM/quick-capture workspace.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {
