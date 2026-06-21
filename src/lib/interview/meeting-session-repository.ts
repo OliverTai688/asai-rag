@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { Prisma } from "@/generated/prisma/client";
 import type {
   AppendInterviewTurnInput,
   InterviewMemoryDto,
@@ -120,6 +121,49 @@ export async function createMeetingSessionForMember(
   return getMeetingSessionSnapshotForMember(session, meetingSession.id);
 }
 
+export async function findLatestMeetingSessionForMember(
+  session: AppSession,
+  input: CreateMeetingSessionInput,
+): Promise<MeetingSessionSnapshotDto | null> {
+  const scope = await resolveMeetingCaptureScope(session, input);
+
+  if (!scope) {
+    return null;
+  }
+
+  const recentSessions = await prisma.interviewSession.findMany({
+    where: {
+      organizationId: session.organization.id,
+      ownerId: session.user.id,
+      interviewKind: "CLIENT_MEETING",
+      status: "ACTIVE",
+      ...(scope.clientId ? { clientId: scope.clientId } : { clientId: null }),
+    },
+    orderBy: { updatedAt: "desc" },
+    take: 25,
+    select: {
+      id: true,
+      metadata: true,
+    },
+  });
+
+  const matchingSession = recentSessions.find((record) => {
+    const metadataVisitPlanId = readMetadataVisitPlanId(record.metadata);
+
+    if (scope.visitPlanId) {
+      return metadataVisitPlanId === scope.visitPlanId;
+    }
+
+    return metadataVisitPlanId === null;
+  });
+
+  if (!matchingSession) {
+    return null;
+  }
+
+  return getMeetingSessionSnapshotForMember(session, matchingSession.id);
+}
+
 export async function getMeetingSessionSnapshotForMember(
   session: AppSession,
   sessionId: string,
@@ -228,6 +272,15 @@ function buildMeetingMemoryRail(memories: InterviewMemoryDto[]): MeetingMemoryRa
     memberPrivate: memories.filter((memory) => memory.visibilityScope === "MEMBER_PRIVATE").length,
     clientLinked: memories.filter((memory) => Boolean(memory.clientId)).length,
   };
+}
+
+function readMetadataVisitPlanId(value: Prisma.JsonValue | null): string | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+
+  const visitPlanId = value.visitPlanId;
+  return typeof visitPlanId === "string" && visitPlanId.trim() ? visitPlanId : null;
 }
 
 function scanMeetingPayload(value: unknown, path: string, violations: Set<string>) {

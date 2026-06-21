@@ -105,11 +105,13 @@ Whole-product review note（2026-06-21 after AMM-003a）：第五輪校準確認
 Whole-product review note（2026-06-21 after AMM-008）：AMM 已具備跨狀態 source/browser/API/DB/provider proof，但拜訪後整理仍分裂為 legacy `/pre-visit/[planId]/notes` / `postVisitNotes` 與正式 `CLIENT_MEETING` workspace。下一輪不得只補文件或 proof-plan；應以 `AMM-005c` 修改 source，讓 notes route、manual notes、quick-capture、meeting summary、writeback confirmation 與 legacy post-visit notes 有同頁相容路徑並能重跑 proof。
 
 ## Batch AMM-005c — Notes / postVisitNotes compatibility bridge
-- [ ] `/pre-visit/[planId]/notes` 保留 BFF-owned `postVisitNotes` / `postVisitAnalysis` read-write-reload，同頁提供進入或內嵌同一 owner-scoped `CLIENT_MEETING` workspace 的路徑，不要求 raw session ID。
-- [ ] 手動拜訪筆記、quick-capture 結果與 meeting turns/summary 明確分層：raw note 不成 raw transcript，不保存 raw provider payload，inference / unknown 不升格 confirmed CRM fact。
-- [ ] 顯示 latest `InterviewMeetingSummary`、writeback confirmation 狀態與 legacy notes saved state；refresh/new browser context 後可同時看見 `postVisitNotes` 與 meeting summary / memory evidence。
+- [x] `/pre-visit/[planId]/notes` 保留 BFF-owned `postVisitNotes` / `postVisitAnalysis` read-write-reload，同頁提供進入或內嵌同一 owner-scoped `CLIENT_MEETING` workspace 的路徑，不要求 raw session ID。
+- [x] 手動拜訪筆記、quick-capture 結果與 meeting turns/summary 明確分層：raw note 不成 raw transcript，不保存 raw provider payload，inference / unknown 不升格 confirmed CRM fact。
+- [x] 顯示 latest `InterviewMeetingSummary`、writeback confirmation 狀態與 legacy notes saved state；refresh/new browser context 後可同時看見 `postVisitNotes` 與 meeting summary / memory evidence。
 - [ ] Browser/API/DB proof 覆蓋 owner success、manager/foreign denial、raw private/provider sentinel blocked、`AiUsageLog` no-provider unchanged 或 provider path success/error log、desktop/mobile no overflow、console error 0。
-- [ ] 新增可重跑 proof command（建議 `pnpm meeting:notes-compat-qa`）；跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+- [x] 新增可重跑 proof command（建議 `pnpm meeting:notes-compat-qa`）；跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+
+進度註記：2026-06-21 AMM-005c source bridge 已完成；`/pre-visit/[planId]/notes` 嵌入正式 `MeetingWorkspace`，以 `GET /api/ai/meeting/sessions?visitPlanId=` 找回 owner-scoped latest `CLIENT_MEETING`，並保留 legacy `postVisitNotes` save/read path、quick-capture boundary、latest summary/writeback UI。`pnpm meeting:notes-compat-qa` 已新增但本輪 local DB/browser proof 被 `.env` Supabase host `db.wwocdcicvpmbdmqvskzi.supabase.co` DNS `ENOTFOUND` 阻擋；proof checkbox 保持未完成，待 DB 可解析後重跑。
 
 ## Batch AMM-006 — 寫回邊界（行動項 / CRM）
 - [x] 沿用 `src/domains/interview/writeback-boundary.ts`：行動項 → follow-up task、confirmed fact → CRM candidate、inference → insight、unknown → follow-up。

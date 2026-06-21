@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
+import { MeetingWorkspace } from "@/components/meeting/meeting-workspace";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -150,6 +151,7 @@ export default function PostVisitNotesPage() {
   const plan = useVisitStore((state) => state.plans.find((p) => p.id === planId));
   const client = useClientStore((state) => state.clients.find((c) => c.id === plan?.clientId));
   const isQuickstart = searchParams.get("demo") === "quickstart";
+  const initialMeetingSessionId = searchParams.get("sessionId") ?? undefined;
   const [isLoadingPlan, setIsLoadingPlan] = useState(!isQuickstart);
   const [planLoadError, setPlanLoadError] = useState<string | null>(null);
 
@@ -208,6 +210,7 @@ export default function PostVisitNotesPage() {
     <PostVisitNotesWorkspace
       key={plan.id}
       client={client}
+      initialMeetingSessionId={initialMeetingSessionId}
       isQuickstart={isQuickstart}
       plan={plan}
       updatePlan={updatePlan}
@@ -217,11 +220,13 @@ export default function PostVisitNotesPage() {
 
 function PostVisitNotesWorkspace({
   client,
+  initialMeetingSessionId,
   isQuickstart,
   plan,
   updatePlan,
 }: {
   client: Client;
+  initialMeetingSessionId?: string;
   isQuickstart: boolean;
   plan: VisitPlan;
   updatePlan: (id: string, updates: Partial<VisitPlan>) => void;
@@ -344,7 +349,14 @@ function PostVisitNotesWorkspace({
             先收斂摘要與下一步，再補完整觀察。需要交給 AI 記憶時，只選歸屬與確認邊界，不輸入 raw ID。
           </p>
         </div>
-        <Button type="button" variant="mono" className="h-10 rounded-full" onClick={handleSave} disabled={isSaving}>
+        <Button
+          type="button"
+          variant="mono"
+          className="h-10 rounded-full"
+          onClick={handleSave}
+          disabled={isSaving}
+          data-testid="post-visit-notes-save"
+        >
           <Save className="mr-2 h-4 w-4" />
           儲存筆記
         </Button>
@@ -382,6 +394,7 @@ function PostVisitNotesWorkspace({
               <span className="text-xs tabular-nums text-muted-foreground">{notes.length} 字</span>
             </div>
             <Textarea
+              data-testid="post-visit-notes-textarea"
               value={notes}
               onChange={(event) => setNotes(event.target.value)}
               placeholder={`摘要：\n客戶反應：\n下一步跟進：`}
@@ -401,6 +414,12 @@ function PostVisitNotesWorkspace({
               <p className="mt-3 text-sm leading-6 text-muted-foreground">
                 從這份筆記建立安全的 memory candidate。系統會用目前工作區推導客戶與拜訪，不需要手填 ID。
               </p>
+              <div
+                data-testid="post-visit-notes-saved-state"
+                className="mt-3 rounded-lg border border-hairline bg-paper px-3 py-2 text-xs leading-5 text-muted-foreground"
+              >
+                legacy postVisitNotes：{notes.trim() ? "已在此頁編輯，可儲存後刷新讀回" : "尚未填寫"}
+              </div>
 
               <fieldset className="mt-4 space-y-2" aria-label="筆記歸屬">
                 {CAPTURE_ASSIGNMENTS.map((option) => (
@@ -515,6 +534,30 @@ function PostVisitNotesWorkspace({
           </Card>
         </aside>
       </main>
+
+      <section
+        data-testid="notes-meeting-bridge"
+        className="border-t border-hairline pt-6"
+      >
+        <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <Badge variant="secondary">CLIENT_MEETING</Badge>
+            <h2 className="mt-3 text-2xl font-semibold tracking-tight text-ink">AI 會議工作台</h2>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+              同一頁保留原本拜訪後筆記，同時接回這份準備包的會議 session、摘要與寫回確認。手動筆記只保存處理後文字，不保存 raw transcript 或 raw provider payload。
+            </p>
+          </div>
+          <Badge variant="outline">不需要手填 session ID</Badge>
+        </div>
+        <MeetingWorkspace
+          planId={plan.id}
+          initialSessionId={initialMeetingSessionId}
+          initialNoteDraft={notes}
+          preferExistingSession
+          backHref={`/pre-visit/${plan.id}/notes${isQuickstart ? "?demo=quickstart" : ""}`}
+          backLabel="回拜訪後筆記"
+        />
+      </section>
     </div>
   );
 }

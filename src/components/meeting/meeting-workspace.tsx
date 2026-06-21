@@ -40,6 +40,8 @@ interface MeetingWorkspaceProps {
   planId?: string;
   clientId?: string;
   initialSessionId?: string;
+  initialNoteDraft?: string;
+  preferExistingSession?: boolean;
   backHref: string;
   backLabel?: string;
 }
@@ -147,6 +149,16 @@ type MeetingSummaryReadResponse =
       safety: MeetingSafetyDto;
     };
 
+type MeetingSessionLatestResponse =
+  | {
+      status: "found";
+      snapshot: MeetingSessionSnapshotDto;
+    }
+  | {
+      status: "empty";
+      safety: MeetingSafetyDto;
+    };
+
 interface MeetingSummaryWriteResponse {
   status: "created" | "updated";
   summary: PersistedMeetingSummaryDto;
@@ -248,15 +260,28 @@ const requestHeaders = {
   "content-type": "application/json",
 };
 
+function normalizeInitialNoteDraft(value?: string): string | null {
+  const trimmed = value?.trim();
+  if (!trimmed) return null;
+
+  return trimmed.length > 800 ? `${trimmed.slice(0, 800)}...` : trimmed;
+}
+
 export function MeetingWorkspace({
   planId,
   clientId,
   initialSessionId,
+  initialNoteDraft,
+  preferExistingSession = false,
   backHref,
   backLabel,
 }: MeetingWorkspaceProps) {
   const router = useRouter();
   const pathname = usePathname();
+  const normalizedInitialNoteDraft = useMemo(
+    () => normalizeInitialNoteDraft(initialNoteDraft),
+    [initialNoteDraft],
+  );
   const [bootstrapState, setBootstrapState] = useState<BootstrapState>("loading");
   const [requestState, setRequestState] = useState<RequestState>("idle");
   const [snapshot, setSnapshot] = useState<MeetingSessionSnapshotDto | null>(null);
@@ -267,7 +292,8 @@ export function MeetingWorkspace({
   const [writebackApprovals, setWritebackApprovals] = useState<Record<string, CandidateApprovalState>>({});
   const [writebackState, setWritebackState] = useState<WritebackState>("idle");
   const [writebackError, setWritebackError] = useState<string | null>(null);
-  const [noteDraft, setNoteDraft] = useState(DEFAULT_NOTE);
+  const [editedNoteDraft, setEditedNoteDraft] = useState(DEFAULT_NOTE);
+  const [hasTouchedNoteDraft, setHasTouchedNoteDraft] = useState(false);
   const [finalTranscriptDraft, setFinalTranscriptDraft] = useState(DEFAULT_FINAL_TRANSCRIPT);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [lastAction, setLastAction] = useState("正在連接會議工作台");
@@ -287,6 +313,9 @@ export function MeetingWorkspace({
     () => snapshot?.turns.filter((turn) => turn.transcriptFinal).length ?? 0,
     [snapshot?.turns],
   );
+  const noteDraft = hasTouchedNoteDraft
+    ? editedNoteDraft
+    : normalizedInitialNoteDraft ?? DEFAULT_NOTE;
 
   const resetWritebacks = useCallback(() => {
     setWritebackPreview(null);
@@ -371,15 +400,37 @@ export function MeetingWorkspace({
       setErrorMessage(null);
 
       try {
-        const nextSnapshot = initialSessionId
-          ? await readMeetingSession(initialSessionId, controller.signal)
-          : await createMeetingSession({ planId, clientId }, controller.signal);
+        let sessionAction: "read" | "reused" | "created" = "read";
+        let nextSnapshot: MeetingSessionSnapshotDto;
+
+        if (initialSessionId) {
+          nextSnapshot = await readMeetingSession(initialSessionId, controller.signal);
+        } else if (preferExistingSession) {
+          const latestSnapshot = await readLatestMeetingSession({ planId, clientId }, controller.signal);
+
+          if (latestSnapshot) {
+            nextSnapshot = latestSnapshot;
+            sessionAction = "reused";
+          } else {
+            nextSnapshot = await createMeetingSession({ planId, clientId }, controller.signal);
+            sessionAction = "created";
+          }
+        } else {
+          nextSnapshot = await createMeetingSession({ planId, clientId }, controller.signal);
+          sessionAction = "created";
+        }
 
         if (cancelled) return;
 
         setSnapshot(nextSnapshot);
         setBootstrapState("ready");
-        setLastAction(initialSessionId ? "已讀回既有會議" : "已建立新的會議 session");
+        setLastAction(
+          sessionAction === "read"
+            ? "已讀回既有會議"
+            : sessionAction === "reused"
+              ? "已接回這份準備包的既有會議"
+              : "已建立新的會議 session",
+        );
 
         if (!initialSessionId) {
           updateSessionUrl(nextSnapshot.session.id);
@@ -399,7 +450,12 @@ export function MeetingWorkspace({
       cancelled = true;
       controller.abort();
     };
-  }, [clientId, initialSessionId, loadSummary, planId, updateSessionUrl]);
+  }, [clientId, initialSessionId, loadSummary, planId, preferExistingSession, updateSessionUrl]);
+
+  const handleNoteDraftChange = useCallback((value: string) => {
+    setHasTouchedNoteDraft(true);
+    setEditedNoteDraft(value);
+  }, []);
 
   const handleAppendTurn = useCallback(
     async (source: TurnSource) => {
@@ -418,7 +474,10 @@ export function MeetingWorkspace({
         await appendMeetingTurn(snapshot.session.id, source, content);
         const nextSnapshot = await refreshSnapshot(snapshot.session.id);
         setLastAction(source === "MANUAL_NOTE" ? "已加入手動筆記" : "已加入 final transcript");
-        if (source === "MANUAL_NOTE") setNoteDraft("");
+        if (source === "MANUAL_NOTE") {
+          setHasTouchedNoteDraft(true);
+          setEditedNoteDraft("");
+        }
         if (source === "VOICE_FINAL_TRANSCRIPT") setFinalTranscriptDraft("");
         if (summary && nextSnapshot.turns.length > turnCount) {
           setSummary(null);
@@ -638,7 +697,7 @@ export function MeetingWorkspace({
               placeholder="輸入這場會議的手動筆記..."
               disabled={!canSubmit}
               buttonLabel="加入筆記"
-              onChange={setNoteDraft}
+              onChange={handleNoteDraftChange}
               onSubmit={() => handleAppendTurn("MANUAL_NOTE")}
               isBusy={requestState === "saving"}
               testId="meeting-note-input"
@@ -1274,6 +1333,31 @@ async function createMeetingSession(
   });
 
   return readRequiredJson<MeetingSessionSnapshotDto>(response, "MEETING_SESSION_CREATE_FAILED");
+}
+
+async function readLatestMeetingSession(
+  scope: { planId?: string; clientId?: string },
+  signal?: AbortSignal,
+): Promise<MeetingSessionSnapshotDto | null> {
+  const params = new URLSearchParams();
+  if (scope.planId) params.set("visitPlanId", scope.planId);
+  if (scope.clientId) params.set("clientId", scope.clientId);
+
+  if (!params.toString()) {
+    return null;
+  }
+
+  const response = await fetch(`/api/ai/meeting/sessions?${params.toString()}`, {
+    method: "GET",
+    signal,
+  });
+
+  const body = await readRequiredJson<MeetingSessionLatestResponse>(
+    response,
+    "MEETING_SESSION_LOOKUP_FAILED",
+  );
+
+  return body.status === "found" ? body.snapshot : null;
 }
 
 async function readMeetingSession(sessionId: string, signal?: AbortSignal): Promise<MeetingSessionSnapshotDto> {
