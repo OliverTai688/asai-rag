@@ -1459,7 +1459,7 @@ Context: 參考 Notion AI Meeting，做一個**全站 AI 會議模組**：即時
 - 拜訪後筆記只是 `VisitPlan.postVisitNotes` 純文字，無 transcript / 結構化摘要 / 行動項 / citation / 跨會議記憶。
 - `interview` domain 已有 Park-memory + realtime voice + persistence，但綁在 `/interview`，未成為全站「會議」物件。
 - `retrieveInterviewMemories()` 為 session-scoped；缺 client-scoped 跨 session 檢索與會議/客戶對答 route。
-- 缺 `MeetingSummary` / `MeetingCitation` 契約與全站入口（dashboard / CRM client detail / 訪前規劃）。
+- 已有 `MeetingSummary` / `MeetingCitation` no-provider 契約骨架與 dry-run proof；仍缺正式 persistence schema、BFF/session route 與全站入口（dashboard / CRM client detail / 訪前規劃）。
 
 ### Batch AMM-000 — 文件與 workstream 登錄
 - [x] 新增 `RES-023`、`ARC-010`、`PLN-023`、`ACC-015`。
@@ -1476,6 +1476,15 @@ Context: 參考 Notion AI Meeting，做一個**全站 AI 會議模組**：即時
 - [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`；動 schema 才跑 Prisma。
 
 Whole-product review note（2026-06-21 after BFF-401a）：第五輪 LV3 校準確認 billing/public/platform release gates 已大幅收斂，下一個最高槓桿核心產品缺口轉為 AI Meeting / notes prototype 尚未成為 committed baseline。下一輪建議先做 `AMM-001a formal meeting contract + no-provider summary skeleton proof`：只採用必要 source，新增/驗證 `MeetingSummary`、`MeetingCitation`、action item / participant types 與 transcript/manual-note → summary skeleton mapping helper，補 dry-run script 證明 citation 不幻覺、unknown 不升格 fact、no provider / no DB write / no raw audio / no raw private transcript。不要在同輪順手 stage 既有未追蹤 meeting UI prototype；若需要採用 prototype，必須在 AMM-owned source/proof slice 中完整驗收。BFF-402 仍是 release-hardening 次順位，Route B live provider proof 仍需 provider env 與 success/error `AiUsageLog`。
+
+### Batch AMM-001a — Formal meeting contract + no-provider summary skeleton proof
+- [x] 新增 `MeetingSummary` / `MeetingCitation` / `MeetingActionItem` / `MeetingParticipant` pure contract（`src/domains/interview/meeting.ts`），不碰 Prisma/schema。
+- [x] 新增 deterministic `buildMeetingSummarySkeleton()`：只從既有 transcript/manual-note turns 產生 cited decisions/action items/open questions，unknown 不升格 fact。
+- [x] 新增 `assertMeetingSummarySkeletonSafety()` 與 `pnpm meeting:contract-dry-run`，驗證 citation turn ids、no provider、no DB write、no audio binary storage、no private transcript storage、no confirmed CRM fact write。
+- [x] 更新 `asai.meeting.prototype` internal manifest 為 AMM-001a planned contract，保留 internal-only / no external registry posture，並標明 BFF/session/persistence 仍 blocked。
+- [x] 跑 `pnpm meeting:contract-dry-run`、`pnpm ai:protocol-registry-qa`、`pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+
+完成註記（2026-06-21 AMM-001a）：本切片只採用 `src/domains/interview/meeting.ts` 作為 mainline source；未 stage 既有未追蹤 meeting UI / notes UI / note domain prototype。AMM-001 尚未全完成，因為 `CLIENT_MEETING` schema、summary persistence 與 BFF/session route 尚待後續 slice。
 
 ### Batch AMM-002 — 捕捉層重用
 - [ ] `POST /api/ai/meeting/sessions`、`GET /api/ai/meeting/sessions/[id]`、`POST .../turns`（手動/文字/語音 final transcript）；語音沿用既有 interview realtime/transcribe；raw audio 不存。

@@ -83,11 +83,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 0,
+    "normalLoopsSinceLastWholeProductReview": 1,
     "lastWholeProductReviewAt": "2026-06-21T03:29:06Z",
     "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-21_lv3-whole-product-gap-review-after-billing-gate.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "Scheduled fifth-loop whole-product review after BFF-401a selected `AMM-001a formal meeting contract + no-provider summary skeleton proof` as the next normal source-backed slice. Implement or validate MeetingSummary/MeetingCitation/action item/participant pure types and a transcript/manual-note -> summary skeleton helper, add an executable dry-run proof that citations only reference existing turns/memories, unknowns do not become facts, no provider is attempted, no DB write occurs, no raw audio/private transcript/provider payload is persisted, and existing untracked meeting/notes prototype files are not staged unless the loop explicitly adopts and validates the whole AMM-owned scope. BFF-402 billing notification/query/idempotency remains the release-hardening fallback; Route B live provider proof remains gated by provider env plus success/error AiUsageLog evidence.",
+    "nextRecommendedImplementationSlice": "AMM-001a is now implemented as a source-backed no-provider meeting summary contract proof. Next recommended normal slice is AMM-001b: decide and implement the minimal additive Meeting persistence/session contract, preferably `InterviewKind.CLIENT_MEETING` plus an `InterviewMeetingSummary` or explicitly documented metadata fallback, with Prisma validate/generate and no destructive DB operation. Keep BFF-402 billing notification/query/idempotency as release-hardening fallback if AMM schema scope is blocked. Do not stage existing untracked meeting/notes UI prototype unless the loop explicitly adopts and validates that UI slice.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {

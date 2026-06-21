@@ -31,6 +31,7 @@
     "demo:full-smoke-qa": "node scripts/demo-full-smoke-qa.mjs",
     "demo:ai-generation-qa": "node scripts/demo-ai-generation-qa.mjs",
     "visit:reasoning-dry-run": "node scripts/visit-reasoning-dry-run.mjs",
+    "meeting:contract-dry-run": "node scripts/meeting-contract-dry-run.mjs",
     "visit:theater-handoff-dry-run": "node scripts/visit-theater-handoff-dry-run.mjs",
     "visit:theater-bff-qa": "node scripts/visit-theater-bff-qa.mjs",
     "visit:theater-gate-qa": "node scripts/visit-theater-gate-qa.mjs",
