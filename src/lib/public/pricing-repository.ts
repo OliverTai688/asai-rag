@@ -1,7 +1,9 @@
 import { PLAN_DETAILS } from "@/domains/subscription/plans";
 import { DEFAULT_PLAN_CONFIGS } from "@/domains/subscription/plan-config";
 import type { PlanType } from "@/domains/subscription/types";
+import type { PublicPricingDto, PublicStatusDto } from "@/domains/public/types";
 import { prisma } from "@/lib/prisma";
+import { getPublicStatus } from "./status-repository";
 
 const planOrder: PlanType[] = ["FREE", "STARTER", "PRO", "ENTERPRISE"];
 
@@ -16,37 +18,6 @@ type PublicPlanCapabilityConfig = Pick<
   | "clientPortalEnabled"
 >;
 
-export interface PublicPricingPlanDto {
-  id: PlanType;
-  name: string;
-  price: string;
-  period: string;
-  description: string;
-  features: string[];
-  cta: string;
-  highlighted: boolean;
-  badge?: string;
-  capabilities: {
-    maxMembers: number;
-    maxCollaborators: number;
-    maxUnits: number;
-    monthlyAiQuota: number;
-    shareBrandingEnabled: boolean;
-    clientPortalEnabled: boolean;
-  };
-}
-
-export interface PublicPricingDto {
-  plans: PublicPricingPlanDto[];
-  billing: {
-    provider: "ECPAY";
-    checkoutEnabled: boolean;
-    mode: "test_ready_manual_enable";
-    note: string;
-  };
-  source: "database" | "fallback";
-}
-
 const planMeta: Record<PlanType, { cta: string; highlighted?: boolean; badge?: string }> = {
   FREE: { cta: "免費開始" },
   STARTER: { cta: "選擇 Starter" },
@@ -55,19 +26,22 @@ const planMeta: Record<PlanType, { cta: string; highlighted?: boolean; badge?: s
 };
 
 export async function getPublicPricing(): Promise<PublicPricingDto> {
-  const rows = await prisma.planConfig.findMany({
-    where: { isActive: true },
-    select: {
-      plan: true,
-      displayName: true,
-      maxMembers: true,
-      maxCollaborators: true,
-      maxUnits: true,
-      monthlyAiQuota: true,
-      shareBrandingEnabled: true,
-      clientPortalEnabled: true,
-    },
-  });
+  const [rows, publicStatus] = await Promise.all([
+    prisma.planConfig.findMany({
+      where: { isActive: true },
+      select: {
+        plan: true,
+        displayName: true,
+        maxMembers: true,
+        maxCollaborators: true,
+        maxUnits: true,
+        monthlyAiQuota: true,
+        shareBrandingEnabled: true,
+        clientPortalEnabled: true,
+      },
+    }),
+    getPublicStatus(),
+  ]);
   const byPlan = new Map(rows.map((row) => [row.plan as PlanType, row]));
   const source = rows.length > 0 ? "database" : "fallback";
 
@@ -75,9 +49,15 @@ export async function getPublicPricing(): Promise<PublicPricingDto> {
     source,
     billing: {
       provider: "ECPAY",
-      checkoutEnabled: false,
+      checkoutEnabled: publicStatus.checkoutAvailability.checkoutEnabled,
       mode: "test_ready_manual_enable",
-      note: "綠界付款流程尚未開啟正式收款；正式 checkout 需 server notification/query 驗證後才啟用方案。",
+      note: publicStatus.checkoutAvailability.reason,
+    },
+    availability: {
+      checkoutAvailability: publicStatus.checkoutAvailability,
+      primaryCta: publicStatus.primaryCta,
+      leadCapture: publicStatus.leadCapture,
+      legalStatus: publicStatus.legalStatus,
     },
     plans: planOrder.map((plan) => {
       const detail = PLAN_DETAILS[plan];
@@ -92,7 +72,8 @@ export async function getPublicPricing(): Promise<PublicPricingDto> {
         period: detail.period,
         description: detail.description,
         features: toFeatureList(plan, config),
-        cta: meta.cta,
+        cta: toPlanCta(plan, publicStatus, meta.cta),
+        ctaMode: plan === "ENTERPRISE" ? "enterprise_contact" : publicStatus.primaryCta.mode,
         highlighted: Boolean(meta.highlighted),
         badge: meta.badge,
         capabilities: {
@@ -106,6 +87,12 @@ export async function getPublicPricing(): Promise<PublicPricingDto> {
       };
     }),
   };
+}
+
+function toPlanCta(plan: PlanType, publicStatus: PublicStatusDto, fallbackLabel: string) {
+  if (plan === "ENTERPRISE") return "聯絡導入";
+  if (!publicStatus.primaryCta.checkoutActionEnabled) return publicStatus.primaryCta.label;
+  return fallbackLabel;
 }
 
 function toFeatureList(plan: PlanType, config: PublicPlanCapabilityConfig): string[] {

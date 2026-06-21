@@ -26,13 +26,20 @@
     "allowResearchBackedPrevisitInterfaceRestructure": true,
     "requireNandaAgentFactsProtocolAlignmentForEveryAiModule": true,
     "preferRegistryReadyAiCapabilitiesOverAdHocAiRoutes": true,
-    "avoidDocsOnlyProofWhenSafeSourceWorkExists": true
+    "avoidDocsOnlyProofWhenSafeSourceWorkExists": true,
+    "keepGitPushPaused": true,
+    "doNotStartExternalNandaPublication": true,
+    "liveAiProviderProofApproved": true,
+    "includePublicLeadCaptureInBff305": true,
+    "implementProductionPaymentEmailNotificationExceptManualEnv": true,
+    "includeAiMeetingNotesInFormalWorkstream": true
   },
   "priorityWorkstreams": [
     "PIM: Realtime Voice / Park-style Memory Interview",
     "ITA: Interview x Theater Dual Agent",
     "LCH: Launch Readiness Three AI / DB-backed Client CRUD",
     "BFF: Full-site server-owned data contracts",
+    "AMM: AI Meeting / Notes workspace",
     "NAP: NANDA / AgentFacts protocol alignment and AI registry readiness",
     "MM/AIS/RAS: Minimal UI, AI-first navigation, role-aware surfaces"
   ],
@@ -68,15 +75,19 @@
     {
       "id": "lv3-nanda-agentfacts-protocol-readiness",
       "goal": "Make every ASAI AI module internally describable, capability-declared, least-disclosure, adapter-ready, versioned, and assigned a registry readiness state before any external NANDA or third-party registry publication."
+    },
+    {
+      "id": "lv3-ai-meeting-notes-workspace",
+      "goal": "Promote AI Meeting / notes from prototype into a validated AMM workstream with meeting capture, summary citations, cross-meeting memory, and safe writeback boundaries."
     }
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 2,
+    "normalLoopsSinceLastWholeProductReview": 3,
     "lastWholeProductReviewAt": "2026-06-21",
     "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-21_lv3-whole-product-gap-review-platform-public-bff.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "Completed normal loop 2/4 after the 2026-06-21 whole-product review: `BFF-304a platform session separation + metadata/audit proof` is closed, and the public-facing gap has now been converted into executable AGENTS/PLN/ACC docs. Next normal implementation/proof slice remains `BFF-305a public status and CTA availability proof`. Add a public-safe `/api/public/status` or equivalent BFF contract that reports maintenance, AI availability, checkout availability, public CTA posture, lead capture posture, and legal/privacy status without exposing private plan cost, provider config, secrets, internal billing state, payment data, raw provider payload, or tenant/client data. `/api/public/pricing` and landing/pricing CTA must share the same availability source. Browser/API proof should cover pricing/status/CTA consistency, checkout disabled/sandbox posture, private sentinel 0, and desktop/mobile no overflow. Keep payment checkout disabled/sandbox only; defer `/api/public/lead` unless rate limit, spam protection, consent version, allowlisted persistence, and abuse/failure proof exist. Do not enable real payment/email/notification or production writes.",
+    "nextRecommendedImplementationSlice": "Completed normal loop 3/4 after the 2026-06-21 whole-product review: `BFF-305a public status, CTA, and lead capture availability proof` is closed with the 2026-06-21 operator decision to include lead capture. Public status/pricing/landing/pricing CTA now share a public-safe availability source, `/api/public/lead` has consent version, honeypot spam protection, rate limiting, allowlisted `public_leads` persistence, abuse/failure proof, response private sentinel 0, no production payment/email/notification side effect, and no external registry/public discovery claim. Next normal implementation/proof slice: `BFF-401a checkout disabled/sandbox server-payload proof`. Add or harden a server-owned `/api/billing/checkout` contract that never exposes ECPay HashKey/HashIV or browser-generated CheckMacValue, keeps production payment disabled until env/provider proof, returns disabled 503 or sandbox-only posture as appropriate, and proves unauth 401, invalid plan 400, disabled/sandbox response, no raw payment/provider secret leakage, no real payment, no production write, and no fake subscription activation. BFF-402 notification/query/idempotency remains separate. AMM/notes is now approved for formal adoption as its own future slice.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {
@@ -91,9 +102,11 @@
     "Never break the SPIN SITUATION -> PROBLEM -> IMPLICATION -> NEED_PAYOFF state machine.",
     "Only ITA-003/ITA-006 may perform the approved Theater Route B migration, and it must include migration, rollback/compatibility note, QA, and AiUsageLog.",
     "Every OpenAI/Anthropic provider call must write AiUsageLog or an explicit guarded-disabled/non-provider proof.",
+    "User approved live AI provider proof on 2026-06-21; every provider success/error path must write AiUsageLog and record usage/cost evidence.",
     "Do not hand-edit src/generated.",
     "Do not store raw cookies, secrets, tokens, OTP, raw provider payloads, raw private transcripts, or raw payment data in reports or evidence.",
-    "Do not perform production write, real email, real notification, real payment/refund, destructive DB operation, or remote deletion without explicit approval."
+    "Production/payment/email/notification code implementation is approved as of 2026-06-21, but manual env/provider setup must be recorded in manual-setting.md and destructive DB/remote deletion/refund/void still require separate explicit approval.",
+    "Do not perform external NANDA registry publication, public discovery, credential signing, or cross-org agent access without explicit approval."
   ],
   "validationPolicy": {
     "alwaysRun": [

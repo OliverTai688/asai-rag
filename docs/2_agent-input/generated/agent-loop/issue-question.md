@@ -7,6 +7,12 @@ Last updated: 2026-06-21
 - 2026-06-20 resolved: 使用者要求參考 NuvaClub automation，建立 ASAI 自動化。已定義 ASAI LV3 automation 目標為「架構、體驗、介面、容易操作簡約的沉浸式顧問系統成熟度」，不是自動宣稱 Level 3 public launch ready。
 - 2026-06-20 resolved: ASAI LV3 目標流程定案為：新增客戶 -> 建立關係圖 -> 生成拜訪準備包 -> 檢視問題清單與推論依據 -> 從準備包建立劇場舞台 -> 劇場私聊/群聊/人物狀態更新 -> AI 訪談建立或補強客戶資料、準備包與劇場。
 - 2026-06-20 resolved: 使用者要求「先不用 git push」。後續 ASAI LV3 automation 每輪仍需驗收、stage 與建立本地 commit，但不得 push；report/final 寫明 `push skipped by user instruction`。待使用者明確恢復 push 後再重新開啟。
+- 2026-06-21 resolved: 使用者確認 git push 仍「先不要」，所以本地 commit policy 維持，push 不恢復。
+- 2026-06-21 resolved: 使用者確認 NANDA / AgentFacts 暫時「先不要發布啟動」。Internal manifest、local adapter dry-run、registry readiness review 可繼續；external registry publication、public discovery endpoint、credential signing、cross-org agent access 仍不得啟用。
+- 2026-06-21 resolved: 使用者批准 live AI provider proof。後續可實作 Route B director/character/feedback、Realtime voice 或其他 provider-backed proof，但每次 OpenAI/Anthropic success/error path 都必須寫 `AiUsageLog`，並記錄 usage/cost evidence；未設定 provider env 時仍以 guarded-disabled / manual-setting 記錄處理。
+- 2026-06-21 resolved: 使用者要求 `BFF-305a` public lead capture 一起做，不再 deferred。Lead endpoint 必須具 rate limit、honeypot/spam protection、consent version、allowlisted DB persistence、abuse/failure proof；不得順手啟用 real email/notification/payment。
+- 2026-06-21 resolved: 使用者要求 production/payment/email/notification 除環境設定外由 Codex 實作；需要 operator 手動設定的 env/provider console 項目集中寫入 `manual-setting.md`。Production destructive DB、remote deletion、refund/void 等高風險操作仍需逐項明確執行 approval。
+- 2026-06-21 resolved: 使用者要求 AI Meeting / notes prototype 納入正式主線。後續可選 AMM slice 驗證並提交 AMM-owned docs/source；未驗收前仍不得把 prototype 當完成 proof 或 registry-ready。
 - 2026-06-21 resolved: NAP-005 已完成 local-only adapter/export dry-run；11 個 internal-only AI manifests 可產生 NANDA AgentFacts-style JSON、MCP descriptor、A2A Agent Card 與 HTTPS metadata 四種本地草稿，並由 `pnpm ai:protocol-adapter-dry-run-qa` 證明 schema-valid、least-disclosure、versioned、revocable、無 private sentinel、無 provider/DB/external registry side effect。此結果不代表任何 external registry publication、signing、public discovery endpoint 或 cross-org agent access 已核可。
 - 2026-06-20 resolved: RAS-001 已完成 role-aware sidebar navigation contract；member / org admin / platform / client portal 四套 manifest draft 與 `SPIN 舊版` legacy feature flag proof 已落地。此結果不代表 sidebar UI、workspace bootstrap、route guard 或跨角色 browser/auth 驗收已完成；下一步仍需 RAS-002 resolver/policy tests。
 - 2026-06-20 resolved: 本輪 scheduled fifth-loop whole-product review 已完成；cadence counter 重設為 0。Top product gap 是 persisted Route B session 還缺 relationship-graph-centered 的可操作演練舞台；若 DB 可用，下一輪建議 `ITA-003f/S1 Route B relationship-graph stage map (no-provider)`。若 DB/DNS 仍 blocked，下一輪建議 `RAS-002` resolver/policy tests 作安全 fallback。
@@ -55,9 +61,9 @@ Last updated: 2026-06-21
 
 - PIM-006 已改 Prisma schema 並對目前 `.env` development Supabase Postgres target 執行 additive `db push`；production schema migration 仍需明確 approval。
 - ITA-003c 已對目前 `.env` development Supabase Postgres target 執行 Route B additive `db push` 並通過 persisted session proof；production schema migration / rollback plan 仍需明確 approval。
-- 後續若要做 live Realtime provider proof，需要 operator 明確允許打外部 provider，並記錄 usage/cost evidence。
-- 後續若要啟用 Route B director/character/feedback provider calls，需要 operator 明確允許打外部 provider，且 success/error path 都必須寫 `AiUsageLog`；provider 開啟前 UI 需維持 guarded-disabled，不得宣稱可正式互動。
-- 後續若要把 NAP-005 local adapter 推進到 external NANDA / third-party registry publication、signing、public discovery endpoint 或 cross-org agent access，需要 operator 逐項批准：publication target、signing material custody and rotation plan、revocation process、public discovery endpoint owner/rollback、privacy redaction review、cross-organization access policy 與 audit owner。未批准前只能維持 internal manifest / local adapter proof。
+- 2026-06-21 approval update: live Realtime provider proof 與 Route B director/character/feedback provider calls 已獲 operator 批准可實作/驗證；仍需 provider env、usage/cost evidence，且 success/error path 都必須寫 `AiUsageLog`。Provider env 未設定時 UI/API 仍需維持 guarded-disabled，不得宣稱可正式互動。
+- 2026-06-21 approval update: external NANDA / third-party registry publication、signing、public discovery endpoint 或 cross-org agent access **未批准**；只能維持 internal manifest / local adapter proof。
+- 2026-06-21 approval update: production/payment/email/notification 可進行 code implementation；真實 env/provider console setup 記錄於 `manual-setting.md`，實際 real payment/email/notification enablement 需在 env 完成後以 QA proof 開啟。Production destructive DB、remote deletion、refund/void 仍需逐項明確 approval。
 - BFF-103c 後的 production-facing source blockers：admin/pilot 頁仍直接讀 demo seed、notification reminder route 仍是 mock success，CRM policy/timeline/report/gap-analysis related-list DTO 仍未完全收斂。這些不得被用作正式 LV3 server-owned proof。Dashboard、Reports library/detail/share action、Issues BFF、Team/org aggregate BFF、Visit/pre-visit BFF、SPIN session BFF 與 CRM client lifecycle 已可作 server-owned proof；provider routes 仍需持續守住 AiUsageLog/usage audit。
 
 ## Operator 手動處理

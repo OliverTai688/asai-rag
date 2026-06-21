@@ -39,10 +39,12 @@ Full-site BFF 驗收重點不是 endpoint 數量，而是資料邊界、session 
 - `/api/public/pricing` 與 public status 共用同一 checkout / CTA availability source；pricing 不得宣稱 status 已標為 disabled / unavailable 的 checkout 或 CTA 狀態。
 - Public response 不得包含 private plan cost、provider raw config、billing internal state、payment transaction data、tenant/client data、secret/token、raw prompt 或 raw provider payload。
 - Landing / pricing CTA 必須依 BFF contract 呈現 private beta、invite、contact sales、checkout disabled、unavailable 等狀態。
-- `/api/public/lead` 需維持 deferred，除非同輪具備 rate limit、spam protection、consent version、allowlisted persistence 與 abuse/failure proof。
+- `/api/public/lead` 若同輪實作，必須具 rate limit、honeypot/spam protection、consent version、allowlisted persistence 與 abuse/failure proof；2026-06-21 起 BFF-305a 已獲 operator 決策納入 lead capture。
 - Public status endpoint 不可被宣稱為 NANDA / third-party public discovery 或 external registry；agent publication、credential signing、cross-org agent access 仍需走 NAP gate 與 operator approval。
 - Browser/API proof 需覆蓋 status 200、pricing 200、CTA consistency、checkout disabled/sandbox posture、private sentinel 0、desktop/mobile no overflow。
 - 此 gate 不批准 real payment、real email、real notification 或 production write。
+
+Evidence（2026-06-21 BFF-305a）：`PUBLIC_STATUS_QA_BASE_URL=http://127.0.0.1:3044 pnpm public:status-qa` 已通過 status/CTA/lead gate，89/89 checks passed。Proof 覆蓋 `GET /api/public/status` 200、`GET /api/public/pricing` 200、public cache header、DB-backed `PlanConfig` consistency、pricing/status checkout 與 CTA mode 一致、checkout action disabled、production payment disabled、public lead capture enabled、lead consent validation 400、honeypot 202 且不入庫、valid lead 201 且 `public_leads` +1、response 不 echo email、same email third request 429、external registry `not_public_discovery`、status/pricing/lead private sentinel 0、landing/pricing desktop/mobile no overflow、browser console error 0。截圖：`docs/06_audits-and-reports/screenshots/lv3-public-bff/bff-305a-landing-desktop.png`、`bff-305a-landing-mobile.png`、`bff-305a-pricing-desktop.png`、`bff-305a-pricing-mobile.png`。
 
 ### 2.2 Member App
 

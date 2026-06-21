@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
+import { getPublicStatus } from "@/lib/public/status-repository";
 import {
   ArrowRight,
   Sparkles,
@@ -10,7 +11,9 @@ import {
   TrendingUp,
 } from "lucide-react";
 
-export default function Home() {
+export default async function Home() {
+  const status = await getPublicStatus();
+
   return (
     <div className="flex flex-col min-h-screen bg-paper font-sans">
       {/* Header */}
@@ -31,10 +34,13 @@ export default function Home() {
             方案價格
           </Link>
           <Link
-            href="/dashboard"
+            href={status.primaryCta.href}
             className={buttonVariants({ variant: "mono", size: "sm", className: "rounded-full font-medium" })}
+            data-public-cta
+            data-public-cta-mode={status.primaryCta.mode}
+            data-checkout-status={status.checkoutAvailability.status}
           >
-            進入主控台
+            {status.primaryCta.label}
           </Link>
         </div>
       </header>
@@ -66,16 +72,19 @@ export default function Home() {
 
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-5">
               <Link
-                href="/dashboard"
+                href={status.primaryCta.href}
                 className={buttonVariants({ size: "lg", variant: "mono", className: "h-12 px-8 text-[15px] rounded-full font-medium" })}
+                data-public-cta
+                data-public-cta-mode={status.primaryCta.mode}
+                data-checkout-status={status.checkoutAvailability.status}
               >
-                立即開始體驗 <ArrowRight className="ml-1.5 w-4 h-4" strokeWidth={2} />
+                {status.primaryCta.label} <ArrowRight className="ml-1.5 w-4 h-4" strokeWidth={2} />
               </Link>
               <Link
-                href="/dashboard"
+                href="/pricing"
                 className={buttonVariants({ size: "lg", variant: "monoOutline", className: "h-12 px-8 text-[15px] rounded-full" })}
               >
-                體驗 14 天，感受不同
+                查看 beta 狀態
               </Link>
             </div>
             <p className="text-[12px] text-ink-3 flex items-center justify-center gap-4">
@@ -157,14 +166,17 @@ export default function Home() {
             </blockquote>
             <p className="text-eyebrow mb-10">誠問 AI · 品牌核心理念</p>
             <Link
-              href="/dashboard"
+              href={status.primaryCta.href}
               className={buttonVariants({
                 size: "lg",
                 variant: "mono",
                 className: "h-12 px-8 text-[15px] rounded-full bg-[var(--inverted-fg)] text-[var(--inverted-bg)] hover:opacity-90",
               })}
+              data-public-cta
+              data-public-cta-mode={status.primaryCta.mode}
+              data-checkout-status={status.checkoutAvailability.status}
             >
-              立即開始體驗 <ArrowRight className="ml-1.5 w-4 h-4" strokeWidth={2} />
+              {status.primaryCta.label} <ArrowRight className="ml-1.5 w-4 h-4" strokeWidth={2} />
             </Link>
           </div>
         </section>

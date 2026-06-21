@@ -344,6 +344,12 @@ enum PaymentTransactionKind {
   MANUAL_ADJUSTMENT
 }
 
+enum PublicLeadStatus {
+  NEW
+  CONTACTED
+  ARCHIVED
+}
+
 enum PlatformRole {
   SUPER_ADMIN
   SUPPORT
@@ -451,6 +457,33 @@ model PlanConfig {
 
   @@index([isActive])
   @@map("plan_configs")
+}
+
+model PublicLead {
+  id               String           @id @default(cuid())
+  email            String
+  emailHash        String           @map("email_hash")
+  name             String?
+  company          String?
+  roleTitle        String?          @map("role_title")
+  phone            String?
+  message          String?          @db.Text
+  planInterest     String?          @map("plan_interest")
+  source           String           @default("public_site")
+  consentVersion   String           @map("consent_version")
+  consentAccepted  Boolean          @default(false) @map("consent_accepted")
+  privacyAccepted  Boolean          @default(false) @map("privacy_accepted")
+  ipHash           String?          @map("ip_hash")
+  userAgentHash    String?          @map("user_agent_hash")
+  metadata         Json?
+  status           PublicLeadStatus @default(NEW)
+  createdAt        DateTime         @default(now()) @map("created_at")
+  updatedAt        DateTime         @updatedAt @map("updated_at")
+
+  @@index([emailHash, createdAt])
+  @@index([ipHash, createdAt])
+  @@index([status, createdAt])
+  @@map("public_leads")
 }
 
 model OrganizationUnit {

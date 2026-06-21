@@ -89,9 +89,9 @@ function bffSurfaceGates() {
     {
       key: "public_bff",
       surface: "public",
-      status: "warning",
-      evidenceCommand: "pnpm public:pricing-qa",
-      detail: "Public pricing proof exists; public status/CTA availability BFF is still tracked by BFF-305.",
+      status: projectFileExists("scripts/public-status-qa.mjs") ? "pass" : "warning",
+      evidenceCommand: "pnpm public:status-qa",
+      detail: "Public pricing/status/CTA/lead capture uses a public-safe BFF contract with consent, honeypot, rate-limit, and no production payment/email/notification side effect.",
     },
     {
       key: "billing_bff",
