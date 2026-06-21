@@ -83,11 +83,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 2,
+    "normalLoopsSinceLastWholeProductReview": 3,
     "lastWholeProductReviewAt": "2026-06-21T03:29:06Z",
     "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-21_lv3-whole-product-gap-review-after-billing-gate.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "AMM-001b is now implemented as source/schema-backed Meeting persistence contract: additive `InterviewKind.CLIENT_MEETING`, `AiModule.MEETING`, `InterviewMeetingSummary`, persistence draft helper, and no-provider/no-DB-write dry-run proof. Next recommended normal slice is AMM-002a: implement member-scoped `/api/ai/meeting/sessions` + `[id]` + `turns` BFF route shell using `CLIENT_MEETING`, reusing interview turn/memory persistence and guarding raw audio/private transcript. If DB migration execution is required, first run an explicit additive development db push proof or keep the route behind static/contract proof; do not stage existing untracked meeting/notes UI prototype unless the loop explicitly adopts and validates that UI slice. BFF-402 billing notification/query/idempotency remains the release-hardening fallback.",
+    "nextRecommendedImplementationSlice": "AMM-002a is now implemented as source/DB/API-backed meeting capture BFF: member-scoped `/api/ai/meeting/sessions`, `/api/ai/meeting/sessions/[sessionId]`, and `/api/ai/meeting/sessions/[sessionId]/turns`, using `CLIENT_MEETING`, owner-scoped client/visitPlan resolution, Park-style memory persistence, raw audio/provider payload guard, additive development `prisma db push`, and no-provider `AiUsageLog` unchanged proof. Next recommended normal slice is AMM-003a: implement deterministic/no-provider meeting summary persistence route shell (`POST /api/ai/meeting/sessions/[sessionId]/summary`) that builds a cited summary skeleton from stored turns/memories and writes `InterviewMeetingSummary` without provider; keep live summary provider generation/AiUsageLog success-error proof as AMM-003b. Do not stage existing untracked meeting/notes UI prototype unless the loop explicitly adopts and validates that UI slice. BFF-402 billing notification/query/idempotency remains the release-hardening fallback.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {
