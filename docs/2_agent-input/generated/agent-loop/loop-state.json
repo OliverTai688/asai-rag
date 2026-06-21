@@ -71,11 +71,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 4,
+    "normalLoopsSinceLastWholeProductReview": 0,
     "lastWholeProductReviewAt": "2026-06-21",
-    "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-21_lv3-whole-product-gap-review-bff-204-theater-rag-hardening.md",
+    "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-21_lv3-whole-product-gap-review-platform-public-bff.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "BFF-303a client portal token lifecycle and isolation proof completed on 2026-06-21. The cadence counter is now 4, so the next heartbeat should run the scheduled fifth-loop whole-product gap review via `docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md` before choosing another implementation slice. After review, likely candidates are BFF-304 platform BFF completion, BFF-305 public BFF completion, BFF-401 billing checkout disabled/sandbox posture, or BFF-102 member settings hardening depending on whole-product scoring. Do not enable production writes, public discovery, external registry publication, cross-org agent access, provider-backed RAG retrieval, real notification/email/payment, or stage the untracked AI meeting / notes prototype unless a later loop explicitly selects that slice.",
+    "nextRecommendedImplementationSlice": "Scheduled fifth-loop whole-product review completed on 2026-06-21 after BFF-303a. Next normal implementation/proof slice: `BFF-304a platform session separation + metadata/audit proof`. Prove app/member/org/client portal sessions cannot enter platform APIs, platform success returns metadata/aggregate only, sensitive reads write AuditLog proof ids, and break-glass/impersonation requires reason/scope/expiry/actor/target. If live platform session/env is unavailable, use deterministic source/fixture proof and report it as not a live platform auth matrix. Do not enable production impersonation, production writes, real payment/email/notification, public discovery, external registry publication, cross-org agent access, provider-backed RAG retrieval, or stage the untracked AI meeting / notes prototype unless a later loop explicitly selects that slice.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {

@@ -75,6 +75,17 @@ Recovery evidence（2026-06-21）：`DEMO_QA_BASE_URL=http://localhost:3000 pnpm
 - Impersonation/break-glass requires reason, scope, expiry, actor/target.
 - Sensitive read writes audit proof.
 
+#### 2.5.1 Platform BFF Completion Gates
+
+`BFF-304a` must prove platform session separation before any platform release-readiness or break-glass claim is accepted:
+
+- App/member/org/client portal sessions calling platform APIs return 401/403; sidebar hide/show is not accepted as the permission proof.
+- Platform session success returns only organization metadata, plan/status/readiness aggregates, AI usage aggregates, and audit metadata by default; it must not return client names, phone/email, report body, transcript, policy number, provider raw payload, token, secret, or raw payment data.
+- Sensitive read paths must write `AuditLog` with actor, resource, reason, scope, and a response-visible proof id.
+- Impersonation/break-glass requests require reason, target, scope, expiry, actor, and risk acceptance; missing or expired scope must fail closed.
+- API proof must cover app session rejected, platform fixture/session success, sensitive read audit created, break-glass invalid input rejected, and response sentinel checks.
+- If live platform auth/session is unavailable, a deterministic fixture/source proof is acceptable only as fallback and must be reported as not a live production/staging platform auth matrix.
+
 ---
 
 ## 3. AI BFF Gates

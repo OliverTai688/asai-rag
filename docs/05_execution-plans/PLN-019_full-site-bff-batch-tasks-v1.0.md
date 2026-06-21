@@ -374,6 +374,8 @@ Whole-product review fallback note（2026-06-21）：若 BFF-204a 被 env/sessio
 
 目標：完成 platform metadata/readiness/audit/break-glass surface。
 
+Whole-product review note（2026-06-21 after BFF-303）：BFF-204/205/302/303 已分別補上 Theater/RAG/Assistant/Interview/org writes/client portal 的 launch boundary proof；下一個 full-site BFF 最高槓桿缺口轉為 platform surface。`BFF-304a` 下一輪應先做 platform session separation + metadata/audit proof：app session 打 platform APIs 必須 401/403，platform session 讀 organizations / AI usage / audit logs 只能回 metadata/aggregate，敏感讀必寫 `AuditLog` 並回 proof id，break-glass/impersonation 需要 reason/scope/expiry/actor/target。此 slice 不啟用 production impersonation、不做 production write、不接真 payment/email/notification；若 platform session/env 不可用，fallback 是 deterministic source/fixture proof，但不得宣稱 live platform auth matrix 完成。
+
 - [ ] Platform session 與 app session 分離 proof。
 - [ ] Organizations/AI usage/audit logs 預設 metadata/aggregate。
 - [ ] Impersonation/break-glass 必填 reason、scope、expiry、actor/target。
