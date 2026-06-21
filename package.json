@@ -37,6 +37,7 @@
     "meeting:summary-bff-qa": "node scripts/meeting-summary-bff-qa.mjs",
     "meeting:summary-provider-qa": "node scripts/meeting-summary-provider-qa.mjs",
     "meeting:workspace-ui-qa": "node scripts/meeting-workspace-ui-qa.mjs",
+    "meeting:workspace-writeback-ui-qa": "node scripts/meeting-workspace-writeback-ui-qa.mjs",
     "meeting:memory-chat-qa": "node scripts/meeting-memory-chat-qa.mjs",
     "meeting:writeback-qa": "node scripts/meeting-writeback-qa.mjs",
     "visit:theater-handoff-dry-run": "node scripts/visit-theater-handoff-dry-run.mjs",

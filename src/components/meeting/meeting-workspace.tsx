@@ -31,6 +31,10 @@ import {
 type TurnSource = "MANUAL_NOTE" | "VOICE_FINAL_TRANSCRIPT";
 type BootstrapState = "loading" | "ready" | "error";
 type RequestState = "idle" | "saving" | "summarizing";
+type WritebackState = "idle" | "loading" | "saving";
+type MeetingWritebackCandidateKind = "CONFIRMED_FACT" | "INFERENCE" | "UNKNOWN" | "ACTION_ITEM";
+type MeetingWritebackTarget = "CRM_CANDIDATE" | "INTERVIEW_INSIGHT" | "FOLLOW_UP_TASK" | "BLOCKED";
+type MeetingWritebackSensitivity = "NORMAL" | "SENSITIVE" | "HIGHLY_SENSITIVE";
 
 interface MeetingWorkspaceProps {
   planId: string;
@@ -82,8 +86,8 @@ interface MeetingMemoryRailDto {
 interface MeetingSafetyDto {
   scopeSource: "server_session";
   visibilityScope: "member-private";
-  providerCallAttempted: false;
-  aiUsageLogRequired: false;
+  providerCallAttempted: boolean;
+  aiUsageLogRequired: boolean;
   rawAudioStored?: false;
   rawProviderPayloadStored?: false;
   rawPrivateTranscriptSidecarStored?: false;
@@ -119,12 +123,12 @@ interface PersistedMeetingSummaryDto {
   model: string | null;
   usageLogId: string | null;
   guardEvidence: {
-    providerCallAttempted: false;
+    providerCallAttempted: boolean;
     dbWriteAttempted: false;
     storesAudioBinary: false;
     storesPrivateTranscript: false;
     writesConfirmedCrmFact: false;
-    generatedBy: "deterministic-skeleton";
+    generatedBy: "deterministic-skeleton" | "provider-json";
   } | null;
   createdAt: string;
   updatedAt: string;
@@ -147,6 +151,92 @@ interface MeetingSummaryWriteResponse {
   safety: MeetingSafetyDto;
 }
 
+interface MeetingWritebackCandidateDto {
+  id: string;
+  kind: MeetingWritebackCandidateKind;
+  sourceType: "MEETING_DECISION" | "MEETING_ACTION_ITEM" | "MEETING_OPEN_QUESTION";
+  sourceItemId: string;
+  text: string;
+  target: MeetingWritebackTarget;
+  dataClass: MeetingDataClass;
+  sensitivity: MeetingWritebackSensitivity;
+  citationTurnIds: string[];
+  supportingMemoryIds: string[];
+  canSelect: boolean;
+  requiresReason: boolean;
+  reasonHint?: string;
+  blockedReason?: string;
+  crmWritebackCandidate: boolean;
+  writesConfirmedCrmFact: false;
+}
+
+interface MeetingWritebackSafetyDto {
+  scopeSource: "server_session";
+  visibilityScope: "member-private";
+  providerCallAttempted: false;
+  aiUsageLogRequired: false;
+  aiUsageLogWritten: false;
+  storesAudioBinary: false;
+  storesRawProviderPayload: false;
+  storesRawPrivateTranscriptSidecar: false;
+  writesConfirmedCrmFact: false;
+  crmFactRequiresHumanConfirmation: true;
+  inferenceNeverCrmFact: true;
+  actionItemsCreateTasksOnly: true;
+}
+
+interface MeetingWritebackReadyDto {
+  status: "ready";
+  sessionId: string;
+  clientId: string | null;
+  clientSensitivity: "NORMAL" | "SENSITIVE" | "HIGHLY_SENSITIVE" | null;
+  summary: {
+    id: string;
+    headline: string;
+    schemaVersion: string;
+    sourceTurnIds: string[];
+    sourceMemoryIds: string[];
+  };
+  sourceCounts: {
+    decisions: number;
+    actionItems: number;
+    openQuestions: number;
+  };
+  candidates: MeetingWritebackCandidateDto[];
+  safety: MeetingWritebackSafetyDto;
+}
+
+interface MeetingWritebackSummaryRequiredDto {
+  status: "summary_required";
+  sessionId: string;
+  clientId: string | null;
+  candidates: [];
+  safety: MeetingWritebackSafetyDto;
+}
+
+type MeetingWritebackPreviewDto = MeetingWritebackReadyDto | MeetingWritebackSummaryRequiredDto;
+
+interface MeetingWritebackResultDto extends Omit<MeetingWritebackReadyDto, "status"> {
+  status: "saved";
+  createdEvents: {
+    id: string;
+    candidateId: string;
+    target: MeetingWritebackTarget;
+    title: string;
+    occurredAt: string;
+  }[];
+  blocked: {
+    candidateId: string;
+    reason: string;
+  }[];
+  skipped: string[];
+}
+
+interface CandidateApprovalState {
+  reason: string;
+  riskAccepted: boolean;
+}
+
 const EMPTY_SUMMARY_NOTICE = "加入至少一段會議內容後，就能生成可引用的摘要。";
 const DEFAULT_NOTE = "客戶確認想先補退休缺口；待確認是否邀請配偶一起評估。";
 const DEFAULT_FINAL_TRANSCRIPT =
@@ -163,6 +253,12 @@ export function MeetingWorkspace({ planId, initialSessionId, backHref }: Meeting
   const [requestState, setRequestState] = useState<RequestState>("idle");
   const [snapshot, setSnapshot] = useState<MeetingSessionSnapshotDto | null>(null);
   const [summary, setSummary] = useState<PersistedMeetingSummaryDto | null>(null);
+  const [writebackPreview, setWritebackPreview] = useState<MeetingWritebackPreviewDto | null>(null);
+  const [writebackResult, setWritebackResult] = useState<MeetingWritebackResultDto | null>(null);
+  const [writebackSelections, setWritebackSelections] = useState<string[]>([]);
+  const [writebackApprovals, setWritebackApprovals] = useState<Record<string, CandidateApprovalState>>({});
+  const [writebackState, setWritebackState] = useState<WritebackState>("idle");
+  const [writebackError, setWritebackError] = useState<string | null>(null);
   const [noteDraft, setNoteDraft] = useState(DEFAULT_NOTE);
   const [finalTranscriptDraft, setFinalTranscriptDraft] = useState(DEFAULT_FINAL_TRANSCRIPT);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -179,6 +275,14 @@ export function MeetingWorkspace({ planId, initialSessionId, backHref }: Meeting
     [snapshot?.turns],
   );
 
+  const resetWritebacks = useCallback(() => {
+    setWritebackPreview(null);
+    setWritebackResult(null);
+    setWritebackSelections([]);
+    setWritebackApprovals({});
+    setWritebackError(null);
+  }, []);
+
   const updateSessionUrl = useCallback(
     (nextSessionId: string) => {
       const params = new URLSearchParams(window.location.search);
@@ -188,10 +292,52 @@ export function MeetingWorkspace({ planId, initialSessionId, backHref }: Meeting
     [pathname, router],
   );
 
-  const loadSummary = useCallback(async (nextSessionId: string, signal?: AbortSignal) => {
-    const nextSummary = await readMeetingSummary(nextSessionId, signal);
-    setSummary(nextSummary);
+  const loadWritebacks = useCallback(async (nextSessionId: string, signal?: AbortSignal) => {
+    setWritebackState("loading");
+    setWritebackError(null);
+
+    try {
+      const nextPreview = await readMeetingWritebacks(nextSessionId, signal);
+      const validCandidateIds =
+        nextPreview.status === "ready" ? new Set(nextPreview.candidates.map((candidate) => candidate.id)) : new Set<string>();
+
+      setWritebackPreview(nextPreview);
+      setWritebackResult(null);
+      setWritebackSelections((current) => current.filter((candidateId) => validCandidateIds.has(candidateId)));
+      setWritebackApprovals((current) => {
+        const nextApprovals: Record<string, CandidateApprovalState> = {};
+        for (const [candidateId, approval] of Object.entries(current)) {
+          if (validCandidateIds.has(candidateId)) nextApprovals[candidateId] = approval;
+        }
+        return nextApprovals;
+      });
+      return nextPreview;
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") throw error;
+      setWritebackError(error instanceof Error ? error.message : "MEETING_WRITEBACK_READ_FAILED");
+      throw error;
+    } finally {
+      setWritebackState("idle");
+    }
   }, []);
+
+  const loadSummary = useCallback(
+    async (nextSessionId: string, signal?: AbortSignal) => {
+      const nextSummary = await readMeetingSummary(nextSessionId, signal);
+      setSummary(nextSummary);
+
+      if (nextSummary) {
+        try {
+          await loadWritebacks(nextSessionId, signal);
+        } catch (error) {
+          if (error instanceof DOMException && error.name === "AbortError") throw error;
+        }
+      } else {
+        resetWritebacks();
+      }
+    },
+    [loadWritebacks, resetWritebacks],
+  );
 
   const refreshSnapshot = useCallback(
     async (nextSessionId: string, signal?: AbortSignal) => {
@@ -261,14 +407,17 @@ export function MeetingWorkspace({ planId, initialSessionId, backHref }: Meeting
         setLastAction(source === "MANUAL_NOTE" ? "已加入手動筆記" : "已加入 final transcript");
         if (source === "MANUAL_NOTE") setNoteDraft("");
         if (source === "VOICE_FINAL_TRANSCRIPT") setFinalTranscriptDraft("");
-        if (summary && nextSnapshot.turns.length > turnCount) setSummary(null);
+        if (summary && nextSnapshot.turns.length > turnCount) {
+          setSummary(null);
+          resetWritebacks();
+        }
       } catch (error) {
         setErrorMessage(error instanceof Error ? error.message : "MEETING_TURN_APPEND_FAILED");
       } finally {
         setRequestState("idle");
       }
     },
-    [finalTranscriptDraft, noteDraft, refreshSnapshot, snapshot, summary, turnCount],
+    [finalTranscriptDraft, noteDraft, refreshSnapshot, resetWritebacks, snapshot, summary, turnCount],
   );
 
   const handleGenerateSummary = useCallback(async () => {
@@ -280,7 +429,7 @@ export function MeetingWorkspace({ planId, initialSessionId, backHref }: Meeting
     try {
       const nextSummary = await generateMeetingSummary(snapshot.session.id);
       setSummary(nextSummary);
-      setLastAction("已生成 deterministic/no-provider 會議摘要");
+      setLastAction("已生成 deterministic/no-provider 會議摘要與寫回候選");
       await refreshSnapshot(snapshot.session.id);
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "MEETING_SUMMARY_GENERATION_FAILED");
@@ -288,6 +437,83 @@ export function MeetingWorkspace({ planId, initialSessionId, backHref }: Meeting
       setRequestState("idle");
     }
   }, [refreshSnapshot, snapshot]);
+
+  const handleReloadWritebacks = useCallback(async () => {
+    if (!sessionId) return;
+
+    try {
+      await loadWritebacks(sessionId);
+    } catch (error) {
+      setWritebackError(error instanceof Error ? error.message : "MEETING_WRITEBACK_READ_FAILED");
+    }
+  }, [loadWritebacks, sessionId]);
+
+  const handleToggleWritebackCandidate = useCallback((candidateId: string) => {
+    setWritebackSelections((current) =>
+      current.includes(candidateId) ? current.filter((id) => id !== candidateId) : [...current, candidateId],
+    );
+  }, []);
+
+  const handleSelectAllWritebackCandidates = useCallback(() => {
+    if (writebackPreview?.status !== "ready") return;
+    setWritebackSelections(writebackPreview.candidates.filter((candidate) => candidate.canSelect).map((candidate) => candidate.id));
+  }, [writebackPreview]);
+
+  const handleClearWritebackCandidates = useCallback(() => {
+    setWritebackSelections([]);
+    setWritebackResult(null);
+    setWritebackError(null);
+  }, []);
+
+  const handleUpdateWritebackApproval = useCallback((candidateId: string, patch: Partial<CandidateApprovalState>) => {
+    setWritebackApprovals((current) => ({
+      ...current,
+      [candidateId]: {
+        reason: current[candidateId]?.reason ?? "",
+        riskAccepted: current[candidateId]?.riskAccepted ?? false,
+        ...patch,
+      },
+    }));
+  }, []);
+
+  const handleSaveWritebacks = useCallback(async () => {
+    if (!sessionId || writebackPreview?.status !== "ready") return;
+
+    if (writebackSelections.length === 0) {
+      setWritebackError("請先勾選至少一個會議寫回候選。");
+      return;
+    }
+
+    setWritebackState("saving");
+    setWritebackError(null);
+
+    try {
+      const result = await saveMeetingWritebacks(sessionId, {
+        candidateIds: writebackSelections,
+        approvals: writebackSelections.map((candidateId) => ({
+          candidateId,
+          reason: writebackApprovals[candidateId]?.reason?.trim() || undefined,
+          riskAccepted: writebackApprovals[candidateId]?.riskAccepted === true,
+        })),
+      });
+
+      if (result.status === "summary_required") {
+        setWritebackPreview(result);
+        setWritebackResult(null);
+        setWritebackSelections([]);
+        return;
+      }
+
+      setWritebackResult(result);
+      setWritebackPreview(toWritebackPreview(result));
+      setWritebackSelections([]);
+      setLastAction("已保存會議寫回確認結果");
+    } catch (error) {
+      setWritebackError(error instanceof Error ? error.message : "MEETING_WRITEBACK_SAVE_FAILED");
+    } finally {
+      setWritebackState("idle");
+    }
+  }, [sessionId, writebackApprovals, writebackPreview, writebackSelections]);
 
   const handleManualRefresh = useCallback(async () => {
     if (!snapshot) return;
@@ -499,6 +725,22 @@ export function MeetingWorkspace({ planId, initialSessionId, backHref }: Meeting
             )}
           </section>
 
+          <WritebackPanel
+            summary={summary}
+            preview={writebackPreview}
+            result={writebackResult}
+            state={writebackState}
+            error={writebackError}
+            selectedIds={writebackSelections}
+            approvals={writebackApprovals}
+            onRefresh={handleReloadWritebacks}
+            onSelectAll={handleSelectAllWritebackCandidates}
+            onClear={handleClearWritebackCandidates}
+            onToggleCandidate={handleToggleWritebackCandidate}
+            onUpdateApproval={handleUpdateWritebackApproval}
+            onSubmit={handleSaveWritebacks}
+          />
+
           <section className="rounded-lg border border-hairline bg-card p-4">
             <div className="flex items-center gap-2">
               <CheckCircle2 className="size-5 text-[#1A3A6B]" aria-hidden="true" />
@@ -632,6 +874,278 @@ function SummaryPanel({ summary }: { summary: PersistedMeetingSummaryDto }) {
       <SummaryList title="決策" items={summary.decisions} />
       <ActionList items={summary.actionItems} />
       <SummaryList title="待確認問題" items={summary.openQuestions} />
+    </div>
+  );
+}
+
+function WritebackPanel({
+  summary,
+  preview,
+  result,
+  state,
+  error,
+  selectedIds,
+  approvals,
+  onRefresh,
+  onSelectAll,
+  onClear,
+  onToggleCandidate,
+  onUpdateApproval,
+  onSubmit,
+}: {
+  summary: PersistedMeetingSummaryDto | null;
+  preview: MeetingWritebackPreviewDto | null;
+  result: MeetingWritebackResultDto | null;
+  state: WritebackState;
+  error: string | null;
+  selectedIds: string[];
+  approvals: Record<string, CandidateApprovalState>;
+  onRefresh: () => void;
+  onSelectAll: () => void;
+  onClear: () => void;
+  onToggleCandidate: (candidateId: string) => void;
+  onUpdateApproval: (candidateId: string, patch: Partial<CandidateApprovalState>) => void;
+  onSubmit: () => void;
+}) {
+  const isLoading = state === "loading";
+  const isSaving = state === "saving";
+  const readyPreview = preview?.status === "ready" ? preview : null;
+  const selectedCount = selectedIds.length;
+
+  return (
+    <section data-testid="meeting-writeback-panel" className="rounded-lg border border-hairline bg-card p-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="text-sm font-semibold text-ink">寫回確認</p>
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">
+            由顧問選擇哪些摘要項目成為 CRM 候選、洞察或追蹤任務。
+          </p>
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-9 rounded-lg"
+          onClick={onRefresh}
+          disabled={!summary || isLoading || isSaving}
+        >
+          {isLoading ? <Loader2 className="mr-2 size-4 animate-spin" aria-hidden="true" /> : <RefreshCcw className="mr-2 size-4" aria-hidden="true" />}
+          更新候選
+        </Button>
+      </div>
+
+      {!summary ? (
+        <EmptyState
+          className="mt-4"
+          icon={<ClipboardList className="size-5" aria-hidden="true" />}
+          title="先生成摘要"
+          description="寫回候選只會從已持久化、可引用的會議摘要產生。"
+        />
+      ) : preview?.status === "summary_required" ? (
+        <EmptyState
+          className="mt-4"
+          icon={<FileText className="size-5" aria-hidden="true" />}
+          title="摘要尚未就緒"
+          description="請先生成會議摘要，再回來確認可寫回的項目。"
+        />
+      ) : isLoading && !readyPreview ? (
+        <div className="mt-4 rounded-lg border border-hairline bg-paper p-4 text-sm text-muted-foreground">
+          <Loader2 className="mr-2 inline size-4 animate-spin" aria-hidden="true" />
+          正在讀取寫回候選...
+        </div>
+      ) : readyPreview ? (
+        <div className="mt-4 space-y-4">
+          <div className="grid grid-cols-3 gap-2 text-sm">
+            <RailMetric label="決策" value={readyPreview.sourceCounts.decisions} />
+            <RailMetric label="行動" value={readyPreview.sourceCounts.actionItems} />
+            <RailMetric label="待確認" value={readyPreview.sourceCounts.openQuestions} />
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-8 rounded-lg"
+              onClick={onSelectAll}
+              disabled={isSaving || readyPreview.candidates.every((candidate) => !candidate.canSelect)}
+            >
+              全選可寫回
+            </Button>
+            <Button type="button" variant="ghost" size="sm" className="h-8 rounded-lg" onClick={onClear} disabled={isSaving || selectedCount === 0}>
+              清除
+            </Button>
+            <Badge variant="outline">{selectedCount} 已選</Badge>
+          </div>
+
+          <div className="space-y-3">
+            {readyPreview.candidates.length ? (
+              readyPreview.candidates.map((candidate) => (
+                <WritebackCandidateCard
+                  key={candidate.id}
+                  candidate={candidate}
+                  selected={selectedIds.includes(candidate.id)}
+                  approval={approvals[candidate.id] ?? { reason: "", riskAccepted: false }}
+                  disabled={isSaving}
+                  onToggle={() => onToggleCandidate(candidate.id)}
+                  onApprovalChange={(patch) => onUpdateApproval(candidate.id, patch)}
+                />
+              ))
+            ) : (
+              <EmptyState
+                icon={<ClipboardList className="size-5" aria-hidden="true" />}
+                title="沒有可寫回候選"
+                description="目前摘要沒有決策、行動項或待確認問題。"
+              />
+            )}
+          </div>
+
+          {error ? (
+            <div className="flex gap-2 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+              <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+              <p>{error}</p>
+            </div>
+          ) : null}
+
+          {result ? <WritebackResultSummary result={result} /> : null}
+
+          <Button
+            data-testid="meeting-writeback-submit"
+            type="button"
+            variant="mono"
+            className="h-10 w-full rounded-lg"
+            onClick={onSubmit}
+            disabled={isSaving || selectedCount === 0}
+          >
+            {isSaving ? <Loader2 className="mr-2 size-4 animate-spin" aria-hidden="true" /> : <CheckCircle2 className="mr-2 size-4" aria-hidden="true" />}
+            確認寫回
+          </Button>
+        </div>
+      ) : (
+        <EmptyState
+          className="mt-4"
+          icon={<ClipboardList className="size-5" aria-hidden="true" />}
+          title="尚未讀取寫回候選"
+          description="摘要生成後會自動載入，也可以手動更新。"
+        />
+      )}
+    </section>
+  );
+}
+
+function WritebackCandidateCard({
+  candidate,
+  selected,
+  approval,
+  disabled,
+  onToggle,
+  onApprovalChange,
+}: {
+  candidate: MeetingWritebackCandidateDto;
+  selected: boolean;
+  approval: CandidateApprovalState;
+  disabled: boolean;
+  onToggle: () => void;
+  onApprovalChange: (patch: Partial<CandidateApprovalState>) => void;
+}) {
+  return (
+    <article data-testid="meeting-writeback-candidate" className="rounded-lg border border-hairline bg-paper p-3">
+      <div className="flex items-start gap-3">
+        <input
+          data-testid="meeting-writeback-checkbox"
+          type="checkbox"
+          className="mt-1 size-4 rounded border-hairline accent-[#1A3A6B]"
+          checked={selected}
+          disabled={disabled || !candidate.canSelect}
+          aria-label={`選取${displayCandidateKind(candidate.kind)}`}
+          onChange={onToggle}
+        />
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant={candidate.kind === "CONFIRMED_FACT" ? "default" : "outline"}>{displayCandidateKind(candidate.kind)}</Badge>
+            <Badge variant={candidate.target === "CRM_CANDIDATE" ? "blue" : "secondary"}>{displayWritebackTarget(candidate.target)}</Badge>
+            <Badge variant={candidate.sensitivity === "HIGHLY_SENSITIVE" ? "warning" : "outline"}>{displayCandidateSensitivity(candidate.sensitivity)}</Badge>
+          </div>
+          <p className="mt-2 break-words text-sm leading-6 text-ink">{candidate.text}</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Badge variant="outline">{MEETING_DATA_CLASS_LABEL[candidate.dataClass]}</Badge>
+            <Badge variant="outline">{candidate.citationTurnIds.length} citations</Badge>
+            <Badge variant="outline">{candidate.supportingMemoryIds.length} memories</Badge>
+            {candidate.writesConfirmedCrmFact === false ? <Badge variant="success">不寫正式 CRM fact</Badge> : null}
+          </div>
+          {candidate.blockedReason ? <p className="mt-2 text-xs leading-5 text-destructive">{candidate.blockedReason}</p> : null}
+        </div>
+      </div>
+
+      {selected && candidate.requiresReason ? (
+        <div className="mt-3 rounded-lg border border-hairline bg-card p-3">
+          <label className="text-xs font-medium text-ink" htmlFor={`meeting-writeback-reason-${candidate.id}`}>
+            確認理由
+          </label>
+          <Textarea
+            id={`meeting-writeback-reason-${candidate.id}`}
+            data-testid="meeting-writeback-reason"
+            className="mt-2 min-h-20 resize-y rounded-lg text-sm"
+            value={approval.reason}
+            placeholder={candidate.reasonHint ?? "請補上這個寫回候選的確認理由..."}
+            disabled={disabled}
+            onChange={(event) => onApprovalChange({ reason: event.target.value })}
+          />
+          <label className="mt-3 flex items-start gap-2 text-xs leading-5 text-muted-foreground">
+            <input
+              data-testid="meeting-writeback-risk"
+              type="checkbox"
+              className="mt-0.5 size-4 rounded border-hairline accent-[#1A3A6B]"
+              checked={approval.riskAccepted}
+              disabled={disabled}
+              onChange={(event) => onApprovalChange({ riskAccepted: event.target.checked })}
+            />
+            我已確認此高敏感資訊只建立候選或追蹤事件，並接受後續人工審核責任。
+          </label>
+        </div>
+      ) : null}
+    </article>
+  );
+}
+
+function WritebackResultSummary({ result }: { result: MeetingWritebackResultDto }) {
+  return (
+    <div data-testid="meeting-writeback-result" className="rounded-lg border border-hairline bg-paper p-3 text-sm">
+      <div className="grid grid-cols-3 gap-2">
+        <ResultMetric label="已建立" value={result.createdEvents.length} testId="meeting-writeback-created-count" />
+        <ResultMetric label="被阻擋" value={result.blocked.length} testId="meeting-writeback-blocked-count" />
+        <ResultMetric label="略過" value={result.skipped.length} testId="meeting-writeback-skipped-count" />
+      </div>
+      {result.createdEvents.length ? (
+        <div className="mt-3 space-y-2">
+          {result.createdEvents.slice(0, 4).map((event) => (
+            <div key={event.id} className="rounded-md border border-hairline bg-card px-3 py-2">
+              <p className="font-medium text-ink">{event.title}</p>
+              <p className="mt-1 text-xs text-muted-foreground">{displayWritebackTarget(event.target)} / {formatDateTime(event.occurredAt)}</p>
+            </div>
+          ))}
+        </div>
+      ) : null}
+      {result.blocked.length ? (
+        <div className="mt-3 space-y-2">
+          {result.blocked.slice(0, 3).map((item) => (
+            <p key={item.candidateId} className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs leading-5 text-destructive">
+              {item.reason}
+            </p>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function ResultMetric({ label, value, testId }: { label: string; value: number; testId: string }) {
+  return (
+    <div className="rounded-md border border-hairline bg-card px-3 py-2">
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p data-testid={testId} className="mt-1 text-lg font-semibold tabular-nums text-ink">
+        {value}
+      </p>
     </div>
   );
 }
@@ -799,6 +1313,50 @@ async function generateMeetingSummary(sessionId: string): Promise<PersistedMeeti
   return body.summary;
 }
 
+async function readMeetingWritebacks(
+  sessionId: string,
+  signal?: AbortSignal,
+): Promise<MeetingWritebackPreviewDto> {
+  const response = await fetch(`/api/ai/meeting/sessions/${encodeURIComponent(sessionId)}/writebacks`, {
+    method: "GET",
+    signal,
+  });
+
+  return readRequiredJson<MeetingWritebackPreviewDto>(response, "MEETING_WRITEBACK_READ_FAILED");
+}
+
+async function saveMeetingWritebacks(
+  sessionId: string,
+  body: {
+    candidateIds: string[];
+    approvals: { candidateId: string; reason?: string; riskAccepted: boolean }[];
+  },
+): Promise<MeetingWritebackResultDto | MeetingWritebackSummaryRequiredDto> {
+  const response = await fetch(`/api/ai/meeting/sessions/${encodeURIComponent(sessionId)}/writebacks`, {
+    method: "POST",
+    headers: requestHeaders,
+    body: JSON.stringify(body),
+  });
+
+  return readRequiredJson<MeetingWritebackResultDto | MeetingWritebackSummaryRequiredDto>(
+    response,
+    "MEETING_WRITEBACK_SAVE_FAILED",
+  );
+}
+
+function toWritebackPreview(result: MeetingWritebackResultDto): MeetingWritebackReadyDto {
+  return {
+    status: "ready",
+    sessionId: result.sessionId,
+    clientId: result.clientId,
+    clientSensitivity: result.clientSensitivity,
+    summary: result.summary,
+    sourceCounts: result.sourceCounts,
+    candidates: result.candidates,
+    safety: result.safety,
+  };
+}
+
 async function readRequiredJson<T>(response: Response, fallbackMessage: string): Promise<T> {
   const body = await readJson<unknown>(response);
 
@@ -846,6 +1404,43 @@ function displayDataClass(value: string): string {
 
 function isMeetingDataClass(value: string): value is MeetingDataClass {
   return value === "CONFIRMED" || value === "FACT" || value === "INFERENCE" || value === "UNKNOWN";
+}
+
+function displayCandidateKind(kind: MeetingWritebackCandidateKind): string {
+  switch (kind) {
+    case "CONFIRMED_FACT":
+      return "已確認";
+    case "INFERENCE":
+      return "推論";
+    case "ACTION_ITEM":
+      return "行動項";
+    case "UNKNOWN":
+      return "待確認";
+  }
+}
+
+function displayWritebackTarget(target: MeetingWritebackTarget): string {
+  switch (target) {
+    case "CRM_CANDIDATE":
+      return "CRM 候選";
+    case "INTERVIEW_INSIGHT":
+      return "顧問洞察";
+    case "FOLLOW_UP_TASK":
+      return "追蹤任務";
+    case "BLOCKED":
+      return "不可寫回";
+  }
+}
+
+function displayCandidateSensitivity(sensitivity: MeetingWritebackSensitivity): string {
+  switch (sensitivity) {
+    case "HIGHLY_SENSITIVE":
+      return "高敏感";
+    case "SENSITIVE":
+      return "敏感";
+    case "NORMAL":
+      return "一般";
+  }
 }
 
 function formatDateTime(value: string): string {

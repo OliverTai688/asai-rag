@@ -83,11 +83,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 0,
+    "normalLoopsSinceLastWholeProductReview": 1,
     "lastWholeProductReviewAt": "2026-06-21T06:56:08Z",
     "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-21_lv3-whole-product-gap-review-after-provider-summary.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "Run `AMM-006b meeting workspace writeback confirmation cards` as the next normal source-backed loop. The route-level writeback boundary exists, but the meeting workspace does not yet consume `GET/POST /api/ai/meeting/sessions/[sessionId]/writebacks`; next slice should render confirmation cards, require reason/riskAccepted for sensitive candidates, POST selected candidates, show created/blocked/skipped results, and prove inference never becomes CRM fact, confirmed only creates CRM candidate audit, action/unknown create follow-up tasks, manager denied, raw private sentinel blocked, desktop/mobile browser safe, and no-provider AiUsageLog unchanged. Secondary candidates: dashboard/CRM global meeting entrypoints, then AMM-004b provider-backed memory-chat.",
+    "nextRecommendedImplementationSlice": "Run `AMM-005b dashboard + CRM global meeting entrypoints` as the next normal source-backed loop. AMM-006b now makes meeting summary output actionable inside the pre-visit workspace, but advisors still cannot start/resume meetings from dashboard recent meeting context or CRM client detail without navigating through a visit plan. Next slice should add server-owned entrypoints, avoid raw-ID workflows, preserve member-private meeting scope, and prove desktop/mobile browser safety, manager/foreign denial, raw payload guard, refresh persistence, and no-provider AiUsageLog unchanged. Secondary candidates: AMM-004b provider-backed memory-chat, then AMM-008 cross-state AMM proof pack.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {
@@ -155,5 +155,5 @@
     "lv3ImmersiveLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-immersive-loop.md",
     "lv3WholeProductGapReviewLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md"
   },
-  "updatedAt": "2026-06-21T06:56:08Z"
+  "updatedAt": "2026-06-21T07:28:01Z"
 }

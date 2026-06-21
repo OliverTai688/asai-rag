@@ -103,15 +103,17 @@ Whole-product review note（2026-06-21 after AMM-003a）：第五輪校準確認
 - [x] 敏感客戶寫回需 reason/riskAccepted；所有寫回建立 audit/interaction event。
 - [x] 不刪改 `complianceChecklist`、`sensitivityLevel`、`kycStatus`。
 - [x] API proof：inference checked 不變 CRM fact；confirmed checked 才寫回；audit 建立。
-- [ ] AMM-006b：meeting workspace 讀取 `GET /api/ai/meeting/sessions/[sessionId]/writebacks`，在摘要旁顯示低噪音 confirmation cards；summary missing 時顯示「先生成摘要」而非 raw error。
-- [ ] AMM-006b：顧問可勾選 confirmed decision / inference / action item / unknown/open question；需要 reason/riskAccepted 的候選可填寫理由或勾選風險接受。
-- [ ] AMM-006b：提交 `POST .../writebacks` 後顯示 created / blocked / skipped 結果；inference checked 仍只成 insight，不建立 CRM fact；confirmed 只建立 CRM candidate audit event。
-- [ ] AMM-006b Browser/API/DB proof：desktop/mobile console error 0、無水平 overflow、owner createdEvents、manager 404、raw provider/private sentinel blocked、high-sensitive missing reason blocked、no-provider `AiUsageLog` unchanged。
+- [x] AMM-006b：meeting workspace 讀取 `GET /api/ai/meeting/sessions/[sessionId]/writebacks`，在摘要旁顯示低噪音 confirmation cards；summary missing 時顯示「先生成摘要」而非 raw error。
+- [x] AMM-006b：顧問可勾選 confirmed decision / inference / action item / unknown/open question；需要 reason/riskAccepted 的候選可填寫理由或勾選風險接受。
+- [x] AMM-006b：提交 `POST .../writebacks` 後顯示 created / blocked / skipped 結果；inference checked 仍只成 insight，不建立 CRM fact；confirmed 只建立 CRM candidate audit event。
+- [x] AMM-006b Browser/API/DB proof：desktop/mobile console error 0、無水平 overflow、owner createdEvents、manager 404、raw provider/private sentinel blocked、high-sensitive missing reason blocked、no-provider `AiUsageLog` unchanged。
 - [x] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
 
 完成註記：2026-06-21 AMM-006a 已完成 deterministic/no-provider meeting writeback boundary；新增 `src/domains/interview/meeting-writeback-boundary.ts`、`src/lib/interview/meeting-writeback-repository.ts`、`/api/ai/meeting/sessions/[sessionId]/writebacks` 與 `pnpm meeting:writeback-qa`。Proof 覆蓋 summary_required / summary missing 409、raw provider-like payload 409 且不 echo sentinel、confirmed decision → CRM candidate、inference → insight 且 CRM fact count = 0、action item / unknown → follow-up task、高敏感 confirmed fact 缺 reason/riskAccepted blocked、manager 404、DB `InteractionEvent` audit evidence 與 no-provider `AiUsageLog` 150->150 unchanged。尚未完成的是 meeting workspace UI confirmation cards、dashboard/CRM 全站入口與 AMM-004b provider-backed memory-chat。
 
 Whole-product review note（2026-06-21 after AMM-003b）：最新 fifth-loop review 將下一個 normal loop 指向 `AMM-006b meeting workspace writeback confirmation cards`。理由：AMM backend/provider foundation 已完成，但 `src/components/meeting/meeting-workspace.tsx` 尚未消費 `/writebacks` preview/POST；這直接阻斷「AI 會議/訪談補強客戶資料與待辦」的可操作閉環。下一輪需做 source-backed UI/API/DB/browser proof，不得只更新 docs 或 proof plan。
+
+完成註記：2026-06-21 AMM-006b 已完成 meeting workspace writeback confirmation cards；`src/components/meeting/meeting-workspace.tsx` 摘要就緒後會讀取 `/writebacks` preview，顯示 confirmed/inference/action/unknown 候選、reason/riskAccepted、高敏感 blocked 與 created/blocked/skipped 結果。新增 `scripts/meeting-workspace-writeback-ui-qa.mjs` / `pnpm meeting:workspace-writeback-ui-qa`，證明 summary-required UI、desktop/mobile console error 0、無水平 overflow、owner createdEvents、manager 404、raw provider/private sentinel 409/no echo、confirmed approved -> CRM candidate audit、inference CRM fact count = 0、action/unknown -> follow-up task、`writesConfirmedCrmFact=false`、no-provider `AiUsageLog` 153->153 unchanged。全站 dashboard/CRM meeting entrypoints 與 provider-backed memory-chat 仍未完成。
 
 ## Batch AMM-007 — pgvector 規模化（operator 依賴）
 - [ ] `InterviewMemory.embeddingStatus` 接 embedding 寫入流程；Supabase 啟用 pgvector + 向量索引。
