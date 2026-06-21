@@ -35,8 +35,18 @@ Strategic review and anti-repetition gate:
 - If the last two loops were mostly documentation/checklist/proof-plan/evidence-report work, this loop
   must not choose another same-type quiet documentation slice. Choose an L2 implementation/proof slice,
   an L3 research-to-implementation translation, or an L4 blocker analysis/unblock plan instead.
-- A documentation-only loop is allowed only when it directly unblocks a named acceptance item and leaves
-  a runnable proof command or exact next implementation prompt.
+- Normal loops must not be docs-only when a safe source-backed implementation slice or executable proof
+  slice exists. "Source-backed" means the loop changes product/API/domain/UI code, repository/BFF
+  contracts, executable QA scripts, or tests that validate runtime behavior. Updating docs, reports,
+  checklists, or proof plans may accompany the slice, but cannot be the whole slice merely because it is
+  easy or low-risk.
+- A documentation-only loop is allowed only for a scheduled whole-product review, an explicit user
+  request for documentation, an L4 repeated-blocker analysis, or a true no-safe-source condition. In
+  that case it must directly unblock a named acceptance item and leave a runnable proof command or exact
+  next implementation prompt.
+- A proof-only loop is acceptable only when it runs or creates executable proof against real source/API/DB/
+  browser behavior. Static source audits and reports are supporting evidence, not a substitute for
+  runnable proof when runtime proof is safe.
 - Every selected slice must map to at least one product capability, research hypothesis, acceptance item,
   roadmap item, or issue-question entry. If no such mapping exists, downgrade it to L0 hygiene and skip it
   unless no higher-value safe work exists.
@@ -90,8 +100,12 @@ Quiet continuation rule:
 
 - Heartbeat turns should not end as `DONT_NOTIFY` merely because there is no new human decision,
   no urgent blocker, or no user-facing notification value.
-- If there is no immediate notification value but development can safely continue, run one quiet
-  gap-research documentation loop instead of stopping.
+- If there is no immediate notification value but development can safely continue, first choose the
+  highest-scoring safe L2 implementation slice or executable L1 proof slice. Do not downgrade to
+  docs-only quiet research while source-backed work can still move the product forward.
+- Run a quiet gap-research documentation loop only when no safe source-backed or executable proof slice
+  is available, when the cadence rule requires whole-product review, or when the same blocker needs an
+  L4 root-cause/unblock analysis.
 - Do not run quiet gap-research documentation loops twice in a row unless the second loop converts the
   prior finding into a concrete L2/L3 implementation/proof slice or an L4 blocker analysis.
 - A quiet gap-research documentation loop is not a broad implementation loop. It studies the next
@@ -144,6 +158,8 @@ Use this scoring policy to choose exactly one reviewable slice.
 
 Reward candidate slices:
 
+- +8 changes source code, BFF/API/domain/UI behavior, executable QA scripts, or tests in a way that
+  proves real runtime behavior instead of only writing docs.
 - +7 connects two or more surfaces in the target workflow, such as client -> relationship graph,
   graph -> preparation package, preparation package -> theater, or interview -> confirmed writeback.
 - +6 replaces local/mock/runtime-only product data with DB-backed, BFF-owned, session-scoped,
@@ -170,6 +186,8 @@ Penalize candidate slices:
 - -5 depends on missing operator approval/session/env when another safe source slice is available.
 - -5 only polishes UI copy or screenshots without connecting the LV3 workflow, BFF boundary, or proof.
 - -5 uses mock success as proof of a real AI, DB, auth, theater, or client workflow.
+- -8 chooses a docs-only, checklist-only, report-only, or proof-plan-only slice while a safe
+  source-backed implementation or executable proof slice is available.
 
 Task:
 
@@ -177,10 +195,12 @@ Task:
 2. Run the strategic review and anti-repetition gate above. Record the last-two-loop classification and
    why the selected slice is not duplicate work.
 3. If this is a heartbeat/continuation turn with no new human decision or immediate notification
-   value, but safe work remains, run the quiet gap-research documentation loop from the rule above.
-   In that case, score the top 3 documentation/research slices using the same reward/penalty policy,
-   do not make broad source changes, and convert the chosen gap into docs and next-slice proof plan.
-4. Otherwise, score the top 3 available implementation/proof slices using the reward/penalty policy.
+   value, but safe work remains, still prefer source-backed L2 implementation or executable L1 proof.
+   Use the quiet gap-research documentation loop only under the no-safe-source / cadence-review /
+   repeated-blocker exceptions above.
+4. Score the top 3 available implementation/proof slices using the reward/penalty policy. Include docs
+   or reports as supporting artifacts, not as the selected normal-loop deliverable, unless an exception
+   explicitly applies.
 5. Pick the highest-scoring slice that can be completed safely in one increment.
 6. Implement, prove, or document only that slice.
 7. Preserve repo architecture: domain logic in `src/domains`, BFF/API in `src/app/api`, UI through

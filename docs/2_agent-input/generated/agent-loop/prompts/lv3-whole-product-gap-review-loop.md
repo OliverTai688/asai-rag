@@ -114,6 +114,10 @@ Task:
    leverage, and dependency order.
 4. Convert the top gaps into next implementation/proof slices. Prefer updating existing PLN/ACC docs
    and `AGENTS.md` workstream state over creating new docs unless no owner exists.
+   The recommended next slice should be source-backed whenever safe: product/API/domain/UI code,
+   repository/BFF contracts, executable QA scripts, or tests that prove runtime behavior. Do not convert
+   a known gap into only docs, checklist sync, report writing, or proof-plan work when a safe L2
+   implementation or executable L1 proof can move the product forward.
 5. Convert newly discovered gaps into the relevant owner docs:
    - `RES-` for research/design/system understanding gaps.
    - `PLN-` for executable batch-task gaps.
@@ -138,6 +142,9 @@ Constraints:
 
 - Do not make broad source changes during the review loop. This loop is for evaluation, research,
   prioritization, batch-task updates, and proof planning.
+- Because this prompt is a scheduled review, docs-only output is allowed here. However, it must point
+  the next normal loop at a source-backed implementation/proof slice unless every safe source path is
+  blocked and the report explicitly records the blocker root cause and smallest unblock action.
 - Do not run production mutations, real email/notification, real payment/refund, Prisma reset/drop,
   destructive DB changes, or secret-bearing proof.
 - Do not duplicate known reports. If a gap is already known, refine the source slice, owner doc,

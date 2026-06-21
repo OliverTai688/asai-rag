@@ -25,7 +25,8 @@
     "preferAIInterviewAsCreationAndRefinementEntry": true,
     "allowResearchBackedPrevisitInterfaceRestructure": true,
     "requireNandaAgentFactsProtocolAlignmentForEveryAiModule": true,
-    "preferRegistryReadyAiCapabilitiesOverAdHocAiRoutes": true
+    "preferRegistryReadyAiCapabilitiesOverAdHocAiRoutes": true,
+    "avoidDocsOnlyProofWhenSafeSourceWorkExists": true
   },
   "priorityWorkstreams": [
     "PIM: Realtime Voice / Park-style Memory Interview",
