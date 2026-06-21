@@ -21,9 +21,9 @@
 
 - 拜訪後筆記只是 `VisitPlan.postVisitNotes` 純文字，無 transcript / 結構化摘要 / 行動項 / citation / 跨會議記憶。
 - `interview` domain 已有完整 Park-memory + realtime voice + persistence，但綁在 `/interview`，未成為全站「會議」物件。
-- `retrieveInterviewMemories()` 已有 client-scoped deterministic memory-chat route；provider-backed live memory chat 與 pgvector retrieval 仍待 AMM-004b/AMM-007。
+- `retrieveInterviewMemories()` 已有 client-scoped deterministic memory-chat route 與 provider-backed live memory-chat mode；pgvector retrieval 仍待 AMM-007。
 - 已有 `MeetingSummary` / `MeetingCitation` contract、additive `InterviewMeetingSummary` schema、member-scoped meeting capture BFF、deterministic cited summary persistence proof、provider JSON summary success/error `AiUsageLog` proof、pre-visit meeting workspace 入口、dashboard / CRM client detail 全站入口、deterministic writeback boundary 與 workspace confirmation cards。
-- 仍缺 `/pre-visit/[planId]/notes` 與 `postVisitNotes` 相容升級、provider-backed memory-chat、pgvector retrieval、cross-state browser QA。
+- 仍缺 `/pre-visit/[planId]/notes` 與 `postVisitNotes` 相容升級、pgvector retrieval、cross-state browser QA。
 
 ---
 
@@ -76,11 +76,14 @@
 - [x] AMM-004a：投影 CRM client facts / policy / family graph / prior report / prior meeting summary 成 deterministic memory-chat grounding（fact/inference/unknown 保留標籤）。
 - [x] AMM-004a：新增 `POST /api/ai/meeting/sessions/[id]/chat` 與 `POST /api/ai/clients/[id]/memory-chat`，grounding = 本場 transcript + 本客戶跨 session 記憶。
 - [x] AMM-004a：答案分 facts/inferences/unknowns 並帶 citations；不把推論當事實、不重述已確認事實當新發現。
-- [ ] success/error 寫 `AiUsageLog`；429/503 contract 完整。
+- [x] AMM-004b success/error 寫 `AiUsageLog`；429/503 contract 完整。
 - [x] AMM-004a API proof：能引用**過去**會議與 CRM facts 回答；member 不能對無權客戶對答（403）。
 - [x] AMM-004a 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`、`pnpm meeting:memory-chat-qa`。
+- [x] AMM-004b 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`、`pnpm meeting:memory-chat-provider-qa`、`pnpm ai:bff-audit`、`pnpm ai:protocol-registry-qa`。
 
 完成註記：2026-06-21 AMM-004a 已完成 deterministic/no-provider cross-meeting memory-chat；新增 `src/lib/interview/meeting-memory-chat-repository.ts`、`POST /api/ai/meeting/sessions/[sessionId]/chat`、`POST /api/ai/clients/[clientId]/memory-chat` 與 `pnpm meeting:memory-chat-qa`。Proof 覆蓋 unauth 401、owner session/client memory-chat 200、prior meeting summary citation、current/client memory citation、CRM client/family/policy projection、facts/inferences/unknowns 分桶、manager session 404、manager client 403、raw provider sentinel 409 且不 echo、response 不含 email/phone/policy id/raw transcript/provider payload、no-provider `AiUsageLog` unchanged。Provider-backed live chat、quota 429/503 與 success/error `AiUsageLog` 仍留待 AMM-004b/AMM-003b。
+
+完成註記：2026-06-21 AMM-004b 已完成 provider-backed meeting/client memory-chat；`mode: "PROVIDER_JSON"` 共用 owner-scoped grounding、least-disclosure citations 與 safety assertion，quota/provider-disabled guard 先於 provider call，provider error/success 都寫 `MEETING` / `OPENAI` `AiUsageLog`，不持久化 raw provider payload 或 chat transcript。新增 `src/lib/interview/meeting-memory-chat-provider.ts` 與 `pnpm meeting:memory-chat-provider-qa`，proof 覆蓋 unauth 401、raw provider-like payload 409/no echo、provider-disabled 503/no fake usage、quota 429/no provider、forced provider error 502 + error log、session/client provider memory-chat success + usageLogId、DB usage log trace/client linkage、manager 404/403 no log、response 無 email/phone/policy/raw transcript/provider payload。Deterministic no-provider fallback 仍保留。
 
 ## Batch AMM-005 — 全站入口與拜訪後筆記升級
 - [x] AMM-005a：先從 `/pre-visit/[planId]` 或 `/pre-visit/[planId]/meeting` 建立正式 meeting workspace 入口，接 accepted AMM BFF（create/read `CLIENT_MEETING`、append manual/final-transcript turn、generate deterministic summary），不得要求 raw ID。

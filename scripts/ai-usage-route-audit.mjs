@@ -161,21 +161,35 @@ const routeManifest = [
     inputEvidence: ["meetingWritebackInputSchema", "findMeetingPayloadViolations", "safeParse"],
     noProviderEvidence: ["requireCurrentMember", "saveMeetingWritebackConfirmation"],
   }),
-  deterministicRoute({
+  providerRoute({
     route: "/api/ai/meeting/sessions/[sessionId]/chat",
     file: "src/app/api/ai/meeting/sessions/[sessionId]/chat/route.ts",
     module: "MEETING",
+    kind: "provider_json_or_deterministic",
     methods: ["POST"],
     inputEvidence: ["meetingMemoryChatInputSchema", "findMeetingMemoryChatPayloadViolations", "safeParse"],
-    noProviderEvidence: ["requireCurrentMember", "answerMeetingMemoryChatForSession"],
+    providerCallEvidence: ["chat.completions.create"],
+    successEvidence: ["persistMeetingMemoryChatProviderSuccess"],
+    errorEvidence: ["persistMeetingMemoryChatProviderFailure"],
+    supportFiles: [
+      "src/lib/interview/meeting-memory-chat-provider.ts",
+      "src/lib/interview/meeting-memory-chat-repository.ts",
+    ],
   }),
-  deterministicRoute({
+  providerRoute({
     route: "/api/ai/clients/[clientId]/memory-chat",
     file: "src/app/api/ai/clients/[clientId]/memory-chat/route.ts",
     module: "MEETING",
+    kind: "provider_json_or_deterministic",
     methods: ["POST"],
     inputEvidence: ["meetingMemoryChatInputSchema", "findMeetingMemoryChatPayloadViolations", "safeParse"],
-    noProviderEvidence: ["requireCurrentMember", "answerClientMemoryChatForMember"],
+    providerCallEvidence: ["chat.completions.create"],
+    successEvidence: ["persistMeetingMemoryChatProviderSuccess"],
+    errorEvidence: ["persistMeetingMemoryChatProviderFailure"],
+    supportFiles: [
+      "src/lib/interview/meeting-memory-chat-provider.ts",
+      "src/lib/interview/meeting-memory-chat-repository.ts",
+    ],
   }),
   providerRoute({
     route: "/api/ai/interview/transcribe",
@@ -345,7 +359,8 @@ function auditRouteSource(route) {
     };
   }
 
-  const source = readFileSync(absolutePath, "utf8");
+  const routeSource = readFileSync(absolutePath, "utf8");
+  const source = [routeSource, ...readSupportFileSources(route.supportFiles ?? [])].join("\n");
   const providerCallDetected = providerCallPattern.test(source);
   const checks = {
     routeDiscovered: discoveredRoutes.includes(route.route),
@@ -377,6 +392,15 @@ function auditRouteSource(route) {
     checks,
     gaps,
   };
+}
+
+function readSupportFileSources(files) {
+  return files
+    .map((file) => {
+      const absolutePath = join(ROOT, file);
+      return existsSync(absolutePath) ? readFileSync(absolutePath, "utf8") : "";
+    })
+    .filter(Boolean);
 }
 
 function tokensPresent(source, tokens) {

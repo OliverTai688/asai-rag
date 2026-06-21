@@ -1,4 +1,5 @@
 import { authErrorResponse, requireCurrentMember } from "@/lib/auth/current-workspace";
+import { generateProviderMemoryChatForSession } from "@/lib/interview/meeting-memory-chat-provider";
 import {
   answerMeetingMemoryChatForSession,
   findMeetingMemoryChatPayloadViolations,
@@ -10,6 +11,8 @@ interface MeetingMemoryChatRouteContext {
 }
 
 export async function POST(req: Request, ctx: MeetingMemoryChatRouteContext) {
+  const startedAt = Date.now();
+
   try {
     const session = await requireCurrentMember();
     const { sessionId } = await ctx.params;
@@ -36,6 +39,11 @@ export async function POST(req: Request, ctx: MeetingMemoryChatRouteContext) {
         },
         { status: 400 },
       );
+    }
+
+    if (parsedBody.data.mode === "PROVIDER_JSON") {
+      const providerResult = await generateProviderMemoryChatForSession(req, session, sessionId, parsedBody.data, startedAt);
+      return providerResult.response;
     }
 
     const result = await answerMeetingMemoryChatForSession(session, sessionId, parsedBody.data);

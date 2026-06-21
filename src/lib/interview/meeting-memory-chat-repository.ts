@@ -2,7 +2,9 @@ import { z } from "zod";
 import type { InterviewMemory } from "@/domains/interview/types";
 import { retrieveInterviewMemories } from "@/domains/interview/memory";
 import type { MeetingDataClass, MeetingSummaryItem, MeetingActionItem } from "@/domains/interview/meeting";
+import { AiModule, AiProvider } from "@/generated/prisma/enums";
 import type { InterviewMeetingSummaryModel } from "@/generated/prisma/models";
+import { writeAiUsageLogSafely } from "@/lib/ai/usage-log";
 import type { AppSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
 import { findMeetingPayloadViolations, getMeetingSessionSnapshotForMember } from "./meeting-session-repository";
@@ -10,8 +12,9 @@ import type { InterviewMemoryDto } from "./interview-persistence-repository";
 
 export const meetingMemoryChatInputSchema = z
   .object({
-    mode: z.literal("DETERMINISTIC_NO_PROVIDER").default("DETERMINISTIC_NO_PROVIDER"),
+    mode: z.enum(["DETERMINISTIC_NO_PROVIDER", "PROVIDER_JSON"]).default("DETERMINISTIC_NO_PROVIDER"),
     question: z.string().trim().min(3).max(500),
+    dryRun: z.boolean().optional().default(false),
   })
   .strict();
 
@@ -59,9 +62,9 @@ export interface MeetingMemoryChatAnswer {
 export interface MeetingMemoryChatSafety {
   scopeSource: "server_session";
   visibilityScope: "member-private";
-  providerCallAttempted: false;
-  aiUsageLogRequired: false;
-  aiUsageLogWritten: false;
+  providerCallAttempted: boolean;
+  aiUsageLogRequired: boolean;
+  aiUsageLogWritten: boolean;
   rawAudioStored: false;
   rawProviderPayloadStored: false;
   rawPrivateTranscriptReturned: false;
@@ -69,7 +72,10 @@ export interface MeetingMemoryChatSafety {
   policyIdentifierReturned: false;
   crossMemberMemoryShared: false;
   writesConfirmedCrmFact: false;
-  generatedBy: "deterministic-memory-chat";
+  generatedBy: "deterministic-memory-chat" | "provider-json-memory-chat";
+  provider: "OPENAI" | null;
+  quotaChecked: boolean;
+  quotaBlocked: boolean;
 }
 
 export type MeetingMemoryChatResult =
@@ -79,6 +85,9 @@ export type MeetingMemoryChatResult =
       sessionId: string | null;
       answer: MeetingMemoryChatAnswer;
       safety: MeetingMemoryChatSafety;
+      provider?: "OPENAI";
+      model?: string;
+      usageLogId?: string;
     }
   | {
       status: "client_scope_missing" | "grounding_empty" | "safety_failed";
@@ -88,7 +97,7 @@ export type MeetingMemoryChatResult =
       safetyFailures?: string[];
     };
 
-interface GroundingSource {
+export interface MeetingMemoryChatGroundingSource {
   id: string;
   sourceType: MeetingMemoryChatSourceType;
   sourceId: string;
@@ -103,9 +112,47 @@ interface GroundingSource {
   score: number;
 }
 
+export type MeetingMemoryChatPreparation =
+  | {
+      status: "ready";
+      clientId: string;
+      sessionId: string | null;
+      question: string;
+      rankedSources: MeetingMemoryChatGroundingSource[];
+      answer: MeetingMemoryChatAnswer;
+      safety: MeetingMemoryChatSafety;
+    }
+  | {
+      status: "client_scope_missing" | "grounding_empty" | "safety_failed";
+      clientId: string | null;
+      sessionId: string | null;
+      safety: MeetingMemoryChatSafety;
+      safetyFailures?: string[];
+    };
+
+export interface BuildProviderMemoryChatAnswerInput {
+  question: string;
+  answer: string;
+  facts: Array<{ text: string; citationIds: string[] }>;
+  inferences: Array<{ text: string; citationIds: string[] }>;
+  unknowns: Array<{ text: string; citationIds: string[] }>;
+  citations: MeetingMemoryChatCitation[];
+  fallback: Pick<MeetingMemoryChatAnswer, "facts" | "inferences" | "unknowns" | "sourceBreakdown">;
+}
+
+export interface MeetingMemoryChatProviderUsage {
+  model: string;
+  requestId?: string;
+  promptTokens?: number;
+  completionTokens?: number;
+  totalTokens?: number;
+  latencyMs: number;
+}
+
 const MAX_CITATIONS = 10;
 const MAX_BUCKET_ITEMS = 4;
 const MAX_SOURCE_TEXT = 180;
+const MAX_PROVIDER_ANSWER_TEXT = 1800;
 const REDACTED = "[已隱藏]";
 
 export function findMeetingMemoryChatPayloadViolations(value: unknown): string[] {
@@ -117,6 +164,25 @@ export async function answerMeetingMemoryChatForSession(
   sessionId: string,
   input: MeetingMemoryChatInput,
 ): Promise<MeetingMemoryChatResult | null> {
+  const preparation = await prepareMeetingMemoryChatForSession(session, sessionId, input);
+  return preparationToResult(preparation);
+}
+
+export async function answerClientMemoryChatForMember(
+  session: AppSession,
+  clientId: string,
+  input: MeetingMemoryChatInput,
+  currentSessionId: string | null = null,
+): Promise<MeetingMemoryChatResult | null> {
+  const preparation = await prepareClientMemoryChatForMember(session, clientId, input, currentSessionId);
+  return preparationToResult(preparation);
+}
+
+export async function prepareMeetingMemoryChatForSession(
+  session: AppSession,
+  sessionId: string,
+  input: MeetingMemoryChatInput,
+): Promise<MeetingMemoryChatPreparation | null> {
   const snapshot = await getMeetingSessionSnapshotForMember(session, sessionId);
 
   if (!snapshot) {
@@ -132,15 +198,15 @@ export async function answerMeetingMemoryChatForSession(
     };
   }
 
-  return answerClientMemoryChatForMember(session, snapshot.session.clientId, input, snapshot.session.id);
+  return prepareClientMemoryChatForMember(session, snapshot.session.clientId, input, snapshot.session.id);
 }
 
-export async function answerClientMemoryChatForMember(
+export async function prepareClientMemoryChatForMember(
   session: AppSession,
   clientId: string,
   input: MeetingMemoryChatInput,
   currentSessionId: string | null = null,
-): Promise<MeetingMemoryChatResult | null> {
+): Promise<MeetingMemoryChatPreparation | null> {
   const client = await prisma.client.findFirst({
     where: {
       id: clientId,
@@ -193,19 +259,144 @@ export async function answerClientMemoryChatForMember(
   }
 
   return {
-    status: "answered",
+    status: "ready",
     clientId,
     sessionId: currentSessionId,
+    question: input.question,
+    rankedSources: ranked,
     answer,
     safety: meetingMemoryChatSafety(),
   };
+}
+
+export function buildProviderMemoryChatAnswer(input: BuildProviderMemoryChatAnswerInput): MeetingMemoryChatAnswer {
+  const allowedCitationIds = new Set(input.citations.map((citation) => citation.id));
+  const mapItems = (prefix: "fact" | "inference" | "unknown", items: Array<{ text: string; citationIds: string[] }>) =>
+    items
+      .map((item, index) => ({
+        id: `${prefix}-${index + 1}`,
+        text: sanitizeProviderText(item.text, MAX_SOURCE_TEXT),
+        citationIds: uniqueStrings(item.citationIds.filter((id) => allowedCitationIds.has(id))).slice(0, 4),
+      }))
+      .filter((item) => item.text && item.citationIds.length > 0)
+      .slice(0, MAX_BUCKET_ITEMS);
+  const facts = mapItems("fact", input.facts);
+  const inferences = mapItems("inference", input.inferences);
+  const unknowns = mapItems("unknown", input.unknowns);
+
+  return {
+    question: input.question,
+    answer: sanitizeProviderText(input.answer, MAX_PROVIDER_ANSWER_TEXT),
+    facts: facts.length > 0 ? facts : input.fallback.facts,
+    inferences: inferences.length > 0 ? inferences : input.fallback.inferences,
+    unknowns: unknowns.length > 0 ? unknowns : input.fallback.unknowns,
+    citations: input.citations,
+    sourceBreakdown: input.fallback.sourceBreakdown,
+  };
+}
+
+export async function persistMeetingMemoryChatProviderSuccess(input: {
+  session: AppSession;
+  clientId?: string | null;
+  interviewSessionId?: string | null;
+  usage: MeetingMemoryChatProviderUsage;
+}): Promise<string> {
+  const log = await prisma.$transaction(async (tx) => {
+    const usageLog = await tx.aiUsageLog.create({
+      data: {
+        organizationId: input.session.organization.id,
+        unitId: input.session.membership.primaryUnitId,
+        userId: input.session.user.id,
+        clientId: normalizeOptionalId(input.clientId),
+        provider: AiProvider.OPENAI,
+        module: AiModule.MEETING,
+        model: input.usage.model,
+        requestId: input.usage.requestId,
+        promptTokens: input.usage.promptTokens,
+        completionTokens: input.usage.completionTokens,
+        totalTokens: input.usage.totalTokens,
+        latencyMs: input.usage.latencyMs,
+        traceSource: "interview",
+        interviewSessionId: normalizeOptionalId(input.interviewSessionId),
+      },
+      select: { id: true },
+    });
+
+    await tx.organization.update({
+      where: { id: input.session.organization.id },
+      data: { monthlyAiUsed: { increment: 1 } },
+    });
+
+    return usageLog;
+  });
+
+  return log.id;
+}
+
+export async function persistMeetingMemoryChatProviderFailure(input: {
+  session: AppSession;
+  clientId?: string | null;
+  interviewSessionId?: string | null;
+  usage: MeetingMemoryChatProviderUsage;
+  error: string;
+}): Promise<void> {
+  await writeAiUsageLogSafely({
+    organizationId: input.session.organization.id,
+    unitId: input.session.membership.primaryUnitId ?? undefined,
+    userId: input.session.user.id,
+    clientId: normalizeOptionalId(input.clientId) ?? undefined,
+    provider: AiProvider.OPENAI,
+    module: AiModule.MEETING,
+    model: input.usage.model,
+    requestId: input.usage.requestId,
+    promptTokens: input.usage.promptTokens,
+    completionTokens: input.usage.completionTokens,
+    totalTokens: input.usage.totalTokens,
+    latencyMs: input.usage.latencyMs,
+    error: input.error.slice(0, 500),
+    trace: {
+      traceSource: "interview",
+      interviewSessionId: normalizeOptionalId(input.interviewSessionId) ?? undefined,
+    },
+  });
+}
+
+export function buildMeetingMemoryChatProviderSafety(
+  overrides: Partial<
+    Pick<
+      MeetingMemoryChatSafety,
+      "providerCallAttempted" | "aiUsageLogRequired" | "aiUsageLogWritten" | "quotaChecked" | "quotaBlocked"
+    >
+  > = {},
+): MeetingMemoryChatSafety {
+  return meetingMemoryChatSafety({
+    providerCallAttempted: overrides.providerCallAttempted ?? false,
+    aiUsageLogRequired: overrides.aiUsageLogRequired ?? true,
+    aiUsageLogWritten: overrides.aiUsageLogWritten ?? false,
+    generatedBy: "provider-json-memory-chat",
+    provider: "OPENAI",
+    quotaChecked: overrides.quotaChecked ?? true,
+    quotaBlocked: overrides.quotaBlocked ?? false,
+  });
+}
+
+export function assertMeetingMemoryChatSafety(answer: MeetingMemoryChatAnswer): string[] {
+  const serialized = JSON.stringify(answer);
+  const failures: string[] = [];
+
+  if (hasForbiddenPrivateText(serialized)) failures.push("private or provider sentinel leaked");
+  if (/@/.test(serialized)) failures.push("personal contact email leaked");
+  if (/(09\d{2}[-\s]?\d{3}[-\s]?\d{3}|0\d{1,2}[-\s]?\d{6,8})/.test(serialized)) failures.push("personal phone leaked");
+  if (/policy\s*number|保單號|policyNumber/i.test(serialized)) failures.push("policy identifier leaked");
+
+  return failures;
 }
 
 async function collectClientGroundingSources(
   session: AppSession,
   clientId: string,
   currentSessionId: string | null,
-): Promise<GroundingSource[]> {
+): Promise<MeetingMemoryChatGroundingSource[]> {
   const [clientProfile, memories, summaries, familyMembers, policies, reports] = await Promise.all([
     prisma.client.findFirst({
       where: {
@@ -295,7 +486,7 @@ async function collectClientGroundingSources(
     }),
   ]);
 
-  const sources: GroundingSource[] = [];
+  const sources: MeetingMemoryChatGroundingSource[] = [];
 
   if (clientProfile) {
     sources.push({
@@ -428,8 +619,8 @@ async function collectClientGroundingSources(
   return sources.filter((source) => source.text.trim() && !hasForbiddenPrivateText(source.text));
 }
 
-function summaryToSources(summary: InterviewMeetingSummaryModel, currentSessionId: string | null): GroundingSource[] {
-  const sources: GroundingSource[] = [
+function summaryToSources(summary: InterviewMeetingSummaryModel, currentSessionId: string | null): MeetingMemoryChatGroundingSource[] {
+  const sources: MeetingMemoryChatGroundingSource[] = [
     {
       id: `summary:${summary.id}:overview`,
       sourceType: "MEETING_SUMMARY",
@@ -486,7 +677,7 @@ function isSummaryLikeItem(value: unknown): value is MeetingSummaryItem | Meetin
   return typeof item.id === "string" && typeof item.text === "string" && typeof item.dataClass === "string" && Array.isArray(item.citations);
 }
 
-function rankSources(question: string, sources: GroundingSource[]): GroundingSource[] {
+function rankSources(question: string, sources: MeetingMemoryChatGroundingSource[]): MeetingMemoryChatGroundingSource[] {
   return sources
     .map((source) => ({
       ...source,
@@ -498,7 +689,7 @@ function rankSources(question: string, sources: GroundingSource[]): GroundingSou
     });
 }
 
-function buildDeterministicMemoryAnswer(question: string, sources: GroundingSource[]): MeetingMemoryChatAnswer {
+function buildDeterministicMemoryAnswer(question: string, sources: MeetingMemoryChatGroundingSource[]): MeetingMemoryChatAnswer {
   const citations = sources.map(toCitation);
   const citationBySourceId = new Map(citations.map((citation) => [citation.id, citation]));
   const factItems = sources
@@ -535,7 +726,7 @@ function buildDeterministicMemoryAnswer(question: string, sources: GroundingSour
   };
 }
 
-function toCitation(source: GroundingSource): MeetingMemoryChatCitation {
+function toCitation(source: MeetingMemoryChatGroundingSource): MeetingMemoryChatCitation {
   return {
     id: source.id,
     sourceType: source.sourceType,
@@ -553,7 +744,7 @@ function toCitation(source: GroundingSource): MeetingMemoryChatCitation {
 
 function toAnswerItem(
   prefix: "fact" | "inference" | "unknown",
-  source: GroundingSource,
+  source: MeetingMemoryChatGroundingSource,
   index: number,
   citationBySourceId: Map<string, MeetingMemoryChatCitation>,
 ): MeetingMemoryChatItem {
@@ -564,7 +755,7 @@ function toAnswerItem(
   };
 }
 
-function buildSourceBreakdown(sources: GroundingSource[]): Record<MeetingMemoryChatSourceType, number> {
+function buildSourceBreakdown(sources: MeetingMemoryChatGroundingSource[]): Record<MeetingMemoryChatSourceType, number> {
   const initial: Record<MeetingMemoryChatSourceType, number> = {
     CURRENT_MEETING_MEMORY: 0,
     CLIENT_MEMORY: 0,
@@ -582,19 +773,23 @@ function buildSourceBreakdown(sources: GroundingSource[]): Record<MeetingMemoryC
   return initial;
 }
 
-function assertMeetingMemoryChatSafety(answer: MeetingMemoryChatAnswer): string[] {
-  const serialized = JSON.stringify(answer);
-  const failures: string[] = [];
+function preparationToResult(preparation: MeetingMemoryChatPreparation | null): MeetingMemoryChatResult | null {
+  if (!preparation) return null;
 
-  if (hasForbiddenPrivateText(serialized)) failures.push("private or provider sentinel leaked");
-  if (/@/.test(serialized)) failures.push("personal contact email leaked");
-  if (/(09\d{2}[-\s]?\d{3}[-\s]?\d{3}|0\d{1,2}[-\s]?\d{6,8})/.test(serialized)) failures.push("personal phone leaked");
-  if (/policy\s*number|保單號|policyNumber/i.test(serialized)) failures.push("policy identifier leaked");
+  if (preparation.status !== "ready") {
+    return preparation;
+  }
 
-  return failures;
+  return {
+    status: "answered",
+    clientId: preparation.clientId,
+    sessionId: preparation.sessionId,
+    answer: preparation.answer,
+    safety: preparation.safety,
+  };
 }
 
-function meetingMemoryChatSafety(): MeetingMemoryChatSafety {
+function meetingMemoryChatSafety(overrides: Partial<MeetingMemoryChatSafety> = {}): MeetingMemoryChatSafety {
   return {
     scopeSource: "server_session",
     visibilityScope: "member-private",
@@ -609,6 +804,10 @@ function meetingMemoryChatSafety(): MeetingMemoryChatSafety {
     crossMemberMemoryShared: false,
     writesConfirmedCrmFact: false,
     generatedBy: "deterministic-memory-chat",
+    provider: null,
+    quotaChecked: false,
+    quotaBlocked: false,
+    ...overrides,
   };
 }
 
@@ -727,6 +926,25 @@ function sanitizeSnippet(value: string): string {
     .replace(/0\d{1,2}[-\s]?\d{6,8}/g, REDACTED)
     .replace(/保單號[:：]?\s*[A-Z0-9-]+/gi, "保單識別碼已隱藏")
     .slice(0, MAX_SOURCE_TEXT);
+}
+
+function sanitizeProviderText(value: string, maxLength: number): string {
+  return normalizeWhitespace(value)
+    .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, REDACTED)
+    .replace(/09\d{2}[-\s]?\d{3}[-\s]?\d{3}/g, REDACTED)
+    .replace(/0\d{1,2}[-\s]?\d{6,8}/g, REDACTED)
+    .replace(/保單號[:：]?\s*[A-Z0-9-]+/gi, "保單識別碼已隱藏")
+    .replace(/raw provider payload/gi, REDACTED)
+    .replace(/provider payload/gi, REDACTED)
+    .slice(0, maxLength);
+}
+
+function normalizeOptionalId(value: string | null | undefined): string | null {
+  return value && value.trim() ? value : null;
+}
+
+function uniqueStrings(values: Iterable<string | null | undefined>): string[] {
+  return Array.from(new Set(Array.from(values).filter((value): value is string => Boolean(value))));
 }
 
 function normalizeWhitespace(value: string): string {
