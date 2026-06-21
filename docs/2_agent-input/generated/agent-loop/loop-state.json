@@ -72,11 +72,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 1,
+    "normalLoopsSinceLastWholeProductReview": 2,
     "lastWholeProductReviewAt": "2026-06-21",
     "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-21_lv3-whole-product-gap-review-platform-public-bff.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "Completed normal loop 1/4 after the 2026-06-21 whole-product review: `BFF-304a platform session separation + metadata/audit proof` is now closed with `pnpm bff:platform-qa`. Next normal implementation/proof slice: `BFF-305a public status and CTA availability proof`. Add a public-safe `/api/public/status` or equivalent BFF contract that reports maintenance, AI availability, checkout availability, and public CTA posture without exposing private plan cost, provider config, secrets, internal billing state, payment data, raw provider payload, or tenant/client data. Browser/API proof should cover pricing/status/CTA consistency and no private sentinel leakage. Keep payment checkout disabled/sandbox only; do not enable real payment/email/notification or production writes.",
+    "nextRecommendedImplementationSlice": "Completed normal loop 2/4 after the 2026-06-21 whole-product review: `BFF-304a platform session separation + metadata/audit proof` is closed, and the public-facing gap has now been converted into executable AGENTS/PLN/ACC docs. Next normal implementation/proof slice remains `BFF-305a public status and CTA availability proof`. Add a public-safe `/api/public/status` or equivalent BFF contract that reports maintenance, AI availability, checkout availability, public CTA posture, lead capture posture, and legal/privacy status without exposing private plan cost, provider config, secrets, internal billing state, payment data, raw provider payload, or tenant/client data. `/api/public/pricing` and landing/pricing CTA must share the same availability source. Browser/API proof should cover pricing/status/CTA consistency, checkout disabled/sandbox posture, private sentinel 0, and desktop/mobile no overflow. Keep payment checkout disabled/sandbox only; defer `/api/public/lead` unless rate limit, spam protection, consent version, allowlisted persistence, and abuse/failure proof exist. Do not enable real payment/email/notification or production writes.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {

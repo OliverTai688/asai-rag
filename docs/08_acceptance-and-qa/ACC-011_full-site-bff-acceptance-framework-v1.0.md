@@ -31,6 +31,19 @@ Full-site BFF 驗收重點不是 endpoint 數量，而是資料邊界、session 
 - Pricing CTA 與 DB/provider availability 一致。
 - Public lead/status endpoint 若實作，需 rate-limit/spam/consent proof。
 
+#### 2.1.1 Public Status / CTA Availability Gates
+
+`BFF-305a` 必須證明 public pages 使用 public-safe server contract，而不是只靠 frontend hardcoded availability：
+
+- `GET /api/public/status` 或等價 BFF 匿名可讀、cache-aware，且回 `maintenance`、`aiAvailability`、`checkoutAvailability`、`primaryCta`、`leadCapture`、`legalStatus`、`updatedAt`。
+- `/api/public/pricing` 與 public status 共用同一 checkout / CTA availability source；pricing 不得宣稱 status 已標為 disabled / unavailable 的 checkout 或 CTA 狀態。
+- Public response 不得包含 private plan cost、provider raw config、billing internal state、payment transaction data、tenant/client data、secret/token、raw prompt 或 raw provider payload。
+- Landing / pricing CTA 必須依 BFF contract 呈現 private beta、invite、contact sales、checkout disabled、unavailable 等狀態。
+- `/api/public/lead` 需維持 deferred，除非同輪具備 rate limit、spam protection、consent version、allowlisted persistence 與 abuse/failure proof。
+- Public status endpoint 不可被宣稱為 NANDA / third-party public discovery 或 external registry；agent publication、credential signing、cross-org agent access 仍需走 NAP gate 與 operator approval。
+- Browser/API proof 需覆蓋 status 200、pricing 200、CTA consistency、checkout disabled/sandbox posture、private sentinel 0、desktop/mobile no overflow。
+- 此 gate 不批准 real payment、real email、real notification 或 production write。
+
 ### 2.2 Member App
 
 - Unauthenticated request returns 401 or redirects to login.
