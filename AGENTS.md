@@ -1531,6 +1531,15 @@ Whole-product review note（2026-06-21 after AMM-003a）：第五輪校準確認
 
 完成註記（2026-06-21 AMM-005b）：新增 dashboard「最近會議」入口、CRM client detail「AI 會議工作台」入口與 `/crm/[clientId]/meeting` route；`MeetingWorkspace` 可用 `visitPlanId` 或 `clientId` 啟動同一 accepted AMM BFF。新增 `pnpm meeting:global-entrypoints-qa`，證明 dashboard recent meeting 可直接進 `/pre-visit/[planId]/meeting`、CRM 可用 client-scoped meeting workspace、refresh/new-context summary persistence、DB `CLIENT_MEETING.client_id` 正確且 direct CRM meeting 不需 `visitPlanId`、manager 讀/建 foreign meeting 404、raw provider payload 409/no echo、desktop/mobile no overflow、console error 0、no-provider `AiUsageLog` unchanged。`/pre-visit/[planId]/notes` 與 `postVisitNotes` 相容升級仍未完成。
 
+Whole-product review note（2026-06-21 after AMM-008）：第五輪校準確認 AMM 已有 source/browser/API/DB/provider proof 串過 CRM → visit → AI meeting workspace → provider summary → writeback → provider memory-chat → realtime guard → org aggregate privacy。剩餘最高槓桿缺口不是文件 proof，而是既有 `/pre-visit/[planId]/notes` 與 legacy `postVisitNotes` 尚未接上正式 `CLIENT_MEETING` workspace，容易讓顧問在拜訪後整理時分裂成兩個工作面。下一輪 normal loop 應做 `AMM-005c notes/postVisitNotes compatibility bridge`，必須修改 source 並留下 UI/API/DB/browser proof；不得只更新 docs 或把未追蹤 notes prototype 當完成證據。
+
+### Batch AMM-005c — Notes / postVisitNotes compatibility bridge
+- [ ] `/pre-visit/[planId]/notes` 保留既有 BFF-owned `postVisitNotes` / `postVisitAnalysis` read-write-reload，同頁提供進入或內嵌同一 owner-scoped `CLIENT_MEETING` workspace 的路徑，不要求 raw session ID。
+- [ ] 手動拜訪筆記、quick-capture 結果與 meeting turns/summary 明確分層：raw note 不成 raw transcript，不保存 raw provider payload，inference / unknown 不升格 confirmed CRM fact。
+- [ ] 顯示 latest `InterviewMeetingSummary`、writeback confirmation 狀態與 legacy notes saved state；refresh/new browser context 後可同時看見 `postVisitNotes` 與 meeting summary / memory evidence。
+- [ ] Browser/API/DB proof 覆蓋 owner success、manager/foreign denial、raw private/provider sentinel blocked、`AiUsageLog` no-provider unchanged 或 provider path success/error log、desktop/mobile no overflow、console error 0。
+- [ ] 新增可重跑 proof command（建議 `pnpm meeting:notes-compat-qa`）；跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+
 ### Batch AMM-006 — 寫回邊界
 - [x] 沿用 `writeback-boundary`：行動項→task、confirmed→CRM candidate、inference→insight、unknown→follow-up；confirmed+勾選才寫回；敏感客戶 reason/riskAccepted；皆 audit。
 - [x] API proof：inference checked 不變 CRM fact；confirmed checked 才寫回。

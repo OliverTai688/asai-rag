@@ -83,11 +83,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 4,
-    "lastWholeProductReviewAt": "2026-06-21T06:56:08Z",
-    "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-21_lv3-whole-product-gap-review-after-provider-summary.md",
+    "normalLoopsSinceLastWholeProductReview": 0,
+    "lastWholeProductReviewAt": "2026-06-21T08:56:41Z",
+    "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-21_lv3-whole-product-gap-review-after-amm-008.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "Cadence reached 4 after `AMM-008 cross-state AMM proof pack`; next loop should run `docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md` before selecting another implementation slice. AMM-008 now has source/browser/API/DB/provider proof across CRM -> visit -> AI meeting workspace -> provider summary -> writeback -> provider memory-chat -> realtime -> org privacy. Highest known follow-up gaps: `/pre-visit/[planId]/notes` plus `postVisitNotes` compatibility, then AMM-007 pgvector retrieval if operator approves the DB extension path.",
+    "nextRecommendedImplementationSlice": "Run `AMM-005c notes/postVisitNotes compatibility bridge` as the next normal source-backed loop: make `/pre-visit/[planId]/notes` preserve BFF-owned `postVisitNotes` / `postVisitAnalysis` while linking or embedding the owner-scoped `CLIENT_MEETING` workspace, latest meeting summary, writeback confirmation state, and quick-capture boundary. Must include UI/API/DB/browser proof, manager/foreign denial, raw private/provider sentinel guard, refresh/new-context persistence, and `AiUsageLog` no-provider unchanged or provider success/error logs if provider mode is used. Do not complete this with docs-only proof or by staging unreviewed notes prototype files.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {
@@ -155,5 +155,5 @@
     "lv3ImmersiveLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-immersive-loop.md",
     "lv3WholeProductGapReviewLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md"
   },
-  "updatedAt": "2026-06-21T08:58:00Z"
+  "updatedAt": "2026-06-21T08:56:41Z"
 }
