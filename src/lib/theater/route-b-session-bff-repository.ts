@@ -18,6 +18,11 @@ import {
   type RouteBComplianceReviewIntake,
 } from "@/domains/theater/route-b-compliance-review-intake";
 import {
+  buildRouteBComplianceReviewQueue,
+  isRouteBComplianceReviewQueue,
+  type RouteBComplianceReviewQueue,
+} from "@/domains/theater/route-b-compliance-review-queue";
+import {
   buildRouteBRedLineActionPersistenceState,
   isRouteBRedLineActionPersistenceState,
   type RouteBRedLineActionPersistenceState,
@@ -98,6 +103,8 @@ export type GetRouteBComplianceReviewIntakeResult =
   | { status: "OK"; data: RouteBComplianceReviewIntake }
   | { status: "EMPTY" }
   | { status: "NOT_FOUND" };
+
+export type ListRouteBComplianceReviewQueueResult = { status: "OK"; data: RouteBComplianceReviewQueue };
 
 export type GetRouteBRedLineActionStateResult =
   | { status: "OK"; data: RouteBRedLineActionPersistenceState }
@@ -331,6 +338,61 @@ export async function getRouteBComplianceReviewIntakeForMember(
   }
 
   return { status: "OK", data: intake };
+}
+
+export async function listRouteBComplianceReviewQueueForMember(
+  session: AppSession,
+  options: { limit?: number } = {},
+): Promise<ListRouteBComplianceReviewQueueResult> {
+  const take = Math.min(Math.max(options.limit ?? 20, 1), 50);
+  const records = await prisma.theaterSession.findMany({
+    where: {
+      organizationId: session.organization.id,
+      ownerId: session.user.id,
+      routeBEnabled: true,
+    },
+    select: {
+      id: true,
+      routeBSceneId: true,
+      routeBSourcePacketId: true,
+      clientId: true,
+      sceneState: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+    orderBy: {
+      updatedAt: "desc",
+    },
+    take,
+  });
+
+  const intakes = records.flatMap((record) => {
+    const feedbackReview = asRecord(record.sceneState).feedbackReview;
+    if (!isTheaterRouteBFeedbackReview(feedbackReview)) return [];
+
+    const intake = buildRouteBComplianceReviewIntakeFromFeedbackReview({ feedbackReview });
+    if (!isRouteBComplianceReviewIntake(intake) || intake.candidateCount <= 0) return [];
+
+    return [
+      {
+        session: {
+          sessionId: record.id,
+          routeBSceneId: record.routeBSceneId,
+          routeBSourcePacketId: record.routeBSourcePacketId,
+          clientId: record.clientId,
+          createdAt: record.createdAt.toISOString(),
+          updatedAt: record.updatedAt.toISOString(),
+        },
+        intake,
+      },
+    ];
+  });
+
+  const queue = buildRouteBComplianceReviewQueue({ intakes });
+  return {
+    status: "OK",
+    data: isRouteBComplianceReviewQueue(queue) ? queue : buildRouteBComplianceReviewQueue({ intakes: [] }),
+  };
 }
 
 export async function getRouteBRedLineActionStateForMember(

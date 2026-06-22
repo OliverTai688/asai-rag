@@ -34,6 +34,7 @@ import { theaterFieldBuildOutline } from "@/domains/interview/outlines";
 import type { TheaterBuildPacket } from "@/domains/interview/types";
 import { useSpinStore } from "@/domains/spin/store";
 import type { SpinSession } from "@/domains/spin/types";
+import type { RouteBComplianceReviewQueue } from "@/domains/theater/route-b-compliance-review-queue";
 import { theaterService } from "@/domains/theater/service";
 import { useTheaterStore } from "@/domains/theater/store";
 import type { TheaterDifficulty, TheaterPersonaType, TheaterSession } from "@/domains/theater/types";
@@ -155,6 +156,9 @@ function TheaterListContent() {
   const [clientBuildReview, setClientBuildReview] = useState<TheaterClientBuildReview | null>(null);
   const [clientBuildLoading, setClientBuildLoading] = useState(false);
   const [clientBuildError, setClientBuildError] = useState<string | null>(null);
+  const [complianceReviewQueue, setComplianceReviewQueue] = useState<RouteBComplianceReviewQueue | null>(null);
+  const [complianceReviewQueueLoading, setComplianceReviewQueueLoading] = useState(true);
+  const [complianceReviewQueueError, setComplianceReviewQueueError] = useState<string | null>(null);
   const quickstartCreatedRef = useRef(false);
 
   const completedSpinSessions = useMemo(() => {
@@ -186,6 +190,39 @@ function TheaterListContent() {
       .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
       .slice(0, 5);
   }, [theaterSessions]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void (async () => {
+      setComplianceReviewQueueLoading(true);
+      setComplianceReviewQueueError(null);
+      try {
+        const response = await fetch("/api/theater/route-b/compliance-review-queue", { cache: "no-store" });
+        const data = (await response.json().catch(() => null)) as unknown;
+
+        if (cancelled) return;
+        if (!response.ok || !isRouteBComplianceReviewQueuePayload(data)) {
+          setComplianceReviewQueue(null);
+          setComplianceReviewQueueError("無法讀取審閱佇列。");
+          return;
+        }
+
+        setComplianceReviewQueue(data);
+      } catch {
+        if (!cancelled) {
+          setComplianceReviewQueue(null);
+          setComplianceReviewQueueError("無法讀取審閱佇列。");
+        }
+      } finally {
+        if (!cancelled) setComplianceReviewQueueLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Default to the "from interview" mode only when material already exists, so the
   // page never *forces* an interview/SPIN prerequisite on a fresh workspace.
@@ -507,6 +544,13 @@ function TheaterListContent() {
         </section>
 
         <aside className="space-y-4">
+          <ComplianceReviewQueuePanel
+            queue={complianceReviewQueue}
+            loading={complianceReviewQueueLoading}
+            error={complianceReviewQueueError}
+            onOpenSession={(sessionId) => router.push(`/theater/${sessionId}`)}
+          />
+
           <Card className="border-hairline shadow-none">
             <CardContent className="p-5">
               <h2 className="text-sm font-semibold text-ink">啟動摘要</h2>
@@ -608,6 +652,112 @@ function OutlineModePanel() {
         <p className="mt-4 rounded-lg border border-hairline bg-muted/20 p-3 text-xs leading-5 text-muted-foreground">
           使用頁首的「開始建場」進入訪綱對話。多角色演練（Route B）尚未啟用，建場完成會先停在可確認的場域建構包。
         </p>
+      </CardContent>
+    </Card>
+  );
+}
+
+function ComplianceReviewQueuePanel({
+  error,
+  loading,
+  queue,
+  onOpenSession,
+}: {
+  error: string | null;
+  loading: boolean;
+  queue: RouteBComplianceReviewQueue | null;
+  onOpenSession: (sessionId: string) => void;
+}) {
+  const items = queue?.items ?? [];
+  const reviewBoundary = queue?.reviewBoundary;
+
+  return (
+    <Card className="border-hairline shadow-none">
+      <CardContent className="p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="h-4 w-4 text-muted-foreground" />
+              <h2 className="text-sm font-semibold text-ink">審閱佇列</h2>
+            </div>
+            <p className="mt-2 text-xs leading-5 text-muted-foreground">
+              只整理 Route B 待審閱候選；不代表正式法遵處置，也不會發真實通知。
+            </p>
+          </div>
+          <Badge variant="outline" className="rounded-full">
+            {queue?.status ?? "NO_PROVIDER"}
+          </Badge>
+        </div>
+
+        <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+          <ReviewCount label="待審閱" value={queue?.candidateCount ?? 0} />
+          <ReviewCount label="需要佐證" value={queue?.needsEvidenceCount ?? 0} />
+          <ReviewCount label="升級候選" value={queue?.escalationCount ?? 0} />
+        </div>
+
+        {loading ? (
+          <p className="mt-4 rounded-lg border border-dashed border-hairline bg-muted/20 p-4 text-sm leading-6 text-muted-foreground">
+            正在整理待審閱候選…
+          </p>
+        ) : null}
+
+        {error ? (
+          <p className="mt-4 rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm leading-6 text-destructive">
+            {error}
+          </p>
+        ) : null}
+
+        {!loading && !error && items.length === 0 ? (
+          <p className="mt-4 rounded-lg border border-dashed border-hairline bg-muted/20 p-4 text-sm leading-6 text-muted-foreground">
+            目前沒有待審閱候選。只有被標示為需要佐證或升級審閱的 Route B 紅線，才會出現在這裡。
+          </p>
+        ) : null}
+
+        {items.length ? (
+          <div className="mt-4 space-y-3">
+            {items.slice(0, 3).map((item) => (
+              <div key={item.sessionId} className="rounded-lg border border-hairline bg-background p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-ink">Route B session</p>
+                    <p className="mt-1 truncate text-xs text-muted-foreground">{item.sessionId}</p>
+                  </div>
+                  <Badge variant="outline" className="rounded-full">
+                    {item.candidateCount} 項
+                  </Badge>
+                </div>
+                <div className="mt-3 space-y-2">
+                  {item.candidates.slice(0, 2).map((candidate) => (
+                    <div key={candidate.id} className="rounded-md border border-hairline bg-muted/20 p-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge variant={candidate.actionState === "ESCALATE" ? "destructive" : "outline"} className="rounded-full">
+                          {candidate.actionState === "ESCALATE" ? "升級候選" : "需要佐證"}
+                        </Badge>
+                        <span className="text-xs font-semibold text-ink">{candidate.label}</span>
+                      </div>
+                      <p className="mt-2 text-xs leading-5 text-muted-foreground">{candidate.safeSummary}</p>
+                    </div>
+                  ))}
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="mt-3 h-9 w-full rounded-full"
+                  onClick={() => onOpenSession(item.sessionId)}
+                >
+                  開啟劇場檢視
+                </Button>
+              </div>
+            ))}
+          </div>
+        ) : null}
+
+        <div className="mt-4 grid gap-2 rounded-lg border border-hairline bg-muted/20 p-3 text-xs leading-5 text-muted-foreground">
+          <span>未建立正式 finding：{reviewBoundary?.createsFormalFinding === false ? "是" : "未確認"}</span>
+          <span>未發通知：{reviewBoundary?.triggersExternalNotification === false ? "是" : "未確認"}</span>
+          <span>未寫入 CRM fact：{reviewBoundary?.writesConfirmedCrmFact === false ? "是" : "未確認"}</span>
+          <span>未呼叫 provider：{reviewBoundary?.providerCallAttempted === false ? "是" : "未確認"}</span>
+        </div>
       </CardContent>
     </Card>
   );
@@ -946,6 +1096,39 @@ function RecentSessionRow({ compact, session }: { compact?: boolean; session: Th
       </span>
     </a>
   );
+}
+
+function isRouteBComplianceReviewQueuePayload(value: unknown): value is RouteBComplianceReviewQueue {
+  const record = asRecord(value);
+  const reviewBoundary = asRecord(record.reviewBoundary);
+  const providerBoundary = asRecord(record.providerBoundary);
+  const persistenceBoundary = asRecord(record.persistenceBoundary);
+
+  return (
+    record.agentId === "asai.theater.route_b" &&
+    record.actionId === "route-b-red-line-compliance-review-queue" &&
+    record.registryReadiness === "internal-only" &&
+    record.sourceActionId === "route-b-red-line-compliance-review-intake" &&
+    record.status === "DETERMINISTIC_NO_PROVIDER" &&
+    typeof record.candidateCount === "number" &&
+    typeof record.needsEvidenceCount === "number" &&
+    typeof record.escalationCount === "number" &&
+    Array.isArray(record.items) &&
+    reviewBoundary.createsFormalFinding === false &&
+    reviewBoundary.triggersExternalNotification === false &&
+    reviewBoundary.writesConfirmedCrmFact === false &&
+    reviewBoundary.providerCallAttempted === false &&
+    providerBoundary.providerCallAttempted === false &&
+    providerBoundary.aiUsageLogWritten === false &&
+    persistenceBoundary.persistsQueueRecord === false &&
+    persistenceBoundary.persistsCandidateRecord === false
+  );
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
 }
 
 function useCurrentSearchParams() {
