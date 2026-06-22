@@ -86,6 +86,7 @@ Last updated: 2026-06-22
 
 ## Production Approval
 
+- 2026-06-22 resolved: scheduled fifth-loop whole-product review after ITA-005f completed; cadence counter reset to 0. Top gap is now downstream consumption of persisted Route B red-line action context by visit preparation package or AI meeting notes. Next normal loop should be source-backed `ITA/AMM-005g red-line action context downstream consumption bridge`, preferably visit preparation first unless the AMM/notes dirty worktree is explicitly audited and adopted. Formal legal/compliance findings, real notifications, live detection, external registry publication, raw private/provider payload storage, and confirmed CRM fact writes remain out of scope without explicit approval.
 - PIM-006 已改 Prisma schema 並對目前 `.env` development Supabase Postgres target 執行 additive `db push`；production schema migration 仍需明確 approval。
 - ITA-003c 已對目前 `.env` development Supabase Postgres target 執行 Route B additive `db push` 並通過 persisted session proof；production schema migration / rollback plan 仍需明確 approval。
 - AMM-002a 已對目前 `.env` development Supabase target 執行 additive `pnpm exec prisma db push`，使 `CLIENT_MEETING` 與 `InterviewMeetingSummary` 可進入 runtime proof；production migration / rollback plan 仍需明確 approval。

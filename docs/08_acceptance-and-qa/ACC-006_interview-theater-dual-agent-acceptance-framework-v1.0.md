@@ -328,6 +328,17 @@ ITA-005e evidence note（2026-06-22）：新增 `route-b-severe-red-line-action-
 
 ITA-005f evidence note（2026-06-22）：新增 persisted red-line action state 的 feedback consumption bridge。`src/domains/theater/route-b-session.ts` 將 `redLineActionState` 納入 `RouteBSessionSnapshot.scene`，`src/lib/theater/route-b-session-bff-repository.ts` 從 `sceneState.redLineActionState` 安全讀取或 fallback default，`buildTheaterRouteBFeedbackReview()` 產生 `TheaterRouteBFeedbackReview.redLineActionState` summary 並將 per-rule `actionContext` 附到 matching findings。`/theater/[sessionId]` 五視角回顧面板顯示 `sceneState.redLineActionState` source、升級/佐證 counts 與 advisor action context。`pnpm theater:route-b-feedback-review-qa` 覆蓋 domain dry-run + UI/API/repository/manifest static contract，驗證 no-provider/no fake `AiUsageLog`、no notification、no legal/formal finding、no CRM fact write、no raw private/provider/contact/policy sentinel；`pnpm ai:protocol-registry-qa` 驗證 AgentFacts refs。尚未宣稱 visit preparation / AI meeting notes consumption、formal compliance workflow、real notification、live detection 或 external registry ready。
 
+### 6.10 Route B red-line action downstream consumption acceptance
+
+`ITA/AMM-005g` 或任何把 Route B persisted red-line action context 接到 visit preparation package / AI meeting notes / downstream advisor workspace 的 slice，完成前必須額外滿足：
+
+- [ ] Consumer 必須從 owner-scoped `RouteBSessionSnapshot.scene.redLineActionState`、persisted `sceneState.feedbackReview` 或等價 server-owned feedback review DTO 讀取 action context；不得信任 browser 提供的 raw org/client/session/person id。
+- [ ] Output 必須分離 facts / inferences / unknowns / advisor cautions / evidence-needed next steps，且 `ESCALATE` / `EVIDENCE_NEEDED` 只能作 advisor context，不得自動建立 legal finding、real notification、provider call 或 CRM confirmed fact write。
+- [ ] Visit preparation package consumer 若為第一個落地面，必須把 action context 顯示為準備包中的合規提醒 / 佐證待補 / 下一步問題，不覆寫原本的 relationship graph fact/inference/unknown 標記。
+- [ ] AI meeting notes consumer 若為第一個落地面，必須先審核目前 worktree 中 notes prototype 的範圍，避免把未驗證 prototype 當 committed baseline；meeting note output 不得保存 raw private transcript 或 raw provider payload。
+- [ ] AgentFacts-style manifest 必須新增 downstream consumption capability/action/DTO/evidence refs，保持 `registryReadiness=internal-only`，且不得宣稱 external registry ready。
+- [ ] 需跑對應 source proof（例如 visit-prep/meeting consumption QA）、`pnpm ai:protocol-registry-qa`、`pnpm ai:bff-audit`、`pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。若只剩 browser/dev-server visual confirmation，可交由 operator 自行重跑，不得讓 docs-only proof 取代 source/domain/API/UI work。
+
 ---
 
 ## 7. Data / DB Acceptance
