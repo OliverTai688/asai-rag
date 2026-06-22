@@ -203,6 +203,8 @@ ITA-004a feedback contract note（2026-06-22）：已完成 Route B 五視角質
 
 範圍外：不做績效排名分數；不把 feedback 當客戶評分。
 
+ITA-004b provider logging contract note（2026-06-22）：已完成 Route B feedback provider success/error usage-log contract 子切片。新增 `src/domains/theater/route-b-feedback-provider.ts` 與 `pnpm theater:route-b-feedback-provider-dry-run`，以 injected provider / usage logger 驗證：provider input 只含 feedback preview counts、五視角、紅線 labels 與 qualitative output rules；success path 在回傳 feedback 前寫 success usage record，provider error path 在回傳 sanitized error 前寫 error usage record；兩者皆不儲存 provider body、private lane content 或 confirmed CRM fact。AgentFacts-style manifest 已新增 `route-b-feedback-provider-log-contract` capability、DTO/evidence refs 與 proof command。尚未完成：live provider route wiring、DB persisted feedback summary、訪談準備卡 review consumption、紅線偵測 library。
+
 ---
 
 ## Batch ITA-005 - 異議庫 + 紅線偵測

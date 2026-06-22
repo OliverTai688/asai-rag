@@ -145,6 +145,19 @@
 - [ ] AgentFacts-style manifest 必須新增 feedback capability / `RouteBFeedbackRuntimePreview` / `TheaterRouteBFeedbackContract` DTO refs / `runtimeInputPreview.feedback` evidence ref。
 - [ ] 需跑 `pnpm theater:route-b-feedback-dry-run`、`pnpm ai:protocol-registry-qa`、`pnpm ai:bff-audit`、`pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
 
+### 6.2 Route B feedback provider usage-log contract acceptance
+
+`ITA-004b` 若先完成 injected provider contract，而尚未開啟 live provider route，完成前必須額外滿足：
+
+- [ ] Provider input 必須只使用 feedback contract 的 preview counts、perspective labels、red-line labels 與 qualitative output rules；不得包含 turn text、private lane content、raw provider body、email、phone、secret、token、cookie、OTP。
+- [ ] Success path 必須在回傳 provider feedback result 前寫入 success `AiUsageLog` equivalent record，並帶 usage log id。
+- [ ] Provider error path 必須在回傳 sanitized provider error 前寫入 error `AiUsageLog` equivalent record，錯誤碼只可回安全 code，不回 raw error message。
+- [ ] Success/error usage records 都不得儲存 provider body、private lane content、confirmed CRM fact 或 advisor/client private transcript。
+- [ ] Provider output contract 必須維持 `qualitativeOnly=true`、`totalScoreAllowed=false`、`rankingAllowed=false`，且每個 perspective section 仍需 evidence basis；紅線可標不適用。
+- [ ] AgentFacts-style manifest 必須新增 `route-b-feedback-provider-log-contract` capability / `TheaterRouteBFeedbackProviderInput` / `TheaterRouteBFeedbackProviderRunResult` / `TheaterRouteBFeedbackUsageLogRecord` refs 與 `pnpm theater:route-b-feedback-provider-dry-run` proof command。
+- [ ] 此 acceptance 只證明 provider success/error logging contract；不得宣稱 live OpenAI/Anthropic runtime route、DB persisted feedback 或 external registry ready。
+- [ ] 需跑 `pnpm theater:route-b-feedback-provider-dry-run`、`pnpm theater:route-b-feedback-dry-run`、`pnpm ai:protocol-registry-qa`、`pnpm ai:bff-audit`、`pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+
 ---
 
 ## 7. Data / DB Acceptance
