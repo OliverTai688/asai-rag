@@ -1,6 +1,6 @@
 # Agent Loop Issue Questions
 
-Last updated: 2026-06-21
+Last updated: 2026-06-22
 
 ## 使用者決策
 
@@ -31,6 +31,7 @@ Last updated: 2026-06-21
 - 2026-06-21 resolved: 本輪 scheduled fifth-loop whole-product gap review after AMM-008 已完成；cadence counter 重設為 0。Top gap 改為 `AMM-005c notes/postVisitNotes compatibility bridge`：`/pre-visit/[planId]/notes` 與 legacy `postVisitNotes` 仍未和正式 `CLIENT_MEETING` workspace、latest meeting summary、writeback confirmation、quick-capture boundary 合流。下一輪必須做 source-backed UI/API/DB/browser proof，不得只改 docs 或 staging 未驗收 notes prototype；第二順位為 REL-004 formal edge table schema（需 migration/rollback approval），第三順位為 AMM-007 pgvector retrieval（需 Supabase extension/operator path）。
 - 2026-06-21 open: AMM-005c source bridge 已完成，但 local targeted proof `DEMO_QA_BASE_URL=http://localhost:3001 pnpm meeting:notes-compat-qa` 在連線 `.env` Supabase host `db.wwocdcicvpmbdmqvskzi.supabase.co` 時回 `getaddrinfo ENOTFOUND`，`/api/public/status` 也因 Prisma P1001 無法連 DB 回 500。這是環境/DNS blocker，不是新產品決策；DB host 可解析後重跑同一 command，應補 owner success、manager denial、raw sentinel、AiUsageLog unchanged、desktop/mobile no overflow 與 refresh proof。
 - 2026-06-21 open update: DB/DNS blocker 仍重現；本輪已新增 `pnpm meeting:notes-compat-contract-dry-run` 作 no-DB source/contract fallback，證明 latest-session 選擇規則與 notes bridge source contract。這不取代完整 Browser/API/DB proof；若 DB host 可解析，使用者可直接跑 `DEMO_QA_BASE_URL=http://localhost:<dev-port> pnpm meeting:notes-compat-qa` 查看剩餘 runtime evidence。若下一輪仍是同一 DNS/P1001，應升級成 L4 blocker analysis 或改選其他安全 source-backed slice，不再只補 evidence 文件。
+- 2026-06-22 open update: 同一 AMM-005c DB/DNS blocker 已升級為 L4 blocker analysis。當前 runtime 直接 `dns.lookup("db.wwocdcicvpmbdmqvskzi.supabase.co")` 仍回 `ENOTFOUND`，因此 AMM-005c Browser/API/DB proof 不是缺少更多截圖，而是缺可解析的 development/staging DB 連線。最小 operator 動作是提供目前環境可解析的 Supabase direct/pooler connection string，或恢復該 host 的 DNS 可達性；DB 可連後，使用者可自行啟動 dev server 並跑 `DEMO_QA_BASE_URL=http://localhost:<dev-port> pnpm meeting:notes-compat-qa` 檢查剩餘 runtime evidence。若下一輪 DB 仍不可達，不應再用 AMM-005c docs/proof-plan 消耗輪次，應改選其他安全 source-backed LV3 slice。
 - 2026-06-21 resolved: NAP-005 已完成 local-only adapter/export dry-run；11 個 internal-only AI manifests 可產生 NANDA AgentFacts-style JSON、MCP descriptor、A2A Agent Card 與 HTTPS metadata 四種本地草稿，並由 `pnpm ai:protocol-adapter-dry-run-qa` 證明 schema-valid、least-disclosure、versioned、revocable、無 private sentinel、無 provider/DB/external registry side effect。此結果不代表任何 external registry publication、signing、public discovery endpoint 或 cross-org agent access 已核可。
 - 2026-06-20 resolved: RAS-001 已完成 role-aware sidebar navigation contract；member / org admin / platform / client portal 四套 manifest draft 與 `SPIN 舊版` legacy feature flag proof 已落地。此結果不代表 sidebar UI、workspace bootstrap、route guard 或跨角色 browser/auth 驗收已完成；下一步仍需 RAS-002 resolver/policy tests。
 - 2026-06-20 resolved: 本輪 scheduled fifth-loop whole-product review 已完成；cadence counter 重設為 0。Top product gap 是 persisted Route B session 還缺 relationship-graph-centered 的可操作演練舞台；若 DB 可用，下一輪建議 `ITA-003f/S1 Route B relationship-graph stage map (no-provider)`。若 DB/DNS 仍 blocked，下一輪建議 `RAS-002` resolver/policy tests 作安全 fallback。
