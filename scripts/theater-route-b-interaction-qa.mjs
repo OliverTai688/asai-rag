@@ -83,7 +83,7 @@ async function runProof() {
   });
   push(groupWrite.status === 201, "owner can append group advisor turn", `status=${groupWrite.status}`);
   push(
-    groupWrite.body?.turns?.some((turn) => turn.role === "AGENT" && turn.visibilityScope === "GROUP" && turn.content.includes("共同優先順序")),
+    groupWrite.body?.turns?.some((turn) => turn.role === "ADVISOR" && turn.visibilityScope === "GROUP" && turn.content.includes("共同優先順序")),
     "group advisor turn is returned in sanitized snapshot",
   );
   pushNoPrivateSentinel(JSON.stringify(groupWrite.body), "group write response has no private sentinel");

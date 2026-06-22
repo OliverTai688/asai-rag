@@ -1,6 +1,11 @@
 import { randomUUID } from "node:crypto";
 import type { Prisma } from "@/generated/prisma/client";
 import { ClientSensitivity, InteractionEventType } from "@/generated/prisma/enums";
+import {
+  buildTheaterRouteBNextTurnAppendConfirmation,
+  type TheaterRouteBNextTurnAppendConfirmationInput,
+  type TheaterRouteBNextTurnAppendRejectionCode,
+} from "@/domains/theater/route-b-next-turn-append";
 import { buildTheaterRouteBStatePatch } from "@/domains/theater/route-b-handoff";
 import type { TheaterRouteBHandoffPacket } from "@/domains/theater/route-b-handoff";
 import type { RouteBSessionSnapshot } from "@/domains/theater/route-b-session";
@@ -50,6 +55,13 @@ export type AppendRouteBAdvisorTurnResult =
   | { status: "NOT_FOUND" }
   | { status: "INVALID_PRIVATE_ADDRESSEE" }
   | { status: "INVALID_STATE_PATCH_TARGET" };
+
+export type AppendRouteBNextTurnCandidateInput = TheaterRouteBNextTurnAppendConfirmationInput;
+
+export type AppendRouteBNextTurnCandidateResult =
+  | { status: "CREATED"; data: RouteBSessionSnapshot }
+  | { status: "NOT_FOUND" }
+  | { status: "INVALID_APPEND_CANDIDATE"; errorCode: TheaterRouteBNextTurnAppendRejectionCode; message: string };
 
 const routeBSessionInclude = {
   characters: {
@@ -265,6 +277,90 @@ export async function appendRouteBAdvisorTurnForMember(
   return data;
 }
 
+export async function appendRouteBNextTurnCandidateForMember(
+  session: AppSession,
+  sessionId: string,
+  input: AppendRouteBNextTurnCandidateInput,
+): Promise<AppendRouteBNextTurnCandidateResult> {
+  const data = await prisma.$transaction(async (tx): Promise<AppendRouteBNextTurnCandidateResult> => {
+    const record = await tx.theaterSession.findFirst({
+      where: {
+        id: sessionId,
+        organizationId: session.organization.id,
+        ownerId: session.user.id,
+        routeBEnabled: true,
+      },
+      include: {
+        characters: true,
+      },
+    });
+
+    if (!record) {
+      return { status: "NOT_FOUND" };
+    }
+
+    const charactersByRouteBId = new Map(record.characters.map((character) => [character.routeBCharacterId, character]));
+    const confirmation = buildTheaterRouteBNextTurnAppendConfirmation({
+      availableRouteBCharacterIds: charactersByRouteBId.keys(),
+      input,
+    });
+
+    if (confirmation.status === "REJECTED") {
+      return {
+        status: "INVALID_APPEND_CANDIDATE",
+        errorCode: confirmation.errorCode,
+        message: confirmation.message,
+      };
+    }
+
+    const speaker =
+      confirmation.actorKind === "CHARACTER"
+        ? charactersByRouteBId.get(confirmation.speakerRouteBCharacterId ?? "")
+        : null;
+    const addressee = confirmation.addresseeRouteBCharacterId
+      ? charactersByRouteBId.get(confirmation.addresseeRouteBCharacterId)
+      : null;
+
+    if (confirmation.actorKind === "CHARACTER" && !speaker) {
+      return {
+        status: "INVALID_APPEND_CANDIDATE",
+        errorCode: "INVALID_CHARACTER_SPEAKER",
+        message: "Route B character append requires a known speaker.",
+      };
+    }
+
+    if (confirmation.visibilityScope === "PRIVATE" && !addressee) {
+      return {
+        status: "INVALID_APPEND_CANDIDATE",
+        errorCode: "INVALID_PRIVATE_ADDRESSEE",
+        message: "Route B private append requires a known addressee.",
+      };
+    }
+
+    await tx.theaterTurn.create({
+      data: buildRouteBTurnCreateData({
+        id: `route_b_turn_${randomUUID().replaceAll("-", "")}`,
+        sessionId,
+        actorKind: confirmation.actorKind,
+        content: confirmation.content,
+        visibilityScope: confirmation.visibilityScope,
+        speakerCharacterId: speaker?.id ?? null,
+        addresseeCharacterId: addressee?.id ?? null,
+        metadata: confirmation.metadata,
+      }),
+    });
+
+    const updatedRecord = await tx.theaterSession.findUniqueOrThrow({
+      where: { id: sessionId },
+      include: routeBSessionInclude,
+    });
+
+    return { status: "CREATED", data: toRouteBSessionSnapshot(updatedRecord) };
+  });
+
+  return data;
+}
+
 function toRouteBSessionSnapshot(record: RouteBSessionRecord): RouteBSessionSnapshot {
   const sceneState = asRecord(record.sceneState);
   const aiUsageLogRequiredFor = readUsageLogRequirements(record.metadata);
@@ -310,7 +406,7 @@ function toRouteBSessionSnapshot(record: RouteBSessionRecord): RouteBSessionSnap
     })),
     turns: record.turns.map((turn) => ({
       id: turn.id,
-      role: turn.role,
+      role: readRouteBActorKind(turn.metadata, turn.role, turn.visibilityScope),
       speakerRouteBCharacterId: turn.speakerCharacter?.routeBCharacterId ?? null,
       addresseeRouteBCharacterId: turn.addresseeCharacter?.routeBCharacterId ?? null,
       visibilityScope: turn.visibilityScope,
@@ -341,6 +437,18 @@ function readStatePatchCount(value: Prisma.JsonValue | null): number {
   if (Array.isArray(record.statePatches)) return record.statePatches.length;
   if (Array.isArray(value)) return value.length;
   return 0;
+}
+
+function readRouteBActorKind(metadataValue: Prisma.JsonValue | null, fallbackRole: string, visibilityScope: string | null): string {
+  const actorKind = asRecord(metadataValue).actorKind;
+  if (actorKind === "ADVISOR" || actorKind === "DIRECTOR" || actorKind === "CHARACTER" || actorKind === "NARRATOR") {
+    return actorKind;
+  }
+  if (fallbackRole === "AGENT") return "ADVISOR";
+  if (fallbackRole === "CLIENT") return "CHARACTER";
+  if (fallbackRole === "SYSTEM" && visibilityScope === "DIRECTOR_ONLY") return "DIRECTOR";
+  if (fallbackRole === "SYSTEM") return "NARRATOR";
+  return fallbackRole;
 }
 
 function asRecord(value: unknown): Record<string, unknown> {

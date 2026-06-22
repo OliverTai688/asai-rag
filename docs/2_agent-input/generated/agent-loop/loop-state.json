@@ -84,11 +84,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 3,
+    "normalLoopsSinceLastWholeProductReview": 4,
     "lastWholeProductReviewAt": "2026-06-22T04:15:13Z",
     "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-22_lv3-whole-product-gap-review-after-route-b-feedback-provider-log-contract.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "After ITA-003l, run ITA-003m Route B persisted append confirmation API/UI: connect the provider append candidate to an owner-scoped character/narrator turn append path that requires advisor confirmation, usageLogId, no raw provider/private payload, writesConfirmedCrmFact=false, and source-level proof. If DB/browser live proof remains environment-blocked, leave self-runnable commands instead of spending the loop only re-collecting evidence.",
+    "nextRecommendedImplementationSlice": "Cadence reached four normal loops after ITA-003m. Next heartbeat should run lv3-whole-product-gap-review-loop.md before more implementation. Review Route B append confirmation, live provider candidate gap, feedback persistence gap, AI Meeting/notes adoption, and any remaining cross-flow onboarding proof gaps; do not spend the review only collecting residual screenshots if the operator can self-run proof commands.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {
@@ -156,5 +156,5 @@
     "lv3ImmersiveLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-immersive-loop.md",
     "lv3WholeProductGapReviewLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md"
   },
-  "updatedAt": "2026-06-22T05:49:41Z"
+  "updatedAt": "2026-06-22T06:09:13Z"
 }

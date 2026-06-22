@@ -156,6 +156,19 @@
 - [ ] 此 acceptance 只證明 provider success/error logging 與 append candidate boundary；不得宣稱 live OpenAI/Anthropic route、DB persisted character turn、feedback provider、或 external registry ready。
 - [ ] 需跑 `pnpm theater:route-b-next-turn-provider-dry-run`、`pnpm theater:route-b-next-turn-dry-run`、`pnpm theater:route-b-next-turn-ui-contract-qa`、`pnpm ai:protocol-registry-qa`、`pnpm ai:bff-audit`、`pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
 
+### 5.8 Route B next-turn append confirmation acceptance
+
+`ITA-003m` 若把 provider append candidate 接到 persisted TheaterTurn confirmation path，完成前必須額外滿足：
+
+- [ ] Append API 必須 owner-scoped；只能由 current member 寫入自己的 Route B session，manager/foreign session 不得寫入。
+- [ ] Append request 必須要求 `confirmedByAdvisor=true`、safe `usageLogId`、`generatedTextAllowed=true`、`requiresAdvisorConfirmation=true`、`writesConfirmedCrmFact=false`、`storesRawProviderPayload=false`、`rawPrivateTranscriptIncluded=false`。
+- [ ] CHARACTER candidate 必須有已知 `speakerRouteBCharacterId`；PRIVATE candidate 必須有已知 `addresseeRouteBCharacterId`；NARRATOR candidate 不得帶 character speaker 或 private addressee。
+- [ ] Append path 本身不得呼叫 provider、不得寫 fake `AiUsageLog`、不得儲存 raw provider payload、不得儲存 raw private transcript、不得寫 confirmed CRM fact。
+- [ ] Persisted `RouteBSessionSnapshot` 必須能把 legacy TheaterTurn role 正規化為 Route B actor kind，使 next-turn draft 可辨識最新 advisor turn。
+- [ ] UI 只能在已有 provider candidate + usageLogId 時啟用確認寫入；沒有 candidate 時不可用 placeholder 或 mock success 產生角色回合。
+- [ ] AgentFacts-style manifest 必須新增 `route-b-next-turn-append-confirmation` capability / `/api/theater/route-b/sessions/[sessionId]/append-candidate` endpoint / `TheaterRouteBNextTurnAppendConfirmation` DTO/evidence refs / `pnpm theater:route-b-next-turn-append-dry-run` proof command，且保持 `registryReadiness=internal-only`。
+- [ ] 需跑 `pnpm theater:route-b-next-turn-append-dry-run`、`pnpm theater:route-b-next-turn-provider-dry-run`、`pnpm theater:route-b-next-turn-dry-run`、`pnpm theater:route-b-next-turn-ui-contract-qa`、`pnpm ai:protocol-registry-qa`、`pnpm ai:bff-audit`、`pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。若 DB/browser live append proof 仍需 operator 自行跑一輪檢查，不得消耗整輪只追截圖。
+
 ---
 
 ## 6. Feedback / Compliance Acceptance

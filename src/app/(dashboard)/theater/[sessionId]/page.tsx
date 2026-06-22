@@ -33,6 +33,7 @@ import {
 } from "@/domains/demo/quickstart";
 import { theaterTourSteps } from "@/domains/demo/tour-steps";
 import { useSpinStore } from "@/domains/spin/store";
+import type { TheaterRouteBNextTurnAppendCandidate } from "@/domains/theater/route-b-next-turn-append";
 import type { TheaterRouteBNextTurnDraft } from "@/domains/theater/route-b-next-turn";
 import type { RouteBSessionSnapshot } from "@/domains/theater/route-b-session";
 import { theaterService } from "@/domains/theater/service";
@@ -437,12 +438,15 @@ function RouteBSessionStage({
   const [nextTurnDraft, setNextTurnDraft] = useState<TheaterRouteBNextTurnDraft | null>(null);
   const [nextTurnStatus, setNextTurnStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [nextTurnError, setNextTurnError] = useState<string | null>(null);
+  const [isConfirmingNextTurnAppend, setIsConfirmingNextTurnAppend] = useState(false);
   const relationships = routeBRecords(snapshot.scene.relationships);
   const narratorQuestions = routeBRecords(snapshot.scene.narratorQuestions);
   const visibilityRules = routeBRecords(snapshot.scene.visibilityRules);
   const directorTurns = snapshot.turns.filter((turn) => turn.visibilityScope === "DIRECTOR_ONLY");
   const groupTurns = snapshot.turns.filter((turn) => turn.visibilityScope === "GROUP" || !turn.visibilityScope);
   const provider = snapshot.session.provider;
+  const pendingAppendCandidate: TheaterRouteBNextTurnAppendCandidate | null = null;
+  const pendingAppendUsageLogId: string | null = null;
   const handlePrivateFocus = (routeBCharacterId: string) => {
     setPrivateFocusCharacterId(routeBCharacterId);
     setComposerVisibilityScope("PRIVATE");
@@ -471,6 +475,42 @@ function RouteBSessionStage({
       setNextTurnDraft(null);
       setNextTurnStatus("error");
       setNextTurnError(error instanceof Error ? error.message : "Route B next-turn preview failed.");
+    }
+  };
+
+  const handleConfirmNextTurnAppend = async (
+    candidate: TheaterRouteBNextTurnAppendCandidate,
+    usageLogId: string,
+  ) => {
+    if (isConfirmingNextTurnAppend) return;
+
+    setIsConfirmingNextTurnAppend(true);
+
+    try {
+      const response = await fetch(`/api/theater/route-b/sessions/${encodeURIComponent(snapshot.session.id)}/append-candidate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          usageLogId,
+          confirmedByAdvisor: true,
+          confirmationReason: "Advisor confirmed Route B next-turn provider candidate from the stage UI.",
+          candidate,
+        }),
+      });
+      const payload = (await response.json().catch(() => null)) as RouteBSessionSnapshot | { error?: string; message?: string } | null;
+
+      if (!response.ok || !payload || !("session" in payload)) {
+        const message = payload && "message" in payload && payload.message ? payload.message : "Route B next-turn append failed.";
+        throw new Error(message);
+      }
+
+      onSnapshotUpdate(payload);
+      setNextTurnDraft(null);
+      toast.success("已確認並寫入 Route B 角色回合");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Route B next-turn append failed.");
+    } finally {
+      setIsConfirmingNextTurnAppend(false);
     }
   };
 
@@ -611,8 +651,12 @@ function RouteBSessionStage({
                 onStatePatchTargetRouteBCharacterIdChange={setComposerStatePatchTargetRouteBCharacterId}
               />
               <RouteBNextTurnPreviewPanel
+                appendCandidate={pendingAppendCandidate}
+                appendUsageLogId={pendingAppendUsageLogId}
                 draft={nextTurnDraft}
                 error={nextTurnError}
+                isAppending={isConfirmingNextTurnAppend}
+                onConfirmAppend={handleConfirmNextTurnAppend}
                 onRefresh={fetchNextTurnDraft}
                 snapshot={snapshot}
                 status={nextTurnStatus}
@@ -1019,14 +1063,22 @@ function RouteBAdvisorComposer({
 }
 
 function RouteBNextTurnPreviewPanel({
+  appendCandidate,
+  appendUsageLogId,
   draft,
   error,
+  isAppending,
+  onConfirmAppend,
   onRefresh,
   snapshot,
   status,
 }: {
+  appendCandidate: TheaterRouteBNextTurnAppendCandidate | null;
+  appendUsageLogId: string | null;
   draft: TheaterRouteBNextTurnDraft | null;
   error: string | null;
+  isAppending: boolean;
+  onConfirmAppend: (candidate: TheaterRouteBNextTurnAppendCandidate, usageLogId: string) => Promise<void>;
   onRefresh: () => Promise<void>;
   snapshot: RouteBSessionSnapshot;
   status: "idle" | "loading" | "ready" | "error";
@@ -1038,6 +1090,7 @@ function RouteBNextTurnPreviewPanel({
     (draft?.nextTurn.role === "NARRATOR" ? "旁白" : "未選定");
   const addresseeName = routeBCharacterDisplayName(snapshot, draft?.nextTurn.addresseeRouteBCharacterId);
   const guardLines = draft ? nextTurnGuardLines(snapshot, draft) : [];
+  const canConfirmAppend = Boolean(appendCandidate && appendUsageLogId && draft?.status === "READY");
 
   return (
     <div className="mx-auto max-w-3xl rounded-lg border border-hairline bg-background p-4">
@@ -1120,10 +1173,24 @@ function RouteBNextTurnPreviewPanel({
             </div>
             <Button type="button" variant="mono" className="mt-4 w-full rounded-full" disabled aria-disabled="true">
               <Sparkles className="h-4 w-4" />
-              確認並產生角色台詞
+              等待 provider candidate
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="mt-2 w-full rounded-full"
+              disabled={!canConfirmAppend || isAppending}
+              aria-disabled={!canConfirmAppend || isAppending}
+              onClick={() => {
+                if (!appendCandidate || !appendUsageLogId) return;
+                void onConfirmAppend(appendCandidate, appendUsageLogId);
+              }}
+            >
+              {isAppending ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
+              確認並寫入回合
             </Button>
             <p className="mt-2 text-xs leading-5 text-muted-foreground">
-              這個動作刻意停用；未完成 live character provider success/error `AiUsageLog` 前，不會 append 角色回合。
+              Provider candidate 必須已寫入 success `AiUsageLog` 並附 usageLogId；append 本身不呼叫 provider、不儲存 raw provider payload、不寫 CRM confirmed fact。
             </p>
           </div>
         </div>
@@ -1198,7 +1265,13 @@ function RouteBLaneHeader({ icon, subtitle, title }: { icon: React.ReactNode; su
 function RouteBTurnBubble({ snapshot, turn }: { snapshot: RouteBSessionSnapshot; turn: RouteBSessionSnapshot["turns"][number] }) {
   const speaker =
     snapshot.characters.find((character) => character.routeBCharacterId === turn.speakerRouteBCharacterId)?.displayName ??
-    (turn.role === "AGENT" ? "顧問" : turn.role === "SYSTEM" ? "導演" : turn.role);
+    (turn.role === "ADVISOR" || turn.role === "AGENT"
+      ? "顧問"
+      : turn.role === "DIRECTOR" || turn.role === "SYSTEM"
+        ? "導演"
+        : turn.role === "NARRATOR"
+          ? "旁白"
+          : turn.role);
 
   return (
     <div className="rounded-lg border border-hairline bg-paper px-3 py-3">

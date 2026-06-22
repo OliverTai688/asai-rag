@@ -31,11 +31,14 @@ check(source.includes("draft.providerBoundary.storesRawProviderPayload"), "UI ex
 check(source.includes("draft.privacyProof.directPrivateDialogReturned"), "UI exposes private dialog boundary");
 check(source.includes("draft.persistenceEnvelope.writesConfirmedCrmFact"), "UI exposes writesConfirmedCrmFact boundary");
 check(source.includes("nextTurnGuardLines"), "UI renders named-addressee and consecutive-speaker guard evidence");
-check(source.includes("確定並產生角色台詞") || source.includes("確認並產生角色台詞"), "UI includes future confirmation affordance");
+check(source.includes("等待 provider candidate"), "UI shows provider candidate wait state");
 check(
-  source.includes('className="mt-4 w-full rounded-full" disabled') &&
-    source.includes("未完成 live character provider success/error"),
-  "future character text append is disabled until provider AiUsageLog proof",
+  source.includes("/append-candidate") &&
+    source.includes("confirmedByAdvisor: true") &&
+    source.includes("appendCandidate") &&
+    source.includes("appendUsageLogId") &&
+    source.includes("canConfirmAppend"),
+  "future character text append requires provider candidate, usageLogId, and advisor confirmation",
 );
 check(!source.includes("providerPayload"), "session UI source does not introduce raw provider payload rendering");
 
