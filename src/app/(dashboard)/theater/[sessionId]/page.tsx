@@ -36,6 +36,7 @@ import { useSpinStore } from "@/domains/spin/store";
 import type { TheaterRouteBFeedbackReview } from "@/domains/theater/route-b-feedback-review";
 import type { TheaterRouteBNextTurnAppendCandidate } from "@/domains/theater/route-b-next-turn-append";
 import type { TheaterRouteBNextTurnDraft } from "@/domains/theater/route-b-next-turn";
+import type { TheaterRouteBNextTurnProviderRunResult } from "@/domains/theater/route-b-next-turn-provider";
 import {
   buildRouteBSevereRedLineWarningPreview,
   type RouteBSevereRedLineWarningPreview,
@@ -57,6 +58,7 @@ const SCORE_ITEMS: Array<{ key: keyof Pick<TheaterScore, "empathy" | "questionin
 const EMPTY_TURNS: TheaterTurn[] = [];
 
 type RouteBFeedbackReviewStatus = "idle" | "loading" | "ready" | "empty" | "error" | "generating";
+type RouteBProviderCandidateStatus = "idle" | "generating" | "ready" | "error";
 
 type RouteBFeedbackReviewEmptyPayload = {
   status: "EMPTY";
@@ -454,6 +456,10 @@ function RouteBSessionStage({
   const [nextTurnDraft, setNextTurnDraft] = useState<TheaterRouteBNextTurnDraft | null>(null);
   const [nextTurnStatus, setNextTurnStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [nextTurnError, setNextTurnError] = useState<string | null>(null);
+  const [pendingAppendCandidate, setPendingAppendCandidate] = useState<TheaterRouteBNextTurnAppendCandidate | null>(null);
+  const [pendingAppendUsageLogId, setPendingAppendUsageLogId] = useState<string | null>(null);
+  const [providerCandidateStatus, setProviderCandidateStatus] = useState<RouteBProviderCandidateStatus>("idle");
+  const [providerCandidateError, setProviderCandidateError] = useState<string | null>(null);
   const [isConfirmingNextTurnAppend, setIsConfirmingNextTurnAppend] = useState(false);
   const [feedbackReview, setFeedbackReview] = useState<TheaterRouteBFeedbackReview | null>(null);
   const [feedbackReviewStatus, setFeedbackReviewStatus] = useState<RouteBFeedbackReviewStatus>("idle");
@@ -465,8 +471,6 @@ function RouteBSessionStage({
   const groupTurns = snapshot.turns.filter((turn) => turn.visibilityScope === "GROUP" || !turn.visibilityScope);
   const provider = snapshot.session.provider;
   const severeRedLineWarningPreview = ROUTE_B_SEVERE_RED_LINE_WARNING_PREVIEW;
-  const pendingAppendCandidate: TheaterRouteBNextTurnAppendCandidate | null = null;
-  const pendingAppendUsageLogId: string | null = null;
   const handlePrivateFocus = (routeBCharacterId: string) => {
     setPrivateFocusCharacterId(routeBCharacterId);
     setComposerVisibilityScope("PRIVATE");
@@ -477,6 +481,10 @@ function RouteBSessionStage({
   const fetchNextTurnDraft = async () => {
     setNextTurnStatus("loading");
     setNextTurnError(null);
+    setPendingAppendCandidate(null);
+    setPendingAppendUsageLogId(null);
+    setProviderCandidateStatus("idle");
+    setProviderCandidateError(null);
 
     try {
       const response = await fetch(`/api/theater/route-b/sessions/${encodeURIComponent(snapshot.session.id)}/next-turn`, {
@@ -495,6 +503,51 @@ function RouteBSessionStage({
       setNextTurnDraft(null);
       setNextTurnStatus("error");
       setNextTurnError(error instanceof Error ? error.message : "Route B next-turn preview failed.");
+    }
+  };
+
+  const generateNextTurnProviderCandidate = async () => {
+    if (providerCandidateStatus === "generating") return;
+
+    setProviderCandidateStatus("generating");
+    setProviderCandidateError(null);
+    setPendingAppendCandidate(null);
+    setPendingAppendUsageLogId(null);
+
+    try {
+      const response = await fetch(
+        `/api/theater/route-b/sessions/${encodeURIComponent(snapshot.session.id)}/next-turn/provider-candidate`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({}),
+        },
+      );
+      const payload = (await response.json().catch(() => null)) as
+        | {
+            candidate?: TheaterRouteBNextTurnAppendCandidate;
+            usageLogId?: string;
+            result?: TheaterRouteBNextTurnProviderRunResult;
+            error?: string;
+          }
+        | null;
+
+      if (!response.ok || !payload || !payload.candidate || !payload.usageLogId || payload.result?.status !== "SUCCESS") {
+        throw new Error(payload?.error ?? "Route B provider candidate generation failed.");
+      }
+
+      if (!isSafeRouteBProviderCandidate(payload.candidate)) {
+        throw new Error("Route B provider candidate is missing required safety flags.");
+      }
+
+      setPendingAppendCandidate(payload.candidate);
+      setPendingAppendUsageLogId(payload.usageLogId);
+      setProviderCandidateStatus("ready");
+      toast.success("已產生候選角色回覆，請確認後寫入舞台");
+    } catch (error) {
+      setProviderCandidateStatus("error");
+      setProviderCandidateError(error instanceof Error ? error.message : "Route B provider candidate generation failed.");
+      toast.error(error instanceof Error ? error.message : "Route B provider candidate generation failed.");
     }
   };
 
@@ -591,6 +644,9 @@ function RouteBSessionStage({
 
       onSnapshotUpdate(payload);
       setNextTurnDraft(null);
+      setPendingAppendCandidate(null);
+      setPendingAppendUsageLogId(null);
+      setProviderCandidateStatus("idle");
       toast.success("已確認並寫入 Route B 角色回合");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Route B next-turn append failed.");
@@ -742,7 +798,10 @@ function RouteBSessionStage({
                 error={nextTurnError}
                 isAppending={isConfirmingNextTurnAppend}
                 onConfirmAppend={handleConfirmNextTurnAppend}
+                onGenerateProviderCandidate={generateNextTurnProviderCandidate}
                 onRefresh={fetchNextTurnDraft}
+                providerCandidateError={providerCandidateError}
+                providerCandidateStatus={providerCandidateStatus}
                 snapshot={snapshot}
                 status={nextTurnStatus}
               />
@@ -1379,7 +1438,10 @@ function RouteBNextTurnPreviewPanel({
   error,
   isAppending,
   onConfirmAppend,
+  onGenerateProviderCandidate,
   onRefresh,
+  providerCandidateError,
+  providerCandidateStatus,
   snapshot,
   status,
 }: {
@@ -1389,11 +1451,15 @@ function RouteBNextTurnPreviewPanel({
   error: string | null;
   isAppending: boolean;
   onConfirmAppend: (candidate: TheaterRouteBNextTurnAppendCandidate, usageLogId: string) => Promise<void>;
+  onGenerateProviderCandidate: () => Promise<void>;
   onRefresh: () => Promise<void>;
+  providerCandidateError: string | null;
+  providerCandidateStatus: RouteBProviderCandidateStatus;
   snapshot: RouteBSessionSnapshot;
   status: "idle" | "loading" | "ready" | "error";
 }) {
   const isLoading = status === "loading";
+  const isGeneratingProviderCandidate = providerCandidateStatus === "generating";
   const speakerName =
     draft?.nextTurn.displayName ??
     routeBCharacterDisplayName(snapshot, draft?.nextTurn.speakerRouteBCharacterId) ??
@@ -1401,6 +1467,7 @@ function RouteBNextTurnPreviewPanel({
   const addresseeName = routeBCharacterDisplayName(snapshot, draft?.nextTurn.addresseeRouteBCharacterId);
   const guardLines = draft ? nextTurnGuardLines(snapshot, draft) : [];
   const canConfirmAppend = Boolean(appendCandidate && appendUsageLogId && draft?.status === "READY");
+  const canGenerateProviderCandidate = Boolean(draft?.status === "READY" && !isGeneratingProviderCandidate);
 
   return (
     <div className="mx-auto max-w-3xl rounded-lg border border-hairline bg-background p-4">
@@ -1481,9 +1548,16 @@ function RouteBNextTurnPreviewPanel({
               <ContextLine label="Raw provider" value={String(draft.providerBoundary.storesRawProviderPayload)} />
               <ContextLine label="Private dialog" value={String(draft.privacyProof.directPrivateDialogReturned)} />
             </div>
-            <Button type="button" variant="mono" className="mt-4 w-full rounded-full" disabled aria-disabled="true">
-              <Sparkles className="h-4 w-4" />
-              等待 provider candidate
+            <Button
+              type="button"
+              variant="mono"
+              className="mt-4 w-full rounded-full"
+              disabled={!canGenerateProviderCandidate}
+              aria-disabled={!canGenerateProviderCandidate}
+              onClick={() => void onGenerateProviderCandidate()}
+            >
+              {isGeneratingProviderCandidate ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+              {isGeneratingProviderCandidate ? "產生中" : appendCandidate ? "重新產生候選" : "產生角色候選"}
             </Button>
             <Button
               type="button"
@@ -1502,6 +1576,16 @@ function RouteBNextTurnPreviewPanel({
             <p className="mt-2 text-xs leading-5 text-muted-foreground">
               Provider candidate 必須已寫入 success `AiUsageLog` 並附 usageLogId；append 本身不呼叫 provider、不儲存 raw provider payload、不寫 CRM confirmed fact。
             </p>
+            {appendUsageLogId && appendCandidate ? (
+              <p className="mt-2 rounded-md border border-hairline bg-background px-3 py-2 text-xs leading-5 text-muted-foreground">
+                usageLogId 已取得；requiresAdvisorConfirmation={String(appendCandidate.requiresAdvisorConfirmation)}・storesRawProviderPayload={String(appendCandidate.storesRawProviderPayload)}
+              </p>
+            ) : null}
+            {providerCandidateStatus === "error" ? (
+              <p className="mt-2 rounded-md border border-hairline bg-background px-3 py-2 text-xs leading-5 text-muted-foreground">
+                {providerCandidateError ?? "Route B provider candidate generation failed."}
+              </p>
+            ) : null}
           </div>
         </div>
       ) : (
@@ -1683,6 +1767,17 @@ function nextTurnStatusLabel(status: TheaterRouteBNextTurnDraft["status"]): stri
   if (status === "READY") return "可預覽";
   if (status === "NO_CHARACTER") return "缺角色";
   return "待顧問發話";
+}
+
+function isSafeRouteBProviderCandidate(candidate: TheaterRouteBNextTurnAppendCandidate): boolean {
+  return (
+    candidate.generatedTextAllowed === true &&
+    candidate.requiresAdvisorConfirmation === true &&
+    candidate.writesConfirmedCrmFact === false &&
+    candidate.storesRawProviderPayload === false &&
+    candidate.rawPrivateTranscriptIncluded === false &&
+    candidate.content.trim().length > 0
+  );
 }
 
 function nextTurnGuardLines(snapshot: RouteBSessionSnapshot, draft: TheaterRouteBNextTurnDraft): string[] {

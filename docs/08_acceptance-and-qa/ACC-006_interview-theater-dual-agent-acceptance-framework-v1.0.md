@@ -173,14 +173,16 @@
 
 `ITA-003n` 若把 injected provider contract 接成 owner-scoped live provider route，完成前必須額外滿足：
 
-- [ ] Provider-candidate API 必須 owner-scoped，從 server-side `RouteBSessionSnapshot` 與 `GET /next-turn` draft 取得 business truth；browser 不得提交 raw org/member/client/session truth、raw private transcript、direct private dialog 或 provider payload。
-- [ ] Provider input 必須包含 `RouteBProviderPromptContext`，並保留 12 類異議、18 條紅線、5 條 severe immediate、13 條 post-review、`legalAdviceIncluded=false`、`writesConfirmedCrmFact=false` 與 `storesRawProviderPayload=false`。
-- [ ] Success path 必須在回傳 append candidate 前寫 THEATER `AiUsageLog` success row，並回安全 `usageLogId`、provider/model/token summary、candidate actor/visibility/content、安全旗標；不得儲存 raw provider body。
-- [ ] Provider error / malformed output / schema mismatch path 必須先寫 sanitized THEATER `AiUsageLog` error row，再回 safe error code；不得產生 append candidate，不回 raw provider error/body。
-- [ ] Guard paths（unauth、manager/foreign、blocked draft、quota exceeded、provider disabled、missing key、raw sentinel input）不得呼叫 provider、不得寫 fake usage、不得 append theater turn。
-- [ ] `/theater/[sessionId]` 只能在 provider candidate 含 safe `usageLogId`、`requiresAdvisorConfirmation=true`、`writesConfirmedCrmFact=false`、`storesRawProviderPayload=false`、`rawPrivateTranscriptIncluded=false` 時啟用 existing append confirmation。
-- [ ] AgentFacts-style manifest 必須新增 live provider candidate capability / endpoint / DTO/evidence refs，且 readiness 仍為 `internal-only`；不得宣稱 external-ready、external-registered 或正式 NANDA publication。
-- [ ] 需跑新的 provider route QA（例如 `pnpm theater:route-b-next-turn-provider-route-qa`）、`pnpm theater:route-b-next-turn-provider-dry-run`、`pnpm theater:route-b-next-turn-append-dry-run`、`pnpm theater:route-b-provider-prompt-context-dry-run`、`pnpm ai:protocol-registry-qa`、`pnpm ai:bff-audit`、`pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。若只剩 browser screenshot residual，可交由 operator 自行重跑，不得取代 provider `AiUsageLog` proof。
+- [x] Provider-candidate API 必須 owner-scoped，從 server-side `RouteBSessionSnapshot` 與 `GET /next-turn` draft 取得 business truth；browser 不得提交 raw org/member/client/session truth、raw private transcript、direct private dialog 或 provider payload。
+- [x] Provider input 必須包含 `RouteBProviderPromptContext`，並保留 12 類異議、18 條紅線、5 條 severe immediate、13 條 post-review、`legalAdviceIncluded=false`、`writesConfirmedCrmFact=false` 與 `storesRawProviderPayload=false`。
+- [x] Success path 必須在回傳 append candidate 前寫 THEATER `AiUsageLog` success row，並回安全 `usageLogId`、provider/model/token summary、candidate actor/visibility/content、安全旗標；不得儲存 raw provider body。
+- [x] Provider error / malformed output / schema mismatch path 必須先寫 sanitized THEATER `AiUsageLog` error row，再回 safe error code；不得產生 append candidate，不回 raw provider error/body。
+- [x] Guard paths（unauth、manager/foreign、blocked draft、quota exceeded、provider disabled、missing key、raw sentinel input）不得呼叫 provider、不得寫 fake usage、不得 append theater turn。
+- [x] `/theater/[sessionId]` 只能在 provider candidate 含 safe `usageLogId`、`requiresAdvisorConfirmation=true`、`writesConfirmedCrmFact=false`、`storesRawProviderPayload=false`、`rawPrivateTranscriptIncluded=false` 時啟用 existing append confirmation。
+- [x] AgentFacts-style manifest 必須新增 live provider candidate capability / endpoint / DTO/evidence refs，且 readiness 仍為 `internal-only`；不得宣稱 external-ready、external-registered 或正式 NANDA publication。
+- [x] 需跑新的 provider route QA（例如 `pnpm theater:route-b-next-turn-provider-route-qa`）、`pnpm theater:route-b-next-turn-provider-dry-run`、`pnpm theater:route-b-next-turn-append-dry-run`、`pnpm theater:route-b-provider-prompt-context-dry-run`、`pnpm ai:protocol-registry-qa`、`pnpm ai:bff-audit`、`pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。若只剩 browser screenshot residual，可交由 operator 自行重跑，不得取代 provider `AiUsageLog` proof。
+
+ITA-003n evidence note（2026-06-22）：新增 owner-scoped `POST /api/theater/route-b/sessions/[sessionId]/next-turn/provider-candidate`，由 persisted `RouteBSessionSnapshot` 與 server-side next-turn draft 建立 provider input，注入 `RouteBProviderPromptContext`，只在 session/quota/key/input guard 通過後呼叫 OpenAI JSON mode。Success path 先寫 THEATER/OpenAI `AiUsageLog` 與 org usage，再回 safe append candidate + `usageLogId`；provider error / schema mismatch 先寫 sanitized error usage log；guard paths維持 no-provider/no-fake-usage/no-append。`/theater/[sessionId]` 只在 candidate 安全旗標與 `usageLogId` 俱全時啟用既有 append confirmation。`pnpm theater:route-b-next-turn-provider-route-qa`、`pnpm theater:route-b-provider-prompt-context-dry-run`、`pnpm ai:protocol-registry-qa`、`pnpm ai:bff-audit`、`pnpm exec tsc --noEmit --pretty false` 通過；剩餘純瀏覽器截圖或成本型手動點擊 proof 可由 operator 在 dev server + provider key 可用時自行重跑，不阻擋下一輪 source-backed `ITA-005d`。
 
 ---
 

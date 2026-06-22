@@ -75,6 +75,7 @@
     "theater:route-b-next-turn-dry-run": "node scripts/theater-route-b-next-turn-dry-run.mjs",
     "theater:route-b-next-turn-ui-contract-qa": "node scripts/theater-route-b-next-turn-ui-contract-qa.mjs",
     "theater:route-b-next-turn-provider-dry-run": "node scripts/theater-route-b-next-turn-provider-dry-run.mjs",
+    "theater:route-b-next-turn-provider-route-qa": "node scripts/theater-route-b-next-turn-provider-route-qa.mjs",
     "theater:route-b-next-turn-append-dry-run": "node scripts/theater-route-b-next-turn-append-dry-run.mjs",
     "theater:route-b-objection-red-line-library-dry-run": "node scripts/theater-route-b-objection-red-line-library-dry-run.mjs",
     "theater:route-b-provider-prompt-context-dry-run": "node scripts/theater-route-b-provider-prompt-context-dry-run.mjs",

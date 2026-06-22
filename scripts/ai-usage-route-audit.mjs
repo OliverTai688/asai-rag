@@ -6,7 +6,11 @@ import { Pool } from "pg";
 loadEnvFile(".env");
 
 const ROOT = process.cwd();
-const API_ROUTE_ROOTS = ["src/app/api/ai", "src/app/api/rag"];
+const API_ROUTE_ROOTS = [
+  "src/app/api/ai",
+  "src/app/api/rag",
+  "src/app/api/theater/route-b/sessions/[sessionId]/next-turn/provider-candidate",
+];
 const providerCallPattern =
   /from\s+["']openai["']|new OpenAI|chat\.completions\.create|responses\.create|embeddings\.create|audio\.transcriptions\.create|fetch\(\s*OPENAI|api\.openai\.com|@anthropic-ai|new Anthropic/i;
 
@@ -258,6 +262,16 @@ const routeManifest = [
     inputEvidence: ["theaterScoreRequestSchema", "safeParse"],
     successEvidence: ["persistTheaterScoreSuccess"],
     errorEvidence: ["persistTheaterFailure"],
+  }),
+  providerRoute({
+    route: "/api/theater/route-b/sessions/[sessionId]/next-turn/provider-candidate",
+    file: "src/app/api/theater/route-b/sessions/[sessionId]/next-turn/provider-candidate/route.ts",
+    module: "THEATER",
+    kind: "provider_json_route_b_candidate",
+    inputEvidence: ["routeBProviderCandidateInputSchema", "findRouteBProviderCandidatePayloadViolations", "safeParse"],
+    providerCallEvidence: ["openai.chat.completions.create"],
+    successEvidence: ["writeRouteBProviderUsageLog", "monthlyAiUsed: { increment: 1 }"],
+    errorEvidence: ["writeRouteBProviderUsageLog", "ROUTE_B_NEXT_TURN_PROVIDER_ERROR"],
   }),
   providerRoute({
     route: "/api/ai/visit",
