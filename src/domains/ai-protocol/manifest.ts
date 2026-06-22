@@ -615,7 +615,7 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
       displayName: "Visit preparation package",
       ownerSurface: "/pre-visit",
       module: "VISIT",
-      version: "2026-06-22.visit-route-b-red-line-context",
+      version: "2026-06-22.visit-route-b-red-line-context-bff",
       status: "active",
     },
     capabilities: [
@@ -635,6 +635,14 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
     interfaces: {
       endpoints: [
         { id: "visit-ai", route: "/api/ai/visit", methods: ["POST"], providerPosture: "provider-ready", launchPosture: "available", modalities: ["structured-json", "text"] },
+        {
+          id: "visit-route-b-red-line-context",
+          route: "/api/visits/[id]/route-b-red-line-context",
+          methods: ["GET"],
+          providerPosture: "deterministic-no-provider",
+          launchPosture: "available",
+          modalities: ["structured-json"],
+        },
       ],
       actions: [
         { id: "question-rationale", label: "Question rationale", actionBoundary: "Uses provider-safe client snapshot and evidence labels." },
@@ -648,8 +656,8 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
       exportTargets: defaultExportTargets,
     },
     schemas: {
-      inputDtoRefs: ["visitRequestSchema", "provider-safe client snapshot", "TheaterRouteBFeedbackReview"],
-      outputDtoRefs: ["VisitPreparationPackageDto", "VisitRouteBRedLineContext"],
+      inputDtoRefs: ["visitRequestSchema", "provider-safe client snapshot", "TheaterRouteBFeedbackReview", "routeBSourcePacketId"],
+      outputDtoRefs: ["VisitPreparationPackageDto", "VisitRouteBRedLineContext", "VisitRouteBRedLineContextBffDto"],
       evidenceDtoRefs: [
         "facts",
         "inferences",
@@ -657,6 +665,8 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
         "AiUsageLog",
         "VisitQuestionEvidence.source=theater_route_b_red_line",
         "VisitRouteBRedLineContext.outputContract.writesConfirmedCrmFact=false",
+        "VisitRouteBRedLineContextBffDto.proof.browserSuppliedTheaterSessionId=false",
+        "VisitRouteBRedLineContextBffDto.proof.browserSuppliedPersonId=false",
       ],
       dtoBoundary: "Preparation package content remains app-internal unless separately shared by report workflow.",
     },
@@ -688,17 +698,20 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
         "pnpm bff:visit-report-ai-qa",
         "pnpm visit:theater-handoff-dry-run",
         "pnpm visit:route-b-red-line-context-dry-run",
+        "pnpm visit:route-b-red-line-context-bff-qa",
       ],
       sourceAdoption: {
         status: "adopted",
         ownerRefs: [
           "src/app/api/ai/visit/route.ts",
+          "src/app/api/visits/[id]/route-b-red-line-context/route.ts",
           "src/domains/visit/ai-evidence-dto.ts",
           "src/domains/visit/reasoning.ts",
           "src/domains/visit/route-b-red-line-context.ts",
           "src/domains/theater/route-b-feedback-review.ts",
           "src/domains/theater/visit-handoff.ts",
           "src/lib/visits/visit-plan-repository.ts",
+          "src/lib/visits/route-b-red-line-context-repository.ts",
         ],
         evidenceRefs: [
           "visitRequestSchema",
@@ -707,10 +720,15 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
           "buildAiEvidenceSummary",
           "enrichSpinQuestionsWithReasoning",
           "buildVisitRouteBRedLineContextFromFeedbackReview",
+          "getVisitRouteBRedLineContextForMember",
+          "VisitRouteBRedLineContextBffDto.proof.ownerScopedTheaterSessionLookup=true",
+          "VisitRouteBRedLineContextBffDto.proof.browserSuppliedTheaterSessionId=false",
+          "VisitRouteBRedLineContextBffDto.proof.browserSuppliedPersonId=false",
           "route-b-red-line-action-visit-prep-consumption",
           "VisitRouteBRedLineContext.outputContract.factsInferencesUnknownsSeparated=true",
           "VisitRouteBRedLineContext.outputContract.writesConfirmedCrmFact=false",
           "VisitQuestionEvidence.source=theater_route_b_red_line",
+          "/api/visits/[id]/route-b-red-line-context",
           "VisitTheaterHandoff.sourceSummary.evidenceSummary",
           "updateVisitPlanForMember",
           "persistAiGenerationSuccess",
@@ -721,6 +739,7 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
           "Question rationale and evidence summary keep facts, inferences, unknowns, and recommendations separate.",
           "Visit-to-theater handoff summarizes question evidence sources and fact/inference/unknown material counts before Route B consumes the stage packet.",
           "Route B red-line action context can now be consumed by visit question reasoning as evidence-needed or escalation advisor reminders; it does not overwrite visit facts, create legal findings, send notifications, call providers, or write confirmed CRM facts.",
+          "Visit preparation BFF/UI now derives the matching Route B feedback review from visitPlanId -> routeBSourcePacketId -> owner-scoped TheaterSession, so advisors do not enter raw session/person ids.",
           "Saved VisitPlan persistence is owned by the visit-plan repository, not by provider response metadata.",
         ],
       },

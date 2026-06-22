@@ -32,6 +32,7 @@
     "demo:ai-generation-qa": "node scripts/demo-ai-generation-qa.mjs",
     "visit:reasoning-dry-run": "node scripts/visit-reasoning-dry-run.mjs",
     "visit:route-b-red-line-context-dry-run": "node scripts/visit-route-b-red-line-context-dry-run.mjs",
+    "visit:route-b-red-line-context-bff-qa": "node scripts/visit-route-b-red-line-context-bff-contract-qa.mjs",
     "meeting:contract-dry-run": "node scripts/meeting-contract-dry-run.mjs",
     "meeting:persistence-contract-dry-run": "node scripts/meeting-persistence-contract-dry-run.mjs",
     "meeting:bff-qa": "node scripts/meeting-bff-qa.mjs",

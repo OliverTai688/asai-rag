@@ -43,15 +43,19 @@ const sourceAdoptionRequirements: Record<string, { ownerRefs: string[]; evidence
   "asai.visit.preparation_package": {
     ownerRefs: [
       "src/app/api/ai/visit/route.ts",
+      "src/app/api/visits/[id]/route-b-red-line-context/route.ts",
       "src/domains/visit/ai-evidence-dto.ts",
       "src/domains/visit/route-b-red-line-context.ts",
       "src/lib/visits/visit-plan-repository.ts",
+      "src/lib/visits/route-b-red-line-context-repository.ts",
     ],
     evidenceRefs: [
       "buildProviderSafeClientSnapshot",
       "buildAiEvidenceSummary",
       "enrichSpinQuestionsWithReasoning",
       "buildVisitRouteBRedLineContextFromFeedbackReview",
+      "getVisitRouteBRedLineContextForMember",
+      "VisitRouteBRedLineContextBffDto.proof.browserSuppliedTheaterSessionId=false",
       "VisitQuestionEvidence.source=theater_route_b_red_line",
       "updateVisitPlanForMember",
     ],
@@ -60,6 +64,7 @@ const sourceAdoptionRequirements: Record<string, { ownerRefs: string[]; evidence
       "pnpm ai:protocol-registry-qa",
       "pnpm bff:visit-report-ai-qa",
       "pnpm visit:route-b-red-line-context-dry-run",
+      "pnpm visit:route-b-red-line-context-bff-qa",
     ],
   },
   "asai.report.generation": {

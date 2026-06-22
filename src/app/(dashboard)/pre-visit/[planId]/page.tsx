@@ -42,6 +42,10 @@ import { useClientStore } from "@/domains/client/store";
 import { demoQuickstart, getQuickstartVisitFixture } from "@/domains/demo/quickstart";
 import { planTourSteps } from "@/domains/demo/tour-steps";
 import { buildVisitTheaterHandoff } from "@/domains/theater/visit-handoff";
+import type {
+  VisitRouteBRedLineContext,
+  VisitRouteBRedLineContextItem,
+} from "@/domains/visit/route-b-red-line-context";
 import { VisitService } from "@/domains/visit/service";
 import { useVisitStore } from "@/domains/visit/store";
 import type {
@@ -104,6 +108,37 @@ type DecisionSignal = {
 };
 
 type VisitTheaterUiStatus = "READY" | "NEEDS_MORE_INFO" | "BLOCKED_SENSITIVE";
+type VisitRouteBRedLineContextStatus =
+  | "READY"
+  | "NO_ROUTE_B_SESSION"
+  | "NO_FEEDBACK_REVIEW"
+  | "NO_ACTION_CONTEXT";
+
+type VisitRouteBRedLineContextResponse = {
+  status: VisitRouteBRedLineContextStatus;
+  visitPlanId: string;
+  clientId: string;
+  sourcePacketId: string;
+  routeBRedLineContext?: VisitRouteBRedLineContext;
+  source: {
+    matchedBy: "routeBSourcePacketId";
+    sourceActionId: "route-b-red-line-action-feedback-consumption";
+    sourceTheaterSessionId?: string;
+    sourceFeedbackReviewId?: string;
+    feedbackReviewUpdatedAt?: string;
+  };
+  summary: VisitRouteBRedLineContext["summary"];
+  proof: {
+    ownerScopedVisitPlan: true;
+    ownerScopedTheaterSessionLookup: true;
+    browserSuppliedTheaterSessionId: false;
+    browserSuppliedPersonId: false;
+    providerCallAttempted: false;
+    aiUsageLogWritten: false;
+    writesConfirmedCrmFact: false;
+    triggersExternalNotification: false;
+  };
+};
 
 function normalizeParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
@@ -181,6 +216,13 @@ function VisitPlanDetailContent() {
   const [isLoadingPlan, setIsLoadingPlan] = useState(!isQuickstart);
   const [planLoadError, setPlanLoadError] = useState<string | null>(null);
   const [generationError, setGenerationError] = useState<string | null>(null);
+  const [routeBContext, setRouteBContext] = useState<VisitRouteBRedLineContextResponse | null>(null);
+  const [routeBContextError, setRouteBContextError] = useState<string | null>(null);
+  const [isLoadingRouteBContext, setIsLoadingRouteBContext] = useState(false);
+  const activeRouteBContext =
+    !isQuickstart && routeBContext?.visitPlanId === planId ? routeBContext : null;
+  const activeRouteBContextError = !isQuickstart && planId ? routeBContextError : null;
+  const activeRouteBContextLoading = !isQuickstart && Boolean(planId) && isLoadingRouteBContext;
   const groupedQuestions = useMemo(() => {
     const questions = plan?.spinQuestions ?? [];
     return (["S", "P", "I", "N"] as const).map((type) => ({
@@ -239,6 +281,47 @@ function VisitPlanDetailContent() {
     }
 
     void loadPlan();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isQuickstart, planId]);
+
+  useEffect(() => {
+    if (isQuickstart || !planId) return;
+
+    let cancelled = false;
+    const targetPlanId = planId;
+
+    async function loadRouteBContext() {
+      try {
+        setIsLoadingRouteBContext(true);
+        setRouteBContextError(null);
+        const response = await fetch(`/api/visits/${encodeURIComponent(targetPlanId)}/route-b-red-line-context`, {
+          cache: "no-store",
+        });
+
+        if (!response.ok) {
+          throw new Error(`VISIT_ROUTE_B_CONTEXT_LOAD_FAILED_${response.status}`);
+        }
+
+        const payload = (await response.json()) as VisitRouteBRedLineContextResponse;
+        if (!cancelled) {
+          setRouteBContext(payload);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setRouteBContext(null);
+          setRouteBContextError(error instanceof Error ? error.message : "VISIT_ROUTE_B_CONTEXT_LOAD_FAILED");
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoadingRouteBContext(false);
+        }
+      }
+    }
+
+    void loadRouteBContext();
 
     return () => {
       cancelled = true;
@@ -567,6 +650,11 @@ function VisitPlanDetailContent() {
         </div>
 
         <aside className="space-y-4">
+          <RouteBRedLineContextPanel
+            context={activeRouteBContext}
+            error={activeRouteBContextError}
+            isLoading={activeRouteBContextLoading}
+          />
           <EvidenceBoard buckets={evidenceBuckets} />
           <TimeBox totalMinutes={totalMinutes} />
           <NotesBox notes={plan.postVisitNotes} onOpen={() => router.push(`/pre-visit/${plan.id}/notes${isQuickstart ? "?demo=quickstart" : ""}`)} />
@@ -855,6 +943,84 @@ function EvidenceLine({ item }: { item: VisitQuestionEvidence }) {
   );
 }
 
+function RouteBRedLineContextPanel({
+  context,
+  error,
+  isLoading,
+}: {
+  context: VisitRouteBRedLineContextResponse | null;
+  error: string | null;
+  isLoading: boolean;
+}) {
+  if (!isLoading && !context && !error) return null;
+
+  const items = context?.routeBRedLineContext?.items ?? [];
+  const hasContext = context?.status === "READY";
+  const badgeLabel = isLoading ? "檢查中" : error ? "暫不可用" : getRouteBContextStatusLabel(context?.status);
+  const summary = context?.summary ?? {
+    itemCount: 0,
+    evidenceNeededCount: 0,
+    escalateCount: 0,
+    notApplicableCount: 0,
+    watchingCount: 0,
+  };
+
+  return (
+    <section data-route-b-red-line-context className="rounded-lg border border-hairline bg-card p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="flex items-center gap-2 text-sm font-semibold text-ink">
+            <ShieldQuestion className="h-4 w-4" />
+            劇場紅線回帶
+          </div>
+          <p className="mt-2 text-xs leading-5 text-muted-foreground">
+            {isLoading ? "正在檢查此準備包對應的 Route B 劇場回饋。" : error ? "劇場回饋暫時無法載入；不影響目前準備包使用。" : getRouteBContextCopy(context?.status)}
+          </p>
+        </div>
+        <Badge variant={hasContext ? "default" : "outline"} className="rounded-md">
+          {badgeLabel}
+        </Badge>
+      </div>
+
+      {hasContext ? (
+        <>
+          <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+            <MiniStat label="待佐證" value={String(summary.evidenceNeededCount)} />
+            <MiniStat label="升級" value={String(summary.escalateCount)} />
+            <MiniStat label="觀察" value={String(summary.watchingCount)} />
+          </div>
+          <div className="mt-4 grid gap-2">
+            {items.slice(0, 3).map((item) => (
+              <RouteBRedLineContextRow key={item.id} item={item} />
+            ))}
+          </div>
+        </>
+      ) : null}
+
+      <p className="mt-4 border-t border-hairline pt-3 text-xs leading-5 text-muted-foreground">
+        由此準備包自動比對 Route B source packet；不需輸入 session/person id，也不建立正式法遵結論。
+      </p>
+    </section>
+  );
+}
+
+function RouteBRedLineContextRow({ item }: { item: VisitRouteBRedLineContextItem }) {
+  return (
+    <div className="rounded-lg border border-hairline bg-background p-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge variant={item.escalationRequested ? "destructive" : "outline"} className="rounded-md">
+          {getRouteBActionStateLabel(item.actionState)}
+        </Badge>
+        <Badge variant="outline" className="rounded-md">
+          {item.evidenceNeeded ? "待補佐證" : "顧問提醒"}
+        </Badge>
+      </div>
+      <p className="mt-2 text-xs font-semibold leading-5 text-ink">{item.label}</p>
+      <p className="mt-1 line-clamp-3 text-xs leading-5 text-muted-foreground">{item.detail}</p>
+    </div>
+  );
+}
+
 function EvidenceBoard({ buckets }: { buckets: EvidenceBucket[] }) {
   return (
     <section className="rounded-lg border border-hairline bg-card">
@@ -1096,6 +1262,33 @@ function getHandoffStatusLabel(status: VisitTheaterUiStatus) {
   if (status === "READY") return "可建場";
   if (status === "BLOCKED_SENSITIVE") return "敏感暫停";
   return "需補資料";
+}
+
+function getRouteBContextStatusLabel(status: VisitRouteBRedLineContextStatus | undefined) {
+  if (status === "READY") return "已回帶";
+  if (status === "NO_FEEDBACK_REVIEW") return "待回饋";
+  if (status === "NO_ACTION_CONTEXT") return "無紅線";
+  return "尚未建場";
+}
+
+function getRouteBContextCopy(status: VisitRouteBRedLineContextStatus | undefined) {
+  if (status === "READY") {
+    return "已載入同一準備包建立的劇場回饋，僅作顧問提醒與待佐證問題。";
+  }
+  if (status === "NO_FEEDBACK_REVIEW") {
+    return "已找到同一準備包的 Route B 劇場，但尚未產生回饋檢視。";
+  }
+  if (status === "NO_ACTION_CONTEXT") {
+    return "劇場回饋已讀取，但沒有需要回帶到拜訪準備的紅線行動脈絡。";
+  }
+  return "建立劇場並產生回饋後，紅線提醒會自動回帶到這裡。";
+}
+
+function getRouteBActionStateLabel(state: VisitRouteBRedLineContextItem["actionState"]) {
+  if (state === "ESCALATE") return "升級審閱";
+  if (state === "EVIDENCE_NEEDED") return "需要佐證";
+  if (state === "NOT_APPLICABLE") return "不適用";
+  return "觀察中";
 }
 
 function getHandoffStatusCopy(status: VisitTheaterUiStatus, isReady: boolean) {
