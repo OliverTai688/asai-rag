@@ -182,6 +182,8 @@ const sourceAdoptionRequirements: Record<string, { ownerRefs: string[]; evidence
     evidenceRefs: [
       "RouteBRuntimeInputPreview",
       "runtimeInputPreview.sourceAlignment",
+      "runtimeInputPreview.orchestration",
+      "RouteBOrchestrationRuntimePreview",
       "validateRouteBHandoffBoundary",
       "isTheaterRouteBHandoffPacket",
       "createRouteBSessionForMember",
@@ -191,6 +193,7 @@ const sourceAdoptionRequirements: Record<string, { ownerRefs: string[]; evidence
       "buildTheaterRouteBOrchestrationPlan",
       "TheaterRouteBOrchestrationPlan",
       "TheaterRouteBDirectorDirective",
+      "TheaterRouteBDirectorDirective.guardEvidence.privateHistoryScopedToAddressee",
       "providerCallAttempted=false",
       "writesConfirmedCrmFact=false",
     ],

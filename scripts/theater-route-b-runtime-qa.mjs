@@ -73,17 +73,23 @@ async function runProof() {
     salespersonUtterance: "我想先了解您和太太對家庭保障的共同決策方式。",
     history: [
       {
+        id: "history_private_1",
+        speakerCharacterId: "character_partner",
+        addresseeCharacterId: "character_spouse",
+        visibilityScope: "PRIVATE",
+        content: "這段私聊含 rawPayload token 0912-345-678 and qa-private@example.com，response 不應回傳。",
+      },
+      {
         id: "history_group_1",
         speakerCharacterId: "character_focus_lin",
         visibilityScope: "GROUP",
         content: "大家都聽得到的群聊內容。",
       },
       {
-        id: "history_private_1",
+        id: "history_group_2",
         speakerCharacterId: "character_focus_lin",
-        addresseeCharacterId: "character_spouse",
-        visibilityScope: "PRIVATE",
-        content: "這段私聊含 rawPayload token 0912-345-678 and qa-private@example.com，response 不應回傳。",
+        visibilityScope: "GROUP",
+        content: "林先生連續發言，下一輪應避免他繼續主導。",
       },
     ],
   });
@@ -111,11 +117,74 @@ async function runProof() {
     "Route B director preview carries success/error AiUsageLog plan",
   );
   push(
-    director.body?.runtimeInputPreview?.scopedHistoryVisibilitySummary?.GROUP === 1 &&
+    director.body?.runtimeInputPreview?.scopedHistoryVisibilitySummary?.GROUP === 2 &&
       director.body?.runtimeInputPreview?.scopedHistoryVisibilitySummary?.PRIVATE === 1,
     "Route B director preview reports scoped history visibility summary",
   );
+  push(
+    director.body?.runtimeInputPreview?.orchestration?.sourceAlignment?.actionId === "route-b-orchestration" &&
+      director.body?.runtimeInputPreview?.orchestration?.registryReadiness === "internal-only",
+    "Route B director preview includes internal orchestration preview",
+  );
+  push(
+    director.body?.runtimeInputPreview?.orchestration?.directorDirective?.speakerCharacterId === "character_spouse" &&
+      director.body?.runtimeInputPreview?.orchestration?.directorDirective?.guardEvidence?.consecutiveSpeakerBlockedCharacterIds?.includes(
+        "character_focus_lin",
+      ),
+    "Route B orchestration preview applies consecutive-speaker guard",
+  );
+  push(
+    director.body?.runtimeInputPreview?.orchestration?.persistenceEnvelope?.requiresConfirmation === true &&
+      director.body?.runtimeInputPreview?.orchestration?.persistenceEnvelope?.writesConfirmedCrmFact === false &&
+      director.body?.runtimeInputPreview?.orchestration?.providerBoundary?.providerCallAttempted === false,
+    "Route B orchestration preview keeps safe persistence and no-provider boundary",
+  );
+  push(
+    director.body?.runtimeInputPreview?.orchestration?.characterReplyInputPreview?.visibleHistoryCount >= 2,
+    "Route B orchestration preview reports visibility-scoped character history count",
+  );
   pushNoPrivateSentinel(directorText, "Route B director response has no private sentinel");
+
+  const privateDirector = await memberPost({
+    intent: "DIRECTOR",
+    handoff,
+    salespersonUtterance: "私下請林太太回應每月保費承受區間。",
+    visibilityScope: "PRIVATE",
+    addresseeCharacterId: "character_spouse",
+    history: [
+      {
+        id: "history_group_private_director",
+        speakerCharacterId: "character_focus_lin",
+        visibilityScope: "GROUP",
+        content: "群聊歷史。",
+      },
+      {
+        id: "history_private_other_addressee",
+        speakerCharacterId: "character_focus_lin",
+        addresseeCharacterId: "character_partner",
+        visibilityScope: "PRIVATE",
+        content: "這段給合夥人的私聊不應進林太太 visible history。",
+      },
+    ],
+  });
+  push(privateDirector.status === 503, "Route B private director returns guarded-disabled when provider off", `status=${privateDirector.status}`);
+  push(
+    privateDirector.body?.runtimeInputPreview?.orchestration?.directorDirective?.speakerCharacterId === "character_spouse" &&
+      privateDirector.body?.runtimeInputPreview?.orchestration?.directorDirective?.addresseeCharacterId === "character_spouse" &&
+      privateDirector.body?.runtimeInputPreview?.orchestration?.directorDirective?.visibilityScope === "PRIVATE",
+    "Route B private orchestration preview makes named addressee answer",
+  );
+  push(
+    privateDirector.body?.runtimeInputPreview?.orchestration?.directorDirective?.guardEvidence?.namedAddresseeMustAnswer === true &&
+      privateDirector.body?.runtimeInputPreview?.orchestration?.directorDirective?.guardEvidence?.namedAddresseeFound === true &&
+      privateDirector.body?.runtimeInputPreview?.orchestration?.directorDirective?.guardEvidence?.privateHistoryScopedToAddressee === true,
+    "Route B private orchestration preview proves addressee/private history guard",
+  );
+  push(
+    privateDirector.body?.runtimeInputPreview?.orchestration?.characterReplyInputPreview?.visibleHistoryCount === 2,
+    "Route B private orchestration preview excludes unrelated private history",
+  );
+  pushNoPrivateSentinel(JSON.stringify(privateDirector.body), "Route B private director response has no private sentinel");
 
   const missingDirector = await memberPost({ intent: "DIRECTOR", handoff });
   push(missingDirector.status === 400, "Route B director missing utterance returns preflight 400", `status=${missingDirector.status}`);
@@ -123,6 +192,18 @@ async function runProof() {
     missingDirector.body?.error === "ROUTE_B_RUNTIME_PREFLIGHT_INVALID" &&
       missingDirector.body?.runtimeInputPreview?.inputContract?.missingFields?.includes("salespersonUtterance"),
     "Route B director preflight reports stable missing field",
+  );
+
+  const missingPrivateAddressee = await memberPost({
+    intent: "DIRECTOR",
+    handoff,
+    visibilityScope: "PRIVATE",
+    salespersonUtterance: "私聊必須指定對象。",
+  });
+  push(missingPrivateAddressee.status === 400, "Route B private director without addressee returns preflight 400", `status=${missingPrivateAddressee.status}`);
+  push(
+    missingPrivateAddressee.body?.runtimeInputPreview?.inputContract?.missingFields?.includes("addresseeCharacterId"),
+    "Route B private director preflight reports stable missing addressee field",
   );
 
   const character = await memberPost({
@@ -183,6 +264,7 @@ async function runProof() {
   push(
     routeSource.includes('status: "PROVIDER_NOT_IMPLEMENTED"') &&
       routeSource.includes("ROUTE_B_PROVIDER_IMPLEMENTATION_MISSING") &&
+      routeSource.includes("route-b-orchestration") &&
       routeSource.includes("success/error AiUsageLog proof"),
     "Route B provider-enabled branch remains blocked until usage proof is implemented",
   );

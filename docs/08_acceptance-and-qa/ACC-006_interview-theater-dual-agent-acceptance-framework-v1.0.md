@@ -107,6 +107,19 @@
 - [ ] AgentFacts-style manifest 必須新增 orchestration capability/action/DTO refs/proof command，且保持 `registryReadiness=internal-only`。
 - [ ] 需跑 `pnpm theater:route-b-orchestration-dry-run`、`pnpm theater:route-b-handoff-dry-run`、`pnpm ai:protocol-registry-qa`、`pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
 
+### 5.4 Route B orchestration runtime integration acceptance
+
+`ITA-003i` 若把 no-provider orchestration 接進 `/api/theater/route-b/runtime`，完成前必須額外滿足：
+
+- [ ] `DIRECTOR` preflight response 的 `runtimeInputPreview.orchestration` 只回 least-disclosure 摘要：director directive、guard evidence、character visible history count、state patch count、safe persistence envelope 與 provider boundary；不得回 raw private transcript、raw provider payload、email、phone、secret、token、cookie、OTP。
+- [ ] Runtime orchestration preview 必須保留 `agentId=asai.theater.route_b`、`registryReadiness=internal-only`、`actionId=route-b-orchestration`，不可宣稱 external registration 或 provider production ready。
+- [ ] 被點名 `PRIVATE` addressee 必答；缺 `addresseeCharacterId` 或未知 addressee 應回 400 preflight invalid，不得被包成 provider-disabled success。
+- [ ] 未點名時，consecutive-speaker guard 必須能避開已連續主導角色；guard evidence 需列出 blocked character ids。
+- [ ] Character reply preview 只能統計 group 與該角色相關 private history；其他角色私聊不得進 visible history count。
+- [ ] Persistence envelope 固定 `requiresConfirmation=true`、`writesConfirmedCrmFact=false`，provider boundary 固定 `providerCallAttempted=false`、`aiUsageLogWritten=false`，且 provider 啟用前仍需 success/error `AiUsageLog` proof。
+- [ ] AgentFacts-style manifest 必須新增 runtime orchestration preview capability / `RouteBOrchestrationRuntimePreview` DTO ref / `runtimeInputPreview.orchestration` evidence ref。
+- [ ] 需跑 `pnpm theater:route-b-runtime-qa`、`pnpm theater:route-b-orchestration-dry-run`、`pnpm ai:protocol-registry-qa`、`pnpm ai:bff-audit`、`pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+
 ---
 
 ## 6. Feedback / Compliance Acceptance

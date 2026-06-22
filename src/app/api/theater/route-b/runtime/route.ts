@@ -7,6 +7,10 @@ import {
   type TheaterRouteBHandoffPacket,
   type TheaterRouteBVisibilityScope,
 } from "@/domains/theater/route-b-handoff";
+import {
+  buildTheaterRouteBOrchestrationPlan,
+  type TheaterRouteBOrchestrationPlan,
+} from "@/domains/theater/route-b-orchestration";
 import { canUseAiModule } from "@/lib/auth/policies";
 import { authErrorResponse, requireCurrentMember } from "@/lib/auth/current-workspace";
 import {
@@ -89,6 +93,44 @@ interface RouteBRuntimeInputPreviewBase {
   };
 }
 
+interface RouteBOrchestrationRuntimePreview {
+  agentId: "asai.theater.route_b";
+  registryReadiness: "internal-only";
+  sourceAlignment: {
+    ownerSurface: "/theater/[sessionId]";
+    endpoint: "/api/theater/route-b/runtime";
+    actionId: "route-b-orchestration";
+  };
+  directorDirective: {
+    speakerCharacterId: string;
+    addresseeCharacterId?: string;
+    visibilityScope: Extract<TheaterRouteBVisibilityScope, "GROUP" | "PRIVATE">;
+    directive: string;
+    rationale: string[];
+    guardEvidence: TheaterRouteBOrchestrationPlan["directorDirective"]["guardEvidence"];
+  };
+  characterReplyInputPreview: {
+    characterId: string;
+    addresseeCharacterId?: string;
+    visibilityScope: Extract<TheaterRouteBVisibilityScope, "GROUP" | "PRIVATE">;
+    visibleHistoryCount: number;
+    aiUsageLogRequired: true;
+  };
+  persistenceEnvelope: {
+    actorKind: "CHARACTER";
+    speakerCharacterId: string;
+    addresseeCharacterId?: string;
+    visibilityScope: Extract<TheaterRouteBVisibilityScope, "GROUP" | "PRIVATE">;
+    statePatchCount: number;
+    requiresConfirmation: true;
+    writesConfirmedCrmFact: false;
+    allowedWriteTargets: TheaterRouteBOrchestrationPlan["persistenceEnvelope"]["allowedWriteTargets"];
+    provider: TheaterRouteBOrchestrationPlan["persistenceEnvelope"]["provider"];
+  };
+  narratorQueueCount: number;
+  providerBoundary: TheaterRouteBOrchestrationPlan["providerBoundary"];
+}
+
 type RouteBRuntimeInputPreview = RouteBRuntimeInputPreviewBase & {
   sceneId?: string;
   characterCount?: number;
@@ -102,6 +144,7 @@ type RouteBRuntimeInputPreview = RouteBRuntimeInputPreviewBase & {
   qualitativePerspectives?: string[];
   historyCount?: number;
   historyVisibilitySummary?: Record<TheaterRouteBVisibilityScope, number>;
+  orchestration?: RouteBOrchestrationRuntimePreview;
 };
 
 export async function POST(req: Request) {
@@ -255,7 +298,16 @@ export async function POST(req: Request) {
 function buildRuntimeInputPreview(body: RouteBRuntimeRequest): RouteBRuntimeInputPreview {
   if (body.intent === "DIRECTOR") {
     const requiredFields = ["salespersonUtterance"];
-    const missingFields = body.salespersonUtterance ? [] : ["salespersonUtterance"];
+    const advisorVisibilityScope = normalizeAdvisorVisibilityScope(body.visibilityScope);
+    const missingFields = [
+      body.salespersonUtterance ? undefined : "salespersonUtterance",
+      advisorVisibilityScope ? undefined : "visibilityScope",
+      body.visibilityScope === "PRIVATE" && !body.addresseeCharacterId ? "addresseeCharacterId" : undefined,
+      body.addresseeCharacterId &&
+        !body.handoff.scene.characters.some((character) => character.id === body.addresseeCharacterId)
+        ? "knownAddresseeCharacterId"
+        : undefined,
+    ].filter(Boolean) as string[];
     const base = buildRuntimeInputPreviewBase("DIRECTOR", requiredFields, missingFields);
 
     if (missingFields.length > 0) {
@@ -264,6 +316,16 @@ function buildRuntimeInputPreview(body: RouteBRuntimeRequest): RouteBRuntimeInpu
 
     const input = buildTheaterRouteBDirectorInput(body.handoff, {
       salespersonUtterance: body.salespersonUtterance ?? "",
+      history: body.history,
+    });
+    const orchestrationPlan = buildTheaterRouteBOrchestrationPlan({
+      handoff: body.handoff,
+      advisorTurn: {
+        id: body.sessionId ? `${body.sessionId}:advisor-runtime-preview` : "route_b_runtime_advisor_preview",
+        content: body.salespersonUtterance ?? "",
+        visibilityScope: advisorVisibilityScope ?? "GROUP",
+        addresseeCharacterId: body.addresseeCharacterId,
+      },
       history: body.history,
     });
 
@@ -275,6 +337,7 @@ function buildRuntimeInputPreview(body: RouteBRuntimeRequest): RouteBRuntimeInpu
       scopedHistoryCount: input.scopedHistory.length,
       scopedHistoryVisibilitySummary: summarizeVisibility(input.scopedHistory),
       allowedActions: input.allowedActions,
+      orchestration: buildRouteBOrchestrationRuntimePreview(orchestrationPlan),
     };
   }
 
@@ -321,6 +384,53 @@ function buildRuntimeInputPreview(body: RouteBRuntimeRequest): RouteBRuntimeInpu
     qualitativePerspectives: ["教練的耳朵", "客戶的眼睛", "沉默裡的需求", "守門的良心", "決策的橋"],
     historyCount: body.history.length,
     historyVisibilitySummary: summarizeVisibility(body.history),
+  };
+}
+
+function normalizeAdvisorVisibilityScope(scope: TheaterRouteBVisibilityScope) {
+  if (scope === "GROUP" || scope === "PRIVATE") return scope;
+  return undefined;
+}
+
+function buildRouteBOrchestrationRuntimePreview(
+  plan: TheaterRouteBOrchestrationPlan,
+): RouteBOrchestrationRuntimePreview {
+  return {
+    agentId: plan.agentId,
+    registryReadiness: plan.registryReadiness,
+    sourceAlignment: {
+      ownerSurface: "/theater/[sessionId]",
+      endpoint: "/api/theater/route-b/runtime",
+      actionId: "route-b-orchestration",
+    },
+    directorDirective: {
+      speakerCharacterId: plan.directorDirective.speakerCharacterId,
+      addresseeCharacterId: plan.directorDirective.addresseeCharacterId,
+      visibilityScope: plan.directorDirective.visibilityScope,
+      directive: plan.directorDirective.directive,
+      rationale: plan.directorDirective.rationale,
+      guardEvidence: plan.directorDirective.guardEvidence,
+    },
+    characterReplyInputPreview: {
+      characterId: plan.characterReplyInput.characterCard.id,
+      addresseeCharacterId: plan.characterReplyInput.addresseeCharacterId,
+      visibilityScope: plan.persistenceEnvelope.visibilityScope,
+      visibleHistoryCount: plan.characterReplyInput.visibleHistory.length,
+      aiUsageLogRequired: plan.characterReplyInput.aiUsageLogRequired,
+    },
+    persistenceEnvelope: {
+      actorKind: plan.persistenceEnvelope.actorKind,
+      speakerCharacterId: plan.persistenceEnvelope.speakerCharacterId,
+      addresseeCharacterId: plan.persistenceEnvelope.addresseeCharacterId,
+      visibilityScope: plan.persistenceEnvelope.visibilityScope,
+      statePatchCount: plan.persistenceEnvelope.statePatches.length,
+      requiresConfirmation: plan.persistenceEnvelope.requiresConfirmation,
+      writesConfirmedCrmFact: plan.persistenceEnvelope.writesConfirmedCrmFact,
+      allowedWriteTargets: plan.persistenceEnvelope.allowedWriteTargets,
+      provider: plan.persistenceEnvelope.provider,
+    },
+    narratorQueueCount: plan.narratorQueue.length,
+    providerBoundary: plan.providerBoundary,
   };
 }
 

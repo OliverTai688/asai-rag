@@ -868,7 +868,7 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
       displayName: "Route B relationship theater",
       ownerSurface: "/theater/[sessionId]",
       module: "THEATER",
-      version: "2026-06-22.ita-003h-orchestration",
+      version: "2026-06-22.ita-003i-runtime-orchestration",
       status: "active",
     },
     capabilities: [
@@ -889,6 +889,12 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
         label: "Route B orchestration contract",
         summary: "Turns the latest group/private advisor turn into a director speaker directive, character reply input plan, and safe persistence envelope without provider calls.",
         humanTrigger: "Advisor sends a group or private theater turn and expects the next roleplay character to answer.",
+      },
+      {
+        id: "route-b-runtime-orchestration-preview",
+        label: "Route B runtime orchestration preview",
+        summary: "Exposes a least-disclosure runtime preview of director directive, addressee guard evidence, character-visible history count, and no-provider persistence envelope.",
+        humanTrigger: "Advisor preflights a Route B director turn before provider execution is enabled.",
       },
     ],
     interfaces: {
@@ -924,12 +930,14 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
     },
     schemas: {
       inputDtoRefs: ["TheaterRouteBHandoffPacket", "RouteBTurnInput", "RouteBRuntimeRequest", "TheaterRouteBAdvisorTurnInput"],
-      outputDtoRefs: ["RouteBSessionDto", "RouteBTurnDto", "RouteBRuntimeInputPreview", "TheaterRouteBOrchestrationPlan"],
+      outputDtoRefs: ["RouteBSessionDto", "RouteBTurnDto", "RouteBRuntimeInputPreview", "RouteBOrchestrationRuntimePreview", "TheaterRouteBOrchestrationPlan"],
       evidenceDtoRefs: [
         "visibilityScope",
         "statePatches",
         "runtimeInputPreview.sourceAlignment",
+        "runtimeInputPreview.orchestration",
         "TheaterRouteBDirectorDirective.guardEvidence",
+        "TheaterRouteBDirectorDirective.guardEvidence.privateHistoryScopedToAddressee",
         "TheaterRouteBCharacterReplyPersistenceEnvelope",
         "AiUsageLog count unchanged",
       ],
@@ -981,6 +989,8 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
         evidenceRefs: [
           "RouteBRuntimeInputPreview",
           "runtimeInputPreview.sourceAlignment",
+          "runtimeInputPreview.orchestration",
+          "RouteBOrchestrationRuntimePreview",
           "validateRouteBHandoffBoundary",
           "isTheaterRouteBHandoffPacket",
           "createRouteBSessionForMember",
@@ -990,12 +1000,14 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
           "buildTheaterRouteBOrchestrationPlan",
           "TheaterRouteBOrchestrationPlan",
           "TheaterRouteBDirectorDirective",
+          "TheaterRouteBDirectorDirective.guardEvidence.privateHistoryScopedToAddressee",
           "providerCallAttempted=false",
           "writesConfirmedCrmFact=false",
         ],
         notes: [
           "Route B is source-adopted for deterministic session/turn persistence and guarded runtime preflight, not live provider runtime.",
           "Orchestration dry-run proves named addressee answer, consecutive-speaker guard, private history scoping, and safe persistence envelope without provider calls.",
+          "Runtime director preflight returns only a least-disclosure orchestration preview; it does not expose raw director input, raw private lane content, or provider payload.",
           "Visibility scope, private lane, and state proposal writes are server-owned and owner-scoped.",
           "Director, character, and feedback provider enablement remains blocked until explicit approval and success/error AiUsageLog proof.",
         ],
