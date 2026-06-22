@@ -84,11 +84,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 3,
+    "normalLoopsSinceLastWholeProductReview": 4,
     "lastWholeProductReviewAt": "2026-06-22T13:04:38Z",
     "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-22_lv3-whole-product-gap-review-after-notes-hub-quarantine.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "Cadence counter is 3 after AMM/PIM visit-scoped quick-note intake. Next normal loop should still avoid docs-only proof and pick one source-backed slice that connects core surfaces: either client/relationship graph -> preparation package evidence labels and advisor confirmation cards, or a disabled Route B compliance-review operator action shell that remains no-provider/no-notification/no-formal-finding and requires explicit approval before formal compliance workflow. Residual AMM quick-note live browser/API/DB proof can be self-run with pnpm meeting:notes-compat-qa instead of spending a loop only collecting screenshots.",
+    "nextRecommendedImplementationSlice": "Cadence counter is 4 after the source-backed relationship graph -> preparation package confirmation-card slice. The next loop should enter the fifth-round whole-product calibration by reading docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md and reassessing architecture, experience, interface, safety, onboarding, and remaining core-flow blockers before more implementation. Residual AMM quick-note evidence can remain self-runnable with pnpm meeting:notes-compat-qa; this loop's relationship-card evidence is self-runnable with pnpm visit:relationship-confirmation-dry-run.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {
@@ -156,5 +156,5 @@
     "lv3ImmersiveLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-immersive-loop.md",
     "lv3WholeProductGapReviewLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md"
   },
-  "updatedAt": "2026-06-22T14:15:58Z"
+  "updatedAt": "2026-06-22T14:28:09Z"
 }

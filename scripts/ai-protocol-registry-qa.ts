@@ -43,8 +43,10 @@ const sourceAdoptionRequirements: Record<string, { ownerRefs: string[]; evidence
   "asai.visit.preparation_package": {
     ownerRefs: [
       "src/app/api/ai/visit/route.ts",
+      "src/app/(dashboard)/pre-visit/[planId]/page.tsx",
       "src/app/api/visits/[id]/route-b-red-line-context/route.ts",
       "src/domains/visit/ai-evidence-dto.ts",
+      "src/domains/visit/relationship-confirmation.ts",
       "src/domains/visit/route-b-red-line-context.ts",
       "src/lib/visits/visit-plan-repository.ts",
       "src/lib/visits/route-b-red-line-context-repository.ts",
@@ -53,6 +55,9 @@ const sourceAdoptionRequirements: Record<string, { ownerRefs: string[]; evidence
       "buildProviderSafeClientSnapshot",
       "buildAiEvidenceSummary",
       "enrichSpinQuestionsWithReasoning",
+      "buildVisitRelationshipConfirmationDeck",
+      "relationship-graph-prep-confirmation-cards",
+      "VisitRelationshipConfirmationDeck.proof.writesConfirmedCrmFact=false",
       "buildVisitRouteBRedLineContextFromFeedbackReview",
       "getVisitRouteBRedLineContextForMember",
       "VisitRouteBRedLineContextBffDto.proof.browserSuppliedTheaterSessionId=false",
@@ -63,6 +68,7 @@ const sourceAdoptionRequirements: Record<string, { ownerRefs: string[]; evidence
       "pnpm ai:bff-audit",
       "pnpm ai:protocol-registry-qa",
       "pnpm bff:visit-report-ai-qa",
+      "pnpm visit:relationship-confirmation-dry-run",
       "pnpm visit:route-b-red-line-context-dry-run",
       "pnpm visit:route-b-red-line-context-bff-qa",
     ],

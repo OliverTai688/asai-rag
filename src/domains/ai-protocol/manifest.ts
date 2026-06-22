@@ -615,7 +615,7 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
       displayName: "Visit preparation package",
       ownerSurface: "/pre-visit",
       module: "VISIT",
-      version: "2026-06-22.visit-route-b-red-line-context-bff",
+      version: "2026-06-22.relationship-graph-confirmation-cards",
       status: "active",
     },
     capabilities: [
@@ -630,6 +630,12 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
         label: "Consume Route B red-line action context",
         summary: "Adds owner-scoped Route B feedback action context to visit question reasoning as advisor reminders, evidence-needed prompts, and escalation context without writing legal findings or confirmed CRM facts.",
         humanTrigger: "Advisor prepares a follow-up visit after a Route B theater session with saved severe red-line action states.",
+      },
+      {
+        id: "relationship-graph-prep-confirmation-cards",
+        label: "Relationship graph confirmation cards",
+        summary: "Turns relationship graph facts, inferences, and unknowns into advisor confirmation cards for visit preparation without writing confirmed CRM facts.",
+        humanTrigger: "Advisor reviews a visit preparation package and needs to verify relationship roles, fields, and assumptions before a meeting.",
       },
     ],
     interfaces: {
@@ -652,17 +658,25 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
           actionBoundary:
             "Consumes TheaterRouteBFeedbackReview actionContext into VisitQuestionEvidence only as advisor-context unknown/inference reminders; no legal advice, formal finding, external notification, provider call, or confirmed CRM fact write.",
         },
+        {
+          id: "relationship-graph-prep-confirmation-cards",
+          label: "Relationship graph confirmation deck",
+          actionBoundary:
+            "Builds deterministic advisor confirmation cards from relationship graph review source labels; local UI card state does not call providers or write confirmed CRM facts.",
+        },
       ],
       exportTargets: defaultExportTargets,
     },
     schemas: {
-      inputDtoRefs: ["visitRequestSchema", "provider-safe client snapshot", "TheaterRouteBFeedbackReview", "routeBSourcePacketId"],
-      outputDtoRefs: ["VisitPreparationPackageDto", "VisitRouteBRedLineContext", "VisitRouteBRedLineContextBffDto"],
+      inputDtoRefs: ["visitRequestSchema", "provider-safe client snapshot", "ClientRelationshipGraphReview", "TheaterRouteBFeedbackReview", "routeBSourcePacketId"],
+      outputDtoRefs: ["VisitPreparationPackageDto", "VisitRelationshipConfirmationDeck", "VisitRouteBRedLineContext", "VisitRouteBRedLineContextBffDto"],
       evidenceDtoRefs: [
         "facts",
         "inferences",
         "unknowns",
         "AiUsageLog",
+        "VisitRelationshipConfirmationCard.evidenceStatus",
+        "VisitRelationshipConfirmationDeck.proof.writesConfirmedCrmFact=false",
         "VisitQuestionEvidence.source=theater_route_b_red_line",
         "VisitRouteBRedLineContext.outputContract.writesConfirmedCrmFact=false",
         "VisitRouteBRedLineContextBffDto.proof.browserSuppliedTheaterSessionId=false",
@@ -697,6 +711,7 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
         ...commonProofCommands,
         "pnpm bff:visit-report-ai-qa",
         "pnpm visit:theater-handoff-dry-run",
+        "pnpm visit:relationship-confirmation-dry-run",
         "pnpm visit:route-b-red-line-context-dry-run",
         "pnpm visit:route-b-red-line-context-bff-qa",
       ],
@@ -704,8 +719,10 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
         status: "adopted",
         ownerRefs: [
           "src/app/api/ai/visit/route.ts",
+          "src/app/(dashboard)/pre-visit/[planId]/page.tsx",
           "src/app/api/visits/[id]/route-b-red-line-context/route.ts",
           "src/domains/visit/ai-evidence-dto.ts",
+          "src/domains/visit/relationship-confirmation.ts",
           "src/domains/visit/reasoning.ts",
           "src/domains/visit/route-b-red-line-context.ts",
           "src/domains/theater/route-b-feedback-review.ts",
@@ -719,6 +736,9 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
           "buildProviderSafeClientSnapshot",
           "buildAiEvidenceSummary",
           "enrichSpinQuestionsWithReasoning",
+          "buildVisitRelationshipConfirmationDeck",
+          "relationship-graph-prep-confirmation-cards",
+          "VisitRelationshipConfirmationDeck.proof.writesConfirmedCrmFact=false",
           "buildVisitRouteBRedLineContextFromFeedbackReview",
           "getVisitRouteBRedLineContextForMember",
           "VisitRouteBRedLineContextBffDto.proof.ownerScopedTheaterSessionLookup=true",
@@ -737,6 +757,7 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
         notes: [
           "Provider input is built from a provider-safe client snapshot and server-side client permission lookup.",
           "Question rationale and evidence summary keep facts, inferences, unknowns, and recommendations separate.",
+          "Relationship graph confirmation cards are deterministic no-provider preparation aids; advisor card state stays local and does not write confirmed CRM facts.",
           "Visit-to-theater handoff summarizes question evidence sources and fact/inference/unknown material counts before Route B consumes the stage packet.",
           "Route B red-line action context can now be consumed by visit question reasoning as evidence-needed or escalation advisor reminders; it does not overwrite visit facts, create legal findings, send notifications, call providers, or write confirmed CRM facts.",
           "Visit preparation BFF/UI now derives the matching Route B feedback review from visitPlanId -> routeBSourcePacketId -> owner-scoped TheaterSession, so advisors do not enter raw session/person ids.",

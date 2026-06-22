@@ -42,6 +42,11 @@ import { useClientStore } from "@/domains/client/store";
 import { demoQuickstart, getQuickstartVisitFixture } from "@/domains/demo/quickstart";
 import { planTourSteps } from "@/domains/demo/tour-steps";
 import { buildVisitTheaterHandoff } from "@/domains/theater/visit-handoff";
+import {
+  buildVisitRelationshipConfirmationDeck,
+  type VisitRelationshipConfirmationCard,
+  type VisitRelationshipConfirmationDeck,
+} from "@/domains/visit/relationship-confirmation";
 import type {
   VisitRouteBRedLineContext,
   VisitRouteBRedLineContextItem,
@@ -108,6 +113,7 @@ type DecisionSignal = {
 };
 
 type VisitTheaterUiStatus = "READY" | "NEEDS_MORE_INFO" | "BLOCKED_SENSITIVE";
+type AdvisorConfirmationState = "needs_confirmation" | "confirmed_in_meeting" | "ask_in_interview";
 type VisitRouteBRedLineContextStatus =
   | "READY"
   | "NO_ROUTE_B_SESSION"
@@ -242,6 +248,10 @@ function VisitPlanDetailContent() {
       sessionId: `previsit_theater_${plan.id}`,
     });
   }, [client, plan]);
+  const relationshipConfirmationDeck = useMemo(
+    () => (client ? buildVisitRelationshipConfirmationDeck(client) : null),
+    [client],
+  );
 
   useEffect(() => {
     if (!isQuickstart || !plan || seededRef.current) return;
@@ -655,6 +665,7 @@ function VisitPlanDetailContent() {
             error={activeRouteBContextError}
             isLoading={activeRouteBContextLoading}
           />
+          <RelationshipConfirmationPanel deck={relationshipConfirmationDeck} />
           <EvidenceBoard buckets={evidenceBuckets} />
           <TimeBox totalMinutes={totalMinutes} />
           <NotesBox notes={plan.postVisitNotes} onOpen={() => router.push(`/pre-visit/${plan.id}/notes${isQuickstart ? "?demo=quickstart" : ""}`)} />
@@ -1021,6 +1032,116 @@ function RouteBRedLineContextRow({ item }: { item: VisitRouteBRedLineContextItem
   );
 }
 
+function RelationshipConfirmationPanel({ deck }: { deck: VisitRelationshipConfirmationDeck | null }) {
+  const [cardStates, setCardStates] = useState<Record<string, AdvisorConfirmationState>>({});
+
+  if (!deck || deck.summary.cardCount === 0) return null;
+
+  const setCardState = (cardId: string, state: AdvisorConfirmationState) => {
+    setCardStates((current) => ({ ...current, [cardId]: state }));
+  };
+
+  return (
+    <section data-relationship-confirmation-cards className="rounded-lg border border-hairline bg-card p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="flex items-center gap-2 text-sm font-semibold text-ink">
+            <Network className="h-4 w-4" />
+            關係圖確認卡
+          </div>
+          <p className="mt-2 text-xs leading-5 text-muted-foreground">
+            從關係圖挑出職位、年薪、狀態、關係脈絡中的待確認點；本頁標記只作顧問檢核，不寫入 CRM 事實。
+          </p>
+        </div>
+        <Badge variant={deck.summary.highPriorityCount > 0 ? "default" : "outline"} className="rounded-md">
+          {deck.summary.highPriorityCount} 高優先
+        </Badge>
+      </div>
+
+      <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+        <MiniStat label="推論" value={String(deck.summary.inferenceCount)} />
+        <MiniStat label="待確認" value={String(deck.summary.unknownCount)} />
+        <MiniStat label="節點" value={String(deck.summary.sourceNodeCount)} />
+      </div>
+
+      <div className="mt-4 grid gap-2">
+        {deck.cards.slice(0, 5).map((card) => (
+          <RelationshipConfirmationCardRow
+            key={card.id}
+            card={card}
+            state={cardStates[card.id] ?? "needs_confirmation"}
+            onStateChange={(state) => setCardState(card.id, state)}
+          />
+        ))}
+      </div>
+
+      <p className="mt-4 border-t border-hairline pt-3 text-xs leading-5 text-muted-foreground">
+        Proof：no provider call、no AiUsageLog required、no raw transcript、no confirmed CRM write；若要寫回客戶資料，需改走訪談/客戶資料的明確確認流程。
+      </p>
+    </section>
+  );
+}
+
+function RelationshipConfirmationCardRow({
+  card,
+  onStateChange,
+  state,
+}: {
+  card: VisitRelationshipConfirmationCard;
+  onStateChange: (state: AdvisorConfirmationState) => void;
+  state: AdvisorConfirmationState;
+}) {
+  return (
+    <div className="rounded-lg border border-hairline bg-background p-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge variant={card.priority === "HIGH" ? "default" : "outline"} className="rounded-md">
+          {getRelationshipCardPriorityLabel(card.priority)}
+        </Badge>
+        <Badge variant="outline" className="rounded-md">
+          {getEvidenceStatusLabel(card.evidenceStatus)}
+        </Badge>
+        <Badge variant="outline" className="rounded-md">
+          {getRelationshipCardKindLabel(card.kind)}
+        </Badge>
+      </div>
+      <p className="mt-2 text-xs font-semibold leading-5 text-ink">{card.title}</p>
+      <p className="mt-1 line-clamp-3 text-xs leading-5 text-muted-foreground">{card.evidenceDetail}</p>
+      <p className="mt-2 border-l border-hairline pl-3 text-xs leading-5 text-muted-foreground">
+        {card.confirmationPrompt}
+      </p>
+      <div className="mt-3 grid gap-2 sm:grid-cols-3">
+        <Button
+          type="button"
+          variant={state === "needs_confirmation" ? "mono" : "outline"}
+          className="h-8 rounded-lg px-2 text-xs"
+          onClick={() => onStateChange("needs_confirmation")}
+        >
+          待確認
+        </Button>
+        <Button
+          type="button"
+          variant={state === "confirmed_in_meeting" ? "mono" : "outline"}
+          className="h-8 rounded-lg px-2 text-xs"
+          onClick={() => onStateChange("confirmed_in_meeting")}
+        >
+          已確認
+        </Button>
+        <Button
+          type="button"
+          variant={state === "ask_in_interview" ? "mono" : "outline"}
+          className="h-8 rounded-lg px-2 text-xs"
+          onClick={() => onStateChange("ask_in_interview")}
+        >
+          轉追問
+        </Button>
+      </div>
+      <p className="mt-2 text-[11px] leading-5 text-muted-foreground">
+        目前狀態：{getAdvisorConfirmationStateLabel(state)}；資料來源：{card.sourceLabel}
+      </p>
+    </div>
+  );
+}
+
 function EvidenceBoard({ buckets }: { buckets: EvidenceBucket[] }) {
   return (
     <section className="rounded-lg border border-hairline bg-card">
@@ -1289,6 +1410,25 @@ function getRouteBActionStateLabel(state: VisitRouteBRedLineContextItem["actionS
   if (state === "EVIDENCE_NEEDED") return "需要佐證";
   if (state === "NOT_APPLICABLE") return "不適用";
   return "觀察中";
+}
+
+function getRelationshipCardPriorityLabel(priority: VisitRelationshipConfirmationCard["priority"]) {
+  if (priority === "HIGH") return "高優先";
+  if (priority === "MEDIUM") return "中優先";
+  return "低優先";
+}
+
+function getRelationshipCardKindLabel(kind: VisitRelationshipConfirmationCard["kind"]) {
+  if (kind === "person_role") return "角色";
+  if (kind === "person_field") return "欄位";
+  if (kind === "relationship_edge") return "關係";
+  return "追問";
+}
+
+function getAdvisorConfirmationStateLabel(state: AdvisorConfirmationState) {
+  if (state === "confirmed_in_meeting") return "本頁暫存為已確認";
+  if (state === "ask_in_interview") return "轉入 AI 訪談追問";
+  return "仍需現場確認";
 }
 
 function getHandoffStatusCopy(status: VisitTheaterUiStatus, isReady: boolean) {
