@@ -12,6 +12,12 @@ import {
   type BuildTheaterRouteBFeedbackReviewOptions,
   type TheaterRouteBFeedbackReview,
 } from "@/domains/theater/route-b-feedback-review";
+import {
+  buildRouteBRedLineActionPersistenceState,
+  isRouteBRedLineActionPersistenceState,
+  type RouteBRedLineActionPersistenceState,
+  type RouteBRedLineActionRecord,
+} from "@/domains/theater/route-b-red-line-action-workflow";
 import { buildTheaterRouteBStatePatch } from "@/domains/theater/route-b-handoff";
 import type { TheaterRouteBHandoffPacket } from "@/domains/theater/route-b-handoff";
 import type { RouteBSessionSnapshot } from "@/domains/theater/route-b-session";
@@ -81,6 +87,18 @@ export type GetRouteBFeedbackReviewResult =
 
 export type CreateRouteBFeedbackReviewResult =
   | { status: "CREATED"; data: TheaterRouteBFeedbackReview }
+  | { status: "NOT_FOUND" };
+
+export type GetRouteBRedLineActionStateResult =
+  | { status: "OK"; data: RouteBRedLineActionPersistenceState }
+  | { status: "NOT_FOUND" };
+
+export type UpdateRouteBRedLineActionStateInput = {
+  records: RouteBRedLineActionRecord[];
+};
+
+export type UpdateRouteBRedLineActionStateResult =
+  | { status: "UPDATED"; data: RouteBRedLineActionPersistenceState }
   | { status: "NOT_FOUND" };
 
 const routeBSessionInclude = {
@@ -267,6 +285,76 @@ export async function createRouteBFeedbackReviewForMember(
     });
 
     return { status: "CREATED", data: feedbackReview };
+  });
+
+  return data;
+}
+
+export async function getRouteBRedLineActionStateForMember(
+  session: AppSession,
+  sessionId: string,
+): Promise<GetRouteBRedLineActionStateResult> {
+  const record = await prisma.theaterSession.findFirst({
+    where: {
+      id: sessionId,
+      organizationId: session.organization.id,
+      ownerId: session.user.id,
+      routeBEnabled: true,
+    },
+    select: {
+      sceneState: true,
+    },
+  });
+
+  if (!record) {
+    return { status: "NOT_FOUND" };
+  }
+
+  const redLineActionState = asRecord(record.sceneState).redLineActionState;
+  if (isRouteBRedLineActionPersistenceState(redLineActionState)) {
+    return { status: "OK", data: redLineActionState };
+  }
+
+  return { status: "OK", data: buildRouteBRedLineActionPersistenceState() };
+}
+
+export async function updateRouteBRedLineActionStateForMember(
+  session: AppSession,
+  sessionId: string,
+  input: UpdateRouteBRedLineActionStateInput,
+): Promise<UpdateRouteBRedLineActionStateResult> {
+  const data = await prisma.$transaction(async (tx): Promise<UpdateRouteBRedLineActionStateResult> => {
+    const record = await tx.theaterSession.findFirst({
+      where: {
+        id: sessionId,
+        organizationId: session.organization.id,
+        ownerId: session.user.id,
+        routeBEnabled: true,
+      },
+      select: {
+        sceneState: true,
+      },
+    });
+
+    if (!record) {
+      return { status: "NOT_FOUND" };
+    }
+
+    const redLineActionState = buildRouteBRedLineActionPersistenceState(input.records);
+    const sceneState = asRecord(record.sceneState);
+
+    await tx.theaterSession.update({
+      where: { id: sessionId },
+      data: {
+        sceneState: toInputJson({
+          ...sceneState,
+          redLineActionState,
+          writesConfirmedCrmFact: false,
+        }),
+      },
+    });
+
+    return { status: "UPDATED", data: redLineActionState };
   });
 
   return data;

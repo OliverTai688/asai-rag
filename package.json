@@ -81,6 +81,7 @@
     "theater:route-b-provider-prompt-context-dry-run": "node scripts/theater-route-b-provider-prompt-context-dry-run.mjs",
     "theater:route-b-severe-red-line-preview-dry-run": "node scripts/theater-route-b-severe-red-line-preview-dry-run.mjs",
     "theater:route-b-red-line-action-workflow-dry-run": "node scripts/theater-route-b-red-line-action-workflow-dry-run.mjs",
+    "theater:route-b-red-line-action-persistence-qa": "node scripts/theater-route-b-red-line-action-persistence-qa.mjs",
     "theater:route-b-feedback-dry-run": "node scripts/theater-route-b-feedback-dry-run.mjs",
     "theater:route-b-feedback-provider-dry-run": "node scripts/theater-route-b-feedback-provider-dry-run.mjs",
     "theater:route-b-feedback-review-qa": "node scripts/theater-route-b-feedback-review-dry-run.mjs && node scripts/theater-route-b-feedback-review-ui-contract-qa.mjs",

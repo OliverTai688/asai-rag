@@ -38,7 +38,9 @@ import type { TheaterRouteBNextTurnAppendCandidate } from "@/domains/theater/rou
 import type { TheaterRouteBNextTurnDraft } from "@/domains/theater/route-b-next-turn";
 import type { TheaterRouteBNextTurnProviderRunResult } from "@/domains/theater/route-b-next-turn-provider";
 import {
+  buildRouteBRedLineActionRecordsFromStateMap,
   buildRouteBSevereRedLineActionWorkflow,
+  type RouteBRedLineActionPersistenceState,
   type RouteBRedLineActionState,
   type RouteBSevereRedLineActionWorkflow,
 } from "@/domains/theater/route-b-red-line-action-workflow";
@@ -64,6 +66,7 @@ const EMPTY_TURNS: TheaterTurn[] = [];
 
 type RouteBFeedbackReviewStatus = "idle" | "loading" | "ready" | "empty" | "error" | "generating";
 type RouteBProviderCandidateStatus = "idle" | "generating" | "ready" | "error";
+type RouteBRedLineActionPersistenceStatus = "idle" | "loading" | "saving" | "ready" | "error";
 
 type RouteBFeedbackReviewEmptyPayload = {
   status: "EMPTY";
@@ -472,14 +475,20 @@ function RouteBSessionStage({
   const [feedbackReview, setFeedbackReview] = useState<TheaterRouteBFeedbackReview | null>(null);
   const [feedbackReviewStatus, setFeedbackReviewStatus] = useState<RouteBFeedbackReviewStatus>("idle");
   const [feedbackReviewError, setFeedbackReviewError] = useState<string | null>(null);
+  const severeRedLineWarningPreview = ROUTE_B_SEVERE_RED_LINE_WARNING_PREVIEW;
+  const severeRedLineActionWorkflow = ROUTE_B_SEVERE_RED_LINE_ACTION_WORKFLOW;
+  const [redLineActionStates, setRedLineActionStates] = useState<Record<string, RouteBRedLineActionState>>(() =>
+    Object.fromEntries(severeRedLineActionWorkflow.cards.map((card) => [card.ruleId, card.defaultState])),
+  );
+  const [redLineActionPersistence, setRedLineActionPersistence] = useState<RouteBRedLineActionPersistenceState | null>(null);
+  const [redLineActionPersistenceStatus, setRedLineActionPersistenceStatus] = useState<RouteBRedLineActionPersistenceStatus>("idle");
+  const [redLineActionPersistenceError, setRedLineActionPersistenceError] = useState<string | null>(null);
   const relationships = routeBRecords(snapshot.scene.relationships);
   const narratorQuestions = routeBRecords(snapshot.scene.narratorQuestions);
   const visibilityRules = routeBRecords(snapshot.scene.visibilityRules);
   const directorTurns = snapshot.turns.filter((turn) => turn.visibilityScope === "DIRECTOR_ONLY");
   const groupTurns = snapshot.turns.filter((turn) => turn.visibilityScope === "GROUP" || !turn.visibilityScope);
   const provider = snapshot.session.provider;
-  const severeRedLineWarningPreview = ROUTE_B_SEVERE_RED_LINE_WARNING_PREVIEW;
-  const severeRedLineActionWorkflow = ROUTE_B_SEVERE_RED_LINE_ACTION_WORKFLOW;
   const handlePrivateFocus = (routeBCharacterId: string) => {
     setPrivateFocusCharacterId(routeBCharacterId);
     setComposerVisibilityScope("PRIVATE");
@@ -622,6 +631,70 @@ function RouteBSessionStage({
       setFeedbackReview(null);
       setFeedbackReviewStatus("error");
       setFeedbackReviewError(error instanceof Error ? error.message : "Route B feedback review generation failed.");
+    }
+  };
+
+  const fetchRedLineActionPersistence = async () => {
+    setRedLineActionPersistenceStatus("loading");
+    setRedLineActionPersistenceError(null);
+
+    try {
+      const response = await fetch(`/api/theater/route-b/sessions/${encodeURIComponent(snapshot.session.id)}/red-line-actions`, {
+        cache: "no-store",
+      });
+      const payload = (await response.json().catch(() => null)) as
+        | RouteBRedLineActionPersistenceState
+        | { error?: string; message?: string }
+        | null;
+
+      if (!response.ok || !isRouteBRedLineActionPersistencePayload(payload)) {
+        const message = payload && "message" in payload && payload.message
+          ? payload.message
+          : "Route B red-line action state read failed.";
+        throw new Error(message);
+      }
+
+      setRedLineActionStates(Object.fromEntries(payload.records.map((record) => [record.ruleId, record.state])));
+      setRedLineActionPersistence(payload);
+      setRedLineActionPersistenceStatus("ready");
+    } catch (error) {
+      setRedLineActionPersistence(null);
+      setRedLineActionPersistenceStatus("error");
+      setRedLineActionPersistenceError(error instanceof Error ? error.message : "Route B red-line action state read failed.");
+    }
+  };
+
+  const saveRedLineActionPersistence = async () => {
+    setRedLineActionPersistenceStatus("saving");
+    setRedLineActionPersistenceError(null);
+
+    try {
+      const records = buildRouteBRedLineActionRecordsFromStateMap(redLineActionStates, severeRedLineActionWorkflow);
+      const response = await fetch(`/api/theater/route-b/sessions/${encodeURIComponent(snapshot.session.id)}/red-line-actions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ records }),
+      });
+      const payload = (await response.json().catch(() => null)) as
+        | RouteBRedLineActionPersistenceState
+        | { error?: string; message?: string }
+        | null;
+
+      if (!response.ok || !isRouteBRedLineActionPersistencePayload(payload)) {
+        const message = payload && "message" in payload && payload.message
+          ? payload.message
+          : "Route B red-line action state save failed.";
+        throw new Error(message);
+      }
+
+      setRedLineActionStates(Object.fromEntries(payload.records.map((record) => [record.ruleId, record.state])));
+      setRedLineActionPersistence(payload);
+      setRedLineActionPersistenceStatus("ready");
+      toast.success("已保存 Route B 紅線處置狀態");
+    } catch (error) {
+      setRedLineActionPersistence(null);
+      setRedLineActionPersistenceStatus("error");
+      setRedLineActionPersistenceError(error instanceof Error ? error.message : "Route B red-line action state save failed.");
     }
   };
 
@@ -838,6 +911,15 @@ function RouteBSessionStage({
 
           <RouteBSevereRedLineWarningPanel
             actionWorkflow={severeRedLineActionWorkflow}
+            actionPersistence={redLineActionPersistence}
+            actionStates={redLineActionStates}
+            error={redLineActionPersistenceError}
+            onActionStateChange={(ruleId, state) => {
+              setRedLineActionStates((current) => ({ ...current, [ruleId]: state }));
+            }}
+            onRefresh={fetchRedLineActionPersistence}
+            onSave={saveRedLineActionPersistence}
+            status={redLineActionPersistenceStatus}
             warningPreview={severeRedLineWarningPreview}
           />
 
@@ -882,20 +964,33 @@ function RouteBSessionStage({
 }
 
 function RouteBSevereRedLineWarningPanel({
+  actionPersistence,
+  actionStates,
   actionWorkflow,
+  error,
+  onActionStateChange,
+  onRefresh,
+  onSave,
+  status,
   warningPreview,
 }: {
+  actionPersistence: RouteBRedLineActionPersistenceState | null;
+  actionStates: Record<string, RouteBRedLineActionState>;
   actionWorkflow: RouteBSevereRedLineActionWorkflow;
+  error: string | null;
+  onActionStateChange: (ruleId: string, state: RouteBRedLineActionState) => void;
+  onRefresh: () => Promise<void>;
+  onSave: () => Promise<void>;
+  status: RouteBRedLineActionPersistenceStatus;
   warningPreview: RouteBSevereRedLineWarningPreview;
 }) {
-  const [actionStates, setActionStates] = useState<Record<string, RouteBRedLineActionState>>(() =>
-    Object.fromEntries(actionWorkflow.cards.map((card) => [card.ruleId, card.defaultState])),
-  );
+  const isBusy = status === "loading" || status === "saving";
   const evidenceNeededCount = Object.values(actionStates).filter((state) => state === "EVIDENCE_NEEDED").length;
   const escalateCount = Object.values(actionStates).filter((state) => state === "ESCALATE").length;
-  const updateActionState = (ruleId: string, state: RouteBRedLineActionState) => {
-    setActionStates((current) => ({ ...current, [ruleId]: state }));
-  };
+  const persistedAt = actionPersistence?.records
+    .map((record) => record.updatedAt)
+    .sort()
+    .at(-1);
 
   return (
     <Card className="border-hairline shadow-none">
@@ -918,6 +1013,37 @@ function RouteBSevereRedLineWarningPanel({
           <RouteBMiniCount label="待佐證" value={evidenceNeededCount} />
           <RouteBMiniCount label="升級審閱" value={escalateCount} />
         </div>
+
+        <div className="grid gap-2 sm:grid-cols-2">
+          <Button
+            type="button"
+            variant="outline"
+            className="h-10 rounded-full"
+            disabled={isBusy}
+            onClick={() => void onRefresh()}
+            aria-label="讀取已保存的 Route B 紅線處置狀態"
+          >
+            {status === "loading" ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
+            讀取狀態
+          </Button>
+          <Button
+            type="button"
+            variant="mono"
+            className="h-10 rounded-full"
+            disabled={isBusy}
+            onClick={() => void onSave()}
+            aria-label="保存 Route B 紅線處置狀態"
+          >
+            {status === "saving" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+            保存狀態
+          </Button>
+        </div>
+
+        {status === "error" ? (
+          <p className="rounded-lg border border-hairline bg-paper px-3 py-2 text-sm leading-6 text-muted-foreground">
+            {error ?? "Route B red-line action state failed."}
+          </p>
+        ) : null}
 
         <div className="space-y-2">
           {warningPreview.warnings.map((warning) => {
@@ -952,7 +1078,7 @@ function RouteBSevereRedLineWarningPanel({
                           type="button"
                           aria-label={`${warning.label}：${option.label}`}
                           aria-pressed={selectedState === option.state}
-                          onClick={() => updateActionState(warning.id, option.state)}
+                          onClick={() => onActionStateChange(warning.id, option.state)}
                           className={cn(
                             "min-h-9 rounded-full border border-hairline px-2.5 text-xs font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                             selectedState === option.state
@@ -988,6 +1114,8 @@ function RouteBSevereRedLineWarningPanel({
         <div className="grid gap-2 text-sm text-muted-foreground">
           <ContextLine label="Workflow" value={actionWorkflow.actionId} />
           <ContextLine label="Current persistence" value={actionWorkflow.persistenceEnvelope.currentPersistence} />
+          <ContextLine label="Persisted record count" value={String(actionPersistence?.recordCount ?? 0)} />
+          <ContextLine label="Latest updated" value={persistedAt ?? "not-loaded"} />
           <ContextLine label="Provider call" value={String(warningPreview.providerBoundary.providerCallAttempted)} />
           <ContextLine label="AiUsageLog" value={String(warningPreview.providerBoundary.aiUsageLogWritten)} />
           <ContextLine label="Auto block" value={String(!warningPreview.displayRules.doNotBlockConversationAutomatically)} />
@@ -1838,6 +1966,30 @@ function isSafeRouteBProviderCandidate(candidate: TheaterRouteBNextTurnAppendCan
     candidate.storesRawProviderPayload === false &&
     candidate.rawPrivateTranscriptIncluded === false &&
     candidate.content.trim().length > 0
+  );
+}
+
+function isRouteBRedLineActionPersistencePayload(value: unknown): value is RouteBRedLineActionPersistenceState {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+
+  const payload = value as Partial<RouteBRedLineActionPersistenceState>;
+
+  return (
+    payload.agentId === "asai.theater.route_b" &&
+    payload.actionId === "route-b-severe-red-line-action-persistence" &&
+    payload.registryReadiness === "internal-only" &&
+    payload.sourceActionId === "route-b-severe-red-line-action-workflow" &&
+    Array.isArray(payload.records) &&
+    payload.records.every(
+      (record) =>
+        Boolean(record) &&
+        typeof record === "object" &&
+        !Array.isArray(record) &&
+        typeof record.ruleId === "string" &&
+        typeof record.state === "string" &&
+        typeof record.advisorReasonCode === "string" &&
+        typeof record.updatedAt === "string",
+    )
   );
 }
 

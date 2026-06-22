@@ -300,6 +300,21 @@ ITA-005c evidence note（2026-06-22）：`pnpm theater:route-b-severe-red-line-p
 
 ITA-005d evidence note（2026-06-22）：`pnpm theater:route-b-red-line-action-workflow-dry-run` 以 domain dry-run + static UI/manifest contract QA 覆蓋 `RouteBSevereRedLineWarningPreview -> RouteBSevereRedLineActionWorkflow -> RouteBSevereRedLineWarningPanel`，驗證 5 severe action cards、四種 action states、UI-local persistence allowlist、no provider/no fake usage/no notification/no CRM fact write、no raw private/provider/contact/policy sentinel 與 AgentFacts refs。尚未宣稱正式法遵處置、DB persisted escalation、real notification、live detection 或 external registry ready。
 
+### 6.8 Route B severe red-line action persistence acceptance
+
+`ITA-005e` 若把 severe red-line action workflow 從 UI-local 升級為 owner-scoped session persistence，完成前必須額外滿足：
+
+- [x] Persistence boundary 只能 owner-scoped：`GET/POST /api/theater/route-b/sessions/[sessionId]/red-line-actions` 必須使用 current member、organization、owner 與 `routeBEnabled=true` 查詢；manager/foreign session 應回 404/403。
+- [x] Persisted record allowlist 只能包含 `ruleId`、`state`、`advisorReasonCode`、`updatedAt`；不得接受任意 reason text、raw private transcript、direct private dialog、raw provider payload、email、phone、policy number、secret、token、cookie、OTP。
+- [x] `state` 只能是 `WATCHING`、`EVIDENCE_NEEDED`、`NOT_APPLICABLE`、`ESCALATE`；`advisorReasonCode` 只能是固定 enum（例如 evidence pending / false-positive context / escalation requested / advisor reviewed）。
+- [x] `NOT_APPLICABLE` 仍保留 audit posture；`ESCALATE` 只代表待審閱狀態，不得建立 formal finding、不得發真實 notification、不得寫 confirmed CRM fact。
+- [x] `/theater/[sessionId]` Route B stage 必須可讀取/保存 red-line action state，並顯示 persisted record count / latest updated；不得要求顧問輸入 raw session/person id。
+- [x] No-provider proof 必須顯示 `providerCallAttempted=false`、`aiUsageLogWritten=false` 或 THEATER `AiUsageLog` count unchanged；此 persistence route 不得 fake usage log。
+- [x] AgentFacts-style manifest 必須新增 `route-b-severe-red-line-action-persistence` capability / red-line-actions endpoint / `RouteBRedLineActionPersistenceState` / proof command，且保持 `registryReadiness=internal-only`。
+- [x] 需跑 `pnpm theater:route-b-red-line-action-persistence-qa`、`pnpm theater:route-b-red-line-action-workflow-dry-run`、`pnpm theater:route-b-severe-red-line-preview-dry-run`、`pnpm theater:route-b-provider-prompt-context-dry-run`、`pnpm ai:protocol-registry-qa`、`pnpm ai:bff-audit`、`pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。若 local dev server/DB 已啟動，可再跑 `pnpm theater:route-b-persistence-qa` 取得 live owner write/read、manager denial、DB `scene_state.redLineActionState` 與 refresh/new-context proof；若只剩這類 runtime evidence，可交由 operator 自行重跑，不得以 docs-only proof 取代 source/API/UI work。
+
+ITA-005e evidence note（2026-06-22）：新增 `route-b-severe-red-line-action-persistence` domain/API/repository/UI/manifest slice。`RouteBRedLineActionPersistenceState` 將 5 條 severe action cards 正規化為 owner-scoped `sceneState.redLineActionState`，只持久化 `ruleId/state/advisorReasonCode/updatedAt`；`/api/theater/route-b/sessions/[sessionId]/red-line-actions` 提供 current-member GET/POST，`/theater/[sessionId]` 守門紅線面板可讀取/保存狀態並顯示 persisted count/latest updated。`pnpm theater:route-b-red-line-action-persistence-qa` 覆蓋 domain allowlist、route/repository/UI/manifest source contract、no provider/no fake `AiUsageLog`、no notification/no CRM fact/no raw private/provider/contact/policy sentinel。`pnpm theater:route-b-persistence-qa` 已擴充為 live DB proof command；若本輪未啟動 dev server，可由 operator 直接重跑取得 runtime evidence。
+
 ---
 
 ## 7. Data / DB Acceptance

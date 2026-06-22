@@ -11,7 +11,15 @@ export const ROUTE_B_RED_LINE_ACTION_STATES = [
   "ESCALATE",
 ] as const;
 
+export const ROUTE_B_RED_LINE_ACTION_REASON_CODES = [
+  "ADVISOR_REVIEWED",
+  "EVIDENCE_PENDING",
+  "FALSE_POSITIVE_CONTEXT",
+  "ESCALATION_REQUESTED",
+] as const;
+
 export type RouteBRedLineActionState = (typeof ROUTE_B_RED_LINE_ACTION_STATES)[number];
+export type RouteBRedLineActionReasonCode = (typeof ROUTE_B_RED_LINE_ACTION_REASON_CODES)[number];
 
 export interface RouteBRedLineActionOption {
   state: RouteBRedLineActionState;
@@ -56,8 +64,9 @@ export interface RouteBSevereRedLineActionWorkflow {
     notApplicableKeepsAuditRecord: true;
   };
   persistenceEnvelope: {
-    currentPersistence: "ui-local-only";
+    currentPersistence: "owner-scoped-scene-state";
     dbPersistenceAllowedFields: Array<"ruleId" | "state" | "advisorReasonCode" | "updatedAt">;
+    ownerScopedSessionOnly: true;
     rawPrivateTranscriptAllowed: false;
     rawProviderPayloadAllowed: false;
     directPrivateDialogAllowed: false;
@@ -69,6 +78,31 @@ export interface RouteBSevereRedLineActionWorkflow {
     aiUsageLogWritten: false;
     successErrorAiUsageLogRequiredBeforeProviderEnablement: true;
   };
+}
+
+export interface RouteBRedLineActionRecord {
+  ruleId: RouteBRedLineActionCard["ruleId"];
+  state: RouteBRedLineActionState;
+  advisorReasonCode: RouteBRedLineActionReasonCode;
+  updatedAt: string;
+}
+
+export interface RouteBRedLineActionPersistenceState {
+  agentId: "asai.theater.route_b";
+  actionId: "route-b-severe-red-line-action-persistence";
+  registryReadiness: "internal-only";
+  sourceActionId: RouteBSevereRedLineActionWorkflow["actionId"];
+  recordCount: number;
+  records: RouteBRedLineActionRecord[];
+  actionSummary: {
+    watchingCount: number;
+    evidenceNeededCount: number;
+    notApplicableCount: number;
+    escalateCount: number;
+  };
+  workflowBoundary: RouteBSevereRedLineActionWorkflow["workflowBoundary"];
+  persistenceEnvelope: RouteBSevereRedLineActionWorkflow["persistenceEnvelope"];
+  providerBoundary: RouteBSevereRedLineActionWorkflow["providerBoundary"];
 }
 
 export const ROUTE_B_RED_LINE_ACTION_OPTIONS: RouteBRedLineActionOption[] = [
@@ -126,8 +160,9 @@ export function buildRouteBSevereRedLineActionWorkflow(
       notApplicableKeepsAuditRecord: true,
     },
     persistenceEnvelope: {
-      currentPersistence: "ui-local-only",
+      currentPersistence: "owner-scoped-scene-state",
       dbPersistenceAllowedFields: ["ruleId", "state", "advisorReasonCode", "updatedAt"],
+      ownerScopedSessionOnly: true,
       rawPrivateTranscriptAllowed: false,
       rawProviderPayloadAllowed: false,
       directPrivateDialogAllowed: false,
@@ -146,6 +181,92 @@ export function isRouteBRedLineActionState(value: string): value is RouteBRedLin
   return ROUTE_B_RED_LINE_ACTION_STATES.some((state) => state === value);
 }
 
+export function isRouteBRedLineActionReasonCode(value: string): value is RouteBRedLineActionReasonCode {
+  return ROUTE_B_RED_LINE_ACTION_REASON_CODES.some((reasonCode) => reasonCode === value);
+}
+
+export function buildRouteBRedLineActionRecordsFromStateMap(
+  actionStates: Record<string, RouteBRedLineActionState>,
+  workflow: RouteBSevereRedLineActionWorkflow = buildRouteBSevereRedLineActionWorkflow(),
+  updatedAt = new Date().toISOString(),
+): RouteBRedLineActionRecord[] {
+  return workflow.cards.map((card) => {
+    const state = actionStates[card.ruleId] ?? card.defaultState;
+
+    return {
+      ruleId: card.ruleId,
+      state,
+      advisorReasonCode: defaultReasonCodeForState(state),
+      updatedAt,
+    };
+  });
+}
+
+export function buildRouteBRedLineActionPersistenceState(
+  inputRecords: readonly RouteBRedLineActionRecord[] = [],
+  workflow: RouteBSevereRedLineActionWorkflow = buildRouteBSevereRedLineActionWorkflow(),
+  updatedAt = new Date().toISOString(),
+): RouteBRedLineActionPersistenceState {
+  const records = sanitizeRouteBRedLineActionRecords(inputRecords, workflow, updatedAt);
+  const actionSummary = {
+    watchingCount: records.filter((record) => record.state === "WATCHING").length,
+    evidenceNeededCount: records.filter((record) => record.state === "EVIDENCE_NEEDED").length,
+    notApplicableCount: records.filter((record) => record.state === "NOT_APPLICABLE").length,
+    escalateCount: records.filter((record) => record.state === "ESCALATE").length,
+  };
+
+  return {
+    agentId: "asai.theater.route_b",
+    actionId: "route-b-severe-red-line-action-persistence",
+    registryReadiness: "internal-only",
+    sourceActionId: workflow.actionId,
+    recordCount: records.length,
+    records,
+    actionSummary,
+    workflowBoundary: workflow.workflowBoundary,
+    persistenceEnvelope: workflow.persistenceEnvelope,
+    providerBoundary: workflow.providerBoundary,
+  };
+}
+
+export function sanitizeRouteBRedLineActionRecords(
+  inputRecords: readonly RouteBRedLineActionRecord[],
+  workflow: RouteBSevereRedLineActionWorkflow = buildRouteBSevereRedLineActionWorkflow(),
+  updatedAt = new Date().toISOString(),
+): RouteBRedLineActionRecord[] {
+  const byRuleId = new Map(inputRecords.map((record) => [record.ruleId, record]));
+
+  return workflow.cards.map((card) => {
+    const record = byRuleId.get(card.ruleId);
+    const state = record && isRouteBRedLineActionState(record.state) ? record.state : card.defaultState;
+    const advisorReasonCode = record && isRouteBRedLineActionReasonCode(record.advisorReasonCode)
+      ? record.advisorReasonCode
+      : defaultReasonCodeForState(state);
+
+    return {
+      ruleId: card.ruleId,
+      state,
+      advisorReasonCode,
+      updatedAt: sanitizeIsoTimestamp(record?.updatedAt, updatedAt),
+    };
+  });
+}
+
+export function isRouteBRedLineActionPersistenceState(value: unknown): value is RouteBRedLineActionPersistenceState {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+
+  const state = value as Partial<RouteBRedLineActionPersistenceState>;
+
+  return (
+    state.agentId === "asai.theater.route_b" &&
+    state.actionId === "route-b-severe-red-line-action-persistence" &&
+    state.registryReadiness === "internal-only" &&
+    state.sourceActionId === "route-b-severe-red-line-action-workflow" &&
+    Array.isArray(state.records) &&
+    state.records.every(isRouteBRedLineActionRecord)
+  );
+}
+
 export function summarizeRouteBRedLineActionWorkflow(workflow: RouteBSevereRedLineActionWorkflow) {
   return {
     actionId: workflow.actionId,
@@ -157,6 +278,37 @@ export function summarizeRouteBRedLineActionWorkflow(workflow: RouteBSevereRedLi
     noConfirmedCrmFact: !workflow.persistenceEnvelope.writesConfirmedCrmFact,
     noExternalNotification: !workflow.persistenceEnvelope.triggersExternalNotification,
   };
+}
+
+function isRouteBRedLineActionRecord(value: unknown): value is RouteBRedLineActionRecord {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+
+  const record = value as Partial<RouteBRedLineActionRecord>;
+
+  return (
+    typeof record.ruleId === "string" &&
+    typeof record.state === "string" &&
+    isRouteBRedLineActionState(record.state) &&
+    typeof record.advisorReasonCode === "string" &&
+    isRouteBRedLineActionReasonCode(record.advisorReasonCode) &&
+    typeof record.updatedAt === "string"
+  );
+}
+
+function defaultReasonCodeForState(state: RouteBRedLineActionState): RouteBRedLineActionReasonCode {
+  if (state === "EVIDENCE_NEEDED") return "EVIDENCE_PENDING";
+  if (state === "NOT_APPLICABLE") return "FALSE_POSITIVE_CONTEXT";
+  if (state === "ESCALATE") return "ESCALATION_REQUESTED";
+  return "ADVISOR_REVIEWED";
+}
+
+function sanitizeIsoTimestamp(value: string | undefined, fallback: string): string {
+  if (!value) return fallback;
+
+  const timestamp = Date.parse(value);
+  if (Number.isNaN(timestamp)) return fallback;
+
+  return new Date(timestamp).toISOString();
 }
 
 function toActionCard(warning: RouteBSevereRedLineWarningCue): RouteBRedLineActionCard {

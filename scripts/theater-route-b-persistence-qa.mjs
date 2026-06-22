@@ -75,6 +75,53 @@ async function runProof() {
   const managerRead = await managerGet(`/api/theater/route-b/sessions/${createdSessionId}`);
   push(managerRead.status === 404, "manager cannot read member-owned Route B session", `status=${managerRead.status}`);
 
+  const updatedAt = new Date().toISOString();
+  const redLineRecords = [
+    {
+      ruleId: "SIGNATURE_SUBSTITUTION",
+      state: "EVIDENCE_NEEDED",
+      advisorReasonCode: "EVIDENCE_PENDING",
+      updatedAt,
+    },
+    {
+      ruleId: "PREMIUM_ADVANCE",
+      state: "NOT_APPLICABLE",
+      advisorReasonCode: "FALSE_POSITIVE_CONTEXT",
+      updatedAt,
+    },
+    {
+      ruleId: "GUARANTEED_RETURN",
+      state: "ESCALATE",
+      advisorReasonCode: "ESCALATION_REQUESTED",
+      updatedAt,
+    },
+  ];
+  const redLineWrite = await memberPostJson(`/api/theater/route-b/sessions/${createdSessionId}/red-line-actions`, {
+    records: redLineRecords,
+  });
+  push(redLineWrite.status === 201, "owner can persist Route B red-line action state", `status=${redLineWrite.status}`);
+  push(redLineWrite.body?.actionId === "route-b-severe-red-line-action-persistence", "red-line action persistence returns action id");
+  push(redLineWrite.body?.recordCount === 5, "red-line action persistence normalizes all five severe records");
+  push(redLineWrite.body?.persistenceEnvelope?.ownerScopedSessionOnly === true, "red-line action persistence declares owner scope");
+  push(redLineWrite.body?.providerBoundary?.providerCallAttempted === false, "red-line action persistence does not call provider");
+  push(redLineWrite.body?.providerBoundary?.aiUsageLogWritten === false, "red-line action persistence does not fake usage log");
+  push(redLineWrite.body?.persistenceEnvelope?.writesConfirmedCrmFact === false, "red-line action persistence writes no confirmed CRM fact");
+  pushNoPrivateSentinel(JSON.stringify(redLineWrite.body), "red-line action write response has no private sentinel");
+
+  const redLineRead = await memberGet(`/api/theater/route-b/sessions/${createdSessionId}/red-line-actions`);
+  push(redLineRead.status === 200, "owner can refresh Route B red-line action state", `status=${redLineRead.status}`);
+  push(redLineRead.body?.records?.some((record) => record.ruleId === "GUARANTEED_RETURN" && record.state === "ESCALATE"), "refresh keeps escalation state");
+  push(redLineRead.body?.records?.some((record) => record.ruleId === "PREMIUM_ADVANCE" && record.advisorReasonCode === "FALSE_POSITIVE_CONTEXT"), "refresh keeps not-applicable reason code");
+
+  const managerRedLineRead = await managerGet(`/api/theater/route-b/sessions/${createdSessionId}/red-line-actions`);
+  push(managerRedLineRead.status === 404, "manager cannot read member-owned red-line action state", `status=${managerRedLineRead.status}`);
+
+  const redLineDbProof = await getRedLineActionDbProof(createdSessionId);
+  push(redLineDbProof.actionId === "route-b-severe-red-line-action-persistence", "DB proof stores red-line action state under scene_state", JSON.stringify(redLineDbProof));
+  push(redLineDbProof.recordCount === 5, "DB proof stores normalized five red-line action records", JSON.stringify(redLineDbProof));
+  push(redLineDbProof.escalateCount === 1, "DB proof stores one escalation action state", JSON.stringify(redLineDbProof));
+  push(redLineDbProof.allowedFieldOnly === true, "DB proof keeps red-line records on allowed fields only", JSON.stringify(redLineDbProof));
+
   const dbProof = await getPersistedCounts(createdSessionId);
   push(dbProof.sessionCount === 1, "DB proof has one theater_session row", JSON.stringify(dbProof));
   push(dbProof.characterCount === 3, "DB proof has three theater_character rows", JSON.stringify(dbProof));
@@ -119,6 +166,12 @@ function memberPost(body) {
   });
 }
 
+function memberPostJson(path, body) {
+  return postJson(path, body, {
+    "x-asai-demo-user-email": demoMemberEmail,
+  });
+}
+
 function memberGet(path) {
   return getJson(path, {
     "x-asai-demo-user-email": demoMemberEmail,
@@ -153,6 +206,41 @@ async function getPersistedCounts(sessionId) {
     characterCount: Number(row.character_count ?? 0),
     openingTurnCount: Number(row.opening_turn_count ?? 0),
     dbCharacterIdsAreSessionScoped: row.db_character_ids_are_session_scoped === true,
+  };
+}
+
+async function getRedLineActionDbProof(sessionId) {
+  const result = await db.query(
+    `
+      SELECT
+        scene_state #>> '{redLineActionState,actionId}' AS action_id,
+        jsonb_array_length(COALESCE(scene_state #> '{redLineActionState,records}', '[]'::jsonb))::int AS record_count,
+        (
+          SELECT COUNT(*)::int
+          FROM jsonb_array_elements(COALESCE(scene_state #> '{redLineActionState,records}', '[]'::jsonb)) AS record
+          WHERE record->>'state' = 'ESCALATE'
+        ) AS escalate_count,
+        (
+          SELECT bool_and(
+            (
+              SELECT array_agg(key ORDER BY key)
+              FROM jsonb_object_keys(record) AS key
+            ) = ARRAY['advisorReasonCode', 'ruleId', 'state', 'updatedAt']
+          )
+          FROM jsonb_array_elements(COALESCE(scene_state #> '{redLineActionState,records}', '[]'::jsonb)) AS record
+        ) AS allowed_field_only
+      FROM theater_sessions
+      WHERE id = $1
+    `,
+    [sessionId],
+  );
+  const row = result.rows[0] ?? {};
+
+  return {
+    actionId: row.action_id ?? "",
+    recordCount: Number(row.record_count ?? 0),
+    escalateCount: Number(row.escalate_count ?? 0),
+    allowedFieldOnly: row.allowed_field_only === true,
   };
 }
 

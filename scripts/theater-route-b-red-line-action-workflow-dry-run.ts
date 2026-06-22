@@ -54,7 +54,8 @@ check(workflow.workflowBoundary.noLegalAdvice, "workflow forbids legal advice");
 check(workflow.workflowBoundary.noFormalFindingWithoutEvidence, "workflow forbids formal finding without evidence");
 check(workflow.workflowBoundary.noAutoBlock, "workflow forbids auto-blocking");
 check(workflow.workflowBoundary.notApplicableKeepsAuditRecord, "workflow keeps audit posture when marked not applicable");
-check(workflow.persistenceEnvelope.currentPersistence === "ui-local-only", "workflow currently persists only UI-local action state");
+check(workflow.persistenceEnvelope.currentPersistence === "owner-scoped-scene-state", "workflow persists action state under owner-scoped sceneState");
+check(workflow.persistenceEnvelope.ownerScopedSessionOnly, "workflow persistence stays owner-scoped");
 check(
   sameIds(workflow.persistenceEnvelope.dbPersistenceAllowedFields, ["ruleId", "state", "advisorReasonCode", "updatedAt"]),
   "workflow DB persistence allowlist is action-state only",
@@ -124,6 +125,7 @@ function checkUiContract() {
   check(pageSource.includes("requiresEvidenceReference"), "session UI renders evidence-reference requirement");
   check(pageSource.includes("aria-pressed"), "session UI exposes selected action state to assistive tech");
   check(pageSource.includes("currentPersistence"), "session UI renders action-state persistence boundary");
+  check(pageSource.includes("/red-line-actions"), "session UI can persist red-line action state");
 }
 
 function checkManifestContract() {
@@ -137,6 +139,7 @@ function checkManifestContract() {
   check(manifestSource.includes("RouteBRedLineActionState.NOT_APPLICABLE"), "manifest references not-applicable state");
   check(manifestSource.includes("RouteBRedLineActionState.ESCALATE"), "manifest references escalate state");
   check(manifestSource.includes("pnpm theater:route-b-red-line-action-workflow-dry-run"), "manifest declares action workflow proof command");
+  check(manifestSource.includes("route-b-severe-red-line-action-persistence"), "manifest declares action persistence capability");
   check(registryQaSource.includes("route-b-severe-red-line-action-workflow"), "registry QA requires action workflow capability");
   check(registryQaSource.includes("RouteBSevereRedLineActionWorkflow"), "registry QA requires action workflow DTO");
   check(registryQaSource.includes("pnpm theater:route-b-red-line-action-workflow-dry-run"), "registry QA requires action workflow command");
