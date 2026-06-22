@@ -132,6 +132,17 @@
 - [ ] AgentFacts-style manifest 必須新增 next-turn capability / `/api/theater/route-b/sessions/[sessionId]/next-turn` endpoint / `TheaterRouteBNextTurnDraft` DTO refs / `pnpm theater:route-b-next-turn-dry-run` proof command，且保持 `registryReadiness=internal-only`。
 - [ ] 需跑 `pnpm theater:route-b-next-turn-dry-run`、`pnpm ai:protocol-registry-qa`、`pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`；DB host 若仍 blocked，live owner-scoped API evidence 可交由 operator 恢復後重跑，不得把 fixture proof 當 DB proof。
 
+### 5.6 Route B next-turn UI consumption acceptance
+
+`ITA-003k` 若把 next-turn draft preview 接進 `/theater/[sessionId]`，完成前必須額外滿足：
+
+- [ ] Route B session page 必須從 owner-scoped `GET /api/theater/route-b/sessions/[sessionId]/next-turn` 讀取 preview，不由 client 自行推導 speaker/addressee 作正式 truth。
+- [ ] UI 必須顯示 next-turn `status`、selected speaker、addressee、visibility scope、state proposal count、guard evidence 與 rationale；blocked narrator state 不得被包成角色成功回覆。
+- [ ] UI 必須顯示 no-provider boundary：`providerCallAttempted=false`、`aiUsageLogWritten=false`、`storesRawProviderPayload=false`、`directPrivateDialogReturned=false`、`writesConfirmedCrmFact=false` 或等價欄位。
+- [ ] 角色台詞生成與 append confirmation 必須保持 disabled，直到 live director/character provider success/error `AiUsageLog` proof 完成；不得用 placeholder text 當作角色回合寫入。
+- [ ] 顧問新增 group/private turn 後可觸發 next-turn preview refresh，但不自動寫入 character/narrator turn、不寫 confirmed CRM fact、不寫 fake usage log。
+- [ ] UI/source proof 必須至少跑 `pnpm theater:route-b-next-turn-ui-contract-qa`、`pnpm theater:route-b-next-turn-dry-run`、`pnpm ai:protocol-registry-qa`、`pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。若 DB/browser evidence 仍被環境阻擋，可提供 self-runnable residual command，不得花整輪只追截圖。
+
 ---
 
 ## 6. Feedback / Compliance Acceptance

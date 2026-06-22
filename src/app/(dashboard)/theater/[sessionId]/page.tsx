@@ -33,6 +33,7 @@ import {
 } from "@/domains/demo/quickstart";
 import { theaterTourSteps } from "@/domains/demo/tour-steps";
 import { useSpinStore } from "@/domains/spin/store";
+import type { TheaterRouteBNextTurnDraft } from "@/domains/theater/route-b-next-turn";
 import type { RouteBSessionSnapshot } from "@/domains/theater/route-b-session";
 import { theaterService } from "@/domains/theater/service";
 import { useTheaterStore } from "@/domains/theater/store";
@@ -433,6 +434,9 @@ function RouteBSessionStage({
   const [composerVisibilityScope, setComposerVisibilityScope] = useState<"GROUP" | "PRIVATE">("GROUP");
   const [composerAddresseeRouteBCharacterId, setComposerAddresseeRouteBCharacterId] = useState("");
   const [composerStatePatchTargetRouteBCharacterId, setComposerStatePatchTargetRouteBCharacterId] = useState("");
+  const [nextTurnDraft, setNextTurnDraft] = useState<TheaterRouteBNextTurnDraft | null>(null);
+  const [nextTurnStatus, setNextTurnStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  const [nextTurnError, setNextTurnError] = useState<string | null>(null);
   const relationships = routeBRecords(snapshot.scene.relationships);
   const narratorQuestions = routeBRecords(snapshot.scene.narratorQuestions);
   const visibilityRules = routeBRecords(snapshot.scene.visibilityRules);
@@ -444,6 +448,30 @@ function RouteBSessionStage({
     setComposerVisibilityScope("PRIVATE");
     setComposerAddresseeRouteBCharacterId(routeBCharacterId);
     setComposerStatePatchTargetRouteBCharacterId(routeBCharacterId);
+  };
+
+  const fetchNextTurnDraft = async () => {
+    setNextTurnStatus("loading");
+    setNextTurnError(null);
+
+    try {
+      const response = await fetch(`/api/theater/route-b/sessions/${encodeURIComponent(snapshot.session.id)}/next-turn`, {
+        cache: "no-store",
+      });
+      const payload = (await response.json().catch(() => null)) as TheaterRouteBNextTurnDraft | { error?: string; message?: string } | null;
+
+      if (!response.ok || !payload || !("agentId" in payload)) {
+        const message = payload && "message" in payload && payload.message ? payload.message : "Route B next-turn preview failed.";
+        throw new Error(message);
+      }
+
+      setNextTurnDraft(payload);
+      setNextTurnStatus("ready");
+    } catch (error) {
+      setNextTurnDraft(null);
+      setNextTurnStatus("error");
+      setNextTurnError(error instanceof Error ? error.message : "Route B next-turn preview failed.");
+    }
   };
 
   return (
@@ -574,12 +602,20 @@ function RouteBSessionStage({
               <RouteBAdvisorComposer
                 snapshot={snapshot}
                 onSnapshotUpdate={onSnapshotUpdate}
+                onAdvisorTurnCommitted={fetchNextTurnDraft}
                 visibilityScope={composerVisibilityScope}
                 onVisibilityScopeChange={setComposerVisibilityScope}
                 addresseeRouteBCharacterId={composerAddresseeRouteBCharacterId}
                 onAddresseeRouteBCharacterIdChange={setComposerAddresseeRouteBCharacterId}
                 statePatchTargetRouteBCharacterId={composerStatePatchTargetRouteBCharacterId}
                 onStatePatchTargetRouteBCharacterIdChange={setComposerStatePatchTargetRouteBCharacterId}
+              />
+              <RouteBNextTurnPreviewPanel
+                draft={nextTurnDraft}
+                error={nextTurnError}
+                onRefresh={fetchNextTurnDraft}
+                snapshot={snapshot}
+                status={nextTurnStatus}
               />
               <div className="mx-auto grid max-w-3xl gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
                 <div className="rounded-lg border border-hairline bg-background px-3 py-3 text-sm text-muted-foreground">
@@ -822,6 +858,7 @@ function RouteBRelationshipStageMap({
 function RouteBAdvisorComposer({
   addresseeRouteBCharacterId,
   onAddresseeRouteBCharacterIdChange,
+  onAdvisorTurnCommitted,
   onSnapshotUpdate,
   onStatePatchTargetRouteBCharacterIdChange,
   onVisibilityScopeChange,
@@ -831,6 +868,7 @@ function RouteBAdvisorComposer({
 }: {
   addresseeRouteBCharacterId: string;
   onAddresseeRouteBCharacterIdChange: (value: string) => void;
+  onAdvisorTurnCommitted?: () => void;
   onSnapshotUpdate: (snapshot: RouteBSessionSnapshot) => void;
   onStatePatchTargetRouteBCharacterIdChange: (value: string) => void;
   onVisibilityScopeChange: (value: "GROUP" | "PRIVATE") => void;
@@ -880,6 +918,7 @@ function RouteBAdvisorComposer({
       }
 
       onSnapshotUpdate(payload);
+      onAdvisorTurnCommitted?.();
       setContent("");
       setStatePatchSummary("");
       toast.success("已寫入 Route B 舞台");
@@ -976,6 +1015,124 @@ function RouteBAdvisorComposer({
         />
       </div>
     </form>
+  );
+}
+
+function RouteBNextTurnPreviewPanel({
+  draft,
+  error,
+  onRefresh,
+  snapshot,
+  status,
+}: {
+  draft: TheaterRouteBNextTurnDraft | null;
+  error: string | null;
+  onRefresh: () => Promise<void>;
+  snapshot: RouteBSessionSnapshot;
+  status: "idle" | "loading" | "ready" | "error";
+}) {
+  const isLoading = status === "loading";
+  const speakerName =
+    draft?.nextTurn.displayName ??
+    routeBCharacterDisplayName(snapshot, draft?.nextTurn.speakerRouteBCharacterId) ??
+    (draft?.nextTurn.role === "NARRATOR" ? "旁白" : "未選定");
+  const addresseeName = routeBCharacterDisplayName(snapshot, draft?.nextTurn.addresseeRouteBCharacterId);
+  const guardLines = draft ? nextTurnGuardLines(snapshot, draft) : [];
+
+  return (
+    <div className="mx-auto max-w-3xl rounded-lg border border-hairline bg-background p-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="space-y-1">
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+            Next-turn preview
+          </p>
+          <h3 className="text-base font-semibold text-ink">下一回合預覽</h3>
+          <p className="max-w-xl text-sm leading-6 text-muted-foreground">
+            只讀取 no-provider draft：顯示誰該回應、可見範圍與 guard evidence；角色台詞與自動 append 仍等 provider success/error `AiUsageLog` proof。
+          </p>
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          className="h-10 rounded-full"
+          onClick={() => void onRefresh()}
+          disabled={isLoading}
+          aria-label="讀取 Route B 下一回合預覽"
+        >
+          {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+          {isLoading ? "讀取中" : "讀取預覽"}
+        </Button>
+      </div>
+
+      {status === "error" ? (
+        <p className="mt-3 rounded-lg border border-hairline bg-paper px-3 py-2 text-sm leading-6 text-muted-foreground">
+          {error ?? "Route B next-turn preview failed."}
+        </p>
+      ) : null}
+
+      {draft ? (
+        <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_220px]">
+          <div className="rounded-lg border border-hairline bg-paper p-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant={draft.status === "READY" ? "default" : "outline"} className="rounded-full">
+                {nextTurnStatusLabel(draft.status)}
+              </Badge>
+              <Badge variant="outline" className="rounded-full">
+                {draft.nextTurn.visibilityScope ? ROUTE_B_SCOPE_LABEL[draft.nextTurn.visibilityScope] : "旁白"}
+              </Badge>
+              <Badge variant="outline" className="rounded-full">
+                generatedTextAllowed={String(draft.nextTurn.generatedTextAllowed)}
+              </Badge>
+            </div>
+
+            <div className="mt-3 grid gap-2 text-sm text-muted-foreground sm:grid-cols-2">
+              <ContextLine label="下一位" value={speakerName} />
+              <ContextLine label="對象" value={addresseeName ?? "群聊／未指定"} />
+              <ContextLine label="State proposals" value={String(draft.persistenceEnvelope.statePatchCount)} />
+              <ContextLine label="Writes CRM fact" value={String(draft.persistenceEnvelope.writesConfirmedCrmFact)} />
+            </div>
+
+            <p className="mt-3 rounded-md border border-hairline bg-background px-3 py-2 text-sm leading-6 text-muted-foreground">
+              {draft.nextTurn.contentPreview}
+            </p>
+
+            <div className="mt-3 space-y-2">
+              {guardLines.map((line) => (
+                <p key={line} className="rounded-md border border-hairline bg-background px-3 py-2 text-xs leading-5 text-muted-foreground">
+                  {line}
+                </p>
+              ))}
+              {draft.nextTurn.rationale.map((line) => (
+                <p key={line} className="rounded-md border border-hairline bg-background px-3 py-2 text-xs leading-5 text-muted-foreground">
+                  rationale: {line}
+                </p>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-lg border border-hairline bg-paper p-3">
+            <h4 className="text-sm font-semibold text-ink">Provider boundary</h4>
+            <div className="mt-3 space-y-2">
+              <ContextLine label="Call attempted" value={String(draft.providerBoundary.providerCallAttempted)} />
+              <ContextLine label="AiUsageLog" value={String(draft.providerBoundary.aiUsageLogWritten)} />
+              <ContextLine label="Raw provider" value={String(draft.providerBoundary.storesRawProviderPayload)} />
+              <ContextLine label="Private dialog" value={String(draft.privacyProof.directPrivateDialogReturned)} />
+            </div>
+            <Button type="button" variant="mono" className="mt-4 w-full rounded-full" disabled aria-disabled="true">
+              <Sparkles className="h-4 w-4" />
+              確認並產生角色台詞
+            </Button>
+            <p className="mt-2 text-xs leading-5 text-muted-foreground">
+              這個動作刻意停用；未完成 live character provider success/error `AiUsageLog` 前，不會 append 角色回合。
+            </p>
+          </div>
+        </div>
+      ) : (
+        <p className="mt-3 rounded-lg border border-dashed border-hairline bg-paper px-3 py-3 text-sm leading-6 text-muted-foreground">
+          尚未讀取下一回合。顧問寫入群聊或私聊後會自動嘗試讀取，也可以手動按「讀取預覽」。
+        </p>
+      )}
+    </div>
   );
 }
 
@@ -1132,6 +1289,39 @@ function routeBVisibilityText(record: Record<string, unknown>): string {
 
 function firstRouteBText(value: unknown): string | undefined {
   return routeBRecords(value).map(routeBRecordText).find(Boolean);
+}
+
+function routeBCharacterDisplayName(snapshot: RouteBSessionSnapshot, routeBCharacterId?: string): string | undefined {
+  if (!routeBCharacterId) return undefined;
+  return snapshot.characters.find((character) => character.routeBCharacterId === routeBCharacterId)?.displayName;
+}
+
+function nextTurnStatusLabel(status: TheaterRouteBNextTurnDraft["status"]): string {
+  if (status === "READY") return "可預覽";
+  if (status === "NO_CHARACTER") return "缺角色";
+  return "待顧問發話";
+}
+
+function nextTurnGuardLines(snapshot: RouteBSessionSnapshot, draft: TheaterRouteBNextTurnDraft): string[] {
+  const guard = draft.nextTurn.guardEvidence;
+  if (!guard) return [];
+
+  const lines: string[] = [];
+  if (guard.namedAddresseeMustAnswer) {
+    lines.push(`被點名角色必答：${guard.namedAddresseeFound ? "找到指定對象" : "未找到指定對象"}`);
+  }
+  if (guard.consecutiveSpeakerBlockedCharacterIds.length) {
+    const names = guard.consecutiveSpeakerBlockedCharacterIds
+      .map((id) => routeBCharacterDisplayName(snapshot, id) ?? id)
+      .join("、");
+    lines.push(`防連續搶話：本回合避開 ${names}`);
+  }
+  if (guard.consecutiveSpeakerOverrideForNamedAddressee) {
+    lines.push("被點名對象覆蓋連續發言限制，但仍只產生 provider-disabled preview。");
+  }
+  lines.push(`私聊歷史範圍：${guard.privateHistoryScopedToAddressee ? "只含指定對象可見內容" : "需要檢查"}`);
+
+  return lines;
 }
 
 function TensionPill({ value }: { value: number }) {
