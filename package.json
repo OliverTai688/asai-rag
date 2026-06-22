@@ -47,6 +47,7 @@
     "meeting:notes-compat-contract-dry-run": "node scripts/meeting-notes-compat-contract-dry-run.mjs",
     "meeting:notes-compat-qa": "node scripts/meeting-notes-compat-qa.mjs",
     "meeting:route-b-red-line-context-qa": "node scripts/meeting-route-b-red-line-context-qa.mjs",
+    "meeting:notes-hub-quarantine-qa": "node scripts/meeting-notes-hub-quarantine-qa.mjs",
     "meeting:writeback-qa": "node scripts/meeting-writeback-qa.mjs",
     "visit:theater-handoff-dry-run": "node scripts/visit-theater-handoff-dry-run.mjs",
     "visit:theater-bff-qa": "node scripts/visit-theater-bff-qa.mjs",

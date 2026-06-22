@@ -340,6 +340,8 @@ ITA-005f evidence note（2026-06-22）：新增 persisted red-line action state 
 - [x] AgentFacts-style manifest 必須新增 downstream consumption capability/action/DTO/evidence refs，保持 `registryReadiness=internal-only`，且不得宣稱 external registry ready。（2026-06-22：`asai.visit.preparation_package` 與 `asai.meeting.prototype` manifest 已新增 downstream capability/action/DTO/evidence refs，皆維持 internal-only。）
 - [x] 需跑對應 source proof（例如 visit-prep/meeting consumption QA）、`pnpm ai:protocol-registry-qa`、`pnpm ai:bff-audit`、`pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。若只剩 browser/dev-server visual confirmation，可交由 operator 自行重跑，不得讓 docs-only proof 取代 source/domain/API/UI work。（2026-06-22：domain proof、visit-prep BFF/UI contract proof、meeting notes consumer contract proof 已新增；本輪驗收紀錄見 loop report。）
 
+AMM-005j global notes hub quarantine evidence（2026-06-22）：`/notes` 已改為 accepted-source entrypoint，而非採納 untracked quick-note local prototype。Page source 宣告 `data-local-note-store="disabled"`、`data-accepted-notes-source="/pre-visit/[planId]/notes"`，只導向已驗收的 preparation package notes / CLIENT_MEETING workspace；`pnpm meeting:notes-hub-quarantine-qa` 驗證 `/notes` 不 import `@/components/notes`、`@/domains/note/store`、`useNoteStore`、`QuickNoteComposer`、`SEED_NOTES` 或 browser-local note storage，並驗證 `asai.meeting.prototype` manifest/registry refs。此 evidence 不代表 quick-note server persistence、CRM writeback、正式法遵審閱、real notification、live detection 或 external registry publication 已完成。
+
 ---
 
 ## 7. Data / DB Acceptance

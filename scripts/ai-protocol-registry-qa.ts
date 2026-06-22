@@ -388,6 +388,7 @@ function runQa() {
   }
 
   assertMeetingRouteBRedLineContextConsumption(manifests);
+  assertMeetingNotesHubQuarantine(manifests);
 
   const readinessSummary = manifests.reduce<Record<string, number>>((summary, manifest) => {
     summary[manifest.registry.readiness] = (summary[manifest.registry.readiness] ?? 0) + 1;
@@ -569,6 +570,53 @@ function assertMeetingRouteBRedLineContextConsumption(manifests: AgentProtocolMa
 
   for (const evidenceRef of requiredEvidenceRefs) {
     push(adoption.evidenceRefs.includes(evidenceRef), `meeting Route B red-line evidence includes ${evidenceRef}`);
+  }
+}
+
+function assertMeetingNotesHubQuarantine(manifests: AgentProtocolManifest[]) {
+  const manifest = manifests.find((item) => item.identity.agentId === "asai.meeting.prototype");
+  push(Boolean(manifest), "meeting manifest exists for notes hub quarantine");
+
+  if (!manifest?.proof.sourceAdoption) {
+    return;
+  }
+
+  push(
+    manifest.capabilities.some((capability) => capability.id === "meeting-notes-hub-quarantine"),
+    "meeting manifest declares notes hub quarantine capability",
+  );
+  push(
+    manifest.interfaces.actions.some((action) => action.id === "open-notes-hub-to-accepted-workspaces"),
+    "meeting manifest declares notes hub quarantine action boundary",
+  );
+  push(
+    manifest.interfaces.endpoints.some((endpoint) => endpoint.id === "notes-hub-entrypoint"),
+    "meeting manifest references notes hub entrypoint",
+  );
+  push(
+    manifest.proof.commands.includes("pnpm meeting:notes-hub-quarantine-qa"),
+    "meeting proof commands include notes hub quarantine QA",
+  );
+
+  const adoption = manifest.proof.sourceAdoption;
+  const requiredOwnerRefs = [
+    "src/app/(dashboard)/notes/page.tsx",
+    "scripts/meeting-notes-hub-quarantine-qa.mjs",
+  ];
+  const requiredEvidenceRefs = [
+    "meeting-notes-hub-quarantine",
+    "notes-hub-quarantine",
+    "local-note-store-disabled",
+    "accepted-source=/pre-visit/[planId]/notes",
+    "prototype-unaccepted",
+  ];
+
+  for (const ownerRef of requiredOwnerRefs) {
+    push(adoption.ownerRefs.includes(ownerRef), `meeting notes hub owner includes ${ownerRef}`);
+  }
+
+  for (const evidenceRef of requiredEvidenceRefs) {
+    push(adoption.evidenceRefs.includes(evidenceRef), `meeting notes hub evidence includes ${evidenceRef}`);
   }
 }
 
