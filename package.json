@@ -72,6 +72,7 @@
     "theater:direct-field-qa": "node scripts/theater-direct-field-qa.mjs",
     "theater:route-b-handoff-dry-run": "node scripts/theater-route-b-handoff-dry-run.mjs",
     "theater:route-b-orchestration-dry-run": "node scripts/theater-route-b-orchestration-dry-run.mjs",
+    "theater:route-b-feedback-dry-run": "node scripts/theater-route-b-feedback-dry-run.mjs",
     "theater:route-b-schema-dry-run": "node scripts/theater-route-b-schema-dry-run.mjs",
     "theater:route-b-runtime-qa": "node scripts/theater-route-b-runtime-qa.mjs",
     "theater:route-b-persistence-qa": "node scripts/theater-route-b-persistence-qa.mjs",

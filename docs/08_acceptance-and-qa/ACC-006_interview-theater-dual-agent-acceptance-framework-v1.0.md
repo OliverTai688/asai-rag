@@ -131,6 +131,20 @@
 - [ ] 嚴重紅線包含代簽、代墊、保證獲利、吸金、未做 KYC 即推商品。
 - [ ] 合規提醒不取代正式法遵審核或法律意見。
 
+### 6.1 Route B feedback source contract acceptance
+
+`ITA-004a` 若先完成 no-provider feedback contract / runtime preview，完成前必須額外滿足：
+
+- [ ] Domain contract 必須有五視角常數與可選子集；未指定時預設全選：教練的耳朵、客戶的眼睛、沉默裡的需求、守門的良心、決策的橋。
+- [ ] Runtime `FEEDBACK` preflight response 的 `runtimeInputPreview.feedback` 只能回 least-disclosure 摘要：selected perspectives、history visibility count、material count、qualitative output contract、red-line labels、provider boundary 與 persistence envelope；不得回 raw private transcript、raw provider payload、email、phone、secret、token、cookie、OTP。
+- [ ] Output contract 必須固定 `qualitativeOnly=true`、`totalScoreAllowed=false`、`rankingAllowed=false`，且每個 perspective section 需有 evidence basis。
+- [ ] Red-line review 必須包含代簽、代墊、保證獲利、吸金、未做 KYC 即推商品，並允許標記不適用。
+- [ ] 合規提醒必須明確不取代正式法遵審核或法律意見。
+- [ ] Persistence envelope 固定 `requiresAdvisorConfirmation=true`、`writesConfirmedCrmFact=false`；feedback contract 不得直接寫 confirmed CRM fact。
+- [ ] Provider boundary 固定 `providerCallAttempted=false`、`aiUsageLogWritten=false`，且 provider 啟用前仍需 success/error `AiUsageLog` proof。
+- [ ] AgentFacts-style manifest 必須新增 feedback capability / `RouteBFeedbackRuntimePreview` / `TheaterRouteBFeedbackContract` DTO refs / `runtimeInputPreview.feedback` evidence ref。
+- [ ] 需跑 `pnpm theater:route-b-feedback-dry-run`、`pnpm ai:protocol-registry-qa`、`pnpm ai:bff-audit`、`pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+
 ---
 
 ## 7. Data / DB Acceptance

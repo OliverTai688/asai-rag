@@ -11,6 +11,11 @@ import {
   buildTheaterRouteBOrchestrationPlan,
   type TheaterRouteBOrchestrationPlan,
 } from "@/domains/theater/route-b-orchestration";
+import {
+  buildTheaterRouteBFeedbackContract,
+  ROUTE_B_FEEDBACK_PERSPECTIVE_IDS,
+  type TheaterRouteBFeedbackContract,
+} from "@/domains/theater/route-b-feedback";
 import { canUseAiModule } from "@/lib/auth/policies";
 import { authErrorResponse, requireCurrentMember } from "@/lib/auth/current-workspace";
 import {
@@ -25,6 +30,7 @@ import {
 
 const routeBVisibilityScopeSchema = z.enum(["GROUP", "PRIVATE", "DIRECTOR_ONLY", "NARRATOR"]);
 const routeBRuntimeIntentSchema = z.enum(["SESSION_DRAFT", "DIRECTOR", "CHARACTER", "FEEDBACK"]);
+const routeBFeedbackPerspectiveIdSchema = z.enum(ROUTE_B_FEEDBACK_PERSPECTIVE_IDS);
 
 const routeBHandoffSchema = z.custom<TheaterRouteBHandoffPacket>(
   (value) => isTheaterRouteBHandoffPacket(value),
@@ -51,6 +57,7 @@ const routeBRuntimeRequestSchema = z.object({
   addresseeCharacterId: z.string().trim().min(1).max(160).optional(),
   visibilityScope: routeBVisibilityScopeSchema.default("GROUP"),
   directorDirective: z.string().trim().min(1).max(2000).optional(),
+  selectedFeedbackPerspectiveIds: z.array(routeBFeedbackPerspectiveIdSchema).max(5).optional(),
   history: z.array(routeBTurnRefSchema).max(24).default([]),
 });
 
@@ -131,6 +138,35 @@ interface RouteBOrchestrationRuntimePreview {
   providerBoundary: TheaterRouteBOrchestrationPlan["providerBoundary"];
 }
 
+interface RouteBFeedbackRuntimePreview {
+  agentId: "asai.theater.route_b";
+  registryReadiness: "internal-only";
+  sourceAlignment: {
+    ownerSurface: "/theater/[sessionId]";
+    endpoint: "/api/theater/route-b/runtime";
+    actionId: "route-b-feedback-contract";
+  };
+  selectedPerspectives: Array<{
+    id: string;
+    label: string;
+    evidenceFocus: string[];
+  }>;
+  inputPreview: TheaterRouteBFeedbackContract["inputPreview"];
+  outputContract: Pick<
+    TheaterRouteBFeedbackContract["outputContract"],
+    "qualitativeOnly" | "totalScoreAllowed" | "rankingAllowed" | "canMarkNotApplicable"
+  > & {
+    sectionCount: number;
+  };
+  redLineReview: {
+    severeSignalLabels: string[];
+    canMarkNotApplicable: true;
+    legalAdviceIncluded: false;
+  };
+  providerBoundary: TheaterRouteBFeedbackContract["providerBoundary"];
+  persistenceEnvelope: TheaterRouteBFeedbackContract["persistenceEnvelope"];
+}
+
 type RouteBRuntimeInputPreview = RouteBRuntimeInputPreviewBase & {
   sceneId?: string;
   characterCount?: number;
@@ -145,6 +181,7 @@ type RouteBRuntimeInputPreview = RouteBRuntimeInputPreviewBase & {
   historyCount?: number;
   historyVisibilitySummary?: Record<TheaterRouteBVisibilityScope, number>;
   orchestration?: RouteBOrchestrationRuntimePreview;
+  feedback?: RouteBFeedbackRuntimePreview;
 };
 
 export async function POST(req: Request) {
@@ -376,14 +413,20 @@ function buildRuntimeInputPreview(body: RouteBRuntimeRequest): RouteBRuntimeInpu
   }
 
   const base = buildRuntimeInputPreviewBase("FEEDBACK", [], []);
+  const feedbackContract = buildTheaterRouteBFeedbackContract({
+    handoff: body.handoff,
+    history: body.history,
+    selectedPerspectiveIds: body.selectedFeedbackPerspectiveIds,
+  });
 
   return {
     ...base,
     kind: "FEEDBACK",
     sceneId: body.handoff.scene.id,
-    qualitativePerspectives: ["教練的耳朵", "客戶的眼睛", "沉默裡的需求", "守門的良心", "決策的橋"],
+    qualitativePerspectives: feedbackContract.selectedPerspectives.map((perspective) => perspective.label),
     historyCount: body.history.length,
     historyVisibilitySummary: summarizeVisibility(body.history),
+    feedback: buildRouteBFeedbackRuntimePreview(feedbackContract),
   };
 }
 
@@ -431,6 +474,38 @@ function buildRouteBOrchestrationRuntimePreview(
     },
     narratorQueueCount: plan.narratorQueue.length,
     providerBoundary: plan.providerBoundary,
+  };
+}
+
+function buildRouteBFeedbackRuntimePreview(contract: TheaterRouteBFeedbackContract): RouteBFeedbackRuntimePreview {
+  return {
+    agentId: contract.agentId,
+    registryReadiness: contract.registryReadiness,
+    sourceAlignment: {
+      ownerSurface: "/theater/[sessionId]",
+      endpoint: "/api/theater/route-b/runtime",
+      actionId: "route-b-feedback-contract",
+    },
+    selectedPerspectives: contract.selectedPerspectives.map((perspective) => ({
+      id: perspective.id,
+      label: perspective.label,
+      evidenceFocus: perspective.evidenceFocus,
+    })),
+    inputPreview: contract.inputPreview,
+    outputContract: {
+      qualitativeOnly: contract.outputContract.qualitativeOnly,
+      totalScoreAllowed: contract.outputContract.totalScoreAllowed,
+      rankingAllowed: contract.outputContract.rankingAllowed,
+      canMarkNotApplicable: contract.outputContract.canMarkNotApplicable,
+      sectionCount: contract.outputContract.sections.length,
+    },
+    redLineReview: {
+      severeSignalLabels: contract.redLineReview.severeSignals.map((signal) => signal.label),
+      canMarkNotApplicable: contract.redLineReview.canMarkNotApplicable,
+      legalAdviceIncluded: contract.redLineReview.legalAdviceIncluded,
+    },
+    providerBoundary: contract.providerBoundary,
+    persistenceEnvelope: contract.persistenceEnvelope,
   };
 }
 

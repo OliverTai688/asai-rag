@@ -84,11 +84,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 2,
+    "normalLoopsSinceLastWholeProductReview": 3,
     "lastWholeProductReviewAt": "2026-06-22T01:21:52Z",
     "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-22_lv3-whole-product-gap-review-after-visit-theater-evidence.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "Next normal loop should choose `ITA-003j Route B persisted turn orchestration consumption (guarded no-provider)` if DB DNS is available, or `ITA-004a five-view feedback runtime source contract` if DB remains blocked. Do not spend another loop merely re-chasing the Supabase DNS blocker: ITA-003i already wired `buildTheaterRouteBOrchestrationPlan()` into the runtime DIRECTOR preflight as `runtimeInputPreview.orchestration`; remaining runtime API evidence can be self-run with `pnpm theater:route-b-runtime-qa` once `db.wwocdcicvpmbdmqvskzi.supabase.co` resolves. ITA-003j should make persisted turn/UI consumption receive the least-disclosure director directive, character reply preview, safe persistence envelope, narrator queue count, and provider boundary without calling provider or writing fake `AiUsageLog`. Live provider success/error proof remains a separate later slice and must write `AiUsageLog`.",
+    "nextRecommendedImplementationSlice": "ITA-004a completed the no-provider five-view feedback source contract and runtime preview. Next normal loop should choose `ITA-004b Route B feedback provider success/error AiUsageLog contract` only if a guarded provider implementation can be added with success/error logging and no raw provider/private storage; otherwise choose `ITA-003j Route B persisted turn orchestration consumption (guarded no-provider)` after DB DNS is available. Do not spend another loop merely re-chasing the Supabase DNS blocker: remaining runtime API evidence can be self-run with `pnpm theater:route-b-runtime-qa` once `db.wwocdcicvpmbdmqvskzi.supabase.co` resolves. Live provider success/error proof remains a separate later slice and must write `AiUsageLog`.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {
@@ -156,5 +156,5 @@
     "lv3ImmersiveLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-immersive-loop.md",
     "lv3WholeProductGapReviewLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md"
   },
-  "updatedAt": "2026-06-22T03:10:00Z"
+  "updatedAt": "2026-06-22T03:18:44Z"
 }
