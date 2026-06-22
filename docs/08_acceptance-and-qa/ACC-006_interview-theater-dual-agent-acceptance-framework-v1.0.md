@@ -94,6 +94,19 @@
 - [ ] 若 provider env flag 已開但 success/error `AiUsageLog` proof 尚未完成，runtime 必須回 provider-not-implemented / blocked posture，不得呼叫 provider。
 - [ ] 需跑 `pnpm theater:route-b-runtime-qa`、`pnpm ai:protocol-registry-qa`、`pnpm ai:bff-audit`、`pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
 
+### 5.3 Route B orchestration contract acceptance
+
+`ITA-003h` 若只做 no-provider director / character orchestration contract，完成前必須額外滿足：
+
+- [ ] Orchestration source contract 能把 latest advisor group/private turn 轉成 director input、speaker/addressee/visibility directive、character reply input plan 與 persistence envelope。
+- [ ] 被點名角色必答；若沒有點名，連續發言上限要能避開已連續主導的角色。
+- [ ] Character reply input 只能看到 group history 與該角色相關 private lane，不可看到其他角色私聊或 director-only history。
+- [ ] Unknown gap 只能進 narrator queue 或 `requiresConfirmation=true` 的 state proposal；不得寫 confirmed CRM fact。
+- [ ] Persistence envelope 固定 `writesConfirmedCrmFact=false`，且不得儲存 raw provider payload、raw private transcript、email、phone、secret、token、cookie、OTP。
+- [ ] No-provider proof 必須明確顯示 `providerCallAttempted=false`、`aiUsageLogWritten=false`，且 provider 啟用前仍要求 success/error `AiUsageLog`。
+- [ ] AgentFacts-style manifest 必須新增 orchestration capability/action/DTO refs/proof command，且保持 `registryReadiness=internal-only`。
+- [ ] 需跑 `pnpm theater:route-b-orchestration-dry-run`、`pnpm theater:route-b-handoff-dry-run`、`pnpm ai:protocol-registry-qa`、`pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+
 ---
 
 ## 6. Feedback / Compliance Acceptance

@@ -868,7 +868,7 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
       displayName: "Route B relationship theater",
       ownerSurface: "/theater/[sessionId]",
       module: "THEATER",
-      version: "2026-06-21.nap-003c",
+      version: "2026-06-22.ita-003h-orchestration",
       status: "active",
     },
     capabilities: [
@@ -883,6 +883,12 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
         label: "Route B runtime preflight",
         summary: "Preflights director, character, and feedback inputs with source alignment, visibility scoping, and AiUsageLog policy before provider enablement.",
         humanTrigger: "Advisor asks Route B stage to continue, reply as a character, or generate feedback.",
+      },
+      {
+        id: "route-b-orchestration-contract",
+        label: "Route B orchestration contract",
+        summary: "Turns the latest group/private advisor turn into a director speaker directive, character reply input plan, and safe persistence envelope without provider calls.",
+        humanTrigger: "Advisor sends a group or private theater turn and expects the next roleplay character to answer.",
       },
     ],
     interfaces: {
@@ -904,6 +910,11 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
           actionBoundary: "Requires known Route B character id, director directive, visibility-safe history, and private lane filtering.",
         },
         {
+          id: "route-b-orchestration",
+          label: "Director-character orchestration",
+          actionBoundary: "Enforces named addressee answers, consecutive-speaker guard, private history scoping, and no confirmed CRM fact writes before provider calls.",
+        },
+        {
           id: "route-b-feedback",
           label: "Five-view feedback preflight",
           actionBoundary: "Uses five qualitative perspectives and does not emit legacy score as the new Route B feedback path.",
@@ -912,9 +923,16 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
       exportTargets: defaultExportTargets,
     },
     schemas: {
-      inputDtoRefs: ["TheaterRouteBHandoffPacket", "RouteBTurnInput", "RouteBRuntimeRequest"],
-      outputDtoRefs: ["RouteBSessionDto", "RouteBTurnDto", "RouteBRuntimeInputPreview"],
-      evidenceDtoRefs: ["visibilityScope", "statePatches", "runtimeInputPreview.sourceAlignment", "AiUsageLog count unchanged"],
+      inputDtoRefs: ["TheaterRouteBHandoffPacket", "RouteBTurnInput", "RouteBRuntimeRequest", "TheaterRouteBAdvisorTurnInput"],
+      outputDtoRefs: ["RouteBSessionDto", "RouteBTurnDto", "RouteBRuntimeInputPreview", "TheaterRouteBOrchestrationPlan"],
+      evidenceDtoRefs: [
+        "visibilityScope",
+        "statePatches",
+        "runtimeInputPreview.sourceAlignment",
+        "TheaterRouteBDirectorDirective.guardEvidence",
+        "TheaterRouteBCharacterReplyPersistenceEnvelope",
+        "AiUsageLog count unchanged",
+      ],
       dtoBoundary: "Stage session DTO is internal; external metadata cannot expose private lane content.",
     },
     auth: {
@@ -940,7 +958,12 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
     },
     proof: {
       sourceAuditModule: "THEATER",
-      commands: [...commonProofCommands, "pnpm theater:route-b-runtime-qa", "pnpm theater:route-b-interaction-qa"],
+      commands: [
+        ...commonProofCommands,
+        "pnpm theater:route-b-runtime-qa",
+        "pnpm theater:route-b-interaction-qa",
+        "pnpm theater:route-b-orchestration-dry-run",
+      ],
       sourceAdoption: {
         status: "adopted",
         ownerRefs: [
@@ -949,6 +972,7 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
           "src/app/api/theater/route-b/sessions/[sessionId]/route.ts",
           "src/app/api/theater/route-b/sessions/[sessionId]/turns/route.ts",
           "src/domains/theater/route-b-handoff.ts",
+          "src/domains/theater/route-b-orchestration.ts",
           "src/domains/theater/route-b-session.ts",
           "src/lib/theater/route-b-boundary.ts",
           "src/lib/theater/route-b-session-bff-repository.ts",
@@ -963,11 +987,15 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
           "appendRouteBAdvisorTurnForMember",
           "RouteBSessionSnapshot",
           "buildTheaterRouteBStatePatch",
+          "buildTheaterRouteBOrchestrationPlan",
+          "TheaterRouteBOrchestrationPlan",
+          "TheaterRouteBDirectorDirective",
           "providerCallAttempted=false",
           "writesConfirmedCrmFact=false",
         ],
         notes: [
           "Route B is source-adopted for deterministic session/turn persistence and guarded runtime preflight, not live provider runtime.",
+          "Orchestration dry-run proves named addressee answer, consecutive-speaker guard, private history scoping, and safe persistence envelope without provider calls.",
           "Visibility scope, private lane, and state proposal writes are server-owned and owner-scoped.",
           "Director, character, and feedback provider enablement remains blocked until explicit approval and success/error AiUsageLog proof.",
         ],

@@ -84,11 +84,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 0,
+    "normalLoopsSinceLastWholeProductReview": 1,
     "lastWholeProductReviewAt": "2026-06-22T01:21:52Z",
     "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-22_lv3-whole-product-gap-review-after-visit-theater-evidence.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "Next normal loop should choose `ITA-003h Route B director/character orchestration contract (no-provider first)`. Implement a source-backed, no-DB/no-provider domain or runtime dry-run that turns the latest Route B group/private advisor turn into a director selection candidate, speaker/addressee/visibility directive, character reply input plan, and persistence envelope. Required proof: private history scoping, named addressee must answer, consecutive-speaker guard, unknowns stay narrator/state-proposal material, `writesConfirmedCrmFact=false`, `providerCallAttempted=false`, no fake `AiUsageLog`, and `pnpm exec tsc --noEmit --pretty false` + `pnpm lint:changed`. Do not retry AMM-005c Browser/API/DB proof until `db.wwocdcicvpmbdmqvskzi.supabase.co` or a replacement development/staging DB URL resolves.",
+    "nextRecommendedImplementationSlice": "Next normal loop should choose `ITA-003i Route B orchestration runtime integration (guarded no-provider)`. Wire `buildTheaterRouteBOrchestrationPlan()` into a server-owned Route B runtime/BFF path or persisted turn loop so the existing session UI can receive a deterministic director directive, character reply input preview, persistence envelope, narrator queue, and provider boundary. Required proof: owner/session scope, private addressee scoping, consecutive-speaker guard, unknowns remain narrator/state-proposal material, `writesConfirmedCrmFact=false`, `providerCallAttempted=false`, no fake `AiUsageLog`, `pnpm theater:route-b-orchestration-dry-run`, targeted runtime/session QA, `pnpm exec tsc --noEmit --pretty false`, and `pnpm lint:changed`. Live provider success/error proof is still a separate later slice and must write `AiUsageLog`.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {
@@ -156,5 +156,5 @@
     "lv3ImmersiveLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-immersive-loop.md",
     "lv3WholeProductGapReviewLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md"
   },
-  "updatedAt": "2026-06-22T01:21:52Z"
+  "updatedAt": "2026-06-22T01:50:52Z"
 }
