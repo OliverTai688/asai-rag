@@ -1,6 +1,6 @@
 # Agent Loop Issue Questions
 
-Last updated: 2026-06-22
+Last updated: 2026-06-23
 
 ## 使用者決策
 
@@ -109,6 +109,7 @@ Last updated: 2026-06-22
 
 - 2026-06-21 resolved: BFF-103d related-list targeted proof 已在 DB 透過 IPv6/pg read 恢復後完整通過。`DEMO_QA_BASE_URL=http://localhost:3000 pnpm bff:crm-related-lists-qa` 覆蓋 unauth 401、member client/family/policy/visit/report create 201、related-lists 200、manager 403、policies/timeline/gap-analysis/reports desktop no overflow、gap-analysis mobile no overflow、DTO 合規欄位保留、raw report body / raw section fields / email / phone / policyNumber 不外洩、`AiUsageLog` count 147->147。原 2026-06-20 partial blocker 不再阻擋 BFF-103d。
 - 2026-06-21 recovery status: 同一 Supabase DB direct host 仍無 IPv4 A record（`resolve4=ENODATA`），但有 IPv6 AAAA，且本輪從目前開發環境確認 `DATABASE_URL` pooler port 6543 與 `DIRECT_URL` direct port 5432 皆可 TCP/pg read `select 1`。DB-backed BFF/ITA proof 可恢復執行；若後續在 IPv4-only runtime 再失敗，需改用 Supabase pooler/IPv4-compatible connection string 或請 operator 更新 env。不得再把 LCH-009 font/build fallback 當下一輪替代。
+- 2026-06-23 open update: scheduled whole-product review 以 `pnpm lv3:cross-flow-no-provider-qa` 發現 clean cross-flow runtime 仍會被 public status DB read 擋住：public home 經 `src/lib/public/status-repository.ts` 讀 `systemSettings` 時遇 Prisma `P1001 DatabaseNotReachable`，DNS probe 顯示 `resolve4 db.wwocdcicvpmbdmqvskzi.supabase.co = ENODATA`、`resolve6` 有 AAAA，且 dev browser 同時看到 `/api/bff/notifications` 404。這是 runtime/source degraded-mode gap 加上可選 env/DNS 修復，不是新的產品決策；下一輪建議 source-backed `BFF-305b public status degraded fallback + notification BFF alignment`。若 operator 也能提供 IPv4-compatible/pooler connection string，可縮小剩餘 live DB/browser proof 成本。
 - PIM-006 已 resolved；本輪 proof 使用 `ALLOW_DEV_AUTH_HEADER=true` 的 local dev server 與 demo member/manager header。
 - PIM-008 已 resolved；browser writeback proof 使用 demo member header 與自動建立 demo client 完成。
 - PIM-009 已 resolved；cross-mode QA 使用 local dev server、demo member/manager header、development Supabase DB proof 與 headless browser desktop/mobile proof 完成。

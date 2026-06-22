@@ -404,6 +404,8 @@ Research-to-executable note（2026-06-21 after BFF-304a）：BFF-304a 已關閉 
 
 完成註記（2026-06-21 BFF-305a status/CTA/lead capture）：已完成 Public BFF status / CTA / private-beta lead capture proof。新增 public-safe `GET /api/public/status`、shared public status repository、pricing/status shared checkout/CTA availability source、landing/pricing CTA data-bound contract、additive `PublicLead` schema、`POST /api/public/lead` 與 `pnpm public:status-qa`。Proof 覆蓋 status 200、pricing 200、public cache header、DB-backed `PlanConfig` consistency、checkout action disabled、production payment disabled、public lead capture enabled、consent validation 400、honeypot 202 且不入庫、valid lead 201 且 `public_leads` +1、same email third request 429、not-public-discovery registry posture、pricing/status CTA consistency、private sentinel 0、landing/pricing desktop/mobile no overflow、browser console error 0；截圖保存於 `docs/06_audits-and-reports/screenshots/lv3-public-bff/`。仍不啟用 real payment、real email、real notification、provider call 或 external registry publication；BFF-401/BFF-402 billing server-payload / notification/query/idempotency 仍待後續。
 
+Whole-product review 註記（2026-06-23 runtime proof gate）：`pnpm lv3:cross-flow-no-provider-qa` 發現 public home 在 DB/DNS 不可達時會經 `src/lib/public/status-repository.ts` 的 `prisma.systemSettings.findUnique()` 回 Prisma `P1001 DatabaseNotReachable`，導致匿名 public flow 500，且 dev browser 同時看到 `/api/bff/notifications` 404。這不是 BFF-305a public status contract 的語意回歸，而是 runtime degraded-mode 與相鄰 notification BFF 對齊缺口；下一個 normal loop 應新增 source-backed `BFF-305b`，讓 public status 在 DB unavailable 時回 least-disclosure degraded contract，不宣稱 checkout/payment/provider 可用，並對齊 notification fetch endpoint，使 clean cross-flow proof 不因公共狀態讀取或 missing BFF route 起不來。
+
 ### Batch BFF-305a - Public Status And CTA Availability Proof
 
 目標：把 public website / pricing / CTA / beta availability 變成 public-safe server contract，不再由前端硬編碼自行推論。
@@ -417,6 +419,18 @@ Research-to-executable note（2026-06-21 after BFF-304a）：BFF-304a 已關閉 
 - [x] API proof 覆蓋 status 200、pricing 200、CTA consistency、checkout disabled/sandbox posture、private sentinel 0。
 - [x] Browser proof 覆蓋 landing/pricing desktop/mobile CTA 與 no overflow；不得宣稱 payment/email/notification production ready。
 - [x] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`、targeted public BFF QA（新增或更新 `pnpm public:pricing-qa` / `pnpm public:status-qa`）。
+
+### Batch BFF-305b - Public Status Degraded Fallback And Notification BFF Alignment
+
+目標：讓匿名 public page / clean browser proof 在 development DB/DNS 暫時不可達時仍能得到 public-safe degraded contract，而不是直接 500；同時補齊 app shell 已呼叫但不存在的 notification BFF boundary。
+
+- [ ] `getPublicStatus()` 或等價 public status repository 在 Prisma `P1001` / DB unavailable 時回安全 degraded status：`maintenance`/`checkoutAvailability`/`aiAvailability`/`primaryCta`/`leadCapture`/`legalStatus` 仍完整，但不得宣稱 checkout、real payment、provider AI、lead persistence 或 production readiness 可用。
+- [ ] Degraded response 必須標示 `source` / `dbAvailable=false` / `degradedReason` 等 public-safe evidence，不回 DB host、connection string、secret、provider raw config、tenant/client/payment data。
+- [ ] `/api/public/pricing` 與 landing/pricing CTA 在 degraded status 下仍與 status 一致；pricing 不得覆蓋 status 的 disabled/unavailable posture。
+- [ ] 對齊 `/api/bff/notifications` 或呼叫方 endpoint，讓 dashboard/top-bar/notification hub 不再在 clean proof 中打到 404；若為 disabled/no-notification posture，需回 public/member-safe empty DTO，不得 fake real notification delivery。
+- [ ] 新增或更新 targeted QA，覆蓋 DB unavailable fallback、status/pricing CTA consistency、notification route no 404、private sentinel 0、no provider/no fake `AiUsageLog`。
+- [ ] 重跑 `pnpm lv3:cross-flow-no-provider-qa` 或等價 cross-flow proof；若只剩 live DB/browser residual evidence，可依使用者偏好提供使用者自跑 command，但不能把 fallback source behavior 未驗收寫成通過。
+- [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
 
 ---
 

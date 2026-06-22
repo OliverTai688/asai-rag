@@ -46,6 +46,17 @@ Full-site BFF 驗收重點不是 endpoint 數量，而是資料邊界、session 
 
 Evidence（2026-06-21 BFF-305a）：`PUBLIC_STATUS_QA_BASE_URL=http://127.0.0.1:3044 pnpm public:status-qa` 已通過 status/CTA/lead gate，89/89 checks passed。Proof 覆蓋 `GET /api/public/status` 200、`GET /api/public/pricing` 200、public cache header、DB-backed `PlanConfig` consistency、pricing/status checkout 與 CTA mode 一致、checkout action disabled、production payment disabled、public lead capture enabled、lead consent validation 400、honeypot 202 且不入庫、valid lead 201 且 `public_leads` +1、response 不 echo email、same email third request 429、external registry `not_public_discovery`、status/pricing/lead private sentinel 0、landing/pricing desktop/mobile no overflow、browser console error 0。截圖：`docs/06_audits-and-reports/screenshots/lv3-public-bff/bff-305a-landing-desktop.png`、`bff-305a-landing-mobile.png`、`bff-305a-pricing-desktop.png`、`bff-305a-pricing-mobile.png`。
 
+#### 2.1.2 Public Status Degraded Fallback Gates
+
+`BFF-305b` 必須證明 public status 在 DB unavailable 時安全降級，而不是讓 public landing / cross-flow proof 直接 500：
+
+- DB unavailable fallback 只允許回 public-safe degraded contract，必須明確標示 `dbAvailable=false` 或等價 evidence，且不能回 DB host、connection string、secret、tenant/client/payment data、provider raw config、raw prompt 或 raw provider payload。
+- Degraded mode 下 checkout/payment/provider AI/real notification 均不可被宣稱可用；CTA 必須維持 private-beta/contact/unavailable 等安全狀態。
+- `/api/public/pricing` 與 public status 在 degraded mode 下仍需一致；pricing 不得繞過 degraded disabled posture。
+- App shell notification fetch endpoint 必須存在或改為正確 BFF；disabled/no-notification posture 只能回 empty/safe DTO，不得模擬真實 delivery success。
+- Proof 需覆蓋 DB unavailable status 200 或 page graceful render、pricing/status CTA consistency、notification route no 404、private sentinel 0、no provider call/no fake `AiUsageLog`，以及 clean cross-flow browser 不因 public status 讀取或 notification BFF 缺口起不來。
+- 此 gate 不代表 production DB outage policy、real payment/email/notification enablement、provider AI availability 或 external NANDA/public discovery 已批准。
+
 ### 2.2 Member App
 
 - Unauthenticated request returns 401 or redirects to login.
