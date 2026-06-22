@@ -115,6 +115,7 @@ const approvedHighSensitivityHandoff = buildVisitTheaterHandoff({
 const failures: string[] = [];
 const serialized = JSON.stringify(handoff);
 const evidenceSummary = handoff.sourceSummary.evidenceSummary;
+const relationshipConfirmation = evidenceSummary.relationshipConfirmation;
 
 if (handoff.status !== "READY") failures.push("normal handoff did not become READY");
 if (handoff.packet.readiness !== "READY") failures.push("packet readiness is not READY");
@@ -159,6 +160,53 @@ for (const expectedSource of ["relationship_graph", "policy", "ai_tag", "unknown
 if (evidenceSummary.theaterMaterialCounts.facts < 1) failures.push("fact material count missing");
 if (evidenceSummary.theaterMaterialCounts.inferences < 1) failures.push("inference material count missing");
 if (evidenceSummary.theaterMaterialCounts.unknowns < 1) failures.push("unknown material count missing");
+if (handoff.sourceSummary.sourceCounts.relationshipConfirmationCards < 1) {
+  failures.push("relationship confirmation source count missing");
+}
+if (relationshipConfirmation.cardCount < 1) failures.push("relationship confirmation card summary missing");
+if (relationshipConfirmation.highPriorityCount < 1) failures.push("relationship confirmation high-priority summary missing");
+if (relationshipConfirmation.byStatus.inference + relationshipConfirmation.byStatus.unknown < 1) {
+  failures.push("relationship confirmation inference/unknown boundary missing");
+}
+if (!relationshipConfirmation.actions.includes("ASK_OPEN_QUESTION")) {
+  failures.push("relationship confirmation open-question action missing");
+}
+if (relationshipConfirmation.localAdvisorStatePersisted) {
+  failures.push("relationship confirmation advisor local state was incorrectly marked persisted");
+}
+if (relationshipConfirmation.providerCallAttempted || relationshipConfirmation.aiUsageLogWritten) {
+  failures.push("relationship confirmation handoff should be deterministic no-provider");
+}
+if (relationshipConfirmation.writesConfirmedCrmFact) {
+  failures.push("relationship confirmation handoff wrote confirmed CRM fact");
+}
+if (relationshipConfirmation.storesRawProviderPayload || relationshipConfirmation.rawPrivateTranscriptIncluded) {
+  failures.push("relationship confirmation handoff leaked raw provider/private transcript fields");
+}
+if (!handoff.knownMaterials.some((item) => item.includes("relationship_confirmation_card="))) {
+  failures.push("relationship confirmation cards did not enter theater knownMaterials");
+}
+if (!handoff.knownMaterials.some((item) => item.includes("advisor_state=local_only_not_persisted"))) {
+  failures.push("relationship confirmation local-only advisor state was not explicit in theater materials");
+}
+if (handoff.packet.confirmedFacts.some((fact) => fact.includes("relationship_confirmation_card="))) {
+  failures.push("relationship confirmation card leaked into confirmed theater facts");
+}
+if (
+  relationshipConfirmation.byStatus.unknown > 0 &&
+  !handoff.packet.narratorQuestions.some((question) => question.includes("relationship_confirmation_card="))
+) {
+  failures.push("unknown relationship confirmation cards did not become narrator confirmation questions");
+}
+if (
+  relationshipConfirmation.byStatus.unknown > 0 &&
+  !handoff.missing.includes("關係確認卡仍有未知關係/欄位待現場確認")
+) {
+  failures.push("unknown relationship confirmation cards were not surfaced in missing list");
+}
+if (!handoff.warnings.includes("關係確認卡已帶入劇場作為待確認素材；顧問勾選狀態尚未持久化。")) {
+  failures.push("relationship confirmation local-state warning missing");
+}
 if (!handoff.missing.includes("準備包仍有待確認推論依據")) {
   failures.push("unknown reasoning gap was not surfaced in missing list");
 }
@@ -196,6 +244,7 @@ console.log(
       unknowns: handoff.packet.unknowns.length,
       questionEvidenceByStatus: evidenceSummary.questionEvidenceByStatus,
       questionEvidenceSources: evidenceSummary.questionEvidenceSources,
+      relationshipConfirmation,
       theaterMaterialCounts: evidenceSummary.theaterMaterialCounts,
       blockedHighSensitivityStatus: highSensitivityHandoff.status,
       approvedHighSensitivityStatus: approvedHighSensitivityHandoff.status,

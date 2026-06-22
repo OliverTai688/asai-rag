@@ -1,6 +1,11 @@
 import type { Client, FamilyMember, Policy } from "../client/types";
 import { buildTheaterFieldBuildContext } from "../interview/theater-build";
 import type { TheaterBuildPacket } from "../interview/types";
+import {
+  buildVisitRelationshipConfirmationDeck,
+  type VisitRelationshipConfirmationAction,
+  type VisitRelationshipConfirmationDeck,
+} from "../visit/relationship-confirmation";
 import type {
   ObjectionHandling,
   SpinQuestion,
@@ -13,6 +18,19 @@ import type {
 } from "../visit/types";
 
 export type VisitTheaterHandoffStatus = "READY" | "NEEDS_MORE_INFO" | "BLOCKED_SENSITIVE";
+
+export interface VisitTheaterRelationshipConfirmationHandoffSummary {
+  cardCount: number;
+  highPriorityCount: number;
+  byStatus: Record<VisitQuestionEvidenceStatus, number>;
+  actions: VisitRelationshipConfirmationAction[];
+  localAdvisorStatePersisted: false;
+  providerCallAttempted: false;
+  aiUsageLogWritten: false;
+  writesConfirmedCrmFact: false;
+  storesRawProviderPayload: false;
+  rawPrivateTranscriptIncluded: false;
+}
 
 export interface VisitTheaterSensitivityApproval {
   riskAccepted: boolean;
@@ -47,10 +65,12 @@ export interface VisitTheaterHandoff {
       policies: number;
       objections: number;
       visitMaterials: number;
+      relationshipConfirmationCards: number;
     };
     evidenceSummary: {
       questionEvidenceByStatus: Record<VisitQuestionEvidenceStatus, number>;
       questionEvidenceSources: VisitQuestionEvidenceSource[];
+      relationshipConfirmation: VisitTheaterRelationshipConfirmationHandoffSummary;
       theaterMaterialCounts: {
         facts: number;
         inferences: number;
@@ -63,7 +83,9 @@ export interface VisitTheaterHandoff {
 const DEFAULT_SEGMENT_ID = "theater-focus";
 
 export function buildVisitTheaterHandoff(input: VisitTheaterHandoffInput): VisitTheaterHandoff {
-  const knownMaterials = buildVisitTheaterKnownMaterials(input);
+  const now = input.now ?? new Date().toISOString();
+  const relationshipConfirmationDeck = buildVisitRelationshipConfirmationDeck(input.client, now);
+  const knownMaterials = buildVisitTheaterKnownMaterials(input, relationshipConfirmationDeck);
   const context = buildTheaterFieldBuildContext({
     organizationId: input.organizationId,
     memberId: input.memberId,
@@ -73,11 +95,11 @@ export function buildVisitTheaterHandoff(input: VisitTheaterHandoffInput): Visit
     currentSegmentId: DEFAULT_SEGMENT_ID,
     messages: [],
     knownMaterials,
-    now: input.now,
+    now,
   });
 
-  const warnings = buildWarnings(input);
-  const missing = buildMissingItems(input);
+  const warnings = buildWarnings(input, relationshipConfirmationDeck);
+  const missing = buildMissingItems(input, relationshipConfirmationDeck);
   const blockedBySensitivity = isBlockedBySensitivity(input);
   const packet = blockedBySensitivity ? blockPacketForSensitivity(context.packet, input.client.name) : context.packet;
 
@@ -98,17 +120,25 @@ export function buildVisitTheaterHandoff(input: VisitTheaterHandoffInput): Visit
         policies: input.client.existingPolicies.length,
         objections: input.visitPlan.objections.length,
         visitMaterials: input.visitPlan.materials.length,
+        relationshipConfirmationCards: relationshipConfirmationDeck.summary.cardCount,
       },
       evidenceSummary: {
         questionEvidenceByStatus: countQuestionEvidenceByStatus(input.visitPlan.spinQuestions),
         questionEvidenceSources: collectQuestionEvidenceSources(input.visitPlan.spinQuestions),
+        relationshipConfirmation: summarizeRelationshipConfirmationDeck(relationshipConfirmationDeck),
         theaterMaterialCounts: countTheaterMaterialsByPrefix(knownMaterials),
       },
     },
   };
 }
 
-export function buildVisitTheaterKnownMaterials(input: VisitTheaterHandoffInput): string[] {
+export function buildVisitTheaterKnownMaterials(
+  input: VisitTheaterHandoffInput,
+  relationshipConfirmationDeck = buildVisitRelationshipConfirmationDeck(
+    input.client,
+    input.now ?? new Date().toISOString(),
+  ),
+): string[] {
   const { client, visitPlan } = input;
   const materials: string[] = [
     material("FACT", `focus_client=${client.name}`),
@@ -118,6 +148,7 @@ export function buildVisitTheaterKnownMaterials(input: VisitTheaterHandoffInput)
       material("FACT", `拜訪目標：${objective.description}；成功條件：${objective.successCriteria}`),
     ),
     ...visitPlan.spinQuestions.flatMap((question) => buildQuestionMaterials(question)),
+    ...buildRelationshipConfirmationMaterials(relationshipConfirmationDeck),
     ...visitPlan.objections.map((objection) => buildObjectionMaterial(objection)),
     ...visitPlan.materials.map((visitMaterial) => buildVisitMaterialEvidence(visitMaterial)),
   ];
@@ -138,6 +169,30 @@ export function buildVisitTheaterKnownMaterials(input: VisitTheaterHandoffInput)
   }
 
   return unique(materials).slice(0, 60);
+}
+
+function buildRelationshipConfirmationMaterials(deck: VisitRelationshipConfirmationDeck): string[] {
+  return deck.cards.map((card) =>
+    material(
+      prefixForEvidence(card.evidenceStatus),
+      [
+        `relationship_confirmation_card=${card.id}`,
+        `relationship=關係確認卡：${card.title}`,
+        card.personName ? `person=${card.personName}` : "",
+        card.relation ? `relation=${card.relation}` : "",
+        `status=${card.evidenceStatus}`,
+        `action=${card.action}`,
+        `priority=${card.priority}`,
+        `source=${card.sourceLabel}`,
+        `evidence=${card.evidenceDetail}`,
+        `prompt=${card.confirmationPrompt}`,
+        "advisor_state=local_only_not_persisted",
+        "writes_confirmed_crm_fact=false",
+      ]
+        .filter(Boolean)
+        .join("；"),
+    ),
+  );
 }
 
 function buildClientMaterials(client: Client): string[] {
@@ -198,7 +253,10 @@ function buildScenario(client: Client, visitPlan: VisitPlan): string {
   return objective ? `${purpose}：${objective}` : `${purpose}：${client.name} 的拜訪準備包演練`;
 }
 
-function buildWarnings(input: VisitTheaterHandoffInput): string[] {
+function buildWarnings(
+  input: VisitTheaterHandoffInput,
+  relationshipConfirmationDeck: VisitRelationshipConfirmationDeck,
+): string[] {
   const warnings: string[] = [];
   if (input.client.sensitivityLevel === "SENSITIVE") warnings.push("敏感客戶：進劇場前需確認演練素材邊界。");
   if (input.client.sensitivityLevel === "HIGHLY_SENSITIVE") {
@@ -208,14 +266,23 @@ function buildWarnings(input: VisitTheaterHandoffInput): string[] {
   if (input.visitPlan.spinQuestions.some((question) => !question.reasoning?.evidence.length)) {
     warnings.push("部分準備包問題尚未具備推論依據。");
   }
+  if (relationshipConfirmationDeck.summary.cardCount > 0) {
+    warnings.push("關係確認卡已帶入劇場作為待確認素材；顧問勾選狀態尚未持久化。");
+  }
   return warnings;
 }
 
-function buildMissingItems(input: VisitTheaterHandoffInput): string[] {
+function buildMissingItems(
+  input: VisitTheaterHandoffInput,
+  relationshipConfirmationDeck: VisitRelationshipConfirmationDeck,
+): string[] {
   const missing = [...input.client.complianceChecklist.missingItems];
   if (input.visitPlan.materials.some((item) => !item.checked)) missing.push("拜訪材料尚未全部確認");
   if (input.visitPlan.spinQuestions.some((question) => question.reasoning?.evidence.some((item) => item.status === "unknown"))) {
     missing.push("準備包仍有待確認推論依據");
+  }
+  if (relationshipConfirmationDeck.summary.unknownCount > 0) {
+    missing.push("關係確認卡仍有未知關係/欄位待現場確認");
   }
   return unique(missing);
 }
@@ -284,6 +351,33 @@ function countQuestionEvidenceByStatus(
 
 function collectQuestionEvidenceSources(questions: SpinQuestion[]): VisitQuestionEvidenceSource[] {
   return Array.from(new Set(collectQuestionEvidence(questions).map((evidence) => evidence.source))).sort();
+}
+
+function summarizeRelationshipConfirmationDeck(
+  deck: VisitRelationshipConfirmationDeck,
+): VisitTheaterRelationshipConfirmationHandoffSummary {
+  const byStatus: Record<VisitQuestionEvidenceStatus, number> = {
+    confirmed: 0,
+    inference: 0,
+    unknown: 0,
+  };
+
+  for (const card of deck.cards) {
+    byStatus[card.evidenceStatus] += 1;
+  }
+
+  return {
+    cardCount: deck.summary.cardCount,
+    highPriorityCount: deck.summary.highPriorityCount,
+    byStatus,
+    actions: Array.from(new Set(deck.cards.map((card) => card.action))).sort(),
+    localAdvisorStatePersisted: false,
+    providerCallAttempted: deck.proof.providerCallAttempted,
+    aiUsageLogWritten: deck.proof.aiUsageLogWritten,
+    writesConfirmedCrmFact: deck.proof.writesConfirmedCrmFact,
+    storesRawProviderPayload: deck.proof.storesRawProviderPayload,
+    rawPrivateTranscriptIncluded: deck.proof.rawPrivateTranscriptIncluded,
+  };
 }
 
 function countTheaterMaterialsByPrefix(materials: string[]): VisitTheaterHandoff["sourceSummary"]["evidenceSummary"]["theaterMaterialCounts"] {

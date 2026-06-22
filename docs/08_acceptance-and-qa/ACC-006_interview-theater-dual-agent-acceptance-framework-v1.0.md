@@ -373,12 +373,14 @@ ITA-005l evidence note（2026-06-22）：新增 `route-b-red-line-compliance-rev
 
 `ITA-RCG-001` 若把 preparation package 的 relationship confirmation cards 接進 Route B theater handoff，完成前必須額外滿足：
 
-- [ ] Handoff consumer 必須由 server/domain 端重建或驗證 `buildVisitRelationshipConfirmationDeck()` 的 safe card output；不得信任 browser 提供 raw org/client/session/person id。
-- [ ] Theater handoff output 必須把 card 轉成 `knownMaterials`、`sourceSummary`、旁白補問或等價 DTO，且保留 `fact` / `inference` / `unknown`、evidence refs、question/rationale 與 advisor-confirmation posture；inference/unknown 不得升格為 confirmed CRM fact。
-- [ ] 若同輪沒有 card-state persistence，UI/report 必須明確標示顧問 selection 仍是 local/next-slice；不得宣稱 refresh/new-context 已保存 selection。
-- [ ] 不得呼叫 OpenAI/Anthropic；若 provider guard 仍 disabled，必須明確提供 no-provider/no fake `AiUsageLog` proof。
-- [ ] AgentFacts-style manifest 若新增 action/DTO refs，必須保持 `registryReadiness=internal-only`，不得宣稱 external registry ready、public discovery、cross-org access 或 signed publication。
-- [ ] 需跑 `pnpm visit:relationship-confirmation-dry-run`、`pnpm visit:theater-handoff-dry-run`、`pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`；若只剩 browser screenshot，可交由 operator 自行重跑，不得讓 docs-only evidence 取代 source/domain handoff work。
+- [x] Handoff consumer 必須由 server/domain 端重建或驗證 `buildVisitRelationshipConfirmationDeck()` 的 safe card output；不得信任 browser 提供 raw org/client/session/person id。
+- [x] Theater handoff output 必須把 card 轉成 `knownMaterials`、`sourceSummary`、旁白補問或等價 DTO，且保留 `fact` / `inference` / `unknown`、evidence refs、question/rationale 與 advisor-confirmation posture；inference/unknown 不得升格為 confirmed CRM fact。
+- [x] 若同輪沒有 card-state persistence，UI/report 必須明確標示顧問 selection 仍是 local/next-slice；不得宣稱 refresh/new-context 已保存 selection。
+- [x] 不得呼叫 OpenAI/Anthropic；若 provider guard 仍 disabled，必須明確提供 no-provider/no fake `AiUsageLog` proof。
+- [x] AgentFacts-style manifest 若新增 action/DTO refs，必須保持 `registryReadiness=internal-only`，不得宣稱 external registry ready、public discovery、cross-org access 或 signed publication。
+- [x] 需跑 `pnpm visit:relationship-confirmation-dry-run`、`pnpm visit:theater-handoff-dry-run`、`pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`；若只剩 browser screenshot，可交由 operator 自行重跑，不得讓 docs-only evidence 取代 source/domain handoff work。
+
+ITA-RCG-001 evidence note（2026-06-22）：`buildVisitTheaterHandoff()` 會 domain-side 重建 safe `VisitRelationshipConfirmationDeck`，輸出 `knownMaterials` 與 `sourceSummary.evidenceSummary.relationshipConfirmation`，並保留 `localAdvisorStatePersisted=false`、`providerCallAttempted=false`、`aiUsageLogWritten=false`、`writesConfirmedCrmFact=false`。`pnpm visit:theater-handoff-dry-run` 驗證 8 張關係確認卡進 theater materials，unknown cards 進 narrator confirmation questions，且不進 confirmed facts；`pnpm ai:protocol-registry-qa` 驗證 manifest 仍為 internal-only / no external publication。
 
 ---
 
