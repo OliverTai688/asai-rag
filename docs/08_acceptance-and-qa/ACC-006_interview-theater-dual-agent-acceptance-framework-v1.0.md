@@ -207,6 +207,20 @@
 - [ ] 此 acceptance 只證明 provider success/error logging contract；不得宣稱 live OpenAI/Anthropic runtime route、DB persisted feedback 或 external registry ready。
 - [ ] 需跑 `pnpm theater:route-b-feedback-provider-dry-run`、`pnpm theater:route-b-feedback-dry-run`、`pnpm ai:protocol-registry-qa`、`pnpm ai:bff-audit`、`pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
 
+### 6.3 Route B feedback persistence and session-end UI acceptance
+
+`ITA-004c` 若把五視角回饋接成可重讀的 session review，完成前必須額外滿足：
+
+- [ ] Feedback persistence boundary 必須 owner-scoped；只能讀寫 current member 自己的 Route B session，manager/foreign session 應回 404/403。
+- [ ] 回饋資料必須維持 qualitative-only：每個 perspective 有文字、evidence basis、fact/inference/unknown labels 或等價來源；不得回 total score、ranking 或績效排名。
+- [ ] Red-line review 必須可標示嚴重項與 `notApplicable`/誤判理由；合規提醒需標明不取代正式法遵審核或法律意見。
+- [ ] Persistence envelope 固定 `requiresAdvisorConfirmation=true`、`writesConfirmedCrmFact=false`；feedback 不得直接寫 confirmed CRM fact 或修改 client/policy compliance 欄位。
+- [ ] API/UI 不得儲存或回傳 raw provider payload、raw private transcript、direct private dialog、email、phone、policy number、secret、token、cookie、OTP。
+- [ ] `/theater/[sessionId]` 必須有低噪音 session-end feedback panel：可選五視角、產生/讀回 feedback、顯示 evidence/red-line/not-applicable 狀態，且沒有 feedback 時給出明確下一步。
+- [ ] 若本 slice 先做 no-provider/deterministic persistence，proof 必須顯示 `providerCallAttempted=false`、`aiUsageLogWritten=false` 或 `AiUsageLog` count unchanged；若開啟 live provider，success/error 必須先寫 `AiUsageLog` 後才回 result。
+- [ ] AgentFacts-style manifest 必須新增 `route-b-feedback-persistence` 或等價 capability / endpoint / DTO/evidence refs / proof command，且保持 `registryReadiness=internal-only`。
+- [ ] 需跑 `pnpm theater:route-b-feedback-dry-run`、`pnpm theater:route-b-feedback-provider-dry-run`、新 feedback persistence/UI proof、`pnpm ai:protocol-registry-qa`、`pnpm ai:bff-audit`、`pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。若只有額外截圖或 DB append residual evidence，可交由 operator 自行重跑，不得讓它取代本 slice 的 source proof。
+
 ---
 
 ## 7. Data / DB Acceptance
