@@ -1,5 +1,9 @@
 import type { TheaterRouteBVisibilityScope } from "./route-b-handoff";
 import type { TheaterRouteBNextTurnDraft } from "./route-b-next-turn";
+import {
+  buildRouteBProviderPromptContext,
+  type RouteBProviderPromptContext,
+} from "./route-b-provider-prompt-context";
 
 export type TheaterRouteBNextTurnProviderKind = "OPENAI" | "ANTHROPIC";
 export type TheaterRouteBNextTurnProviderStatus = "SUCCESS" | "PROVIDER_ERROR";
@@ -32,6 +36,7 @@ export interface TheaterRouteBNextTurnProviderInput {
     writesConfirmedCrmFact: false;
     allowedWriteTargets: TheaterRouteBNextTurnDraft["persistenceEnvelope"]["allowedWriteTargets"];
   };
+  promptContext: RouteBProviderPromptContext;
   outputRules: {
     generatedTextAllowed: true;
     appendRequiresAdvisorConfirmation: true;
@@ -270,6 +275,7 @@ export function buildTheaterRouteBNextTurnProviderInput(
       writesConfirmedCrmFact: false,
       allowedWriteTargets: draft.persistenceEnvelope.allowedWriteTargets,
     },
+    promptContext: buildNextTurnPromptContext(draft),
     outputRules: {
       generatedTextAllowed: true,
       appendRequiresAdvisorConfirmation: true,
@@ -285,6 +291,20 @@ export function buildTheaterRouteBNextTurnProviderInput(
       storesProviderBody: false,
     },
   };
+}
+
+function buildNextTurnPromptContext(draft: TheaterRouteBNextTurnDraft) {
+  const personaHints = [
+    draft.nextTurn.displayName,
+    draft.nextTurn.directorDirective,
+    ...draft.nextTurn.rationale,
+  ].filter((value): value is string => typeof value === "string" && value.trim().length > 0);
+
+  return buildRouteBProviderPromptContext({
+    personaHints,
+    unknowns: draft.nextTurn.rationale,
+    maxItems: 4,
+  });
 }
 
 function blockedDraftReason(draft: TheaterRouteBNextTurnDraft): string | undefined {

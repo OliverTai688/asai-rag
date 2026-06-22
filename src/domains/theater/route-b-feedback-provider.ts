@@ -1,8 +1,14 @@
 import type {
+  RouteBRedLineRule,
+  RouteBRedLineRuleId,
   TheaterRouteBFeedbackContract,
   TheaterRouteBFeedbackPerspectiveId,
   TheaterRouteBSevereRedLine,
 } from "./route-b-feedback";
+import {
+  buildRouteBProviderPromptContext,
+  type RouteBProviderPromptContext,
+} from "./route-b-provider-prompt-context";
 
 export type TheaterRouteBFeedbackProviderKind = "OPENAI" | "ANTHROPIC";
 export type TheaterRouteBFeedbackProviderStatus = "SUCCESS" | "PROVIDER_ERROR";
@@ -24,8 +30,23 @@ export interface TheaterRouteBFeedbackProviderInput {
     canMarkNotApplicable: true;
     requiresEvidenceBasis: true;
   };
+  promptContext: RouteBProviderPromptContext;
   redLineReview: {
     severeSignals: Array<Pick<TheaterRouteBSevereRedLine, "id" | "label" | "severity" | "evidencePolicy">>;
+    allRules: Array<
+      Pick<
+        RouteBRedLineRule,
+        | "id"
+        | "label"
+        | "severity"
+        | "detectionMode"
+        | "evidencePolicy"
+        | "falsePositiveHandling"
+        | "advisorReminder"
+        | "legalAdviceIncluded"
+        | "writesConfirmedCrmFact"
+      >
+    >;
     canMarkNotApplicable: true;
     legalAdviceIncluded: false;
   };
@@ -47,7 +68,7 @@ export interface TheaterRouteBFeedbackProviderSection {
 }
 
 export interface TheaterRouteBFeedbackProviderRedLineFinding {
-  redLineId: TheaterRouteBSevereRedLine["id"];
+  redLineId: RouteBRedLineRuleId;
   label: string;
   status: "OBSERVED" | "NOT_APPLICABLE" | "NEEDS_REVIEW";
   evidenceBasis: string;
@@ -186,6 +207,8 @@ export async function runTheaterRouteBFeedbackProviderContract({
 export function buildTheaterRouteBFeedbackProviderInput(
   contract: TheaterRouteBFeedbackContract,
 ): TheaterRouteBFeedbackProviderInput {
+  const promptContext = buildFeedbackPromptContext(contract);
+
   return {
     agentId: "asai.theater.route_b",
     actionId: "route-b-feedback-provider",
@@ -203,12 +226,24 @@ export function buildTheaterRouteBFeedbackProviderInput(
       canMarkNotApplicable: contract.outputContract.canMarkNotApplicable,
       requiresEvidenceBasis: true,
     },
+    promptContext,
     redLineReview: {
       severeSignals: contract.redLineReview.severeSignals.map((signal) => ({
         id: signal.id,
         label: signal.label,
         severity: signal.severity,
         evidencePolicy: signal.evidencePolicy,
+      })),
+      allRules: promptContext.redLineCues.map((rule) => ({
+        id: rule.id,
+        label: rule.label,
+        severity: rule.severity,
+        detectionMode: rule.detectionMode,
+        evidencePolicy: rule.evidencePolicy,
+        falsePositiveHandling: rule.falsePositiveHandling,
+        advisorReminder: rule.advisorReminder,
+        legalAdviceIncluded: rule.legalAdviceIncluded,
+        writesConfirmedCrmFact: rule.writesConfirmedCrmFact,
       })),
       canMarkNotApplicable: contract.redLineReview.canMarkNotApplicable,
       legalAdviceIncluded: contract.redLineReview.legalAdviceIncluded,
@@ -220,6 +255,17 @@ export function buildTheaterRouteBFeedbackProviderInput(
       storesProviderBody: false,
     },
   };
+}
+
+function buildFeedbackPromptContext(contract: TheaterRouteBFeedbackContract) {
+  return buildRouteBProviderPromptContext({
+    personaHints: contract.selectedPerspectives.flatMap((perspective) => [perspective.label, perspective.purpose]),
+    unknowns: [
+      `unknown gaps: ${contract.inputPreview.materialCounts.unknownGaps}`,
+      `private lane count: ${contract.inputPreview.historyVisibilitySummary.PRIVATE ?? 0}`,
+    ],
+    maxItems: 5,
+  });
 }
 
 function buildTheaterRouteBFeedbackUsageLogDraft(options: {

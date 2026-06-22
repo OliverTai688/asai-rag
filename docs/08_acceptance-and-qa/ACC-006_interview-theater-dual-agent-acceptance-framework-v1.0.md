@@ -238,6 +238,22 @@ ITA-004c evidence note（2026-06-22）：`pnpm theater:route-b-feedback-review-q
 
 ITA-005a evidence note（2026-06-22）：`pnpm theater:route-b-objection-red-line-library-dry-run` 通過 35 checks，覆蓋 12 類異議、18 條紅線、5 severe immediate、13 standard post-review、自然異議選取、標不適用仍保留 audit、feedback contract/review 消費完整 library、no provider/fake usage/CRM fact/private sentinel。`pnpm theater:route-b-feedback-dry-run`、`pnpm theater:route-b-feedback-review-qa`、`pnpm theater:route-b-feedback-provider-dry-run`、`pnpm ai:protocol-registry-qa` 同步通過。
 
+### 6.5 Route B objection / red-line provider prompt-context acceptance
+
+`ITA-005b` 若把異議庫與紅線規則接入 provider prompt/runtime DTO，而尚未開啟 live provider route，完成前必須額外滿足：
+
+- [x] `RouteBProviderPromptContext` 必須引用同一份 ITA-005a library summary，包含 12 類異議、18 條紅線、5 條 immediate severe 與 13 條 post-review ids。
+- [x] Prompt context 必須依角色/情境選取 bounded objection cues，但 cue 的 `factBoundary` 仍是 `roleplay-inference-not-confirmed-fact`；不得把異議 cue 當 confirmed CRM fact。
+- [x] `TheaterRouteBNextTurnProviderInput.promptContext` 必須存在，且 provider input 仍只使用 next-turn preview / guard evidence / persistence envelope / prompt context；不得包含 raw private transcript、direct private dialog、raw provider body、email、phone、secret、token、cookie、OTP。
+- [x] `TheaterRouteBFeedbackProviderInput.promptContext` 必須存在；`redLineReview.allRules` 必須覆蓋完整 18 條紅線，而不只 severe five。
+- [x] Prompt context / allRules 必須固定 `legalAdviceIncluded=false`、`writesConfirmedCrmFact=false`、`storesRawProviderPayload=false`、`rawPrivateTranscriptAllowed=false`，且 provider enablement 仍要求 success/error `AiUsageLog`。
+- [x] Existing next-turn / feedback provider success/error paths 必須仍先寫 usage record 才回 success 或 sanitized provider error；本 prompt-context proof 不得假裝 live OpenAI/Anthropic route 已開。
+- [x] AgentFacts-style manifest 必須新增 `route-b-provider-prompt-context` capability / action / DTO/evidence refs / `pnpm theater:route-b-provider-prompt-context-dry-run` proof command，且保持 `registryReadiness=internal-only`。
+- [x] 需跑 `pnpm theater:route-b-provider-prompt-context-dry-run`、`pnpm theater:route-b-next-turn-provider-dry-run`、`pnpm theater:route-b-feedback-provider-dry-run`、`pnpm theater:route-b-objection-red-line-library-dry-run`、`pnpm ai:protocol-registry-qa`、`pnpm ai:bff-audit`、`pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+- [ ] 後續若接 live provider route 或即時嚴重紅線 UI，仍需另做 owner-scoped API/browser proof、provider success/error `AiUsageLog` proof、UI no-overflow/a11y proof；若只剩截圖，可交由 operator 自行重跑，不得以 docs-only proof 取代 source work。
+
+ITA-005b evidence note（2026-06-22）：新增 `RouteBProviderPromptContext` 與 provider input wiring。靜態 dry-run 覆蓋 12/18 library counts、selected objection cues、5 immediate severe、13 post-review、no legal advice、no CRM fact write、no provider call/fake usage、no private/provider sentinel；next-turn 與 feedback provider dry-run 也確認 promptContext 已進入 provider input 並保留 success/error `AiUsageLog` contract。尚未宣稱 live provider route、即時 UI 或 external registry ready。
+
 ---
 
 ## 7. Data / DB Acceptance

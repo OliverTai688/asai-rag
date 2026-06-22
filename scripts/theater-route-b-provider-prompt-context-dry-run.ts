@@ -1,0 +1,92 @@
+import {
+  buildRouteBProviderPromptContext,
+  type RouteBProviderPromptContext,
+} from "../src/domains/theater/route-b-provider-prompt-context";
+
+const checks: Array<{ label: string; detail?: string }> = [];
+
+const context = buildRouteBProviderPromptContext({
+  role: "DECISION_MAKER",
+  personaHints: ["保費負擔", "另一半需要一起討論", "家庭資料隱私敏感"],
+  unknowns: ["尚未確認付款者與共同決策者", "不確定是否已有緊急預備金"],
+  maxItems: 5,
+});
+
+check(context.agentId === "asai.theater.route_b", "prompt context keeps Route B agent id");
+check(context.actionId === "route-b-provider-prompt-context", "prompt context declares provider prompt action");
+check(context.registryReadiness === "internal-only", "prompt context remains internal-only");
+check(context.librarySummary.objectionPromptCount === 12, "prompt context references 12 objection prompts");
+check(context.librarySummary.redLineRuleCount === 18, "prompt context references 18 red-line rules");
+check(context.librarySummary.severeRedLineCount === 5, "prompt context keeps five severe immediate red lines");
+check(context.librarySummary.standardRedLineCount === 13, "prompt context keeps thirteen standard post-review red lines");
+check(context.selectedObjections.length === 5, "prompt context selects bounded role-aware objection cues");
+check(hasObjection(context, "PREMIUM_BURDEN"), "prompt context selects premium burden cue from hints");
+check(hasObjection(context, "FAMILY_ALIGNMENT"), "prompt context selects family alignment cue from hints");
+check(hasObjection(context, "PRIVACY_SENSITIVITY"), "prompt context selects privacy sensitivity cue from hints");
+check(context.redLineCues.length === 18, "prompt context carries all red-line cues for provider review");
+check(
+  context.redLineCues.filter((cue) => cue.severity === "SEVERE" && cue.detectionMode === "IMMEDIATE").length === 5,
+  "severe red-line cues stay immediate",
+);
+check(
+  context.redLineCues.filter((cue) => cue.severity === "STANDARD" && cue.detectionMode === "POST_REVIEW").length === 13,
+  "standard red-line cues stay post-review",
+);
+check(context.promptRules.useAsRoleplayCoachingContext, "prompt context is roleplay coaching context only");
+check(context.promptRules.doNotTreatObjectionsAsConfirmedCrmFacts, "objection cues cannot become confirmed CRM facts");
+check(context.promptRules.doNotProvideLegalAdvice, "prompt context forbids legal advice posture");
+check(context.promptRules.immediateSevereRedLineIds.length === 5, "prompt rules expose five immediate severe red-line ids");
+check(context.promptRules.postReviewRedLineIds.length === 13, "prompt rules expose thirteen post-review red-line ids");
+check(context.promptRules.canMarkNotApplicableButKeepAuditRecord, "red-line not-applicable still keeps audit record");
+check(!context.providerBoundary.providerCallAttempted, "prompt context does not call provider");
+check(!context.providerBoundary.aiUsageLogWritten, "prompt context does not fake AiUsageLog");
+check(context.providerBoundary.successErrorAiUsageLogRequiredBeforeProviderEnablement, "provider enablement still requires success/error AiUsageLog");
+check(!context.providerBoundary.storesRawProviderPayload, "prompt context forbids raw provider payload storage");
+check(!context.providerBoundary.rawPrivateTranscriptAllowed, "prompt context forbids raw private transcript");
+check(!context.providerBoundary.directPrivateDialogAllowed, "prompt context forbids direct private dialog");
+check(context.redLineCues.every((cue) => !cue.legalAdviceIncluded), "red-line cues contain no legal advice");
+check(context.redLineCues.every((cue) => !cue.writesConfirmedCrmFact), "red-line cues cannot write confirmed CRM facts");
+checkNoSentinel(context, "prompt context excludes private/provider sentinel text");
+
+for (const result of checks) {
+  console.log(`PASS ${result.label}${result.detail ? ` - ${result.detail}` : ""}`);
+}
+
+console.log(
+  JSON.stringify(
+    {
+      actionId: context.actionId,
+      objectionPromptCount: context.librarySummary.objectionPromptCount,
+      redLineRuleCount: context.librarySummary.redLineRuleCount,
+      selectedObjectionIds: context.selectedObjections.map((cue) => cue.id),
+      severeRedLineCount: context.librarySummary.severeRedLineCount,
+      standardRedLineCount: context.librarySummary.standardRedLineCount,
+      providerCallAttempted: context.providerBoundary.providerCallAttempted,
+      aiUsageLogWritten: context.providerBoundary.aiUsageLogWritten,
+      successErrorAiUsageLogRequiredBeforeProviderEnablement:
+        context.providerBoundary.successErrorAiUsageLogRequiredBeforeProviderEnablement,
+      legalAdviceIncluded: context.redLineCues.some((cue) => cue.legalAdviceIncluded),
+      writesConfirmedCrmFact: context.redLineCues.some((cue) => cue.writesConfirmedCrmFact),
+    },
+    null,
+    2,
+  ),
+);
+
+function hasObjection(context: RouteBProviderPromptContext, id: RouteBProviderPromptContext["selectedObjections"][number]["id"]) {
+  return context.selectedObjections.some((cue) => cue.id === id);
+}
+
+function check(condition: boolean, label: string, detail?: string) {
+  if (!condition) {
+    throw new Error(`FAIL ${label}${detail ? ` - ${detail}` : ""}`);
+  }
+  checks.push({ label, detail });
+}
+
+function checkNoSentinel(value: unknown, label: string) {
+  const serialized = JSON.stringify(value);
+  check(!/qa-private@example\.com/i.test(serialized), label);
+  check(!/0912[-\s]?345[-\s]?678/.test(serialized), label);
+  check(!/\b(rawPayload|providerPayload|authorization|cookie|secret|token|otp|payment|policyNumber)\b/i.test(serialized), label);
+}

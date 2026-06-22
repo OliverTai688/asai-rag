@@ -44,6 +44,18 @@ check(providerInput.nextTurn.visibilityScope === "PRIVATE", "provider input pres
 check(Boolean(providerInput.nextTurn.guardEvidence?.namedAddresseeMustAnswer), "provider input carries named-addressee guard");
 check(providerInput.persistenceEnvelope.requiresAdvisorConfirmation, "provider input requires advisor confirmation");
 check(!providerInput.persistenceEnvelope.writesConfirmedCrmFact, "provider input cannot write confirmed CRM fact");
+check(providerInput.promptContext.actionId === "route-b-provider-prompt-context", "provider input carries prompt context action");
+check(providerInput.promptContext.librarySummary.objectionPromptCount === 12, "provider input prompt context references 12 objections");
+check(providerInput.promptContext.librarySummary.redLineRuleCount === 18, "provider input prompt context references 18 red lines");
+check(providerInput.promptContext.selectedObjections.length === 4, "provider input prompt context selects bounded objections");
+check(providerInput.promptContext.redLineCues.length === 18, "provider input prompt context carries all red-line cues");
+check(providerInput.promptContext.promptRules.immediateSevereRedLineIds.length === 5, "provider input prompt context keeps five immediate severe red lines");
+check(providerInput.promptContext.promptRules.postReviewRedLineIds.length === 13, "provider input prompt context keeps thirteen post-review red lines");
+check(providerInput.promptContext.promptRules.doNotTreatObjectionsAsConfirmedCrmFacts, "provider input prompt context prevents confirmed CRM fact writes");
+check(providerInput.promptContext.promptRules.doNotProvideLegalAdvice, "provider input prompt context forbids legal advice posture");
+check(!providerInput.promptContext.providerBoundary.providerCallAttempted, "prompt context itself does not call provider");
+check(!providerInput.promptContext.providerBoundary.aiUsageLogWritten, "prompt context itself does not fake AiUsageLog");
+check(providerInput.promptContext.providerBoundary.successErrorAiUsageLogRequiredBeforeProviderEnablement, "prompt context keeps success/error AiUsageLog enablement gate");
 check(providerInput.outputRules.generatedTextAllowed, "provider input allows generated text only inside provider contract");
 check(providerInput.outputRules.appendRequiresAdvisorConfirmation, "provider input requires append confirmation");
 check(!providerInput.outputRules.storesRawProviderPayload, "provider input forbids raw provider payload storage");
@@ -55,6 +67,8 @@ const fakeProvider: TheaterRouteBNextTurnProviderAdapter = {
   async generate(input: TheaterRouteBNextTurnProviderInput) {
     eventTrail.push("provider.success.generate");
     assert.equal(input.outputRules.appendRequiresAdvisorConfirmation, true);
+    assert.equal(input.promptContext.redLineCues.length, 18);
+    assert.equal(input.promptContext.promptRules.doNotTreatObjectionsAsConfirmedCrmFacts, true);
     return {
       model: "gpt-test-route-b-character",
       tokenUsage: { inputTokens: 212.9, outputTokens: 57.6 },
@@ -227,6 +241,11 @@ async function main() {
           successResult.providerCallAttempted && narratorResult.providerCallAttempted && errorResult.providerCallAttempted,
         aiUsageLogWritten: successResult.aiUsageLogWritten && narratorResult.aiUsageLogWritten && errorResult.aiUsageLogWritten,
         appendCandidateRequiresConfirmation: successResult.appendCandidate.requiresAdvisorConfirmation,
+        promptContextObjectionCount: providerInput.promptContext.librarySummary.objectionPromptCount,
+        promptContextRedLineCount: providerInput.promptContext.librarySummary.redLineRuleCount,
+        promptContextSelectedObjections: providerInput.promptContext.selectedObjections.map((cue) => cue.id),
+        promptContextImmediateSevereIds: providerInput.promptContext.promptRules.immediateSevereRedLineIds,
+        promptContextPostReviewIds: providerInput.promptContext.promptRules.postReviewRedLineIds,
         blockedProviderCallAttempted: blockedResult.providerCallAttempted,
         writesConfirmedCrmFact: successResult.appendCandidate.writesConfirmedCrmFact,
         rawPrivateTranscriptIncluded: successResult.appendCandidate.rawPrivateTranscriptIncluded,

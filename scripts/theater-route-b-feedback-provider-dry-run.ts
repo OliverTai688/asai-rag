@@ -47,7 +47,22 @@ check(providerInput.outputRules.qualitativeOnly, "provider input requires qualit
 check(!providerInput.outputRules.totalScoreAllowed, "provider input forbids total score");
 check(!providerInput.outputRules.rankingAllowed, "provider input forbids ranking");
 check(providerInput.outputRules.requiresEvidenceBasis, "provider input requires evidence basis");
+check(providerInput.promptContext.actionId === "route-b-provider-prompt-context", "provider input carries prompt context action");
+check(providerInput.promptContext.librarySummary.objectionPromptCount === 12, "provider input prompt context references 12 objections");
+check(providerInput.promptContext.librarySummary.redLineRuleCount === 18, "provider input prompt context references 18 red lines");
+check(providerInput.promptContext.selectedObjections.length === 5, "provider input prompt context selects bounded objections");
+check(providerInput.promptContext.redLineCues.length === 18, "provider input prompt context carries all red-line cues");
+check(providerInput.promptContext.promptRules.immediateSevereRedLineIds.length === 5, "provider input prompt context keeps five immediate severe red lines");
+check(providerInput.promptContext.promptRules.postReviewRedLineIds.length === 13, "provider input prompt context keeps thirteen post-review red lines");
+check(providerInput.promptContext.promptRules.doNotTreatObjectionsAsConfirmedCrmFacts, "provider input prompt context prevents confirmed CRM fact writes");
+check(providerInput.promptContext.promptRules.doNotProvideLegalAdvice, "provider input prompt context forbids legal advice posture");
+check(!providerInput.promptContext.providerBoundary.providerCallAttempted, "prompt context itself does not call provider");
+check(!providerInput.promptContext.providerBoundary.aiUsageLogWritten, "prompt context itself does not fake AiUsageLog");
+check(providerInput.promptContext.providerBoundary.successErrorAiUsageLogRequiredBeforeProviderEnablement, "prompt context keeps success/error AiUsageLog enablement gate");
 check(providerInput.redLineReview.severeSignals.length === 5, "provider input carries severe red-line review labels");
+check(providerInput.redLineReview.allRules.length === 18, "provider input carries all red-line review rules");
+check(providerInput.redLineReview.allRules.every((rule) => !rule.legalAdviceIncluded), "red-line review all-rules contain no legal advice");
+check(providerInput.redLineReview.allRules.every((rule) => !rule.writesConfirmedCrmFact), "red-line review all-rules cannot write confirmed CRM facts");
 check(!providerInput.redLineReview.legalAdviceIncluded, "provider input does not include legal advice claim");
 check(providerInput.privacyBoundary.usesInputPreviewOnly, "provider input uses only preview counts and labels");
 check(!providerInput.privacyBoundary.includesTurnText, "provider input excludes turn text");
@@ -59,6 +74,8 @@ const fakeProvider: TheaterRouteBFeedbackProviderAdapter = {
   async generate(input: TheaterRouteBFeedbackProviderInput) {
     eventTrail.push("provider.success.generate");
     assert.equal(input.outputRules.totalScoreAllowed, false);
+    assert.equal(input.promptContext.redLineCues.length, 18);
+    assert.equal(input.redLineReview.allRules.length, 18);
     return {
       model: "gpt-test-route-b-feedback",
       tokenUsage: { inputTokens: 321.8, outputTokens: 88.2 },
@@ -71,9 +88,9 @@ const fakeProvider: TheaterRouteBFeedbackProviderAdapter = {
           advisorMove: "Ask one focused follow-up question.",
           riskOrUnknown: "Mark unknowns before recommending a product.",
         })),
-        redLineFindings: input.redLineReview.severeSignals.map((signal) => ({
-          redLineId: signal.id,
-          label: signal.label,
+        redLineFindings: input.redLineReview.allRules.map((rule) => ({
+          redLineId: rule.id,
+          label: rule.label,
           status: "NOT_APPLICABLE",
           evidenceBasis: "No matching summary signal in preview.",
         })),
@@ -125,6 +142,7 @@ async function main() {
   check(successResult.aiUsageLogWritten, "provider success path marks AiUsageLog written");
   check(successResult.usageLogId === "usage_success_001", "provider success path exposes usage log id");
   check(successResult.storesProviderBody === false, "provider success path does not store provider body");
+  check(successResult.feedback.redLineFindings.length === 18, "provider success path can return all 18 red-line findings");
   check(successRecords.length === 1, "provider success path writes exactly one success usage record");
   check(successRecords[0]?.outcome === "SUCCESS", "success usage record outcome is SUCCESS");
   check(successRecords[0]?.inputTokens === 321, "success usage record floors input token count");
@@ -172,6 +190,11 @@ async function main() {
         providerCallAttempted: successResult.providerCallAttempted && errorResult.providerCallAttempted,
         aiUsageLogWritten: successResult.aiUsageLogWritten && errorResult.aiUsageLogWritten,
         storesProviderBody: successResult.storesProviderBody || errorResult.storesProviderBody,
+        promptContextObjectionCount: providerInput.promptContext.librarySummary.objectionPromptCount,
+        promptContextRedLineCount: providerInput.promptContext.librarySummary.redLineRuleCount,
+        promptContextSelectedObjections: providerInput.promptContext.selectedObjections.map((cue) => cue.id),
+        redLineReviewAllRuleCount: providerInput.redLineReview.allRules.length,
+        redLineFindingsCount: successResult.status === "SUCCESS" ? successResult.feedback.redLineFindings.length : 0,
         eventTrail,
       },
       null,
@@ -302,11 +325,8 @@ function check(condition: boolean, label: string, detail?: string) {
 function checkNoSentinel(value: unknown, label: string) {
   const serialized = collectStringValues(value).join("\n");
   const forbidden = ["qa-private@example.com", "0912-345-678", "rawPayload", "providerPayload", "authorization", "cookie", "secret", "token", "otp"];
-  check(
-    !forbidden.some((sentinel) => serialized.toLowerCase().includes(sentinel.toLowerCase())),
-    label,
-    serialized,
-  );
+  const hasForbiddenSentinel = forbidden.some((sentinel) => serialized.toLowerCase().includes(sentinel.toLowerCase()));
+  check(!hasForbiddenSentinel, label, hasForbiddenSentinel ? serialized : undefined);
 }
 
 function collectStringValues(value: unknown): string[] {

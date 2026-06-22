@@ -84,11 +84,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 2,
+    "normalLoopsSinceLastWholeProductReview": 3,
     "lastWholeProductReviewAt": "2026-06-22T06:30:13Z",
     "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-22_lv3-whole-product-gap-review-after-route-b-append-confirmation.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "ITA-005b Route B objection/red-line prompt integration: wire the new objection/red-line source library into Route B director/character/feedback provider prompts and runtime DTOs without changing confirmed CRM facts; prove no-provider/static prompt coverage first, then run live provider proof only if env is ready and every provider success/error path writes AiUsageLog. Avoid docs-only evidence loops; if the remaining proof is just operator-runnable browser screenshots, tell the operator what to rerun instead of spending a loop on screenshot collection.",
+    "nextRecommendedImplementationSlice": "ITA-005c Route B severe red-line runtime/UI preview: surface the provider prompt-context severe immediate rules in Route B next-turn/feedback UI or guarded runtime preview as advisor-visible warnings without calling provider, changing confirmed CRM facts, or giving legal advice; prove source/UI contract first. If provider env and usage-log path are ready, alternate next slice is ITA-003n live Route B next-turn provider route wiring with success/error AiUsageLog proof. Avoid docs-only evidence loops; if residual proof is just operator-runnable screenshots, hand the exact command to the operator.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {
@@ -156,5 +156,5 @@
     "lv3ImmersiveLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-immersive-loop.md",
     "lv3WholeProductGapReviewLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md"
   },
-  "updatedAt": "2026-06-22T07:12:13Z"
+  "updatedAt": "2026-06-22T07:42:13Z"
 }

@@ -4,7 +4,7 @@ import { mkdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
 
 const root = process.cwd();
-const outDir = join(root, ".tmp", "theater-route-b-next-turn-provider-dry-run");
+const outDir = join(root, ".tmp", "theater-route-b-provider-prompt-context-dry-run");
 
 rmSync(outDir, { recursive: true, force: true });
 mkdirSync(outDir, { recursive: true });
@@ -26,20 +26,16 @@ try {
       "--strict",
       "--outDir",
       outDir,
-      "scripts/theater-route-b-next-turn-provider-dry-run.ts",
-      "src/domains/theater/route-b-next-turn-provider.ts",
+      "scripts/theater-route-b-provider-prompt-context-dry-run.ts",
       "src/domains/theater/route-b-provider-prompt-context.ts",
       "src/domains/theater/route-b-objection-red-line-library.ts",
-      "src/domains/theater/route-b-next-turn.ts",
-      "src/domains/theater/route-b-orchestration.ts",
       "src/domains/theater/route-b-handoff.ts",
-      "src/domains/theater/route-b-session.ts",
       "src/domains/interview/types.ts",
     ],
     { cwd: root, stdio: "inherit" },
   );
 
-  execFileSync("node", [join(outDir, "scripts", "theater-route-b-next-turn-provider-dry-run.js")], {
+  execFileSync("node", [join(outDir, "scripts", "theater-route-b-provider-prompt-context-dry-run.js")], {
     cwd: root,
     stdio: "inherit",
   });
