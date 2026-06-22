@@ -221,6 +221,8 @@
 - [ ] AgentFacts-style manifest 必須新增 `route-b-feedback-persistence` 或等價 capability / endpoint / DTO/evidence refs / proof command，且保持 `registryReadiness=internal-only`。
 - [ ] 需跑 `pnpm theater:route-b-feedback-dry-run`、`pnpm theater:route-b-feedback-provider-dry-run`、新 feedback persistence/UI proof、`pnpm ai:protocol-registry-qa`、`pnpm ai:bff-audit`、`pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。若只有額外截圖或 DB append residual evidence，可交由 operator 自行重跑，不得讓它取代本 slice 的 source proof。
 
+ITA-004c evidence note（2026-06-22）：`pnpm theater:route-b-feedback-review-qa` 以 deterministic domain dry-run + static API/repository/UI contract QA 覆蓋五視角、紅線 notApplicable、no score/ranking、no raw provider/private/contact/policy sentinel、owner-scoped repository selectors、`sceneState.feedbackReview` persistence、`/theater/[sessionId]` session-end panel 與 AgentFacts manifest refs。剩餘 manager/foreign live DB denial screenshot 屬可由 operator 自行重跑的 residual evidence，不取代本 source proof，也不阻擋下一輪做 `ITA-005a` 紅線/異議 source library 或 live provider wiring。
+
 ---
 
 ## 7. Data / DB Acceptance

@@ -6,6 +6,12 @@ import {
   type TheaterRouteBNextTurnAppendConfirmationInput,
   type TheaterRouteBNextTurnAppendRejectionCode,
 } from "@/domains/theater/route-b-next-turn-append";
+import {
+  buildTheaterRouteBFeedbackReview,
+  isTheaterRouteBFeedbackReview,
+  type BuildTheaterRouteBFeedbackReviewOptions,
+  type TheaterRouteBFeedbackReview,
+} from "@/domains/theater/route-b-feedback-review";
 import { buildTheaterRouteBStatePatch } from "@/domains/theater/route-b-handoff";
 import type { TheaterRouteBHandoffPacket } from "@/domains/theater/route-b-handoff";
 import type { RouteBSessionSnapshot } from "@/domains/theater/route-b-session";
@@ -62,6 +68,20 @@ export type AppendRouteBNextTurnCandidateResult =
   | { status: "CREATED"; data: RouteBSessionSnapshot }
   | { status: "NOT_FOUND" }
   | { status: "INVALID_APPEND_CANDIDATE"; errorCode: TheaterRouteBNextTurnAppendRejectionCode; message: string };
+
+export type RouteBFeedbackReviewInput = Pick<
+  BuildTheaterRouteBFeedbackReviewOptions,
+  "selectedPerspectiveIds" | "notApplicableRedLines"
+>;
+
+export type GetRouteBFeedbackReviewResult =
+  | { status: "OK"; data: TheaterRouteBFeedbackReview }
+  | { status: "EMPTY" }
+  | { status: "NOT_FOUND" };
+
+export type CreateRouteBFeedbackReviewResult =
+  | { status: "CREATED"; data: TheaterRouteBFeedbackReview }
+  | { status: "NOT_FOUND" };
 
 const routeBSessionInclude = {
   characters: {
@@ -178,6 +198,78 @@ export async function getRouteBSessionForMember(
   }
 
   return { status: "OK", data: toRouteBSessionSnapshot(record) };
+}
+
+export async function getRouteBFeedbackReviewForMember(
+  session: AppSession,
+  sessionId: string,
+): Promise<GetRouteBFeedbackReviewResult> {
+  const record = await prisma.theaterSession.findFirst({
+    where: {
+      id: sessionId,
+      organizationId: session.organization.id,
+      ownerId: session.user.id,
+      routeBEnabled: true,
+    },
+    select: {
+      sceneState: true,
+    },
+  });
+
+  if (!record) {
+    return { status: "NOT_FOUND" };
+  }
+
+  const feedbackReview = asRecord(record.sceneState).feedbackReview;
+  if (!isTheaterRouteBFeedbackReview(feedbackReview)) {
+    return { status: "EMPTY" };
+  }
+
+  return { status: "OK", data: feedbackReview };
+}
+
+export async function createRouteBFeedbackReviewForMember(
+  session: AppSession,
+  sessionId: string,
+  input: RouteBFeedbackReviewInput,
+): Promise<CreateRouteBFeedbackReviewResult> {
+  const data = await prisma.$transaction(async (tx): Promise<CreateRouteBFeedbackReviewResult> => {
+    const record = await tx.theaterSession.findFirst({
+      where: {
+        id: sessionId,
+        organizationId: session.organization.id,
+        ownerId: session.user.id,
+        routeBEnabled: true,
+      },
+      include: routeBSessionInclude,
+    });
+
+    if (!record) {
+      return { status: "NOT_FOUND" };
+    }
+
+    const feedbackReview = buildTheaterRouteBFeedbackReview({
+      snapshot: toRouteBSessionSnapshot(record),
+      selectedPerspectiveIds: input.selectedPerspectiveIds,
+      notApplicableRedLines: input.notApplicableRedLines,
+    });
+    const sceneState = asRecord(record.sceneState);
+
+    await tx.theaterSession.update({
+      where: { id: sessionId },
+      data: {
+        sceneState: toInputJson({
+          ...sceneState,
+          feedbackReview,
+          writesConfirmedCrmFact: false,
+        }),
+      },
+    });
+
+    return { status: "CREATED", data: feedbackReview };
+  });
+
+  return data;
 }
 
 export async function appendRouteBAdvisorTurnForMember(

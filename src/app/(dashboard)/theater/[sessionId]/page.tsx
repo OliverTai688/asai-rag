@@ -33,6 +33,7 @@ import {
 } from "@/domains/demo/quickstart";
 import { theaterTourSteps } from "@/domains/demo/tour-steps";
 import { useSpinStore } from "@/domains/spin/store";
+import type { TheaterRouteBFeedbackReview } from "@/domains/theater/route-b-feedback-review";
 import type { TheaterRouteBNextTurnAppendCandidate } from "@/domains/theater/route-b-next-turn-append";
 import type { TheaterRouteBNextTurnDraft } from "@/domains/theater/route-b-next-turn";
 import type { RouteBSessionSnapshot } from "@/domains/theater/route-b-session";
@@ -50,6 +51,15 @@ const SCORE_ITEMS: Array<{ key: keyof Pick<TheaterScore, "empathy" | "questionin
 ];
 
 const EMPTY_TURNS: TheaterTurn[] = [];
+
+type RouteBFeedbackReviewStatus = "idle" | "loading" | "ready" | "empty" | "error" | "generating";
+
+type RouteBFeedbackReviewEmptyPayload = {
+  status: "EMPTY";
+  providerCallAttempted: false;
+  aiUsageLogWritten: false;
+  writesConfirmedCrmFact: false;
+};
 
 function normalizeParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
@@ -439,6 +449,9 @@ function RouteBSessionStage({
   const [nextTurnStatus, setNextTurnStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [nextTurnError, setNextTurnError] = useState<string | null>(null);
   const [isConfirmingNextTurnAppend, setIsConfirmingNextTurnAppend] = useState(false);
+  const [feedbackReview, setFeedbackReview] = useState<TheaterRouteBFeedbackReview | null>(null);
+  const [feedbackReviewStatus, setFeedbackReviewStatus] = useState<RouteBFeedbackReviewStatus>("idle");
+  const [feedbackReviewError, setFeedbackReviewError] = useState<string | null>(null);
   const relationships = routeBRecords(snapshot.scene.relationships);
   const narratorQuestions = routeBRecords(snapshot.scene.narratorQuestions);
   const visibilityRules = routeBRecords(snapshot.scene.visibilityRules);
@@ -475,6 +488,71 @@ function RouteBSessionStage({
       setNextTurnDraft(null);
       setNextTurnStatus("error");
       setNextTurnError(error instanceof Error ? error.message : "Route B next-turn preview failed.");
+    }
+  };
+
+  const fetchFeedbackReview = async () => {
+    setFeedbackReviewStatus("loading");
+    setFeedbackReviewError(null);
+
+    try {
+      const response = await fetch(`/api/theater/route-b/sessions/${encodeURIComponent(snapshot.session.id)}/feedback-review`, {
+        cache: "no-store",
+      });
+      const payload = (await response.json().catch(() => null)) as
+        | TheaterRouteBFeedbackReview
+        | RouteBFeedbackReviewEmptyPayload
+        | { error?: string; message?: string }
+        | null;
+
+      if (!response.ok || !payload) {
+        const message = payload && "message" in payload && payload.message ? payload.message : "Route B feedback review read failed.";
+        throw new Error(message);
+      }
+
+      if ("status" in payload && payload.status === "EMPTY") {
+        setFeedbackReview(null);
+        setFeedbackReviewStatus("empty");
+        return;
+      }
+
+      if (!("actionId" in payload) || payload.actionId !== "route-b-feedback-persistence") {
+        throw new Error("Route B feedback review payload is invalid.");
+      }
+
+      setFeedbackReview(payload);
+      setFeedbackReviewStatus("ready");
+    } catch (error) {
+      setFeedbackReview(null);
+      setFeedbackReviewStatus("error");
+      setFeedbackReviewError(error instanceof Error ? error.message : "Route B feedback review read failed.");
+    }
+  };
+
+  const generateFeedbackReview = async () => {
+    setFeedbackReviewStatus("generating");
+    setFeedbackReviewError(null);
+
+    try {
+      const response = await fetch(`/api/theater/route-b/sessions/${encodeURIComponent(snapshot.session.id)}/feedback-review`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      const payload = (await response.json().catch(() => null)) as TheaterRouteBFeedbackReview | { error?: string; message?: string } | null;
+
+      if (!response.ok || !payload || !("actionId" in payload) || payload.actionId !== "route-b-feedback-persistence") {
+        const message = payload && "message" in payload && payload.message ? payload.message : "Route B feedback review generation failed.";
+        throw new Error(message);
+      }
+
+      setFeedbackReview(payload);
+      setFeedbackReviewStatus("ready");
+      toast.success("已保存 Route B 五視角回顧");
+    } catch (error) {
+      setFeedbackReview(null);
+      setFeedbackReviewStatus("error");
+      setFeedbackReviewError(error instanceof Error ? error.message : "Route B feedback review generation failed.");
     }
   };
 
@@ -675,6 +753,14 @@ function RouteBSessionStage({
         </main>
 
         <aside className="space-y-3">
+          <RouteBFeedbackReviewPanel
+            error={feedbackReviewError}
+            onGenerate={generateFeedbackReview}
+            onRefresh={fetchFeedbackReview}
+            review={feedbackReview}
+            status={feedbackReviewStatus}
+          />
+
           <Card className="border-hairline shadow-none">
             <CardContent className="p-5">
               <div className="flex items-start gap-3">
@@ -1059,6 +1145,153 @@ function RouteBAdvisorComposer({
         />
       </div>
     </form>
+  );
+}
+
+function RouteBFeedbackReviewPanel({
+  error,
+  onGenerate,
+  onRefresh,
+  review,
+  status,
+}: {
+  error: string | null;
+  onGenerate: () => Promise<void>;
+  onRefresh: () => Promise<void>;
+  review: TheaterRouteBFeedbackReview | null;
+  status: RouteBFeedbackReviewStatus;
+}) {
+  const isBusy = status === "loading" || status === "generating";
+  const redLineNeedsReview = review?.redLineFindings.filter((finding) => finding.status === "NEEDS_REVIEW").length ?? 0;
+  const redLineNotApplicable = review?.redLineFindings.filter((finding) => finding.status === "NOT_APPLICABLE").length ?? 0;
+
+  return (
+    <Card className="border-hairline shadow-none">
+      <CardContent className="space-y-4 p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+              Session Review
+            </p>
+            <h2 className="mt-1 text-sm font-semibold text-ink">五視角回顧</h2>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+              質化回顧、無總分排名；保存於劇場狀態，不寫 CRM confirmed fact。
+            </p>
+          </div>
+          <BrainCircuit className="mt-1 h-4 w-4 shrink-0 text-muted-foreground" />
+        </div>
+
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+          <Button
+            type="button"
+            variant="outline"
+            className="h-10 rounded-full"
+            disabled={isBusy}
+            onClick={() => void onRefresh()}
+            aria-label="讀取已保存的 Route B 五視角回顧"
+          >
+            {status === "loading" ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
+            讀取回顧
+          </Button>
+          <Button
+            type="button"
+            variant="mono"
+            className="h-10 rounded-full"
+            disabled={isBusy}
+            onClick={() => void onGenerate()}
+            aria-label="生成並保存 Route B 五視角回顧"
+          >
+            {status === "generating" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+            生成回顧
+          </Button>
+        </div>
+
+        {status === "error" ? (
+          <p className="rounded-lg border border-hairline bg-paper px-3 py-2 text-sm leading-6 text-muted-foreground">
+            {error ?? "Route B feedback review failed."}
+          </p>
+        ) : null}
+
+        {status === "empty" ? (
+          <p className="rounded-lg border border-dashed border-hairline bg-paper px-3 py-3 text-sm leading-6 text-muted-foreground">
+            尚未保存回顧。可以在這場演練收尾時生成一次五視角回顧。
+          </p>
+        ) : null}
+
+        {review ? (
+          <div className="space-y-3">
+            <div className="grid gap-2 text-sm text-muted-foreground">
+              <ContextLine label="Provider call" value={String(review.providerBoundary.providerCallAttempted)} />
+              <ContextLine label="AiUsageLog" value={String(review.providerBoundary.aiUsageLogWritten)} />
+              <ContextLine label="Writes CRM fact" value={String(review.persistenceEnvelope.writesConfirmedCrmFact)} />
+              <ContextLine label="Total score" value={String(review.outputContract.totalScoreAllowed)} />
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <RouteBMiniCount label="紅線待查" value={redLineNeedsReview} />
+              <RouteBMiniCount label="本輪不適用" value={redLineNotApplicable} />
+            </div>
+
+            <div className="space-y-2">
+              {review.sections.map((section, index) => (
+                <details
+                  key={section.perspectiveId}
+                  className="group rounded-lg border border-hairline bg-paper"
+                  open={index === 0}
+                >
+                  <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 px-3 text-sm font-medium text-ink [&::-webkit-details-marker]:hidden">
+                    <span>{section.label}</span>
+                    <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition group-open:rotate-180" />
+                  </summary>
+                  <div className="space-y-3 border-t border-hairline p-3">
+                    <p className="text-sm leading-6 text-muted-foreground">{section.observation}</p>
+                    <p className="rounded-md border border-hairline bg-background px-3 py-2 text-xs leading-5 text-muted-foreground">
+                      move: {section.advisorMove}
+                    </p>
+                    <p className="rounded-md border border-hairline bg-background px-3 py-2 text-xs leading-5 text-muted-foreground">
+                      risk: {section.riskOrUnknown}
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {section.evidenceBasis.map((item) => (
+                        <Badge key={`${section.perspectiveId}-${item.source}-${item.label}`} variant="outline" className="rounded-full">
+                          {item.label}:{item.count}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                </details>
+              ))}
+            </div>
+
+            <details className="group rounded-lg border border-hairline bg-card">
+              <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 px-3 text-sm font-medium text-ink [&::-webkit-details-marker]:hidden">
+                <span>嚴重紅線・{review.redLineFindings.length}</span>
+                <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition group-open:rotate-180" />
+              </summary>
+              <div className="space-y-2 border-t border-hairline p-3">
+                {review.redLineFindings.map((finding) => (
+                  <div key={finding.redLineId} className="rounded-md border border-hairline bg-background px-3 py-2">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-xs font-semibold text-ink">{finding.label}</p>
+                      <Badge variant="outline" className="rounded-full">
+                        {finding.status}
+                      </Badge>
+                    </div>
+                    <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                      {finding.notApplicableReason ?? finding.evidenceBasis}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </details>
+
+            <p className="rounded-lg border border-hairline bg-paper px-3 py-3 text-xs leading-5 text-muted-foreground">
+              {review.complianceReminder}
+            </p>
+          </div>
+        ) : null}
+      </CardContent>
+    </Card>
   );
 }
 
