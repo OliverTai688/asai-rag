@@ -205,6 +205,8 @@ ITA-004a feedback contract note（2026-06-22）：已完成 Route B 五視角質
 
 ITA-004b provider logging contract note（2026-06-22）：已完成 Route B feedback provider success/error usage-log contract 子切片。新增 `src/domains/theater/route-b-feedback-provider.ts` 與 `pnpm theater:route-b-feedback-provider-dry-run`，以 injected provider / usage logger 驗證：provider input 只含 feedback preview counts、五視角、紅線 labels 與 qualitative output rules；success path 在回傳 feedback 前寫 success usage record，provider error path 在回傳 sanitized error 前寫 error usage record；兩者皆不儲存 provider body、private lane content 或 confirmed CRM fact。AgentFacts-style manifest 已新增 `route-b-feedback-provider-log-contract` capability、DTO/evidence refs 與 proof command。尚未完成：live provider route wiring、DB persisted feedback summary、訪談準備卡 review consumption、紅線偵測 library。
 
+Whole-product review note（2026-06-22 after Route B feedback provider log contract）：第五輪校準確認 Route B 已有 persisted stage map、顧問 group/private turn write shell、orchestration contract/runtime preview、五視角 feedback contract 與 injected provider usage-log contract；下一個產品缺口不是再補 proof 文件，而是讓 session 消費這些 source contract 產生可審查的下一個角色回合。下一輪 normal loop 建議 `ITA-003j Route B next-turn consumption / persisted role reply loop (guarded no-provider first)`：用 persisted `RouteBSessionSnapshot` + latest advisor turn + `buildTheaterRouteBOrchestrationPlan()` 產生 CHARACTER/NARRATOR next-turn draft，包含 speaker/addressee/visibility、character input boundary、state proposal envelope、`requiresConfirmation=true`、`writesConfirmedCrmFact=false`、no raw private/provider payload；DB 可用時可接 owner-scoped append/read proof，DB 仍 `ENOTFOUND` 時先完成 pure contract/API dry-run，不再用 AMM-005c 或 ITA-003i 截圖搜證消耗輪次。
+
 ---
 
 ## Batch ITA-005 - 異議庫 + 紅線偵測
