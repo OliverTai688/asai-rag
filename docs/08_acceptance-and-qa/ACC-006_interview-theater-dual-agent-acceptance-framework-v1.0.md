@@ -342,6 +342,18 @@ ITA-005f evidence note（2026-06-22）：新增 persisted red-line action state 
 
 AMM-005j global notes hub quarantine evidence（2026-06-22）：`/notes` 已改為 accepted-source entrypoint，而非採納 untracked quick-note local prototype。Page source 宣告 `data-local-note-store="disabled"`、`data-accepted-notes-source="/pre-visit/[planId]/notes"`，只導向已驗收的 preparation package notes / CLIENT_MEETING workspace；`pnpm meeting:notes-hub-quarantine-qa` 驗證 `/notes` 不 import `@/components/notes`、`@/domains/note/store`、`useNoteStore`、`QuickNoteComposer`、`SEED_NOTES` 或 browser-local note storage，並驗證 `asai.meeting.prototype` manifest/registry refs。此 evidence 不代表 quick-note server persistence、CRM writeback、正式法遵審閱、real notification、live detection 或 external registry publication 已完成。
 
+### 6.11 Route B red-line compliance-review intake acceptance
+
+`ITA-005k` 若把 Route B red-line action context 接成 disabled/no-provider 的審閱候選 intake，完成前必須額外滿足：
+
+- [ ] Intake consumer 必須從 owner-scoped `TheaterRouteBFeedbackReview.redLineActionState` / per-rule `actionContext`、`VisitRouteBRedLineContext` 或等價 server-owned DTO 讀取 context；不得信任 browser 提供的 raw org/client/session/person id。
+- [ ] Output 只能是 advisor/compliance-review candidate，例如 `ruleId`、action state、advisorReasonCode、source surface、evidence refs、review status、safe summary、createdAt/updatedAt；不得建立 formal legal/compliance finding、不得發 real notification、不得呼叫 provider、不得寫 confirmed CRM fact。
+- [ ] 若同輪新增 persistence，DB 或 metadata allowlist 不得保存 raw private transcript、direct private dialog、raw provider payload、email、phone、policy number、secret、token、cookie、OTP、payment data 或任意未結構化敏感 reason text。
+- [ ] UI 必須明確標示「待審閱候選 / 需要佐證 / 不代表正式法遵處置」，並保留 disabled/no-provider/no-notification/no-formal-finding guardrails；不得把 `ESCALATE` 呈現為已送出正式通報。
+- [ ] Cross-surface handoff 若從 visit prep 或 meeting notes 進入 intake，必須保留 facts / inferences / unknowns / advisor cautions / evidence-needed labels；inference 不得升格為 confirmed fact。
+- [ ] AgentFacts-style manifest 必須新增 internal-only capability/action/DTO/evidence refs，例如 `route-b-red-line-compliance-review-intake`，且不得宣稱 external registry ready、public discovery、cross-org access 或 signed publication。
+- [ ] 需新增可重跑 proof command（建議 `pnpm theater:route-b-compliance-review-intake-qa` 或等價命名），並跑 `pnpm ai:protocol-registry-qa`、`pnpm ai:bff-audit`、`pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。若剩餘只是 live browser screenshot / dev-server visual check，可交由 operator 自行重跑，不得讓 docs-only evidence 取代 source/API/UI work。
+
 ---
 
 ## 7. Data / DB Acceptance
