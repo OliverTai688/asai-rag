@@ -5,10 +5,15 @@ import type {
   VisitQuestionEvidence,
   VisitQuestionReasoning,
 } from "./types";
+import {
+  selectVisitRouteBRedLineQuestionEvidence,
+  type VisitRouteBRedLineContext,
+} from "./route-b-red-line-context";
 
 interface VisitQuestionReasoningContext {
   client: Client;
   purpose: VisitPurpose;
+  routeBRedLineContext?: VisitRouteBRedLineContext;
 }
 
 const PURPOSE_COPY: Record<VisitPurpose, string> = {
@@ -42,13 +47,17 @@ function buildQuestionReasoning(
       ...item,
       id: `${question.id || `q-${index + 1}`}-e${evidenceIndex + 1}`,
     })),
-    confirmationPrompt: buildConfirmationPrompt(question.type),
+    confirmationPrompt: buildConfirmationPrompt(question.type, context),
   };
 }
 
 function buildSummary(type: SpinQuestion["type"], context: VisitQuestionReasoningContext) {
   const familyCount = context.client.family.length;
   const policyCount = context.client.existingPolicies.length;
+  const routeBReminder =
+    type !== "S" && hasRouteBRedLineAdvisorContext(context)
+      ? " 同步帶入劇場紅線 action context，但只作待佐證提醒，不覆寫客戶事實。"
+      : "";
 
   if (type === "S") {
     return familyCount > 0
@@ -57,18 +66,20 @@ function buildSummary(type: SpinQuestion["type"], context: VisitQuestionReasonin
   }
 
   if (type === "P") {
-    return policyCount > 0
+    const base = policyCount > 0
       ? "既有保單只能代表過去配置，需要確認現在是否仍有缺口。"
       : "缺少保單資訊時，先把保障空白與客戶擔心的風險問清楚。";
+    return `${base}${routeBReminder}`;
   }
 
   if (type === "I") {
-    return familyCount > 0
+    const base = familyCount > 0
       ? "把家庭成員與收入責任連到風險後果，協助客戶看見不處理的影響。"
       : "把尚未確認的責任關係轉成後果問題，避免把推論當成事實。";
+    return `${base}${routeBReminder}`;
   }
 
-  return "最後把客戶已承認的缺口轉成可執行下一步，而不是直接推銷商品。";
+  return `最後把客戶已承認的缺口轉成可執行下一步，而不是直接推銷商品。${routeBReminder}`;
 }
 
 function selectEvidenceForQuestion(
@@ -85,14 +96,42 @@ function selectEvidenceForQuestion(
   }
 
   if (type === "P") {
-    return [buildPolicyEvidence(context.client), buildAiTagEvidence(context.client), ...sharedEvidence].slice(0, 3);
+    return mergeRouteBRedLineEvidence(
+      [buildPolicyEvidence(context.client), buildAiTagEvidence(context.client), ...sharedEvidence],
+      context,
+    );
   }
 
   if (type === "I") {
-    return [buildRelationshipEvidence(context.client), buildPolicyEvidence(context.client), buildAiTagEvidence(context.client)].slice(0, 3);
+    return mergeRouteBRedLineEvidence(
+      [buildRelationshipEvidence(context.client), buildPolicyEvidence(context.client), buildAiTagEvidence(context.client)],
+      context,
+    );
   }
 
-  return [buildPurposeEvidence(context.purpose), buildPolicyEvidence(context.client), buildUnknownEvidence()].slice(0, 3);
+  return mergeRouteBRedLineEvidence(
+    [buildPurposeEvidence(context.purpose), buildPolicyEvidence(context.client), buildUnknownEvidence()],
+    context,
+  );
+}
+
+function mergeRouteBRedLineEvidence(
+  baseEvidence: VisitQuestionEvidence[],
+  context: VisitQuestionReasoningContext,
+): VisitQuestionEvidence[] {
+  const routeBEvidence = selectVisitRouteBRedLineQuestionEvidence(context.routeBRedLineContext);
+
+  if (routeBEvidence.length === 0) {
+    return baseEvidence.slice(0, 3);
+  }
+
+  const firstEvidence = baseEvidence[0];
+
+  if (!firstEvidence) {
+    return routeBEvidence.slice(0, 3);
+  }
+
+  return [firstEvidence, ...routeBEvidence, ...baseEvidence.slice(1)].slice(0, 3);
 }
 
 function buildPurposeEvidence(purpose: VisitPurpose): VisitQuestionEvidence {
@@ -164,11 +203,22 @@ function buildUnknownEvidence(): VisitQuestionEvidence {
   };
 }
 
-function buildConfirmationPrompt(type: SpinQuestion["type"]) {
+function buildConfirmationPrompt(type: SpinQuestion["type"], context: VisitQuestionReasoningContext) {
+  const routeBPrompt = hasRouteBRedLineAdvisorContext(context)
+    ? " 若涉及劇場紅線 action context，先補佐證或走升級審閱，不把它寫成正式結論。"
+    : "";
+
   if (type === "S") return "先確認這項現況是否仍正確。";
-  if (type === "P") return "問完後標記這是否是真缺口、誤解或待補資料。";
-  if (type === "I") return "避免替客戶放大恐懼，請確認他是否同意這個後果推論。";
-  return "只有在客戶認同需求後，才把下一步整理成行動。";
+  if (type === "P") return `問完後標記這是否是真缺口、誤解或待補資料。${routeBPrompt}`;
+  if (type === "I") return `避免替客戶放大恐懼，請確認他是否同意這個後果推論。${routeBPrompt}`;
+  return `只有在客戶認同需求後，才把下一步整理成行動。${routeBPrompt}`;
+}
+
+function hasRouteBRedLineAdvisorContext(context: VisitQuestionReasoningContext) {
+  return (
+    (context.routeBRedLineContext?.summary.evidenceNeededCount ?? 0) > 0 ||
+    (context.routeBRedLineContext?.summary.escalateCount ?? 0) > 0
+  );
 }
 
 function formatCurrency(value: number) {

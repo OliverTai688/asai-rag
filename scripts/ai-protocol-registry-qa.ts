@@ -44,10 +44,23 @@ const sourceAdoptionRequirements: Record<string, { ownerRefs: string[]; evidence
     ownerRefs: [
       "src/app/api/ai/visit/route.ts",
       "src/domains/visit/ai-evidence-dto.ts",
+      "src/domains/visit/route-b-red-line-context.ts",
       "src/lib/visits/visit-plan-repository.ts",
     ],
-    evidenceRefs: ["buildProviderSafeClientSnapshot", "buildAiEvidenceSummary", "enrichSpinQuestionsWithReasoning", "updateVisitPlanForMember"],
-    commands: ["pnpm ai:bff-audit", "pnpm ai:protocol-registry-qa", "pnpm bff:visit-report-ai-qa"],
+    evidenceRefs: [
+      "buildProviderSafeClientSnapshot",
+      "buildAiEvidenceSummary",
+      "enrichSpinQuestionsWithReasoning",
+      "buildVisitRouteBRedLineContextFromFeedbackReview",
+      "VisitQuestionEvidence.source=theater_route_b_red_line",
+      "updateVisitPlanForMember",
+    ],
+    commands: [
+      "pnpm ai:bff-audit",
+      "pnpm ai:protocol-registry-qa",
+      "pnpm bff:visit-report-ai-qa",
+      "pnpm visit:route-b-red-line-context-dry-run",
+    ],
   },
   "asai.report.generation": {
     ownerRefs: [

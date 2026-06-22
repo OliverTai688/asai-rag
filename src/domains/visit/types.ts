@@ -26,6 +26,7 @@ export type VisitQuestionEvidenceSource =
   | "policy"
   | "ai_tag"
   | "visit_purpose"
+  | "theater_route_b_red_line"
   | "unknown";
 
 export type VisitQuestionEvidenceStatus = "confirmed" | "inference" | "unknown";

@@ -332,12 +332,13 @@ ITA-005f evidence note（2026-06-22）：新增 persisted red-line action state 
 
 `ITA/AMM-005g` 或任何把 Route B persisted red-line action context 接到 visit preparation package / AI meeting notes / downstream advisor workspace 的 slice，完成前必須額外滿足：
 
-- [ ] Consumer 必須從 owner-scoped `RouteBSessionSnapshot.scene.redLineActionState`、persisted `sceneState.feedbackReview` 或等價 server-owned feedback review DTO 讀取 action context；不得信任 browser 提供的 raw org/client/session/person id。
-- [ ] Output 必須分離 facts / inferences / unknowns / advisor cautions / evidence-needed next steps，且 `ESCALATE` / `EVIDENCE_NEEDED` 只能作 advisor context，不得自動建立 legal finding、real notification、provider call 或 CRM confirmed fact write。
-- [ ] Visit preparation package consumer 若為第一個落地面，必須把 action context 顯示為準備包中的合規提醒 / 佐證待補 / 下一步問題，不覆寫原本的 relationship graph fact/inference/unknown 標記。
+- [x] Domain-level consumer 必須從 owner-scoped `RouteBSessionSnapshot.scene.redLineActionState`、persisted `sceneState.feedbackReview` 或等價 server-owned feedback review DTO 讀取 action context；不得信任 browser 提供的 raw org/client/session/person id。（2026-06-22：`buildVisitRouteBRedLineContextFromFeedbackReview()` 消費 `TheaterRouteBFeedbackReview` DTO，proof: `pnpm visit:route-b-red-line-context-dry-run`。）
+- [x] Output 必須分離 facts / inferences / unknowns / advisor cautions / evidence-needed next steps，且 `ESCALATE` / `EVIDENCE_NEEDED` 只能作 advisor context，不得自動建立 legal finding、real notification、provider call 或 CRM confirmed fact write。（2026-06-22：`VisitRouteBRedLineContext` 轉成 `VisitQuestionEvidence.source=theater_route_b_red_line`，狀態維持 `unknown` / `inference`。）
+- [x] Visit preparation package domain consumer 若為第一個落地面，必須把 action context 轉成準備包中的合規提醒 / 佐證待補 / 下一步問題，不覆寫原本的 relationship graph fact/inference/unknown 標記。（2026-06-22：P/I/N question reasoning 會消費 red-line evidence；S 題維持現況盤點。）
+- [ ] Visit preparation BFF/UI 若要自動載入 persisted theater feedback review，必須補 owner-scoped route/session join proof，不得要求 advisor 輸入 raw session/person ids。
 - [ ] AI meeting notes consumer 若為第一個落地面，必須先審核目前 worktree 中 notes prototype 的範圍，避免把未驗證 prototype 當 committed baseline；meeting note output 不得保存 raw private transcript 或 raw provider payload。
-- [ ] AgentFacts-style manifest 必須新增 downstream consumption capability/action/DTO/evidence refs，保持 `registryReadiness=internal-only`，且不得宣稱 external registry ready。
-- [ ] 需跑對應 source proof（例如 visit-prep/meeting consumption QA）、`pnpm ai:protocol-registry-qa`、`pnpm ai:bff-audit`、`pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。若只剩 browser/dev-server visual confirmation，可交由 operator 自行重跑，不得讓 docs-only proof 取代 source/domain/API/UI work。
+- [x] AgentFacts-style manifest 必須新增 downstream consumption capability/action/DTO/evidence refs，保持 `registryReadiness=internal-only`，且不得宣稱 external registry ready。（2026-06-22：`asai.visit.preparation_package` manifest 新增 downstream capability/action/DTO/evidence refs。）
+- [x] 需跑對應 source proof（例如 visit-prep/meeting consumption QA）、`pnpm ai:protocol-registry-qa`、`pnpm ai:bff-audit`、`pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。若只剩 browser/dev-server visual confirmation，可交由 operator 自行重跑，不得讓 docs-only proof 取代 source/domain/API/UI work。（2026-06-22：domain proof 已新增；本輪驗收紀錄見 loop report。）
 
 ---
 

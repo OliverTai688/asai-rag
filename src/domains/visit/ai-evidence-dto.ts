@@ -16,6 +16,7 @@ export type AiEvidenceSummaryItem = {
     | "policy"
     | "ai_tag"
     | "visit_purpose"
+    | "theater_route_b_red_line"
     | "compliance"
     | "generated_recommendation"
     | "unknown";
