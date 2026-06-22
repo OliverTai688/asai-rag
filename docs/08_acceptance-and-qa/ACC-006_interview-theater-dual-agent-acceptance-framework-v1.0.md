@@ -254,6 +254,21 @@ ITA-005a evidence note（2026-06-22）：`pnpm theater:route-b-objection-red-lin
 
 ITA-005b evidence note（2026-06-22）：新增 `RouteBProviderPromptContext` 與 provider input wiring。靜態 dry-run 覆蓋 12/18 library counts、selected objection cues、5 immediate severe、13 post-review、no legal advice、no CRM fact write、no provider call/fake usage、no private/provider sentinel；next-turn 與 feedback provider dry-run 也確認 promptContext 已進入 provider input 並保留 success/error `AiUsageLog` contract。尚未宣稱 live provider route、即時 UI 或 external registry ready。
 
+### 6.6 Route B severe red-line warning preview acceptance
+
+`ITA-005c` 若把 severe immediate 紅線接進 Route B 劇場 UI / guarded preview，而尚未開啟 live provider route，完成前必須額外滿足：
+
+- [x] `RouteBSevereRedLineWarningPreview` 必須從 `RouteBProviderPromptContext` 或同一份 ITA-005a library source 生成，不得另建一份不一致的 severe list。
+- [x] Preview 必須只包含 accepted severe five：代簽、代墊、保證獲利、吸金、未做 KYC 即推商品；每項維持 `severity=SEVERE`、`detectionMode=IMMEDIATE`。
+- [x] Preview / UI 必須標示 watchlist-only 或 advisor warning only；不得自動阻斷對話、不得把提醒當正式違規結論、不得提供法律意見。
+- [x] Preview / UI 必須顯示 evidence-or-not-applicable posture，且 not-applicable 仍保留 audit record。
+- [x] No-provider proof 必須顯示 `providerCallAttempted=false`、`aiUsageLogWritten=false`、`writesConfirmedCrmFact=false`，且 provider 啟用前仍需要 success/error `AiUsageLog` proof。
+- [x] `/theater/[sessionId]` Route B stage 必須有 advisor-facing severe red-line panel；UI 不得要求顧問輸入 raw session/person id，也不得暴露 raw private transcript、raw provider payload、email、phone、policy number、secret、token、cookie、OTP。
+- [x] AgentFacts-style manifest 必須新增 `route-b-severe-red-line-warning-preview` capability / action / DTO/evidence refs / proof command，且保持 `registryReadiness=internal-only`。
+- [x] 需跑 `pnpm theater:route-b-severe-red-line-preview-dry-run`、`pnpm theater:route-b-provider-prompt-context-dry-run`、`pnpm ai:protocol-registry-qa`、`pnpm ai:bff-audit`、`pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。若只剩 browser screenshot residual，可交由 operator 用既有 Route B session 自行重跑，不得以截圖蒐集取代 source/UI contract。
+
+ITA-005c evidence note（2026-06-22）：`pnpm theater:route-b-severe-red-line-preview-dry-run` 以 domain dry-run + static UI contract QA 覆蓋 `RouteBProviderPromptContext -> RouteBSevereRedLineWarningPreview -> RouteBSevereRedLineWarningPanel`，驗證 5 severe immediate watchlist-only、evidence/not-applicable posture、no provider/fake usage、no legal advice、no CRM fact write、no sensitive sentinel。尚未宣稱 live detection、正式法遵處置、live provider route 或 external registry ready。
+
 ---
 
 ## 7. Data / DB Acceptance

@@ -236,6 +236,8 @@ ITA-005a objection/red-line source library note（2026-06-22）：已完成 sour
 
 ITA-005b provider prompt-context note（2026-06-22）：已完成 source-backed prompt/runtime DTO integration 子切片，尚未宣稱 ITA-005 全卡完成。新增 `src/domains/theater/route-b-provider-prompt-context.ts`，把 ITA-005a 的 12 類異議與 18 條紅線轉成 `RouteBProviderPromptContext`，供 `TheaterRouteBNextTurnProviderInput.promptContext` 與 `TheaterRouteBFeedbackProviderInput.promptContext` 使用；feedback provider 另新增 `redLineReview.allRules`，證明完整 18 條紅線會進 provider review contract。新增 `pnpm theater:route-b-provider-prompt-context-dry-run`，並擴充 next-turn / feedback provider dry-run，覆蓋 selected objections、5 severe immediate、13 post-review、no legal advice、no confirmed CRM fact write、no raw provider/private payload 與 success/error `AiUsageLog` contract。尚未完成：live provider route wiring、即時嚴重紅線 UI 提示、回饋結果人工作用流程與 legal/compliance ops review。
 
+ITA-005c severe red-line warning preview note（2026-06-22）：已完成 Route B severe immediate 紅線的 advisor-visible UI/source preview，尚未宣稱 ITA-005 全卡完成。新增 `src/domains/theater/route-b-severe-red-line-preview.ts`，從 `RouteBProviderPromptContext` 同源生成 `RouteBSevereRedLineWarningPreview`，只包含 5 條 severe immediate 紅線（代簽、代墊、保證獲利、吸金、未做 KYC 即推商品），固定 watchlist-only、requires evidence or not-applicable、no legal advice、no CRM confirmed fact、no provider/no fake usage。`/theater/[sessionId]` Route B stage 右欄新增「守門紅線」面板，顯示 trigger signals、evidence policy、provider/AiUsageLog boundary 與 no formal finding posture。新增 `pnpm theater:route-b-severe-red-line-preview-dry-run`，覆蓋 domain preview + static UI contract + AgentFacts refs。尚未完成：live provider route wiring、真實即時偵測、法遵處置 workflow 與 external registry publication。
+
 範圍外：不提供法律意見；不自動判定顧問違規懲處。
 
 ---

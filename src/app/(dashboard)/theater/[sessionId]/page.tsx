@@ -36,6 +36,10 @@ import { useSpinStore } from "@/domains/spin/store";
 import type { TheaterRouteBFeedbackReview } from "@/domains/theater/route-b-feedback-review";
 import type { TheaterRouteBNextTurnAppendCandidate } from "@/domains/theater/route-b-next-turn-append";
 import type { TheaterRouteBNextTurnDraft } from "@/domains/theater/route-b-next-turn";
+import {
+  buildRouteBSevereRedLineWarningPreview,
+  type RouteBSevereRedLineWarningPreview,
+} from "@/domains/theater/route-b-severe-red-line-preview";
 import type { RouteBSessionSnapshot } from "@/domains/theater/route-b-session";
 import { theaterService } from "@/domains/theater/service";
 import { useTheaterStore } from "@/domains/theater/store";
@@ -433,6 +437,8 @@ const ROUTE_B_SCOPE_LABEL: Record<string, string> = {
   NARRATOR: "旁白",
 };
 
+const ROUTE_B_SEVERE_RED_LINE_WARNING_PREVIEW = buildRouteBSevereRedLineWarningPreview();
+
 function RouteBSessionStage({
   onSnapshotUpdate,
   snapshot,
@@ -458,6 +464,7 @@ function RouteBSessionStage({
   const directorTurns = snapshot.turns.filter((turn) => turn.visibilityScope === "DIRECTOR_ONLY");
   const groupTurns = snapshot.turns.filter((turn) => turn.visibilityScope === "GROUP" || !turn.visibilityScope);
   const provider = snapshot.session.provider;
+  const severeRedLineWarningPreview = ROUTE_B_SEVERE_RED_LINE_WARNING_PREVIEW;
   const pendingAppendCandidate: TheaterRouteBNextTurnAppendCandidate | null = null;
   const pendingAppendUsageLogId: string | null = null;
   const handlePrivateFocus = (routeBCharacterId: string) => {
@@ -761,6 +768,8 @@ function RouteBSessionStage({
             status={feedbackReviewStatus}
           />
 
+          <RouteBSevereRedLineWarningPanel warningPreview={severeRedLineWarningPreview} />
+
           <Card className="border-hairline shadow-none">
             <CardContent className="p-5">
               <div className="flex items-start gap-3">
@@ -798,6 +807,74 @@ function RouteBSessionStage({
         </aside>
       </div>
     </div>
+  );
+}
+
+function RouteBSevereRedLineWarningPanel({
+  warningPreview,
+}: {
+  warningPreview: RouteBSevereRedLineWarningPreview;
+}) {
+  return (
+    <Card className="border-hairline shadow-none">
+      <CardContent className="space-y-4 p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+              Severe Red-line Watchlist
+            </p>
+            <h2 className="mt-1 text-sm font-semibold text-ink">守門紅線</h2>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+              從 provider prompt context 同源顯示嚴重即時項；只提醒顧問觀察，不自動阻斷對話、不提供法律意見、不寫 CRM confirmed fact。
+            </p>
+          </div>
+          <CircleAlert className="mt-1 h-4 w-4 shrink-0 text-muted-foreground" />
+        </div>
+
+        <div className="grid grid-cols-2 gap-2">
+          <RouteBMiniCount label="嚴重即時" value={warningPreview.warningCount} />
+          <RouteBMiniCount label="待證據" value={warningPreview.warnings.length} />
+        </div>
+
+        <div className="space-y-2">
+          {warningPreview.warnings.map((warning) => (
+            <details key={warning.id} className="group rounded-lg border border-hairline bg-paper">
+              <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 px-3 text-sm font-medium text-ink [&::-webkit-details-marker]:hidden">
+                <span>{warning.label}</span>
+                <Badge variant="outline" className="shrink-0 rounded-full">
+                  {warning.severity}・{warning.detectionMode}
+                </Badge>
+              </summary>
+              <div className="space-y-3 border-t border-hairline p-3">
+                <div className="flex flex-wrap gap-1.5">
+                  {warning.triggerSignals.slice(0, 3).map((signal) => (
+                    <Badge key={`${warning.id}-${signal}`} variant="outline" className="rounded-full">
+                      {signal}
+                    </Badge>
+                  ))}
+                </div>
+                <p className="text-xs leading-5 text-muted-foreground">
+                  {warning.advisorReminder}
+                </p>
+                <div className="grid gap-2 text-xs text-muted-foreground">
+                  <ContextLine label="Status" value={warning.status} />
+                  <ContextLine label="Evidence" value={warning.evidencePolicy} />
+                  <ContextLine label="Legal advice" value={String(warning.legalAdviceIncluded)} />
+                  <ContextLine label="Writes CRM fact" value={String(warning.writesConfirmedCrmFact)} />
+                </div>
+              </div>
+            </details>
+          ))}
+        </div>
+
+        <div className="grid gap-2 text-sm text-muted-foreground">
+          <ContextLine label="Provider call" value={String(warningPreview.providerBoundary.providerCallAttempted)} />
+          <ContextLine label="AiUsageLog" value={String(warningPreview.providerBoundary.aiUsageLogWritten)} />
+          <ContextLine label="Auto block" value={String(!warningPreview.displayRules.doNotBlockConversationAutomatically)} />
+          <ContextLine label="Formal finding" value={String(!warningPreview.displayRules.doNotTreatAsComplianceFindingWithoutEvidence)} />
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
