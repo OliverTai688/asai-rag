@@ -84,11 +84,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 1,
+    "normalLoopsSinceLastWholeProductReview": 2,
     "lastWholeProductReviewAt": "2026-06-21T08:56:41Z",
     "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-21_lv3-whole-product-gap-review-after-amm-008.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "First finish AMM-005c proof if the Supabase DB host resolves: rerun `DEMO_QA_BASE_URL=http://localhost:<dev-port> pnpm meeting:notes-compat-qa` to cover owner success, manager denial, raw sentinel guard, AiUsageLog unchanged, refresh/new-context persistence, and desktop/mobile no overflow. If `db.wwocdcicvpmbdmqvskzi.supabase.co` still returns DNS ENOTFOUND/P1001, do not chase screenshots; switch to a no-DB source/contract fallback or L4 blocker analysis rather than another docs-only proof loop.",
+    "nextRecommendedImplementationSlice": "First finish AMM-005c runtime proof if the Supabase DB host resolves: rerun `DEMO_QA_BASE_URL=http://localhost:<dev-port> pnpm meeting:notes-compat-qa` to cover owner success, manager denial, raw sentinel guard, AiUsageLog unchanged, refresh/new-context persistence, and desktop/mobile no overflow. This loop already added `pnpm meeting:notes-compat-contract-dry-run` as the no-DB source/contract fallback. If `db.wwocdcicvpmbdmqvskzi.supabase.co` still returns DNS ENOTFOUND/P1001, do not chase screenshots or docs-only proof; either produce L4 blocker analysis for the repeated DB/DNS blocker or select a different safe source-backed LV3 slice.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {
@@ -156,5 +156,5 @@
     "lv3ImmersiveLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-immersive-loop.md",
     "lv3WholeProductGapReviewLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md"
   },
-  "updatedAt": "2026-06-21T09:24:00Z"
+  "updatedAt": "2026-06-21T18:18:41Z"
 }

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { Prisma } from "@/generated/prisma/client";
+import { selectLatestMeetingSessionCandidate } from "@/domains/interview/meeting-session-lookup";
 import type {
   AppendInterviewTurnInput,
   InterviewMemoryDto,
@@ -147,14 +147,8 @@ export async function findLatestMeetingSessionForMember(
     },
   });
 
-  const matchingSession = recentSessions.find((record) => {
-    const metadataVisitPlanId = readMetadataVisitPlanId(record.metadata);
-
-    if (scope.visitPlanId) {
-      return metadataVisitPlanId === scope.visitPlanId;
-    }
-
-    return metadataVisitPlanId === null;
+  const matchingSession = selectLatestMeetingSessionCandidate(recentSessions, {
+    visitPlanId: scope.visitPlanId,
   });
 
   if (!matchingSession) {
@@ -272,15 +266,6 @@ function buildMeetingMemoryRail(memories: InterviewMemoryDto[]): MeetingMemoryRa
     memberPrivate: memories.filter((memory) => memory.visibilityScope === "MEMBER_PRIVATE").length,
     clientLinked: memories.filter((memory) => Boolean(memory.clientId)).length,
   };
-}
-
-function readMetadataVisitPlanId(value: Prisma.JsonValue | null): string | null {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return null;
-  }
-
-  const visitPlanId = value.visitPlanId;
-  return typeof visitPlanId === "string" && visitPlanId.trim() ? visitPlanId : null;
 }
 
 function scanMeetingPayload(value: unknown, path: string, violations: Set<string>) {

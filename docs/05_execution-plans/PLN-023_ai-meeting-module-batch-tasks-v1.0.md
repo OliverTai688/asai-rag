@@ -113,6 +113,8 @@ Whole-product review note（2026-06-21 after AMM-008）：AMM 已具備跨狀態
 
 進度註記：2026-06-21 AMM-005c source bridge 已完成；`/pre-visit/[planId]/notes` 嵌入正式 `MeetingWorkspace`，以 `GET /api/ai/meeting/sessions?visitPlanId=` 找回 owner-scoped latest `CLIENT_MEETING`，並保留 legacy `postVisitNotes` save/read path、quick-capture boundary、latest summary/writeback UI。`pnpm meeting:notes-compat-qa` 已新增但本輪 local DB/browser proof 被 `.env` Supabase host `db.wwocdcicvpmbdmqvskzi.supabase.co` DNS `ENOTFOUND` 阻擋；proof checkbox 保持未完成，待 DB 可解析後重跑。
 
+進度註記：2026-06-22 AMM-005c no-DB fallback 已新增 `src/domains/interview/meeting-session-lookup.ts` 與 `pnpm meeting:notes-compat-contract-dry-run`，用 fixture 證明 visit-scoped latest session / client-direct session 選擇規則，並 source-audit notes bridge、latest-session route、MeetingWorkspace reuse、manifest 與 package script contract。此命令不連 DB、不啟 browser、不呼叫 provider；仍不勾選 Browser/API/DB proof，待 DB DNS 恢復後重跑 `DEMO_QA_BASE_URL=http://localhost:<port> pnpm meeting:notes-compat-qa`。
+
 ## Batch AMM-006 — 寫回邊界（行動項 / CRM）
 - [x] 沿用 `src/domains/interview/writeback-boundary.ts`：行動項 → follow-up task、confirmed fact → CRM candidate、inference → insight、unknown → follow-up。
 - [x] confirmed + 人工勾選才寫回；inference 永不變 CRM fact。
