@@ -84,11 +84,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 4,
-    "lastWholeProductReviewAt": "2026-06-22T13:04:38Z",
-    "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-22_lv3-whole-product-gap-review-after-notes-hub-quarantine.md",
+    "normalLoopsSinceLastWholeProductReview": 0,
+    "lastWholeProductReviewAt": "2026-06-22T14:49:09Z",
+    "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-22_lv3-whole-product-gap-review-after-relationship-cards.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "Cadence counter is 4 after the source-backed relationship graph -> preparation package confirmation-card slice. The next loop should enter the fifth-round whole-product calibration by reading docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md and reassessing architecture, experience, interface, safety, onboarding, and remaining core-flow blockers before more implementation. Residual AMM quick-note evidence can remain self-runnable with pnpm meeting:notes-compat-qa; this loop's relationship-card evidence is self-runnable with pnpm visit:relationship-confirmation-dry-run.",
+    "nextRecommendedImplementationSlice": "Next normal loop should be source-backed: ITA-RCG-001 relationship confirmation deck -> Route B theater handoff grounding. Include buildVisitRelationshipConfirmationDeck() output in the visit -> theater handoff knownMaterials/sourceSummary/narrator-question boundary so relationship fact/inference/unknown cards from the preparation package are visible inside the AI theater stage. Proof should run pnpm visit:relationship-confirmation-dry-run, pnpm visit:theater-handoff-dry-run, pnpm ai:protocol-registry-qa if manifests change, pnpm exec tsc --noEmit --pretty false, and pnpm lint:changed. No provider call, no DB/schema write, no mock success. Residual AMM quick-note evidence can remain self-runnable with pnpm meeting:notes-compat-qa.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {
@@ -156,5 +156,5 @@
     "lv3ImmersiveLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-immersive-loop.md",
     "lv3WholeProductGapReviewLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md"
   },
-  "updatedAt": "2026-06-22T14:28:09Z"
+  "updatedAt": "2026-06-22T14:49:09Z"
 }

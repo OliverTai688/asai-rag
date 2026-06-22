@@ -369,6 +369,17 @@ ITA-005k evidence note（2026-06-22）：新增 `route-b-red-line-compliance-rev
 
 ITA-005l evidence note（2026-06-22）：新增 `route-b-red-line-compliance-review-queue` source/API/UI contract。`buildRouteBComplianceReviewQueue()` 只接收已驗證 `RouteBComplianceReviewIntake`，自動排除沒有候選的 session，並輸出 disabled/no-provider queue counts 與 safe candidates。`GET /api/theater/route-b/compliance-review-queue` 使用 current member scope + owner-scoped repository `findMany` 讀取 Route B sessions，不新增 queue/candidate persistence。`/theater` 工作台右欄新增「審閱佇列」panel，顯示待審閱、需要佐證、升級候選 counts 與進 session 檢視入口，並標示未建立正式 finding、未發通知、未寫入 CRM fact、未呼叫 provider。Formal compliance workflow、real notification、live detection 與 external registry publication 仍未啟用。
 
+### 6.13 Relationship confirmation deck to theater handoff acceptance
+
+`ITA-RCG-001` 若把 preparation package 的 relationship confirmation cards 接進 Route B theater handoff，完成前必須額外滿足：
+
+- [ ] Handoff consumer 必須由 server/domain 端重建或驗證 `buildVisitRelationshipConfirmationDeck()` 的 safe card output；不得信任 browser 提供 raw org/client/session/person id。
+- [ ] Theater handoff output 必須把 card 轉成 `knownMaterials`、`sourceSummary`、旁白補問或等價 DTO，且保留 `fact` / `inference` / `unknown`、evidence refs、question/rationale 與 advisor-confirmation posture；inference/unknown 不得升格為 confirmed CRM fact。
+- [ ] 若同輪沒有 card-state persistence，UI/report 必須明確標示顧問 selection 仍是 local/next-slice；不得宣稱 refresh/new-context 已保存 selection。
+- [ ] 不得呼叫 OpenAI/Anthropic；若 provider guard 仍 disabled，必須明確提供 no-provider/no fake `AiUsageLog` proof。
+- [ ] AgentFacts-style manifest 若新增 action/DTO refs，必須保持 `registryReadiness=internal-only`，不得宣稱 external registry ready、public discovery、cross-org access 或 signed publication。
+- [ ] 需跑 `pnpm visit:relationship-confirmation-dry-run`、`pnpm visit:theater-handoff-dry-run`、`pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`；若只剩 browser screenshot，可交由 operator 自行重跑，不得讓 docs-only evidence 取代 source/domain handoff work。
+
 ---
 
 ## 7. Data / DB Acceptance
