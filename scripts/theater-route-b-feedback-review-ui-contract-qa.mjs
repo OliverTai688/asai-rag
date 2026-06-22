@@ -35,6 +35,9 @@ check(pageSource.includes("review.providerBoundary.aiUsageLogWritten"), "UI expo
 check(pageSource.includes("review.persistenceEnvelope.writesConfirmedCrmFact"), "UI exposes writesConfirmedCrmFact boundary");
 check(pageSource.includes("review.outputContract.totalScoreAllowed"), "UI exposes totalScoreAllowed boundary");
 check(pageSource.includes("review.redLineFindings"), "UI renders red-line findings");
+check(pageSource.includes("review.redLineActionState"), "UI renders consumed red-line action summary");
+check(pageSource.includes("sceneState.redLineActionState"), "UI labels feedback review action-state source");
+check(pageSource.includes("finding.actionContext"), "UI renders per-red-line action context");
 
 check(routeSource.includes("requireCurrentMember"), "feedback-review route requires current member");
 check(routeSource.includes("getRouteBFeedbackReviewForMember"), "feedback-review route supports persisted GET");
@@ -49,6 +52,8 @@ check(repositorySource.includes("organizationId: session.organization.id"), "rep
 check(repositorySource.includes("ownerId: session.user.id"), "repository scopes feedback review by owner");
 check(repositorySource.includes("routeBEnabled: true"), "repository scopes feedback review to Route B sessions");
 check(repositorySource.includes("feedbackReview"), "repository persists feedbackReview in sceneState");
+check(repositorySource.includes("redLineActionState"), "repository snapshots persisted red-line action state for feedback review");
+check(repositorySource.includes("isRouteBRedLineActionPersistenceState"), "repository validates persisted red-line action state before snapshot consumption");
 check(repositorySource.includes("buildTheaterRouteBFeedbackReview"), "repository builds deterministic feedback review contract");
 check(repositorySource.includes("isTheaterRouteBFeedbackReview"), "repository validates persisted feedback review before returning it");
 check(repositorySource.includes("writesConfirmedCrmFact: false"), "repository persists feedback review without confirmed CRM fact writes");
@@ -56,6 +61,8 @@ check(!feedbackRepositoryBlock.includes("providerPayload"), "feedback review rep
 
 check(manifestSource.includes("route-b-feedback-review"), "AgentFacts manifest registers feedback-review endpoint");
 check(manifestSource.includes("route-b-feedback-persistence"), "AgentFacts manifest registers feedback persistence action");
+check(manifestSource.includes("route-b-red-line-action-feedback-consumption"), "AgentFacts manifest registers feedback consumption capability");
+check(manifestSource.includes("TheaterRouteBFeedbackReview.redLineActionState"), "AgentFacts manifest declares feedback action-state DTO boundary");
 check(manifestSource.includes("TheaterRouteBFeedbackReview"), "AgentFacts manifest declares feedback review DTO");
 check(manifestSource.includes("pnpm theater:route-b-feedback-review-qa"), "AgentFacts manifest includes feedback-review proof command");
 

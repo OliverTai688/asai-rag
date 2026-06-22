@@ -31,6 +31,9 @@ try {
       "src/domains/theater/route-b-feedback-review.ts",
       "src/domains/theater/route-b-feedback.ts",
       "src/domains/theater/route-b-session.ts",
+      "src/domains/theater/route-b-red-line-action-workflow.ts",
+      "src/domains/theater/route-b-severe-red-line-preview.ts",
+      "src/domains/theater/route-b-provider-prompt-context.ts",
     ],
     { cwd: root, stdio: "inherit" },
   );

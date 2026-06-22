@@ -570,6 +570,9 @@ function toRouteBSessionSnapshot(record: RouteBSessionRecord): RouteBSessionSnap
       narratorQuestions: sanitizeJson(sceneState.narratorQuestions ?? []),
       statePatchCount: Array.isArray(sceneState.statePatches) ? sceneState.statePatches.length : 0,
       visibilityRules: sanitizeJson(record.visibilityRules ?? []),
+      redLineActionState: isRouteBRedLineActionPersistenceState(sceneState.redLineActionState)
+        ? sceneState.redLineActionState
+        : buildRouteBRedLineActionPersistenceState(),
     },
     characters: record.characters.map((character) => ({
       id: character.id,

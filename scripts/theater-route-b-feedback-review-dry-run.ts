@@ -3,6 +3,7 @@ import {
   buildTheaterRouteBFeedbackReview,
   isTheaterRouteBFeedbackReview,
 } from "../src/domains/theater/route-b-feedback-review";
+import { buildRouteBRedLineActionPersistenceState } from "../src/domains/theater/route-b-red-line-action-workflow";
 import type { RouteBSessionSnapshot } from "../src/domains/theater/route-b-session";
 
 const checks: string[] = [];
@@ -49,6 +50,26 @@ const snapshot: RouteBSessionSnapshot = {
         canBeQuotedInGroup: false,
       },
     ],
+    redLineActionState: buildRouteBRedLineActionPersistenceState([
+      {
+        ruleId: "SIGNATURE_SUBSTITUTION",
+        state: "ESCALATE",
+        advisorReasonCode: "ESCALATION_REQUESTED",
+        updatedAt: "2026-06-22T06:53:10.000Z",
+      },
+      {
+        ruleId: "PREMIUM_ADVANCE",
+        state: "NOT_APPLICABLE",
+        advisorReasonCode: "FALSE_POSITIVE_CONTEXT",
+        updatedAt: "2026-06-22T06:53:20.000Z",
+      },
+      {
+        ruleId: "GUARANTEED_RETURN",
+        state: "EVIDENCE_NEEDED",
+        advisorReasonCode: "EVIDENCE_PENDING",
+        updatedAt: "2026-06-22T06:53:30.000Z",
+      },
+    ]),
   },
   characters: [
     {
@@ -130,6 +151,14 @@ check(!review.outputContract.rankingAllowed, "feedback review forbids ranking");
 check(review.providerBoundary.providerCallAttempted === false, "feedback review does not call provider");
 check(review.providerBoundary.aiUsageLogWritten === false, "feedback review does not fake AiUsageLog");
 check(review.providerBoundary.storesRawProviderPayload === false, "feedback review forbids raw provider payload storage");
+check(review.redLineActionState.consumedByFeedbackReview, "feedback review consumes persisted red-line action state");
+check(review.redLineActionState.recordCount === 5, "feedback review action summary keeps all severe red-line records");
+check(review.redLineActionState.escalateCount === 1, "feedback review action summary counts escalation actions");
+check(review.redLineActionState.evidenceNeededCount === 1, "feedback review action summary counts evidence-needed actions");
+check(review.redLineActionState.notApplicableCount === 1, "feedback review action summary counts not-applicable actions");
+check(review.redLineActionState.noProviderCall, "feedback review action summary proves no provider call");
+check(review.redLineActionState.triggersExternalNotification === false, "feedback review action summary does not trigger notifications");
+check(review.redLineActionState.writesConfirmedCrmFact === false, "feedback review action summary does not write CRM facts");
 check(review.persistenceEnvelope.requiresAdvisorConfirmation, "feedback review requires advisor confirmation before CRM writeback");
 check(review.persistenceEnvelope.writesConfirmedCrmFact === false, "feedback review does not write confirmed CRM facts");
 check(review.persistenceEnvelope.storesPrivateLaneTurnContent === false, "feedback review does not store private lane turn content");
@@ -143,6 +172,29 @@ check(
 check(
   review.redLineFindings.some((finding) => finding.redLineId === "SIGNATURE_SUBSTITUTION" && finding.status === "NEEDS_REVIEW"),
   "red-line review keeps unmarked severe signals in needs-review posture",
+);
+check(
+  review.redLineFindings.some((finding) =>
+    finding.redLineId === "SIGNATURE_SUBSTITUTION" &&
+    finding.actionContext?.state === "ESCALATE" &&
+    finding.actionContext.triggersExternalNotification === false
+  ),
+  "red-line review attaches persisted escalation context without notification",
+);
+check(
+  review.redLineFindings.some((finding) =>
+    finding.redLineId === "GUARANTEED_RETURN" &&
+    finding.actionContext?.state === "EVIDENCE_NEEDED" &&
+    finding.actionContext.writesConfirmedCrmFact === false
+  ),
+  "red-line review attaches persisted evidence-needed context without CRM fact write",
+);
+check(
+  review.sections.some((section) =>
+    section.perspectiveId === "COMPLIANCE_CONSCIENCE" &&
+    section.evidenceBasis.some((item) => item.source === "red-line-actions" && item.label === "ACTION_STATE")
+  ),
+  "compliance perspective cites red-line action state evidence",
 );
 
 const subsetReview = buildTheaterRouteBFeedbackReview({
@@ -169,9 +221,14 @@ console.log(
       actionId: review.actionId,
       selectedPerspectiveCount: review.selectedPerspectiveIds.length,
       redLineCount: review.redLineFindings.length,
+      redLineActionRecordCount: review.redLineActionState.recordCount,
+      redLineEscalateCount: review.redLineActionState.escalateCount,
+      redLineEvidenceNeededCount: review.redLineActionState.evidenceNeededCount,
+      redLineNotApplicableCount: review.redLineActionState.notApplicableCount,
       providerCallAttempted: review.providerBoundary.providerCallAttempted,
       aiUsageLogWritten: review.providerBoundary.aiUsageLogWritten,
       writesConfirmedCrmFact: review.persistenceEnvelope.writesConfirmedCrmFact,
+      triggersExternalNotification: review.redLineActionState.triggersExternalNotification,
     },
     null,
     2,

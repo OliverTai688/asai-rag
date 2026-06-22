@@ -315,6 +315,19 @@ ITA-005d evidence note（2026-06-22）：`pnpm theater:route-b-red-line-action-w
 
 ITA-005e evidence note（2026-06-22）：新增 `route-b-severe-red-line-action-persistence` domain/API/repository/UI/manifest slice。`RouteBRedLineActionPersistenceState` 將 5 條 severe action cards 正規化為 owner-scoped `sceneState.redLineActionState`，只持久化 `ruleId/state/advisorReasonCode/updatedAt`；`/api/theater/route-b/sessions/[sessionId]/red-line-actions` 提供 current-member GET/POST，`/theater/[sessionId]` 守門紅線面板可讀取/保存狀態並顯示 persisted count/latest updated。`pnpm theater:route-b-red-line-action-persistence-qa` 覆蓋 domain allowlist、route/repository/UI/manifest source contract、no provider/no fake `AiUsageLog`、no notification/no CRM fact/no raw private/provider/contact/policy sentinel。`pnpm theater:route-b-persistence-qa` 已擴充為 live DB proof command；若本輪未啟動 dev server，可由 operator 直接重跑取得 runtime evidence。
 
+### 6.9 Route B severe red-line action feedback consumption acceptance
+
+`ITA-005f` 若把 persisted red-line action state 接入 feedback review，但尚未接 visit preparation / AI meeting notes 或正式法遵處置，完成前必須額外滿足：
+
+- [x] `RouteBSessionSnapshot.scene.redLineActionState` 必須由 owner-scoped persisted `sceneState.redLineActionState` 產生；若沒有 persisted state，必須回到 safe default action state，不得讀 client-submitted owner/org ids。
+- [x] `TheaterRouteBFeedbackReview` 必須輸出 `redLineActionState` summary，至少包含 recordCount、watching/evidenceNeeded/notApplicable/escalate counts、`consumedByFeedbackReview=true`、`ownerScopedSessionOnly=true`、`noProviderCall=true`、`writesConfirmedCrmFact=false`、`triggersExternalNotification=false`、`noLegalAdvice=true`、`noFormalFinding=true`。
+- [x] Matching red-line findings 必須附上 per-rule `actionContext`，但 `ESCALATE` 與 `EVIDENCE_NEEDED` 仍只能作 advisor context，不得自動建立正式法遵 finding、real notification、provider call 或 CRM confirmed fact。
+- [x] `/theater/[sessionId]` 五視角回顧面板必須顯示 action-state source、升級審閱/需要佐證 counts 與 per-finding advisor action context；不得要求顧問輸入 raw session/person id。
+- [x] AgentFacts-style manifest 必須新增 `route-b-red-line-action-feedback-consumption` capability/action/DTO/evidence refs，且保持 `registryReadiness=internal-only`。
+- [x] 需跑 `pnpm theater:route-b-feedback-review-qa`、`pnpm ai:protocol-registry-qa`、`pnpm ai:bff-audit`、`pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。若只剩 live browser/DB visual confirmation，可由 operator 以既有 Route B session 自行重跑，不得以 docs-only proof 取代 source/domain/UI contract。
+
+ITA-005f evidence note（2026-06-22）：新增 persisted red-line action state 的 feedback consumption bridge。`src/domains/theater/route-b-session.ts` 將 `redLineActionState` 納入 `RouteBSessionSnapshot.scene`，`src/lib/theater/route-b-session-bff-repository.ts` 從 `sceneState.redLineActionState` 安全讀取或 fallback default，`buildTheaterRouteBFeedbackReview()` 產生 `TheaterRouteBFeedbackReview.redLineActionState` summary 並將 per-rule `actionContext` 附到 matching findings。`/theater/[sessionId]` 五視角回顧面板顯示 `sceneState.redLineActionState` source、升級/佐證 counts 與 advisor action context。`pnpm theater:route-b-feedback-review-qa` 覆蓋 domain dry-run + UI/API/repository/manifest static contract，驗證 no-provider/no fake `AiUsageLog`、no notification、no legal/formal finding、no CRM fact write、no raw private/provider/contact/policy sentinel；`pnpm ai:protocol-registry-qa` 驗證 AgentFacts refs。尚未宣稱 visit preparation / AI meeting notes consumption、formal compliance workflow、real notification、live detection 或 external registry ready。
+
 ---
 
 ## 7. Data / DB Acceptance

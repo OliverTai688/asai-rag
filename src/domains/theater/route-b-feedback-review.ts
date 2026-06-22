@@ -7,15 +7,27 @@ import {
   type RouteBRedLineSeverity,
   type TheaterRouteBFeedbackPerspectiveId,
 } from "./route-b-feedback";
+import {
+  buildRouteBRedLineActionPersistenceState,
+  type RouteBRedLineActionPersistenceState,
+  type RouteBRedLineActionReasonCode,
+  type RouteBRedLineActionState,
+} from "./route-b-red-line-action-workflow";
 import type { RouteBSessionSnapshot } from "./route-b-session";
 
 export type TheaterRouteBFeedbackReviewStatus = "DETERMINISTIC_NO_PROVIDER";
-export type TheaterRouteBFeedbackEvidenceLabel = "FACT" | "INFERENCE" | "UNKNOWN" | "STAGE_STATE";
+export type TheaterRouteBFeedbackEvidenceLabel = "FACT" | "INFERENCE" | "UNKNOWN" | "STAGE_STATE" | "ACTION_STATE";
 export type TheaterRouteBFeedbackRedLineStatus = "NEEDS_REVIEW" | "NOT_APPLICABLE";
 
 export interface TheaterRouteBFeedbackReviewEvidence {
   label: TheaterRouteBFeedbackEvidenceLabel;
-  source: "characters" | "relationships" | "turns" | "state-proposals" | "narrator-questions";
+  source:
+    | "characters"
+    | "relationships"
+    | "turns"
+    | "state-proposals"
+    | "narrator-questions"
+    | "red-line-actions";
   summary: string;
   count: number;
 }
@@ -37,6 +49,35 @@ export interface TheaterRouteBFeedbackReviewRedLineFinding {
   status: TheaterRouteBFeedbackRedLineStatus;
   evidenceBasis: string;
   notApplicableReason?: string;
+  actionContext?: TheaterRouteBFeedbackReviewRedLineActionContext;
+}
+
+export interface TheaterRouteBFeedbackReviewRedLineActionContext {
+  sourceActionId: "route-b-severe-red-line-action-persistence";
+  state: RouteBRedLineActionState;
+  advisorReasonCode: RouteBRedLineActionReasonCode;
+  updatedAt: string;
+  persistedByOwnerScopedSession: true;
+  noLegalAdvice: true;
+  noFormalFinding: true;
+  writesConfirmedCrmFact: false;
+  triggersExternalNotification: false;
+}
+
+export interface TheaterRouteBFeedbackReviewRedLineActionSummary {
+  sourceActionId: "route-b-severe-red-line-action-persistence";
+  recordCount: number;
+  watchingCount: number;
+  evidenceNeededCount: number;
+  notApplicableCount: number;
+  escalateCount: number;
+  consumedByFeedbackReview: true;
+  ownerScopedSessionOnly: true;
+  noProviderCall: true;
+  writesConfirmedCrmFact: false;
+  triggersExternalNotification: false;
+  noLegalAdvice: true;
+  noFormalFinding: true;
 }
 
 export interface TheaterRouteBFeedbackReview {
@@ -50,6 +91,7 @@ export interface TheaterRouteBFeedbackReview {
   selectedPerspectiveIds: TheaterRouteBFeedbackPerspectiveId[];
   sections: TheaterRouteBFeedbackReviewSection[];
   redLineFindings: TheaterRouteBFeedbackReviewRedLineFinding[];
+  redLineActionState: TheaterRouteBFeedbackReviewRedLineActionSummary;
   redLineLibrary: ReturnType<typeof buildRouteBObjectionRedLineLibrarySummary>;
   complianceReminder: string;
   outputContract: {
@@ -93,7 +135,9 @@ export function buildTheaterRouteBFeedbackReview(
   options: BuildTheaterRouteBFeedbackReviewOptions,
 ): TheaterRouteBFeedbackReview {
   const selectedPerspectives = selectReviewPerspectives(options.selectedPerspectiveIds);
-  const evidence = buildReviewEvidence(options.snapshot);
+  const redLineActionState = resolveRedLineActionState(options.snapshot);
+  const redLineActionSummary = buildRedLineActionSummary(redLineActionState);
+  const evidence = buildReviewEvidence(options.snapshot, redLineActionState);
   const generatedAt = (options.now ?? new Date()).toISOString();
 
   return {
@@ -111,9 +155,11 @@ export function buildTheaterRouteBFeedbackReview(
         perspectiveId: perspective.id,
         label: perspective.label,
         snapshot: options.snapshot,
+        redLineActionState,
       }),
     ),
-    redLineFindings: buildRedLineFindings(options.notApplicableRedLines),
+    redLineFindings: buildRedLineFindings(options.notApplicableRedLines, redLineActionState),
+    redLineActionState: redLineActionSummary,
     redLineLibrary: buildRouteBObjectionRedLineLibrarySummary(),
     complianceReminder: "此回饋只作演練與合規提醒，不取代正式法遵審核或法律意見；嚴重紅線需由顧問依公司流程升級確認。",
     outputContract: {
@@ -150,6 +196,7 @@ export function isTheaterRouteBFeedbackReview(value: unknown): value is TheaterR
   const providerBoundary = asRecord(record.providerBoundary);
   const persistenceEnvelope = asRecord(record.persistenceEnvelope);
   const privacyProof = asRecord(record.privacyProof);
+  const redLineActionState = asRecord(record.redLineActionState);
 
   return (
     record.agentId === "asai.theater.route_b" &&
@@ -158,6 +205,12 @@ export function isTheaterRouteBFeedbackReview(value: unknown): value is TheaterR
     typeof record.sessionId === "string" &&
     Array.isArray(record.sections) &&
     Array.isArray(record.redLineFindings) &&
+    redLineActionState.sourceActionId === "route-b-severe-red-line-action-persistence" &&
+    redLineActionState.consumedByFeedbackReview === true &&
+    redLineActionState.ownerScopedSessionOnly === true &&
+    redLineActionState.noProviderCall === true &&
+    redLineActionState.writesConfirmedCrmFact === false &&
+    redLineActionState.triggersExternalNotification === false &&
     record.redLineLibrary !== undefined &&
     outputContract.qualitativeOnly === true &&
     outputContract.totalScoreAllowed === false &&
@@ -184,15 +237,18 @@ function buildReviewSection({
   label,
   perspectiveId,
   snapshot,
+  redLineActionState,
 }: {
   evidence: TheaterRouteBFeedbackReviewEvidence[];
   label: string;
   perspectiveId: TheaterRouteBFeedbackPerspectiveId;
   snapshot: RouteBSessionSnapshot;
+  redLineActionState: RouteBRedLineActionPersistenceState;
 }): TheaterRouteBFeedbackReviewSection {
   const characterCount = snapshot.characters.length;
   const turnCount = snapshot.turns.length;
   const statePatchCount = snapshot.scene.statePatchCount;
+  const { evidenceNeededCount, escalateCount, notApplicableCount } = redLineActionState.actionSummary;
 
   switch (perspectiveId) {
     case "COACH_EAR":
@@ -227,9 +283,9 @@ function buildReviewSection({
         perspectiveId,
         label,
         observation: "回饋只能指出嚴重紅線是否需要檢查，不能作成正式法遵判定或法律意見。",
-        evidenceBasis: pickEvidence(evidence, ["turns", "state-proposals"]),
-        advisorMove: "若提到代簽、代墊、保證獲利、吸金或未 KYC 推商品，先停下來升級確認。",
-        riskOrUnknown: `本輪有 ${statePatchCount} 個狀態 proposal；它們只能留在劇場暫態，不可改寫 CRM confirmed fact。`,
+        evidenceBasis: pickEvidence(evidence, ["turns", "state-proposals", "red-line-actions"]),
+        advisorMove: `守門動作目前有 ${escalateCount} 條升級審閱、${evidenceNeededCount} 條需要佐證、${notApplicableCount} 條標示不適用；先依公司流程處理升級與佐證，不推商品結論。`,
+        riskOrUnknown: `本輪有 ${statePatchCount} 個狀態 proposal；守門動作只屬 advisor context，不是正式法遵裁決，也不可改寫 CRM confirmed fact。`,
       };
     case "DECISION_BRIDGE":
       return {
@@ -243,7 +299,10 @@ function buildReviewSection({
   }
 }
 
-function buildReviewEvidence(snapshot: RouteBSessionSnapshot): TheaterRouteBFeedbackReviewEvidence[] {
+function buildReviewEvidence(
+  snapshot: RouteBSessionSnapshot,
+  redLineActionState: RouteBRedLineActionPersistenceState,
+): TheaterRouteBFeedbackReviewEvidence[] {
   const characterKnownFacts = snapshot.characters.reduce((total, character) => total + routeBRecords(character.knownFacts).length, 0);
   const characterInferences = snapshot.characters.reduce((total, character) => total + routeBRecords(character.personaHints).length, 0);
   const characterUnknowns = snapshot.characters.reduce((total, character) => total + routeBRecords(character.unknowns).length, 0);
@@ -293,6 +352,12 @@ function buildReviewEvidence(snapshot: RouteBSessionSnapshot): TheaterRouteBFeed
       summary: "旁白補問數",
       count: narratorQuestions.length,
     },
+    {
+      label: "ACTION_STATE",
+      source: "red-line-actions",
+      summary: "已保存守門紅線 action state 數，僅作 advisor context",
+      count: redLineActionState.records.length,
+    },
   ];
 }
 
@@ -306,8 +371,67 @@ function pickEvidence(
 
 function buildRedLineFindings(
   notApplicableRedLines?: BuildTheaterRouteBFeedbackReviewOptions["notApplicableRedLines"],
+  redLineActionState?: RouteBRedLineActionPersistenceState,
 ): TheaterRouteBFeedbackReviewRedLineFinding[] {
-  return buildRouteBRedLineReviewPlan(notApplicableRedLines);
+  const actionState = redLineActionState ?? buildRouteBRedLineActionPersistenceState();
+  const actionRecordsByRule = new Map<string, RouteBRedLineActionPersistenceState["records"][number]>(
+    actionState.records.map((record) => [record.ruleId, record]),
+  );
+
+  return buildRouteBRedLineReviewPlan(notApplicableRedLines).map((finding) => {
+    const actionRecord = actionRecordsByRule.get(finding.redLineId);
+    if (!actionRecord) return finding;
+
+    const actionContext: TheaterRouteBFeedbackReviewRedLineActionContext = {
+      sourceActionId: actionState.actionId,
+      state: actionRecord.state,
+      advisorReasonCode: actionRecord.advisorReasonCode,
+      updatedAt: actionRecord.updatedAt,
+      persistedByOwnerScopedSession: true,
+      noLegalAdvice: true,
+      noFormalFinding: true,
+      writesConfirmedCrmFact: false,
+      triggersExternalNotification: false,
+    };
+
+    if (actionRecord.state !== "NOT_APPLICABLE") {
+      return {
+        ...finding,
+        actionContext,
+      };
+    }
+
+    return {
+      ...finding,
+      status: "NOT_APPLICABLE",
+      notApplicableReason: finding.notApplicableReason ?? `Persisted advisor action: ${actionRecord.advisorReasonCode}.`,
+      actionContext,
+    };
+  });
+}
+
+function resolveRedLineActionState(snapshot: RouteBSessionSnapshot): RouteBRedLineActionPersistenceState {
+  return snapshot.scene.redLineActionState ?? buildRouteBRedLineActionPersistenceState();
+}
+
+function buildRedLineActionSummary(
+  redLineActionState: RouteBRedLineActionPersistenceState,
+): TheaterRouteBFeedbackReviewRedLineActionSummary {
+  return {
+    sourceActionId: redLineActionState.actionId,
+    recordCount: redLineActionState.records.length,
+    watchingCount: redLineActionState.actionSummary.watchingCount,
+    evidenceNeededCount: redLineActionState.actionSummary.evidenceNeededCount,
+    notApplicableCount: redLineActionState.actionSummary.notApplicableCount,
+    escalateCount: redLineActionState.actionSummary.escalateCount,
+    consumedByFeedbackReview: true,
+    ownerScopedSessionOnly: true,
+    noProviderCall: true,
+    writesConfirmedCrmFact: false,
+    triggersExternalNotification: false,
+    noLegalAdvice: true,
+    noFormalFinding: true,
+  };
 }
 
 function routeBRecords(value: unknown): Array<Record<string, unknown>> {

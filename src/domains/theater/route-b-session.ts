@@ -1,3 +1,5 @@
+import type { RouteBRedLineActionPersistenceState } from "./route-b-red-line-action-workflow";
+
 export type RouteBSessionSnapshot = {
   session: {
     id: string;
@@ -22,6 +24,7 @@ export type RouteBSessionSnapshot = {
     narratorQuestions: unknown;
     statePatchCount: number;
     visibilityRules: unknown;
+    redLineActionState?: RouteBRedLineActionPersistenceState;
   };
   characters: Array<{
     id: string;

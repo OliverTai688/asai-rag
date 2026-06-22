@@ -1489,6 +1489,8 @@ function RouteBFeedbackReviewPanel({
   const isBusy = status === "loading" || status === "generating";
   const redLineNeedsReview = review?.redLineFindings.filter((finding) => finding.status === "NEEDS_REVIEW").length ?? 0;
   const redLineNotApplicable = review?.redLineFindings.filter((finding) => finding.status === "NOT_APPLICABLE").length ?? 0;
+  const redLineEscalate = review?.redLineActionState.escalateCount ?? 0;
+  const redLineEvidenceNeeded = review?.redLineActionState.evidenceNeededCount ?? 0;
 
   return (
     <Card className="border-hairline shadow-none">
@@ -1550,11 +1552,17 @@ function RouteBFeedbackReviewPanel({
               <ContextLine label="AiUsageLog" value={String(review.providerBoundary.aiUsageLogWritten)} />
               <ContextLine label="Writes CRM fact" value={String(review.persistenceEnvelope.writesConfirmedCrmFact)} />
               <ContextLine label="Total score" value={String(review.outputContract.totalScoreAllowed)} />
+              <ContextLine
+                label="Red-line action source"
+                value={review.redLineActionState.consumedByFeedbackReview ? "sceneState.redLineActionState" : "none"}
+              />
             </div>
 
             <div className="grid grid-cols-2 gap-2">
               <RouteBMiniCount label="紅線待查" value={redLineNeedsReview} />
               <RouteBMiniCount label="本輪不適用" value={redLineNotApplicable} />
+              <RouteBMiniCount label="升級審閱" value={redLineEscalate} />
+              <RouteBMiniCount label="需要佐證" value={redLineEvidenceNeeded} />
             </div>
 
             <div className="space-y-2">
@@ -1605,6 +1613,12 @@ function RouteBFeedbackReviewPanel({
                     <p className="mt-2 text-xs leading-5 text-muted-foreground">
                       {finding.notApplicableReason ?? finding.evidenceBasis}
                     </p>
+                    {finding.actionContext ? (
+                      <p className="mt-2 rounded-md border border-hairline bg-paper px-2 py-1.5 text-xs leading-5 text-muted-foreground">
+                        advisor action: {finding.actionContext.state} / {finding.actionContext.advisorReasonCode};
+                        no legal advice, no formal finding, no CRM fact, no notification.
+                      </p>
+                    ) : null}
                   </div>
                 ))}
               </div>
