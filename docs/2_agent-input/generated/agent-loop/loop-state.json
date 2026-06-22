@@ -84,11 +84,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 0,
+    "normalLoopsSinceLastWholeProductReview": 1,
     "lastWholeProductReviewAt": "2026-06-22T04:15:13Z",
     "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-22_lv3-whole-product-gap-review-after-route-b-feedback-provider-log-contract.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "Scheduled fifth-loop review after ITA-004b selected ITA-003j as the next normal source-backed slice: Route B next-turn consumption / persisted role reply loop, guarded no-provider first. The slice should consume the persisted RouteBSessionSnapshot plus latest advisor group/private turn, reuse buildTheaterRouteBOrchestrationPlan(), produce a CHARACTER/NARRATOR next-turn draft with speaker/addressee/visibility/state proposal envelope, and keep providerCallAttempted=false / aiUsageLogWritten=false unless a real provider call is explicitly wired with success/error AiUsageLog. If the DB host remains ENOTFOUND, complete the pure domain/API contract and dry-run proof instead of re-chasing AMM-005c or ITA-003i runtime screenshots; user can rerun DB-backed residual proof commands after connectivity returns.",
+    "nextRecommendedImplementationSlice": "After ITA-003j, run ITA-003k Route B next-turn UI consumption / advisor confirmation shell: connect GET /api/theater/route-b/sessions/[sessionId]/next-turn to /theater/[sessionId] as a guarded no-provider preview, display selected speaker/addressee/visibility/guard evidence and blocked narrator states, and keep generated role text disabled until live director/character provider success-error AiUsageLog proof exists. If DB/browser evidence is still blocked, leave a self-runnable command for operator rather than spending the loop on repeated proof gathering.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {
@@ -156,5 +156,5 @@
     "lv3ImmersiveLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-immersive-loop.md",
     "lv3WholeProductGapReviewLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md"
   },
-  "updatedAt": "2026-06-22T04:15:13Z"
+  "updatedAt": "2026-06-22T04:39:12Z"
 }

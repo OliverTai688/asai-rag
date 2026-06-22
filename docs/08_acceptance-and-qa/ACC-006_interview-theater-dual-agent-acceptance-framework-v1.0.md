@@ -120,6 +120,18 @@
 - [ ] AgentFacts-style manifest 必須新增 runtime orchestration preview capability / `RouteBOrchestrationRuntimePreview` DTO ref / `runtimeInputPreview.orchestration` evidence ref。
 - [ ] 需跑 `pnpm theater:route-b-runtime-qa`、`pnpm theater:route-b-orchestration-dry-run`、`pnpm ai:protocol-registry-qa`、`pnpm ai:bff-audit`、`pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
 
+### 5.5 Route B persisted next-turn draft acceptance
+
+`ITA-003j` 若把 persisted Route B session 接到下一回合 draft preview，完成前必須額外滿足：
+
+- [ ] Source contract 必須消費 `RouteBSessionSnapshot`、latest advisor group/private turn 與 `buildTheaterRouteBOrchestrationPlan()`，產出 `CHARACTER` 或 `NARRATOR` next-turn draft envelope。
+- [ ] Draft response 只能回 least-disclosure 摘要：selected speaker、addressee、visibility、guard evidence、state patch count、provider boundary 與 blocked reason；不得回 raw private transcript、raw provider payload、email、phone、secret、token、cookie、OTP。
+- [ ] 被點名 `PRIVATE` addressee 必答；未點名群聊要能套用 consecutive-speaker guard；沒有 advisor turn 或沒有角色時必須回 `NARRATOR` blocked draft，不得杜撰角色回覆。
+- [ ] Persistence envelope 固定 `requiresConfirmation=true`、`writesConfirmedCrmFact=false`；provider disabled preview 不得產生角色台詞、不寫 theater turn、不寫 confirmed CRM fact。
+- [ ] No-provider proof 必須明確顯示 `providerCallAttempted=false`、`aiUsageLogWritten=false`；provider 啟用前仍要求 success/error `AiUsageLog`，且不得假寫 usage。
+- [ ] AgentFacts-style manifest 必須新增 next-turn capability / `/api/theater/route-b/sessions/[sessionId]/next-turn` endpoint / `TheaterRouteBNextTurnDraft` DTO refs / `pnpm theater:route-b-next-turn-dry-run` proof command，且保持 `registryReadiness=internal-only`。
+- [ ] 需跑 `pnpm theater:route-b-next-turn-dry-run`、`pnpm ai:protocol-registry-qa`、`pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`；DB host 若仍 blocked，live owner-scoped API evidence 可交由 operator 恢復後重跑，不得把 fixture proof 當 DB proof。
+
 ---
 
 ## 6. Feedback / Compliance Acceptance
