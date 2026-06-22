@@ -424,13 +424,15 @@ Whole-product review 註記（2026-06-23 runtime proof gate）：`pnpm lv3:cross
 
 目標：讓匿名 public page / clean browser proof 在 development DB/DNS 暫時不可達時仍能得到 public-safe degraded contract，而不是直接 500；同時補齊 app shell 已呼叫但不存在的 notification BFF boundary。
 
-- [ ] `getPublicStatus()` 或等價 public status repository 在 Prisma `P1001` / DB unavailable 時回安全 degraded status：`maintenance`/`checkoutAvailability`/`aiAvailability`/`primaryCta`/`leadCapture`/`legalStatus` 仍完整，但不得宣稱 checkout、real payment、provider AI、lead persistence 或 production readiness 可用。
-- [ ] Degraded response 必須標示 `source` / `dbAvailable=false` / `degradedReason` 等 public-safe evidence，不回 DB host、connection string、secret、provider raw config、tenant/client/payment data。
-- [ ] `/api/public/pricing` 與 landing/pricing CTA 在 degraded status 下仍與 status 一致；pricing 不得覆蓋 status 的 disabled/unavailable posture。
-- [ ] 對齊 `/api/bff/notifications` 或呼叫方 endpoint，讓 dashboard/top-bar/notification hub 不再在 clean proof 中打到 404；若為 disabled/no-notification posture，需回 public/member-safe empty DTO，不得 fake real notification delivery。
-- [ ] 新增或更新 targeted QA，覆蓋 DB unavailable fallback、status/pricing CTA consistency、notification route no 404、private sentinel 0、no provider/no fake `AiUsageLog`。
-- [ ] 重跑 `pnpm lv3:cross-flow-no-provider-qa` 或等價 cross-flow proof；若只剩 live DB/browser residual evidence，可依使用者偏好提供使用者自跑 command，但不能把 fallback source behavior 未驗收寫成通過。
-- [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+- [x] `getPublicStatus()` 或等價 public status repository 在 Prisma `P1001` / DB unavailable 時回安全 degraded status：`maintenance`/`checkoutAvailability`/`aiAvailability`/`primaryCta`/`leadCapture`/`legalStatus` 仍完整，但不得宣稱 checkout、real payment、provider AI、lead persistence 或 production readiness 可用。
+- [x] Degraded response 必須標示 `source` / `dbAvailable=false` / `degradedReason` 等 public-safe evidence，不回 DB host、connection string、secret、provider raw config、tenant/client/payment data。
+- [x] `/api/public/pricing` 與 landing/pricing CTA 在 degraded status 下仍與 status 一致；pricing 不得覆蓋 status 的 disabled/unavailable posture。
+- [x] 對齊 `/api/bff/notifications` 或呼叫方 endpoint，讓 dashboard/top-bar/notification hub 不再在 clean proof 中打到 404；若為 disabled/no-notification posture，需回 public/member-safe empty DTO，不得 fake real notification delivery。
+- [x] 新增或更新 targeted QA，覆蓋 DB unavailable fallback、status/pricing CTA consistency、notification route no 404、private sentinel 0、no provider/no fake `AiUsageLog`。
+- [x] 重跑 `pnpm lv3:cross-flow-no-provider-qa` 或等價 cross-flow proof；若只剩 live DB/browser residual evidence，可依使用者偏好提供使用者自跑 command，但不能把 fallback source behavior 未驗收寫成通過。
+- [x] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+
+完成註記（2026-06-23 BFF-305b degraded fallback / notification alignment）：已完成 public status DB-unavailable fail-closed fallback、public pricing fallback plan consistency、`/api/bff/notifications` disabled/no-delivery DTO 與 `pnpm public:status-degraded-qa`。Proof 使用 invalid DB URL 啟動 dev server，驗證 `/api/public/status` 200 且 `source=degraded_local`、`dbAvailable=false`、`degradedReason=database_unavailable`、checkout/payment/AI/lead persistence disabled；`/api/public/pricing` 200 且 fallback plans/CTA 與 degraded status 一致；`/api/bff/notifications` 200 且 `realNotificationSent=false`、`triggersExternalNotification=false`；landing/pricing page 在 DB unavailable 下皆不 500、private sentinel 0。此結果不代表 production DB outage policy、real notification delivery、real payment、provider AI availability 或 external NANDA publication 已啟用。
 
 ---
 

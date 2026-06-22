@@ -57,6 +57,8 @@ Evidence（2026-06-21 BFF-305a）：`PUBLIC_STATUS_QA_BASE_URL=http://127.0.0.1:
 - Proof 需覆蓋 DB unavailable status 200 或 page graceful render、pricing/status CTA consistency、notification route no 404、private sentinel 0、no provider call/no fake `AiUsageLog`，以及 clean cross-flow browser 不因 public status 讀取或 notification BFF 缺口起不來。
 - 此 gate 不代表 production DB outage policy、real payment/email/notification enablement、provider AI availability 或 external NANDA/public discovery 已批准。
 
+Evidence（2026-06-23 BFF-305b）：`pnpm public:status-degraded-qa` 已通過 39/39 checks。Proof 使用 invalid DB URL 啟動 dev server，驗證 `GET /api/public/status` 200、`source=degraded_local`、`dbAvailable=false`、`degradedReason=database_unavailable`、checkout/payment/AI/lead persistence disabled、`GET /api/public/pricing` 200 且 fallback plans/CTA 與 status 一致、`GET /api/bff/notifications` 200 且 no-delivery empty DTO、landing/pricing page 在 DB unavailable 下不 500、status/pricing/notification private sentinel 0。此 proof 不呼叫 provider、不寫 DB、不產生 fake `AiUsageLog`、不啟用 real notification/payment/email。
+
 ### 2.2 Member App
 
 - Unauthenticated request returns 401 or redirects to login.

@@ -84,11 +84,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 0,
+    "normalLoopsSinceLastWholeProductReview": 1,
     "lastWholeProductReviewAt": "2026-06-22T16:33:43Z",
     "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-23_lv3-whole-product-gap-review-runtime-proof-gate.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "BFF-305b public status degraded fallback + notification BFF alignment. The scheduled whole-product review found that lv3:cross-flow-no-provider-qa now fails before the advisor cross-flow because public home calls getPublicStatus(), which reaches prisma.systemSettings.findUnique() and returns Prisma P1001 when the current Supabase direct host is unreachable; the same browser run also sees /api/bff/notifications 404. Next normal loop should be source-backed: add a public-safe degraded status contract for DB unavailable cases, keep checkout/payment/provider/notification disabled in degraded mode, align /api/public/pricing and landing CTA with that contract, add or correct the notification BFF endpoint, and rerun targeted public/cross-flow proof. Do not spend the next loop on docs-only evidence or relationship card persistence unless the operator first resolves the VisitPlan JSON subdocument vs dedicated table decision.",
+    "nextRecommendedImplementationSlice": "BFF-402a notification disabled boundary / visit reminder mock-success replacement, or another source-backed release-hardening slice that connects two product surfaces. BFF-305b is complete: pnpm public:status-degraded-qa proves public status/pricing/pages stay 200 with invalid DB and /api/bff/notifications returns disabled_no_delivery instead of 404. Do not spend the next loop on docs-only evidence or rerunning full cross-flow proof unless the operator specifically wants the residual DB-backed proof; if relationship persistence is still undecided, prefer a source slice that removes fake success around notification/email/payment boundaries while keeping real delivery disabled.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {
@@ -156,5 +156,5 @@
     "lv3ImmersiveLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-immersive-loop.md",
     "lv3WholeProductGapReviewLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md"
   },
-  "updatedAt": "2026-06-22T16:50:00Z"
+  "updatedAt": "2026-06-22T17:05:00Z"
 }

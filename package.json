@@ -123,6 +123,7 @@
     "client-portal:qa": "node scripts/client-portal-qa.mjs",
     "public:pricing-qa": "node scripts/public-pricing-qa.mjs",
     "public:status-qa": "node scripts/public-status-qa.mjs",
+    "public:status-degraded-qa": "node scripts/public-status-degraded-qa.mjs",
     "interview:memory-dry-run": "node scripts/interview-memory-dry-run.mjs",
     "interview:park-loop-dry-run": "node scripts/interview-park-loop-dry-run.mjs",
     "interview:theater-build-dry-run": "node scripts/interview-theater-build-dry-run.mjs",

@@ -1,4 +1,4 @@
-export type PublicSurfaceSource = "database" | "fallback";
+export type PublicSurfaceSource = "database" | "fallback" | "degraded_local";
 
 export type PublicMaintenanceStatus = "operational" | "maintenance";
 
@@ -19,6 +19,8 @@ export interface PublicStatusDto {
   generatedAt: string;
   updatedAt: string;
   source: PublicSurfaceSource;
+  dbAvailable: boolean;
+  degradedReason?: "database_unavailable";
   maintenance: {
     status: PublicMaintenanceStatus;
     label: string;

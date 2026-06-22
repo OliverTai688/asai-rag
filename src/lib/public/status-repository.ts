@@ -2,7 +2,7 @@ import "server-only";
 
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import type { Prisma } from "@/generated/prisma/client";
+import { Prisma } from "@/generated/prisma/client";
 import type { PublicCheckoutAvailabilityStatus, PublicStatusDto } from "@/domains/public/types";
 import { prisma } from "@/lib/prisma";
 
@@ -17,6 +17,12 @@ const DEFAULT_PROVIDER_POLICY = {
 } as const;
 
 type JsonObject = Record<string, unknown>;
+
+type PublicSettingsRow = {
+  featureFlags: Prisma.JsonValue | null;
+  providerPolicy: Prisma.JsonValue | null;
+  updatedAt: Date;
+} | null;
 
 function asObject(value: Prisma.JsonValue | null | undefined): JsonObject {
   if (!value || typeof value !== "object" || Array.isArray(value)) return {};
@@ -36,25 +42,36 @@ function publicFileExists(path: string) {
 }
 
 export async function getPublicStatus(): Promise<PublicStatusDto> {
-  const settings = await prisma.systemSettings.findUnique({
-    where: { id: "default" },
-    select: {
-      featureFlags: true,
-      providerPolicy: true,
-      updatedAt: true,
-    },
-  });
+  let settings: PublicSettingsRow = null;
+  let dbAvailable = true;
+
+  try {
+    settings = await prisma.systemSettings.findUnique({
+      where: { id: "default" },
+      select: {
+        featureFlags: true,
+        providerPolicy: true,
+        updatedAt: true,
+      },
+    });
+  } catch (error) {
+    if (!isPublicDatabaseUnavailableError(error)) throw error;
+    dbAvailable = false;
+  }
+
   const featureFlags = asObject(settings?.featureFlags);
   const providerPolicy = asObject(settings?.providerPolicy);
+  const degradedReason = dbAvailable ? undefined : "database_unavailable";
   const billingCheckoutEnabled = boolOrDefault(
     featureFlags.billingCheckoutEnabled,
     DEFAULT_FEATURE_FLAGS.billingCheckoutEnabled,
-  );
-  const aiAssistantEnabled = boolOrDefault(featureFlags.aiAssistantEnabled, DEFAULT_FEATURE_FLAGS.aiAssistantEnabled);
+  ) && dbAvailable;
+  const aiAssistantEnabled =
+    boolOrDefault(featureFlags.aiAssistantEnabled, DEFAULT_FEATURE_FLAGS.aiAssistantEnabled) && dbAvailable;
   const publicLeadCaptureEnabled = boolOrDefault(
     featureFlags.publicLeadCaptureEnabled,
     DEFAULT_FEATURE_FLAGS.publicLeadCaptureEnabled,
-  );
+  ) && dbAvailable;
   const paymentProviderMode = stringOrDefault(
     providerPolicy.paymentProviderMode,
     DEFAULT_PROVIDER_POLICY.paymentProviderMode,
@@ -67,11 +84,15 @@ export async function getPublicStatus(): Promise<PublicStatusDto> {
     version: "asai.public_status.v1",
     generatedAt: new Date().toISOString(),
     updatedAt: settings?.updatedAt.toISOString() ?? new Date(0).toISOString(),
-    source: settings ? "database" : "fallback",
+    source: dbAvailable ? (settings ? "database" : "fallback") : "degraded_local",
+    dbAvailable,
+    ...(degradedReason ? { degradedReason } : {}),
     maintenance: {
-      status: "operational",
-      label: "Private beta operational",
-      message: "公開頁面可瀏覽；正式付款、email、notification 與 production launch 仍維持關閉。",
+      status: dbAvailable ? "operational" : "maintenance",
+      label: dbAvailable ? "Private beta operational" : "Public status degraded",
+      message: dbAvailable
+        ? "公開頁面可瀏覽；正式付款、email、notification 與 production launch 仍維持關閉。"
+        : "公開頁面以安全降級狀態顯示；資料庫狀態暫不可確認，因此付款、lead persistence、provider AI 與通知皆維持關閉。",
     },
     aiAvailability: {
       status: aiAssistantEnabled ? "available_private_beta" : "disabled",
@@ -105,7 +126,9 @@ export async function getPublicStatus(): Promise<PublicStatusDto> {
       consentVersion: "public-beta-2026-06-21",
       reason: publicLeadCaptureEnabled
         ? "Private beta lead capture is enabled with consent, honeypot spam protection, rate limiting, and allowlisted DB persistence."
-        : "Public lead capture requires rate limit, spam protection, consent version, allowlisted persistence, and abuse/failure proof.",
+        : dbAvailable
+          ? "Public lead capture requires rate limit, spam protection, consent version, allowlisted persistence, and abuse/failure proof."
+          : "Public lead capture is disabled while the database-backed persistence status is unavailable.",
       requiredProof: publicLeadCaptureEnabled
         ? ["rate_limit", "honeypot_spam_protection", "consent_version", "allowlisted_persistence", "abuse_failure_proof"]
         : ["rate_limit", "spam_protection", "consent_version", "allowlisted_persistence", "abuse_failure_proof"],
@@ -120,6 +143,29 @@ export async function getPublicStatus(): Promise<PublicStatusDto> {
       note: "This endpoint is not a NANDA, AgentFacts, third-party registry, signed publication, or cross-organization agent access surface.",
     },
   };
+}
+
+export function isPublicDatabaseUnavailableError(error: unknown): boolean {
+  if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P1001") {
+    return true;
+  }
+
+  const message = getErrorMessage(error);
+
+  return [
+    "DatabaseNotReachable",
+    "Can't reach database server",
+    "getaddrinfo",
+    "ENOTFOUND",
+    "ECONNREFUSED",
+    "ETIMEDOUT",
+  ].some((fragment) => message.includes(fragment));
+}
+
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (typeof error === "string") return error;
+  return "";
 }
 
 function buildPrimaryCta(checkoutStatus: PublicCheckoutAvailabilityStatus, publicLeadCaptureEnabled: boolean) {

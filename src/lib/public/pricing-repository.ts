@@ -3,7 +3,7 @@ import { DEFAULT_PLAN_CONFIGS } from "@/domains/subscription/plan-config";
 import type { PlanType } from "@/domains/subscription/types";
 import type { PublicPricingDto, PublicStatusDto } from "@/domains/public/types";
 import { prisma } from "@/lib/prisma";
-import { getPublicStatus } from "./status-repository";
+import { getPublicStatus, isPublicDatabaseUnavailableError } from "./status-repository";
 
 const planOrder: PlanType[] = ["FREE", "STARTER", "PRO", "ENTERPRISE"];
 
@@ -25,9 +25,17 @@ const planMeta: Record<PlanType, { cta: string; highlighted?: boolean; badge?: s
   ENTERPRISE: { cta: "聯絡銷售" },
 };
 
+type PublicPlanConfigRow = PublicPlanCapabilityConfig & {
+  plan: string;
+};
+
 export async function getPublicPricing(): Promise<PublicPricingDto> {
-  const [rows, publicStatus] = await Promise.all([
-    prisma.planConfig.findMany({
+  const publicStatus = await getPublicStatus();
+  let source: PublicPricingDto["source"] = publicStatus.dbAvailable ? "fallback" : "degraded_local";
+  let rows: PublicPlanConfigRow[] = [];
+
+  try {
+    rows = await prisma.planConfig.findMany({
       where: { isActive: true },
       select: {
         plan: true,
@@ -39,11 +47,14 @@ export async function getPublicPricing(): Promise<PublicPricingDto> {
         shareBrandingEnabled: true,
         clientPortalEnabled: true,
       },
-    }),
-    getPublicStatus(),
-  ]);
+    });
+    source = rows.length > 0 ? "database" : source;
+  } catch (error) {
+    if (!isPublicDatabaseUnavailableError(error)) throw error;
+    source = "degraded_local";
+  }
+
   const byPlan = new Map(rows.map((row) => [row.plan as PlanType, row]));
-  const source = rows.length > 0 ? "database" : "fallback";
 
   return {
     source,
