@@ -84,11 +84,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 0,
+    "normalLoopsSinceLastWholeProductReview": 1,
     "lastWholeProductReviewAt": "2026-06-22T13:04:38Z",
     "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-22_lv3-whole-product-gap-review-after-notes-hub-quarantine.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "Cadence counter reset to 0 after the scheduled whole-product review following AMM-005j. Previous top gap is resolved: Route B red-line action context is now consumed by visit-prep and meeting notes, and global /notes is quarantined away from the local quick-note prototype. Next normal loop should be a source-backed ITA-005k disabled/no-provider red-line compliance-review intake: create an owner-scoped review-candidate contract from persisted Route B feedback/action context, with no formal legal/compliance finding, no real notification, no provider call, no confirmed CRM fact write, no raw private/provider payload, and internal-only AgentFacts refs. If only residual browser screenshots remain, hand the exact command/checklist to the operator instead of spending a loop on evidence collection.",
+    "nextRecommendedImplementationSlice": "Cadence counter is 1 after ITA-005k source/API/UI contract work. Next normal loop should avoid docs-only proof and pick a source-backed slice that connects another core surface: either surface the compliance-review intake into a real review queue / operator-safe workflow while still disabled/no-provider/no-notification/no-formal-finding, or move to AMM/PIM server-owned quick-note intake if the route can include scope checks and writeback boundaries. If only residual browser screenshots remain, hand the exact command/checklist to the operator instead of spending a loop on evidence collection.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {
@@ -156,5 +156,5 @@
     "lv3ImmersiveLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-immersive-loop.md",
     "lv3WholeProductGapReviewLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md"
   },
-  "updatedAt": "2026-06-22T13:04:38Z"
+  "updatedAt": "2026-06-22T13:25:07Z"
 }

@@ -33,6 +33,7 @@ import {
 } from "@/domains/demo/quickstart";
 import { theaterTourSteps } from "@/domains/demo/tour-steps";
 import { useSpinStore } from "@/domains/spin/store";
+import type { RouteBComplianceReviewIntake } from "@/domains/theater/route-b-compliance-review-intake";
 import type { TheaterRouteBFeedbackReview } from "@/domains/theater/route-b-feedback-review";
 import type { TheaterRouteBNextTurnAppendCandidate } from "@/domains/theater/route-b-next-turn-append";
 import type { TheaterRouteBNextTurnDraft } from "@/domains/theater/route-b-next-turn";
@@ -65,6 +66,7 @@ const SCORE_ITEMS: Array<{ key: keyof Pick<TheaterScore, "empathy" | "questionin
 const EMPTY_TURNS: TheaterTurn[] = [];
 
 type RouteBFeedbackReviewStatus = "idle" | "loading" | "ready" | "empty" | "error" | "generating";
+type RouteBComplianceReviewIntakeStatus = "idle" | "loading" | "ready" | "empty" | "error";
 type RouteBProviderCandidateStatus = "idle" | "generating" | "ready" | "error";
 type RouteBRedLineActionPersistenceStatus = "idle" | "loading" | "saving" | "ready" | "error";
 
@@ -73,6 +75,16 @@ type RouteBFeedbackReviewEmptyPayload = {
   providerCallAttempted: false;
   aiUsageLogWritten: false;
   writesConfirmedCrmFact: false;
+};
+
+type RouteBComplianceReviewIntakeEmptyPayload = {
+  status: "EMPTY";
+  actionId: "route-b-red-line-compliance-review-intake";
+  providerCallAttempted: false;
+  aiUsageLogWritten: false;
+  writesConfirmedCrmFact: false;
+  triggersExternalNotification: false;
+  noFormalFinding: true;
 };
 
 function normalizeParam(value: string | string[] | undefined) {
@@ -475,6 +487,9 @@ function RouteBSessionStage({
   const [feedbackReview, setFeedbackReview] = useState<TheaterRouteBFeedbackReview | null>(null);
   const [feedbackReviewStatus, setFeedbackReviewStatus] = useState<RouteBFeedbackReviewStatus>("idle");
   const [feedbackReviewError, setFeedbackReviewError] = useState<string | null>(null);
+  const [complianceReviewIntake, setComplianceReviewIntake] = useState<RouteBComplianceReviewIntake | null>(null);
+  const [complianceReviewIntakeStatus, setComplianceReviewIntakeStatus] = useState<RouteBComplianceReviewIntakeStatus>("idle");
+  const [complianceReviewIntakeError, setComplianceReviewIntakeError] = useState<string | null>(null);
   const severeRedLineWarningPreview = ROUTE_B_SEVERE_RED_LINE_WARNING_PREVIEW;
   const severeRedLineActionWorkflow = ROUTE_B_SEVERE_RED_LINE_ACTION_WORKFLOW;
   const [redLineActionStates, setRedLineActionStates] = useState<Record<string, RouteBRedLineActionState>>(() =>
@@ -610,6 +625,9 @@ function RouteBSessionStage({
   const generateFeedbackReview = async () => {
     setFeedbackReviewStatus("generating");
     setFeedbackReviewError(null);
+    setComplianceReviewIntake(null);
+    setComplianceReviewIntakeStatus("idle");
+    setComplianceReviewIntakeError(null);
 
     try {
       const response = await fetch(`/api/theater/route-b/sessions/${encodeURIComponent(snapshot.session.id)}/feedback-review`, {
@@ -631,6 +649,49 @@ function RouteBSessionStage({
       setFeedbackReview(null);
       setFeedbackReviewStatus("error");
       setFeedbackReviewError(error instanceof Error ? error.message : "Route B feedback review generation failed.");
+    }
+  };
+
+  const fetchComplianceReviewIntake = async () => {
+    setComplianceReviewIntakeStatus("loading");
+    setComplianceReviewIntakeError(null);
+
+    try {
+      const response = await fetch(
+        `/api/theater/route-b/sessions/${encodeURIComponent(snapshot.session.id)}/compliance-review-intake`,
+        {
+          cache: "no-store",
+        },
+      );
+      const payload = (await response.json().catch(() => null)) as
+        | RouteBComplianceReviewIntake
+        | RouteBComplianceReviewIntakeEmptyPayload
+        | { error?: string; message?: string }
+        | null;
+
+      if (!response.ok || !payload) {
+        const message = payload && "message" in payload && payload.message
+          ? payload.message
+          : "Route B compliance-review intake read failed.";
+        throw new Error(message);
+      }
+
+      if ("status" in payload && payload.status === "EMPTY") {
+        setComplianceReviewIntake(null);
+        setComplianceReviewIntakeStatus("empty");
+        return;
+      }
+
+      if (!isRouteBComplianceReviewIntakePayload(payload)) {
+        throw new Error("Route B compliance-review intake payload is invalid.");
+      }
+
+      setComplianceReviewIntake(payload);
+      setComplianceReviewIntakeStatus("ready");
+    } catch (error) {
+      setComplianceReviewIntake(null);
+      setComplianceReviewIntakeStatus("error");
+      setComplianceReviewIntakeError(error instanceof Error ? error.message : "Route B compliance-review intake read failed.");
     }
   };
 
@@ -907,6 +968,13 @@ function RouteBSessionStage({
             onRefresh={fetchFeedbackReview}
             review={feedbackReview}
             status={feedbackReviewStatus}
+          />
+
+          <RouteBComplianceReviewIntakePanel
+            error={complianceReviewIntakeError}
+            intake={complianceReviewIntake}
+            onRefresh={fetchComplianceReviewIntake}
+            status={complianceReviewIntakeStatus}
           />
 
           <RouteBSevereRedLineWarningPanel
@@ -1634,6 +1702,127 @@ function RouteBFeedbackReviewPanel({
   );
 }
 
+function RouteBComplianceReviewIntakePanel({
+  error,
+  intake,
+  onRefresh,
+  status,
+}: {
+  error: string | null;
+  intake: RouteBComplianceReviewIntake | null;
+  onRefresh: () => Promise<void>;
+  status: RouteBComplianceReviewIntakeStatus;
+}) {
+  const isBusy = status === "loading";
+  const needsEvidenceCount = intake?.candidates.filter((candidate) => candidate.reviewStatus === "NEEDS_EVIDENCE").length ?? 0;
+  const reviewRequiredCount = intake?.candidates.filter((candidate) => candidate.reviewStatus === "CANDIDATE_REVIEW_REQUIRED").length ?? 0;
+
+  return (
+    <Card className="border-hairline shadow-none">
+      <CardContent className="space-y-4 p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+              Compliance Intake
+            </p>
+            <h2 className="mt-1 text-sm font-semibold text-ink">待審閱候選</h2>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+              從已保存五視角回顧建立候選清單；需要佐證與升級審閱都不代表正式法遵處置，也不會發出真實通報。
+            </p>
+          </div>
+          <ShieldCheck className="mt-1 h-4 w-4 shrink-0 text-muted-foreground" />
+        </div>
+
+        <Button
+          type="button"
+          variant="outline"
+          className="h-10 w-full rounded-full"
+          disabled={isBusy}
+          onClick={() => void onRefresh()}
+          aria-label="讀取 Route B 紅線待審閱候選"
+        >
+          {isBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
+          讀取候選
+        </Button>
+
+        {status === "error" ? (
+          <p className="rounded-lg border border-hairline bg-paper px-3 py-2 text-sm leading-6 text-muted-foreground">
+            {error ?? "Route B compliance-review intake failed."}
+          </p>
+        ) : null}
+
+        {status === "empty" ? (
+          <p className="rounded-lg border border-dashed border-hairline bg-paper px-3 py-3 text-sm leading-6 text-muted-foreground">
+            尚未有可建立候選的保存回顧。請先保存五視角回顧，再讀取候選。
+          </p>
+        ) : null}
+
+        {intake ? (
+          <div className="space-y-3">
+            <div className="grid grid-cols-3 gap-2">
+              <RouteBMiniCount label="候選" value={intake.candidateCount} />
+              <RouteBMiniCount label="需要佐證" value={needsEvidenceCount} />
+              <RouteBMiniCount label="升級候選" value={reviewRequiredCount} />
+            </div>
+
+            <div className="grid gap-2 text-sm text-muted-foreground">
+              <ContextLine label="Source" value={intake.sourceSurface} />
+              <ContextLine label="Provider call" value={String(intake.providerBoundary.providerCallAttempted)} />
+              <ContextLine label="AiUsageLog" value={String(intake.providerBoundary.aiUsageLogWritten)} />
+              <ContextLine label="Formal finding" value={String(intake.reviewBoundary.createsFormalFinding)} />
+              <ContextLine label="Real notification" value={String(intake.reviewBoundary.triggersExternalNotification)} />
+              <ContextLine label="Writes CRM fact" value={String(intake.reviewBoundary.writesConfirmedCrmFact)} />
+            </div>
+
+            <div className="space-y-2">
+              {intake.candidates.length ? (
+                intake.candidates.map((candidate) => (
+                  <details key={candidate.id} className="group rounded-lg border border-hairline bg-paper">
+                    <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 px-3 text-sm font-medium text-ink [&::-webkit-details-marker]:hidden">
+                      <span>{candidate.label}</span>
+                      <Badge variant={candidate.actionState === "ESCALATE" ? "destructive" : "outline"} className="shrink-0 rounded-full">
+                        {candidate.reviewStatus}
+                      </Badge>
+                    </summary>
+                    <div className="space-y-3 border-t border-hairline p-3">
+                      <p className="text-xs leading-5 text-muted-foreground">
+                        {candidate.safeSummary}
+                      </p>
+                      <div className="grid gap-2 text-xs text-muted-foreground">
+                        <ContextLine label="Rule" value={candidate.ruleId} />
+                        <ContextLine label="Action state" value={candidate.actionState} />
+                        <ContextLine label="Reason" value={candidate.advisorReasonCode} />
+                        <ContextLine label="Updated" value={candidate.updatedAt} />
+                        <ContextLine label="Formal finding" value={String(!candidate.proof.noFormalFinding)} />
+                        <ContextLine label="Notification" value={String(candidate.proof.triggersExternalNotification)} />
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {candidate.evidenceRefs.map((evidence) => (
+                          <Badge key={evidence.id} variant="outline" className="rounded-full">
+                            {evidence.label}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  </details>
+                ))
+              ) : (
+                <p className="rounded-lg border border-dashed border-hairline bg-paper px-3 py-3 text-sm leading-6 text-muted-foreground">
+                  目前沒有 `ESCALATE` 或 `EVIDENCE_NEEDED` 的候選；觀察中與不適用狀態不送入審閱候選。
+                </p>
+              )}
+            </div>
+
+            <p className="rounded-lg border border-hairline bg-paper px-3 py-3 text-xs leading-5 text-muted-foreground">
+              此區只建立 disabled/no-provider intake candidate；後續正式法遵 finding、通知、審閱 routing 或 CRM 寫回都需要另行授權與驗收。
+            </p>
+          </div>
+        ) : null}
+      </CardContent>
+    </Card>
+  );
+}
+
 function RouteBNextTurnPreviewPanel({
   appendCandidate,
   appendUsageLogId,
@@ -1980,6 +2169,27 @@ function isSafeRouteBProviderCandidate(candidate: TheaterRouteBNextTurnAppendCan
     candidate.storesRawProviderPayload === false &&
     candidate.rawPrivateTranscriptIncluded === false &&
     candidate.content.trim().length > 0
+  );
+}
+
+function isRouteBComplianceReviewIntakePayload(value: unknown): value is RouteBComplianceReviewIntake {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+
+  const payload = value as Partial<RouteBComplianceReviewIntake>;
+  const reviewBoundary = payload.reviewBoundary;
+  const providerBoundary = payload.providerBoundary;
+
+  return (
+    payload.agentId === "asai.theater.route_b" &&
+    payload.actionId === "route-b-red-line-compliance-review-intake" &&
+    payload.registryReadiness === "internal-only" &&
+    payload.sourceActionId === "route-b-red-line-action-feedback-consumption" &&
+    Array.isArray(payload.candidates) &&
+    reviewBoundary?.createsFormalFinding === false &&
+    reviewBoundary.triggersExternalNotification === false &&
+    reviewBoundary.writesConfirmedCrmFact === false &&
+    providerBoundary?.providerCallAttempted === false &&
+    providerBoundary.aiUsageLogWritten === false
   );
 }
 

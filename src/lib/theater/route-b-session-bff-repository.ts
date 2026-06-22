@@ -13,6 +13,11 @@ import {
   type TheaterRouteBFeedbackReview,
 } from "@/domains/theater/route-b-feedback-review";
 import {
+  buildRouteBComplianceReviewIntakeFromFeedbackReview,
+  isRouteBComplianceReviewIntake,
+  type RouteBComplianceReviewIntake,
+} from "@/domains/theater/route-b-compliance-review-intake";
+import {
   buildRouteBRedLineActionPersistenceState,
   isRouteBRedLineActionPersistenceState,
   type RouteBRedLineActionPersistenceState,
@@ -87,6 +92,11 @@ export type GetRouteBFeedbackReviewResult =
 
 export type CreateRouteBFeedbackReviewResult =
   | { status: "CREATED"; data: TheaterRouteBFeedbackReview }
+  | { status: "NOT_FOUND" };
+
+export type GetRouteBComplianceReviewIntakeResult =
+  | { status: "OK"; data: RouteBComplianceReviewIntake }
+  | { status: "EMPTY" }
   | { status: "NOT_FOUND" };
 
 export type GetRouteBRedLineActionStateResult =
@@ -288,6 +298,39 @@ export async function createRouteBFeedbackReviewForMember(
   });
 
   return data;
+}
+
+export async function getRouteBComplianceReviewIntakeForMember(
+  session: AppSession,
+  sessionId: string,
+): Promise<GetRouteBComplianceReviewIntakeResult> {
+  const record = await prisma.theaterSession.findFirst({
+    where: {
+      id: sessionId,
+      organizationId: session.organization.id,
+      ownerId: session.user.id,
+      routeBEnabled: true,
+    },
+    select: {
+      sceneState: true,
+    },
+  });
+
+  if (!record) {
+    return { status: "NOT_FOUND" };
+  }
+
+  const feedbackReview = asRecord(record.sceneState).feedbackReview;
+  if (!isTheaterRouteBFeedbackReview(feedbackReview)) {
+    return { status: "EMPTY" };
+  }
+
+  const intake = buildRouteBComplianceReviewIntakeFromFeedbackReview({ feedbackReview });
+  if (!isRouteBComplianceReviewIntake(intake)) {
+    return { status: "EMPTY" };
+  }
+
+  return { status: "OK", data: intake };
 }
 
 export async function getRouteBRedLineActionStateForMember(
