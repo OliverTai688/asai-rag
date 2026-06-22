@@ -615,7 +615,7 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
       displayName: "Visit preparation package",
       ownerSurface: "/pre-visit",
       module: "VISIT",
-      version: "2026-06-21.nap-003a",
+      version: "2026-06-22.visit-theater-evidence-summary",
       status: "active",
     },
     capabilities: [
@@ -662,13 +662,14 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
     },
     proof: {
       sourceAuditModule: "VISIT",
-      commands: [...commonProofCommands, "pnpm bff:visit-report-ai-qa"],
+      commands: [...commonProofCommands, "pnpm bff:visit-report-ai-qa", "pnpm visit:theater-handoff-dry-run"],
       sourceAdoption: {
         status: "adopted",
         ownerRefs: [
           "src/app/api/ai/visit/route.ts",
           "src/domains/visit/ai-evidence-dto.ts",
           "src/domains/visit/reasoning.ts",
+          "src/domains/theater/visit-handoff.ts",
           "src/lib/visits/visit-plan-repository.ts",
         ],
         evidenceRefs: [
@@ -677,6 +678,7 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
           "buildProviderSafeClientSnapshot",
           "buildAiEvidenceSummary",
           "enrichSpinQuestionsWithReasoning",
+          "VisitTheaterHandoff.sourceSummary.evidenceSummary",
           "updateVisitPlanForMember",
           "persistAiGenerationSuccess",
           "persistAiGenerationFailure",
@@ -684,6 +686,7 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
         notes: [
           "Provider input is built from a provider-safe client snapshot and server-side client permission lookup.",
           "Question rationale and evidence summary keep facts, inferences, unknowns, and recommendations separate.",
+          "Visit-to-theater handoff summarizes question evidence sources and fact/inference/unknown material counts before Route B consumes the stage packet.",
           "Saved VisitPlan persistence is owned by the visit-plan repository, not by provider response metadata.",
         ],
       },

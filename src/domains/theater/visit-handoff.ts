@@ -5,6 +5,8 @@ import type {
   ObjectionHandling,
   SpinQuestion,
   VisitMaterial,
+  VisitQuestionEvidence,
+  VisitQuestionEvidenceSource,
   VisitPlan,
   VisitPurpose,
   VisitQuestionEvidenceStatus,
@@ -45,6 +47,15 @@ export interface VisitTheaterHandoff {
       policies: number;
       objections: number;
       visitMaterials: number;
+    };
+    evidenceSummary: {
+      questionEvidenceByStatus: Record<VisitQuestionEvidenceStatus, number>;
+      questionEvidenceSources: VisitQuestionEvidenceSource[];
+      theaterMaterialCounts: {
+        facts: number;
+        inferences: number;
+        unknowns: number;
+      };
     };
   };
 }
@@ -87,6 +98,11 @@ export function buildVisitTheaterHandoff(input: VisitTheaterHandoffInput): Visit
         policies: input.client.existingPolicies.length,
         objections: input.visitPlan.objections.length,
         visitMaterials: input.visitPlan.materials.length,
+      },
+      evidenceSummary: {
+        questionEvidenceByStatus: countQuestionEvidenceByStatus(input.visitPlan.spinQuestions),
+        questionEvidenceSources: collectQuestionEvidenceSources(input.visitPlan.spinQuestions),
+        theaterMaterialCounts: countTheaterMaterialsByPrefix(knownMaterials),
       },
     },
   };
@@ -244,6 +260,42 @@ function inferCharacterRole(relation: string): "DECISION_MAKER" | "INFLUENCER" {
 
 function countQuestionEvidence(questions: SpinQuestion[]): number {
   return questions.reduce((count, question) => count + (question.reasoning?.evidence.length ?? 0), 0);
+}
+
+function collectQuestionEvidence(questions: SpinQuestion[]): VisitQuestionEvidence[] {
+  return questions.flatMap((question) => question.reasoning?.evidence ?? []);
+}
+
+function countQuestionEvidenceByStatus(
+  questions: SpinQuestion[],
+): Record<VisitQuestionEvidenceStatus, number> {
+  const counts: Record<VisitQuestionEvidenceStatus, number> = {
+    confirmed: 0,
+    inference: 0,
+    unknown: 0,
+  };
+
+  for (const evidence of collectQuestionEvidence(questions)) {
+    counts[evidence.status] += 1;
+  }
+
+  return counts;
+}
+
+function collectQuestionEvidenceSources(questions: SpinQuestion[]): VisitQuestionEvidenceSource[] {
+  return Array.from(new Set(collectQuestionEvidence(questions).map((evidence) => evidence.source))).sort();
+}
+
+function countTheaterMaterialsByPrefix(materials: string[]): VisitTheaterHandoff["sourceSummary"]["evidenceSummary"]["theaterMaterialCounts"] {
+  return materials.reduce(
+    (counts, item) => {
+      if (item.startsWith("FACT:")) counts.facts += 1;
+      if (item.startsWith("INFERENCE:")) counts.inferences += 1;
+      if (item.startsWith("UNKNOWN:")) counts.unknowns += 1;
+      return counts;
+    },
+    { facts: 0, inferences: 0, unknowns: 0 },
+  );
 }
 
 function material(prefix: "FACT" | "INFERENCE" | "UNKNOWN", body: string): string {

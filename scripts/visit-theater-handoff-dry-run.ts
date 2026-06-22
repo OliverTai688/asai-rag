@@ -114,6 +114,7 @@ const approvedHighSensitivityHandoff = buildVisitTheaterHandoff({
 
 const failures: string[] = [];
 const serialized = JSON.stringify(handoff);
+const evidenceSummary = handoff.sourceSummary.evidenceSummary;
 
 if (handoff.status !== "READY") failures.push("normal handoff did not become READY");
 if (handoff.packet.readiness !== "READY") failures.push("packet readiness is not READY");
@@ -126,6 +127,9 @@ if (handoff.packet.characters.some((character) => character.displayName === "多
 if (!handoff.packet.relationships.some((relationship) => relationship.includes("張麗華"))) {
   failures.push("relationship graph evidence missing");
 }
+if (!handoff.packet.relationships.some((relationship) => relationship.includes("S 題"))) {
+  failures.push("relationship question evidence did not reach theater stage relationships");
+}
 if (!handoff.packet.objections.some((objection) => objection.includes("太太討論"))) {
   failures.push("visit objection did not transfer to theater packet");
 }
@@ -135,12 +139,26 @@ if (!handoff.packet.confirmedFacts.some((fact) => fact.includes("既有保單摘
 if (!handoff.packet.unknowns.some((unknown) => unknown.includes("醫療險條款更新"))) {
   failures.push("unchecked material did not stay unknown");
 }
+if (!handoff.packet.unknowns.some((unknown) => unknown.includes("N 題"))) {
+  failures.push("need-payoff unknown reasoning did not stay unknown in theater packet");
+}
 if (!handoff.packet.inferredPersona.some((value) => value.includes("教育金缺口"))) {
   failures.push("AI gap tag did not stay as inference");
 }
 if (handoff.packet.confirmedFacts.some((fact) => fact.includes("教育金缺口"))) {
   failures.push("inference leaked into confirmed facts");
 }
+if (evidenceSummary.questionEvidenceByStatus.confirmed < 1) failures.push("confirmed evidence summary missing");
+if (evidenceSummary.questionEvidenceByStatus.inference < 1) failures.push("inference evidence summary missing");
+if (evidenceSummary.questionEvidenceByStatus.unknown < 1) failures.push("unknown evidence summary missing");
+for (const expectedSource of ["relationship_graph", "policy", "ai_tag", "unknown"] as const) {
+  if (!evidenceSummary.questionEvidenceSources.includes(expectedSource)) {
+    failures.push(`evidence source ${expectedSource} missing from handoff summary`);
+  }
+}
+if (evidenceSummary.theaterMaterialCounts.facts < 1) failures.push("fact material count missing");
+if (evidenceSummary.theaterMaterialCounts.inferences < 1) failures.push("inference material count missing");
+if (evidenceSummary.theaterMaterialCounts.unknowns < 1) failures.push("unknown material count missing");
 if (!handoff.missing.includes("準備包仍有待確認推論依據")) {
   failures.push("unknown reasoning gap was not surfaced in missing list");
 }
@@ -176,6 +194,9 @@ console.log(
       confirmedFacts: handoff.packet.confirmedFacts.length,
       inferences: handoff.packet.inferredPersona.length,
       unknowns: handoff.packet.unknowns.length,
+      questionEvidenceByStatus: evidenceSummary.questionEvidenceByStatus,
+      questionEvidenceSources: evidenceSummary.questionEvidenceSources,
+      theaterMaterialCounts: evidenceSummary.theaterMaterialCounts,
       blockedHighSensitivityStatus: highSensitivityHandoff.status,
       approvedHighSensitivityStatus: approvedHighSensitivityHandoff.status,
     },
