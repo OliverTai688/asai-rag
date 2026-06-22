@@ -74,6 +74,7 @@
     "theater:route-b-orchestration-dry-run": "node scripts/theater-route-b-orchestration-dry-run.mjs",
     "theater:route-b-next-turn-dry-run": "node scripts/theater-route-b-next-turn-dry-run.mjs",
     "theater:route-b-next-turn-ui-contract-qa": "node scripts/theater-route-b-next-turn-ui-contract-qa.mjs",
+    "theater:route-b-next-turn-provider-dry-run": "node scripts/theater-route-b-next-turn-provider-dry-run.mjs",
     "theater:route-b-feedback-dry-run": "node scripts/theater-route-b-feedback-dry-run.mjs",
     "theater:route-b-feedback-provider-dry-run": "node scripts/theater-route-b-feedback-provider-dry-run.mjs",
     "theater:route-b-schema-dry-run": "node scripts/theater-route-b-schema-dry-run.mjs",

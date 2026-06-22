@@ -143,6 +143,19 @@
 - [ ] 顧問新增 group/private turn 後可觸發 next-turn preview refresh，但不自動寫入 character/narrator turn、不寫 confirmed CRM fact、不寫 fake usage log。
 - [ ] UI/source proof 必須至少跑 `pnpm theater:route-b-next-turn-ui-contract-qa`、`pnpm theater:route-b-next-turn-dry-run`、`pnpm ai:protocol-registry-qa`、`pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。若 DB/browser evidence 仍被環境阻擋，可提供 self-runnable residual command，不得花整輪只追截圖。
 
+### 5.7 Route B next-turn provider logging and append-candidate acceptance
+
+`ITA-003l` 若先完成 character/narrator provider usage-log contract，而尚未開啟 live provider route 或 DB append，完成前必須額外滿足：
+
+- [ ] Provider input 必須只使用 next-turn preview / guard evidence / persistence envelope 摘要；不得包含 raw private transcript、direct private dialog、raw provider body、email、phone、secret、token、cookie、OTP。
+- [ ] Draft status 不是 `READY`、沒有 latest advisor turn、沒有 selected speaker 或 visibility scope 時，必須回 blocked result；不得呼叫 provider、不得寫 fake `AiUsageLog`、不得產生 append candidate。
+- [ ] Success path 必須在回傳 generated append candidate 前寫入 success `AiUsageLog` equivalent record，並帶 usage log id、model、token usage summary。
+- [ ] Provider error path 必須在回傳 sanitized provider error 前寫入 error `AiUsageLog` equivalent record；錯誤碼只可回 safe code，不回 raw error message 或 provider body。
+- [ ] Success append candidate 必須保持 `requiresAdvisorConfirmation=true`、`writesConfirmedCrmFact=false`、`storesRawProviderPayload=false`、`rawPrivateTranscriptIncluded=false`；後續 persisted turn append 仍需另做 owner-scoped API/UI proof。
+- [ ] AgentFacts-style manifest 必須新增 `route-b-next-turn-provider-log-contract` capability / `TheaterRouteBNextTurnProviderInput` / `TheaterRouteBNextTurnProviderRunResult` / `TheaterRouteBNextTurnUsageLogRecord` refs 與 `pnpm theater:route-b-next-turn-provider-dry-run` proof command。
+- [ ] 此 acceptance 只證明 provider success/error logging 與 append candidate boundary；不得宣稱 live OpenAI/Anthropic route、DB persisted character turn、feedback provider、或 external registry ready。
+- [ ] 需跑 `pnpm theater:route-b-next-turn-provider-dry-run`、`pnpm theater:route-b-next-turn-dry-run`、`pnpm theater:route-b-next-turn-ui-contract-qa`、`pnpm ai:protocol-registry-qa`、`pnpm ai:bff-audit`、`pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+
 ---
 
 ## 6. Feedback / Compliance Acceptance
