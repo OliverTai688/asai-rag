@@ -27,6 +27,7 @@ try {
       "--outDir",
       outDir,
       "scripts/theater-route-b-feedback-review-dry-run.ts",
+      "src/domains/theater/route-b-objection-red-line-library.ts",
       "src/domains/theater/route-b-feedback-review.ts",
       "src/domains/theater/route-b-feedback.ts",
       "src/domains/theater/route-b-session.ts",

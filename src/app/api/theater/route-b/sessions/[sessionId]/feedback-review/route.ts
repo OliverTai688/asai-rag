@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { ROUTE_B_RED_LINE_IDS } from "@/domains/theater/route-b-feedback";
 import { authErrorResponse, requireCurrentMember } from "@/lib/auth/current-workspace";
 import {
   createRouteBFeedbackReviewForMember,
@@ -17,13 +18,7 @@ const routeBFeedbackPerspectiveSchema = z.enum([
   "DECISION_BRIDGE",
 ]);
 
-const routeBFeedbackRedLineSchema = z.enum([
-  "SIGNATURE_SUBSTITUTION",
-  "PREMIUM_ADVANCE",
-  "GUARANTEED_RETURN",
-  "UNLICENSED_FUNDRAISING",
-  "PRODUCT_BEFORE_KYC",
-]);
+const routeBFeedbackRedLineSchema = z.enum(ROUTE_B_RED_LINE_IDS);
 
 const routeBFeedbackReviewInputSchema = z.object({
   selectedPerspectiveIds: z.array(routeBFeedbackPerspectiveSchema).max(5).optional(),

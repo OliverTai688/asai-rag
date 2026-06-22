@@ -6,6 +6,36 @@ import type {
   TheaterRouteBTurnRef,
   TheaterRouteBVisibilityScope,
 } from "./route-b-handoff";
+import {
+  buildRouteBObjectionRedLineLibrarySummary,
+  ROUTE_B_SEVERE_RED_LINES,
+  type TheaterRouteBSevereRedLine,
+} from "./route-b-objection-red-line-library";
+
+export {
+  buildRouteBObjectionRedLineLibrarySummary,
+  buildRouteBRedLineReviewPlan,
+  getRouteBObjectionLibrary,
+  getRouteBRedLineLibrary,
+  ROUTE_B_OBJECTION_LIBRARY,
+  ROUTE_B_OBJECTION_IDS,
+  ROUTE_B_RED_LINE_IDS,
+  ROUTE_B_RED_LINE_RULES,
+  ROUTE_B_SEVERE_RED_LINES,
+  selectRouteBObjectionPrompts,
+} from "./route-b-objection-red-line-library";
+export type {
+  RouteBObjectionId,
+  RouteBObjectionPrompt,
+  RouteBObjectionRedLineLibrarySummary,
+  RouteBObjectionSelectionInput,
+  RouteBRedLineDetectionMode,
+  RouteBRedLineReviewFindingPlan,
+  RouteBRedLineRule,
+  RouteBRedLineRuleId,
+  RouteBRedLineSeverity,
+  TheaterRouteBSevereRedLine,
+} from "./route-b-objection-red-line-library";
 
 export const ROUTE_B_FEEDBACK_PERSPECTIVE_IDS = [
   "COACH_EAR",
@@ -22,18 +52,6 @@ export interface TheaterRouteBFeedbackPerspective {
   label: string;
   purpose: string;
   evidenceFocus: Array<"GROUP_TURN_PATTERN" | "PRIVATE_LANE_BOUNDARY" | "UNKNOWN_GAP" | "COMPLIANCE_RED_LINE" | "DECISION_NEXT_STEP">;
-}
-
-export interface TheaterRouteBSevereRedLine {
-  id:
-    | "SIGNATURE_SUBSTITUTION"
-    | "PREMIUM_ADVANCE"
-    | "GUARANTEED_RETURN"
-    | "UNLICENSED_FUNDRAISING"
-    | "PRODUCT_BEFORE_KYC";
-  label: string;
-  severity: "SEVERE";
-  evidencePolicy: "requires-evidence-or-mark-not-applicable";
 }
 
 export interface TheaterRouteBFeedbackInputPreview {
@@ -68,6 +86,7 @@ export interface TheaterRouteBFeedbackContract {
   };
   redLineReview: {
     severeSignals: TheaterRouteBSevereRedLine[];
+    librarySummary: ReturnType<typeof buildRouteBObjectionRedLineLibrarySummary>;
     canMarkNotApplicable: true;
     legalAdviceIncluded: false;
     advisorReminder: string;
@@ -120,39 +139,6 @@ export const ROUTE_B_FEEDBACK_PERSPECTIVES: TheaterRouteBFeedbackPerspective[] =
   },
 ];
 
-export const ROUTE_B_SEVERE_RED_LINES: TheaterRouteBSevereRedLine[] = [
-  {
-    id: "SIGNATURE_SUBSTITUTION",
-    label: "代簽",
-    severity: "SEVERE",
-    evidencePolicy: "requires-evidence-or-mark-not-applicable",
-  },
-  {
-    id: "PREMIUM_ADVANCE",
-    label: "代墊",
-    severity: "SEVERE",
-    evidencePolicy: "requires-evidence-or-mark-not-applicable",
-  },
-  {
-    id: "GUARANTEED_RETURN",
-    label: "保證獲利",
-    severity: "SEVERE",
-    evidencePolicy: "requires-evidence-or-mark-not-applicable",
-  },
-  {
-    id: "UNLICENSED_FUNDRAISING",
-    label: "吸金",
-    severity: "SEVERE",
-    evidencePolicy: "requires-evidence-or-mark-not-applicable",
-  },
-  {
-    id: "PRODUCT_BEFORE_KYC",
-    label: "未做 KYC 即推商品",
-    severity: "SEVERE",
-    evidencePolicy: "requires-evidence-or-mark-not-applicable",
-  },
-];
-
 export interface BuildTheaterRouteBFeedbackContractOptions {
   handoff: TheaterRouteBHandoffPacket;
   history?: TheaterRouteBTurnRef[];
@@ -182,6 +168,7 @@ export function buildTheaterRouteBFeedbackContract(
     },
     redLineReview: {
       severeSignals: ROUTE_B_SEVERE_RED_LINES,
+      librarySummary: buildRouteBObjectionRedLineLibrarySummary(),
       canMarkNotApplicable: true,
       legalAdviceIncluded: false,
       advisorReminder: "此回饋是演練與合規提醒，不是法律意見；嚴重紅線需由顧問依公司流程升級確認。",

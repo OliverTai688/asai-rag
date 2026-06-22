@@ -28,6 +28,7 @@ try {
       outDir,
       "scripts/theater-route-b-feedback-provider-dry-run.ts",
       "src/domains/theater/route-b-feedback-provider.ts",
+      "src/domains/theater/route-b-objection-red-line-library.ts",
       "src/domains/theater/route-b-feedback.ts",
       "src/domains/theater/route-b-handoff.ts",
       "src/domains/interview/types.ts",

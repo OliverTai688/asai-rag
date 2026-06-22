@@ -1,8 +1,11 @@
 import {
+  buildRouteBObjectionRedLineLibrarySummary,
+  buildRouteBRedLineReviewPlan,
   ROUTE_B_FEEDBACK_PERSPECTIVES,
-  ROUTE_B_SEVERE_RED_LINES,
+  type RouteBRedLineDetectionMode,
+  type RouteBRedLineRuleId,
+  type RouteBRedLineSeverity,
   type TheaterRouteBFeedbackPerspectiveId,
-  type TheaterRouteBSevereRedLine,
 } from "./route-b-feedback";
 import type { RouteBSessionSnapshot } from "./route-b-session";
 
@@ -27,8 +30,10 @@ export interface TheaterRouteBFeedbackReviewSection {
 }
 
 export interface TheaterRouteBFeedbackReviewRedLineFinding {
-  redLineId: TheaterRouteBSevereRedLine["id"];
+  redLineId: RouteBRedLineRuleId;
   label: string;
+  severity: RouteBRedLineSeverity;
+  detectionMode: RouteBRedLineDetectionMode;
   status: TheaterRouteBFeedbackRedLineStatus;
   evidenceBasis: string;
   notApplicableReason?: string;
@@ -45,6 +50,7 @@ export interface TheaterRouteBFeedbackReview {
   selectedPerspectiveIds: TheaterRouteBFeedbackPerspectiveId[];
   sections: TheaterRouteBFeedbackReviewSection[];
   redLineFindings: TheaterRouteBFeedbackReviewRedLineFinding[];
+  redLineLibrary: ReturnType<typeof buildRouteBObjectionRedLineLibrarySummary>;
   complianceReminder: string;
   outputContract: {
     qualitativeOnly: true;
@@ -77,7 +83,7 @@ export interface BuildTheaterRouteBFeedbackReviewOptions {
   snapshot: RouteBSessionSnapshot;
   selectedPerspectiveIds?: TheaterRouteBFeedbackPerspectiveId[];
   notApplicableRedLines?: Array<{
-    redLineId: TheaterRouteBSevereRedLine["id"];
+    redLineId: RouteBRedLineRuleId;
     reason?: string;
   }>;
   now?: Date;
@@ -108,6 +114,7 @@ export function buildTheaterRouteBFeedbackReview(
       }),
     ),
     redLineFindings: buildRedLineFindings(options.notApplicableRedLines),
+    redLineLibrary: buildRouteBObjectionRedLineLibrarySummary(),
     complianceReminder: "此回饋只作演練與合規提醒，不取代正式法遵審核或法律意見；嚴重紅線需由顧問依公司流程升級確認。",
     outputContract: {
       qualitativeOnly: true,
@@ -151,6 +158,7 @@ export function isTheaterRouteBFeedbackReview(value: unknown): value is TheaterR
     typeof record.sessionId === "string" &&
     Array.isArray(record.sections) &&
     Array.isArray(record.redLineFindings) &&
+    record.redLineLibrary !== undefined &&
     outputContract.qualitativeOnly === true &&
     outputContract.totalScoreAllowed === false &&
     outputContract.rankingAllowed === false &&
@@ -299,22 +307,7 @@ function pickEvidence(
 function buildRedLineFindings(
   notApplicableRedLines?: BuildTheaterRouteBFeedbackReviewOptions["notApplicableRedLines"],
 ): TheaterRouteBFeedbackReviewRedLineFinding[] {
-  const notApplicableById = new Map(
-    (notApplicableRedLines ?? []).map((item) => [item.redLineId, sanitizeFeedbackText(item.reason ?? "顧問標記本輪未觀察到明確證據。")]),
-  );
-
-  return ROUTE_B_SEVERE_RED_LINES.map((signal) => {
-    const notApplicableReason = notApplicableById.get(signal.id);
-    return {
-      redLineId: signal.id,
-      label: signal.label,
-      status: notApplicableReason ? "NOT_APPLICABLE" : "NEEDS_REVIEW",
-      evidenceBasis: notApplicableReason
-        ? "顧問已標記本輪不適用；仍保留 audit review 狀態。"
-        : "No-provider review 未存取 raw transcript；請顧問依公司流程確認是否有明確證據。",
-      ...(notApplicableReason ? { notApplicableReason } : {}),
-    };
-  });
+  return buildRouteBRedLineReviewPlan(notApplicableRedLines);
 }
 
 function routeBRecords(value: unknown): Array<Record<string, unknown>> {
@@ -327,14 +320,4 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function asRecord(value: unknown): Record<string, unknown> {
   return isRecord(value) ? value : {};
-}
-
-function sanitizeFeedbackText(value: string): string {
-  return value
-    .replace(/\s+/g, " ")
-    .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "[removed]")
-    .replace(/09\d{2}[-\s]?\d{3}[-\s]?\d{3}/g, "[removed]")
-    .replace(/\b(rawPayload|providerPayload|authorization|cookie|secret|token|otp|payment|policyNumber)\b/gi, "[removed]")
-    .slice(0, 240)
-    .trim();
 }

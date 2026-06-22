@@ -223,6 +223,21 @@
 
 ITA-004c evidence note（2026-06-22）：`pnpm theater:route-b-feedback-review-qa` 以 deterministic domain dry-run + static API/repository/UI contract QA 覆蓋五視角、紅線 notApplicable、no score/ranking、no raw provider/private/contact/policy sentinel、owner-scoped repository selectors、`sceneState.feedbackReview` persistence、`/theater/[sessionId]` session-end panel 與 AgentFacts manifest refs。剩餘 manager/foreign live DB denial screenshot 屬可由 operator 自行重跑的 residual evidence，不取代本 source proof，也不阻擋下一輪做 `ITA-005a` 紅線/異議 source library 或 live provider wiring。
 
+### 6.4 Route B objection / red-line source library acceptance
+
+`ITA-005a` 若先完成 no-provider 異議庫與紅線規則 source library，完成前必須額外滿足：
+
+- [x] Domain library 必須包含 12 類異議，每類有說法、背後擔憂、回應方向、適用角色、trigger signals，且明確標示 roleplay inference 不等於 CRM confirmed fact。
+- [x] Domain library 必須包含 18 條紅線規則，其中 accepted severe five（代簽、代墊、保證獲利、吸金、未做 KYC 即推商品）為 `IMMEDIATE`，其餘一般紅線為 `POST_REVIEW`。
+- [x] Feedback contract / persisted review 必須消費同一份 library summary，不得保留只知道 5 條 severe 的孤立紅線來源。
+- [x] Red-line not-applicable 必須保留 audit record；不得刪除 finding 或把誤判標記變成正式法遵結論。
+- [x] Library 與 review proof 必須顯示 `providerCallAttempted=false`、`aiUsageLogWritten=false`、`writesConfirmedCrmFact=false`，且不回 raw provider/private/contact/policy sentinel。
+- [x] AgentFacts-style manifest 必須新增 `route-b-objection-red-line-library` capability / DTO/evidence refs / proof command，且保持 `registryReadiness=internal-only`。
+- [x] 需跑 `pnpm theater:route-b-objection-red-line-library-dry-run`、`pnpm theater:route-b-feedback-dry-run`、`pnpm theater:route-b-feedback-review-qa`、`pnpm theater:route-b-feedback-provider-dry-run`、`pnpm ai:protocol-registry-qa`、`pnpm ai:bff-audit`、`pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+- [ ] 後續若接 live director/character/feedback provider prompt，仍需另做 success/error `AiUsageLog` proof、visibility-safe prompt boundary 與 UI/browser evidence；本 source-library proof 不等於 live provider runtime 完成。
+
+ITA-005a evidence note（2026-06-22）：`pnpm theater:route-b-objection-red-line-library-dry-run` 通過 35 checks，覆蓋 12 類異議、18 條紅線、5 severe immediate、13 standard post-review、自然異議選取、標不適用仍保留 audit、feedback contract/review 消費完整 library、no provider/fake usage/CRM fact/private sentinel。`pnpm theater:route-b-feedback-dry-run`、`pnpm theater:route-b-feedback-review-qa`、`pnpm theater:route-b-feedback-provider-dry-run`、`pnpm ai:protocol-registry-qa` 同步通過。
+
 ---
 
 ## 7. Data / DB Acceptance

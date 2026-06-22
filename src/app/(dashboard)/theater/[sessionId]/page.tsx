@@ -1265,7 +1265,7 @@ function RouteBFeedbackReviewPanel({
 
             <details className="group rounded-lg border border-hairline bg-card">
               <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 px-3 text-sm font-medium text-ink [&::-webkit-details-marker]:hidden">
-                <span>嚴重紅線・{review.redLineFindings.length}</span>
+                <span>紅線檢查・{review.redLineFindings.length}</span>
                 <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition group-open:rotate-180" />
               </summary>
               <div className="space-y-2 border-t border-hairline p-3">
@@ -1274,7 +1274,7 @@ function RouteBFeedbackReviewPanel({
                     <div className="flex items-center justify-between gap-3">
                       <p className="text-xs font-semibold text-ink">{finding.label}</p>
                       <Badge variant="outline" className="rounded-full">
-                        {finding.status}
+                        {finding.severity}・{finding.status}
                       </Badge>
                     </div>
                     <p className="mt-2 text-xs leading-5 text-muted-foreground">

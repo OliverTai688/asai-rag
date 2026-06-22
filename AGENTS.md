@@ -874,6 +874,8 @@ ITA-004c feedback review persistence note（2026-06-22）：已完成 Route B fe
 - [ ] 紅線偵測由「守門的良心」呈現：事後為主、嚴重項即時、誤判可標「不適用」（G23/D17）。
 - [ ] 跑 `pnpm lint:changed`。
 
+ITA-005a objection/red-line source library note（2026-06-22）：已完成 source-backed 子切片，尚未宣稱 ITA-005 全卡完成。新增 `src/domains/theater/route-b-objection-red-line-library.ts`，定義 12 類角色異議與 18 條紅線規則；5 條 severe（代簽、代墊、保證獲利、吸金、未做 KYC 即推商品）維持 immediate detection，13 條 standard 維持 post-review。`route-b-feedback.ts` / `route-b-feedback-review.ts` 已消費同一 library summary；review 產出 18 條 red-line findings，`NOT_APPLICABLE` 仍保留 audit posture。新增 `pnpm theater:route-b-objection-red-line-library-dry-run`，驗證 12/18 counts、自然異議選取、severe/standard detection mode、not-applicable audit、no-provider / no fake `AiUsageLog` / no CRM fact write / no private sentinel。AgentFacts manifest 已新增 `route-b-objection-red-line-library` capability / DTO/evidence refs / proof command。尚未完成：live director/character provider prompt wiring、即時嚴重紅線 UI 提示、完整 feedback action flow 與 compliance ops review。
+
 ### Batch ITA-006 — 真實資料 migration + RAG 樁 + pgvector（M6）
 - [ ] `InterviewSession`、劇場多角色表、`KnowledgeDocument`/`KnowledgeChunk` schema → `pnpm prisma:validate` → migration。
 - [ ] Supabase 啟用 pgvector + 向量索引（H26）。
