@@ -382,6 +382,18 @@ ITA-005l evidence note（2026-06-22）：新增 `route-b-red-line-compliance-rev
 
 ITA-RCG-001 evidence note（2026-06-22）：`buildVisitTheaterHandoff()` 會 domain-side 重建 safe `VisitRelationshipConfirmationDeck`，輸出 `knownMaterials` 與 `sourceSummary.evidenceSummary.relationshipConfirmation`，並保留 `localAdvisorStatePersisted=false`、`providerCallAttempted=false`、`aiUsageLogWritten=false`、`writesConfirmedCrmFact=false`。`pnpm visit:theater-handoff-dry-run` 驗證 8 張關係確認卡進 theater materials，unknown cards 進 narrator confirmation questions，且不進 confirmed facts；`pnpm ai:protocol-registry-qa` 驗證 manifest 仍為 internal-only / no external publication。
 
+`ITA-RCG-002` 若先建立 relationship confirmation card-state 的 transient server boundary，而尚未做 DB persistence，完成前必須額外滿足：
+
+- [x] `GET/POST /api/visits/[id]/relationship-confirmation-state` 必須使用 current member / owner-scoped VisitPlan lookup；不得相信 browser raw org/member/client id。
+- [x] State record allowlist 只能包含 `cardId`、`state`、`updatedAt`、`sourceReferenceIds`、`safeNoteSummary`；不得保存 person label、relationship detail、confirmation prompt、raw private transcript、raw provider payload、email、phone、policy number、secret、token、cookie、OTP 或 confirmed CRM fact。
+- [x] `safeNoteSummary` 必須 redacted contact sentinels；未知 card id 必須被 dropped 而不是寫入 envelope。
+- [x] Boundary 必須明確標示 `currentPersistence=local-only-ui-state`、`requiresProductDecision=true`、`persistedToDatabase=false`；不得宣稱 refresh/new-context persistence 已完成。
+- [x] Proof 必須顯示 no provider call、no fake `AiUsageLog`、no confirmed CRM fact write、no raw private/provider payload、no external registry publication。
+- [x] AgentFacts-style manifest 必須新增 guarded/internal-only endpoint/action/DTO/evidence refs 與 `pnpm visit:relationship-confirmation-state-boundary-dry-run` proof command。
+- [x] 需跑 `pnpm visit:relationship-confirmation-state-boundary-dry-run`、`pnpm visit:relationship-confirmation-dry-run`、`pnpm visit:theater-handoff-dry-run`、`pnpm ai:protocol-registry-qa`、`pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+
+ITA-RCG-002 evidence note（2026-06-22）：新增 relationship confirmation card-state transient boundary。Domain helper `buildVisitRelationshipConfirmationStateBoundary()` 把 local advisor selections 正規化為最小 allowlist，API route 只用 current member scoped VisitPlan 推導 deck 並回 no-store JSON，不呼叫 provider、不寫 DB、不寫 confirmed CRM fact。`pnpm visit:relationship-confirmation-state-boundary-dry-run` 覆蓋 domain record allowlist、contact sentinel redaction、unknown card drop、route source contract、no provider/no fake usage/no DB persistence；`pnpm ai:protocol-registry-qa` 驗證 AgentFacts refs 仍為 internal-only/guarded。
+
 ---
 
 ## 7. Data / DB Acceptance
