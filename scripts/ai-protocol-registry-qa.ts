@@ -387,6 +387,8 @@ function runQa() {
     assertNoForbiddenValues(manifest);
   }
 
+  assertMeetingRouteBRedLineContextConsumption(manifests);
+
   const readinessSummary = manifests.reduce<Record<string, number>>((summary, manifest) => {
     summary[manifest.registry.readiness] = (summary[manifest.registry.readiness] ?? 0) + 1;
     return summary;
@@ -516,6 +518,58 @@ function assertNoForbiddenValues(manifest: AgentProtocolManifest) {
     .map((pattern) => pattern.source);
 
   push(matchedPatterns.length === 0, `${prefix} has no forbidden sentinel values`, matchedPatterns.join(", "));
+}
+
+function assertMeetingRouteBRedLineContextConsumption(manifests: AgentProtocolManifest[]) {
+  const manifest = manifests.find((item) => item.identity.agentId === "asai.meeting.prototype");
+  push(Boolean(manifest), "meeting manifest exists for Route B red-line context consumption");
+
+  if (!manifest?.proof.sourceAdoption) {
+    return;
+  }
+
+  push(
+    manifest.capabilities.some((capability) => capability.id === "meeting-route-b-red-line-context-consumption"),
+    "meeting manifest declares Route B red-line context consumption capability",
+  );
+  push(
+    manifest.interfaces.actions.some((action) => action.id === "consume-route-b-red-line-context-in-meeting-notes"),
+    "meeting manifest declares Route B red-line context action boundary",
+  );
+  push(
+    manifest.interfaces.endpoints.some((endpoint) => endpoint.id === "visit-route-b-red-line-context"),
+    "meeting manifest references visit red-line context endpoint",
+  );
+  push(
+    manifest.proof.commands.includes("pnpm meeting:route-b-red-line-context-qa"),
+    "meeting proof commands include Route B red-line context QA",
+  );
+
+  const adoption = manifest.proof.sourceAdoption;
+  const requiredOwnerRefs = [
+    "src/app/(dashboard)/pre-visit/[planId]/notes/page.tsx",
+    "src/components/meeting/meeting-workspace.tsx",
+    "src/app/api/visits/[id]/route-b-red-line-context/route.ts",
+    "src/lib/visits/route-b-red-line-context-repository.ts",
+    "scripts/meeting-route-b-red-line-context-qa.mjs",
+  ];
+  const requiredEvidenceRefs = [
+    "meeting-route-b-red-line-context-consumption",
+    "meeting-route-b-red-line-context",
+    "buildRouteBRedLineNoteDraft",
+    "MeetingRouteBRedLineContextDto",
+    "VisitRouteBRedLineContextBffDto.proof.browserSuppliedTheaterSessionId=false",
+    "VisitRouteBRedLineContextBffDto.proof.browserSuppliedPersonId=false",
+    "VisitRouteBRedLineContextBffDto.proof.triggersExternalNotification=false",
+  ];
+
+  for (const ownerRef of requiredOwnerRefs) {
+    push(adoption.ownerRefs.includes(ownerRef), `meeting Route B red-line owner includes ${ownerRef}`);
+  }
+
+  for (const evidenceRef of requiredEvidenceRefs) {
+    push(adoption.evidenceRefs.includes(evidenceRef), `meeting Route B red-line evidence includes ${evidenceRef}`);
+  }
 }
 
 function push(condition: boolean, label: string, detail = "") {

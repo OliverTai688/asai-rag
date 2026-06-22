@@ -84,11 +84,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 2,
+    "normalLoopsSinceLastWholeProductReview": 3,
     "lastWholeProductReviewAt": "2026-06-22T11:21:07Z",
     "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-22_lv3-whole-product-gap-review-after-ita-005f-feedback-consumption.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "Continue ITA/AMM downstream consumption after visit-prep BFF/UI autoload is complete. Best next source-backed slice: explicitly audit/adopt the dirty AI Meeting notes prototype, then make AI meeting notes the second consumer of Route B red-line action context with safe follow-up notes/writeback candidates. Preserve facts/inferences/unknowns/evidence-needed labels; do not create legal findings, real notifications, provider calls without AiUsageLog, raw private/provider payload storage, or confirmed CRM fact writes. If remaining visual proof for the visit-prep panel is operator-runnable, hand it off instead of spending a docs-only loop.",
+    "nextRecommendedImplementationSlice": "Route B red-line action context now has two accepted downstream consumers: visit-prep BFF/UI and AI meeting notes workspace. Next normal source-backed slice should avoid docs-only proof and either (1) formalize/quarantine the untracked /notes local prototype into an accepted AMM notes hub with server-owned data, or (2) add a disabled/no-provider compliance-review intake surface that consumes red-line context without legal findings, real notifications, provider calls, raw private/provider payload storage, or confirmed CRM fact writes. If only residual browser screenshots remain, hand the exact command/checklist to the operator instead of spending a loop on evidence collection.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {
@@ -156,5 +156,5 @@
     "lv3ImmersiveLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-immersive-loop.md",
     "lv3WholeProductGapReviewLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md"
   },
-  "updatedAt": "2026-06-22T12:01:38Z"
+  "updatedAt": "2026-06-22T12:22:37Z"
 }

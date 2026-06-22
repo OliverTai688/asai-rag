@@ -15,7 +15,10 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-import { MeetingWorkspace } from "@/components/meeting/meeting-workspace";
+import {
+  MeetingWorkspace,
+  type MeetingRouteBRedLineContextDto,
+} from "@/components/meeting/meeting-workspace";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -39,6 +42,12 @@ type QuickCaptureAssignment = "PRIVATE_DRAFT" | "CLIENT" | "VISIT_PLAN" | "FOLLO
 type QuickCaptureDataClass = "FACT" | "CONFIRMED" | "INFERENCE" | "UNKNOWN" | "INSTRUCTION";
 
 type QuickCaptureResult = QuickCaptureReadyResult | QuickCaptureBlockedResult;
+
+type VisitRouteBRedLineContextResponse = MeetingRouteBRedLineContextDto & {
+  visitPlanId: string;
+  clientId: string;
+  sourcePacketId: string;
+};
 
 interface QuickCaptureReadyResult {
   status: "READY";
@@ -142,6 +151,12 @@ function normalizeParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
 }
 
+function isVisitRouteBRedLineContextResponse(
+  value: VisitRouteBRedLineContextResponse | { error?: string } | null,
+): value is VisitRouteBRedLineContextResponse {
+  return value !== null && typeof value === "object" && "status" in value && "summary" in value && "proof" in value;
+}
+
 export default function PostVisitNotesPage() {
   const params = useParams();
   const router = useRouter();
@@ -239,6 +254,9 @@ function PostVisitNotesWorkspace({
   const [captureRiskAccepted, setCaptureRiskAccepted] = useState(false);
   const [captureResult, setCaptureResult] = useState<QuickCaptureResult | null>(null);
   const [isCapturing, setIsCapturing] = useState(false);
+  const [routeBRedLineContext, setRouteBRedLineContext] = useState<MeetingRouteBRedLineContextDto | null>(null);
+  const [routeBRedLineContextError, setRouteBRedLineContextError] = useState<string | null>(null);
+  const [isRouteBRedLineContextLoading, setIsRouteBRedLineContextLoading] = useState(false);
   const checkedMaterials = plan.materials.filter((material) => material.checked);
   const noteLines = notes
     .split("\n")
@@ -248,6 +266,54 @@ function PostVisitNotesWorkspace({
   const nextStepLine =
     noteLines.find((line) => line.includes("下一步") || line.includes("跟進") || line.includes("追蹤")) ??
     "下一步尚未明確";
+  const shouldLoadRouteBRedLineContext = !isQuickstart && !plan.id.startsWith("plan-");
+
+  useEffect(() => {
+    if (!shouldLoadRouteBRedLineContext) return;
+
+    let cancelled = false;
+
+    async function loadRouteBRedLineContext() {
+      setIsRouteBRedLineContextLoading(true);
+      setRouteBRedLineContextError(null);
+
+      try {
+        const response = await fetch(`/api/visits/${encodeURIComponent(plan.id)}/route-b-red-line-context`, {
+          method: "GET",
+          cache: "no-store",
+        });
+        const body = (await response.json().catch(() => null)) as VisitRouteBRedLineContextResponse | { error?: string } | null;
+
+        if (!response.ok || !isVisitRouteBRedLineContextResponse(body)) {
+          const message = body && "error" in body && body.error ? body.error : `ROUTE_B_RED_LINE_CONTEXT_FAILED_${response.status}`;
+          throw new Error(message);
+        }
+
+        if (cancelled) return;
+
+        setRouteBRedLineContext({
+          status: body.status,
+          routeBRedLineContext: body.routeBRedLineContext,
+          summary: body.summary,
+          proof: body.proof,
+        });
+      } catch (error) {
+        if (cancelled) return;
+        setRouteBRedLineContext(null);
+        setRouteBRedLineContextError(error instanceof Error ? error.message : "ROUTE_B_RED_LINE_CONTEXT_FAILED");
+      } finally {
+        if (!cancelled) {
+          setIsRouteBRedLineContextLoading(false);
+        }
+      }
+    }
+
+    void loadRouteBRedLineContext();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [plan.id, shouldLoadRouteBRedLineContext]);
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -554,6 +620,9 @@ function PostVisitNotesWorkspace({
           initialSessionId={initialMeetingSessionId}
           initialNoteDraft={notes}
           preferExistingSession
+          routeBRedLineContext={shouldLoadRouteBRedLineContext ? routeBRedLineContext : null}
+          routeBRedLineContextError={shouldLoadRouteBRedLineContext ? routeBRedLineContextError : null}
+          routeBRedLineContextLoading={shouldLoadRouteBRedLineContext && isRouteBRedLineContextLoading}
           backHref={`/pre-visit/${plan.id}/notes${isQuickstart ? "?demo=quickstart" : ""}`}
           backLabel="回拜訪後筆記"
         />
