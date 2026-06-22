@@ -84,11 +84,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 2,
+    "normalLoopsSinceLastWholeProductReview": 3,
     "lastWholeProductReviewAt": "2026-06-22T14:49:09Z",
     "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-22_lv3-whole-product-gap-review-after-relationship-cards.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "Next normal loop should stay source-backed and avoid docs-only proof: wire the relationship confirmation card-state UI into the new owner-scoped transient boundary before theater build. Preferred slice: /pre-visit/[planId] posts local card states to /api/visits/[id]/relationship-confirmation-state, surfaces validated record counts/currentPersistence/requiresProductDecision, and keeps theater handoff localAdvisorStatePersisted=false until a product/schema persistence decision is approved. Do not write confirmed CRM facts, do not migrate relationship-edge schema, do not call providers, and keep AgentFacts registry internal-only. If operator approves persistence, use only cardId/state/updatedAt/sourceReferenceIds/safeNoteSummary with migration/rollback/API/browser proof; residual browser-only evidence can be self-run by operator.",
+    "nextRecommendedImplementationSlice": "Next normal loop should stay source-backed and avoid docs-only proof. This loop completed the /pre-visit/[planId] local relationship card-state -> /api/visits/[id]/relationship-confirmation-state transient UI boundary before theater build, so do not repeat it as proof-only. Unless operator explicitly approves the VisitPlan JSON subdocument vs dedicated table persistence decision, do not implement refresh/new-context card-state persistence. Recommended next source slice: pivot to another core bridge such as AI interview/meeting quick notes -> relationship graph or visit preparation writeback cards, preserving confirmed/inference/unknown boundaries and no raw private/provider payloads. If persistence is approved, use only cardId/state/updatedAt/sourceReferenceIds/safeNoteSummary with migration/rollback/API/browser proof; residual browser-only evidence can be self-run by operator.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {
@@ -156,5 +156,5 @@
     "lv3ImmersiveLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-immersive-loop.md",
     "lv3WholeProductGapReviewLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md"
   },
-  "updatedAt": "2026-06-22T15:43:32Z"
+  "updatedAt": "2026-06-22T16:08:00Z"
 }

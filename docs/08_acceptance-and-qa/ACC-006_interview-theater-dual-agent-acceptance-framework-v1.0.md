@@ -394,6 +394,17 @@ ITA-RCG-001 evidence note（2026-06-22）：`buildVisitTheaterHandoff()` 會 dom
 
 ITA-RCG-002 evidence note（2026-06-22）：新增 relationship confirmation card-state transient boundary。Domain helper `buildVisitRelationshipConfirmationStateBoundary()` 把 local advisor selections 正規化為最小 allowlist，API route 只用 current member scoped VisitPlan 推導 deck 並回 no-store JSON，不呼叫 provider、不寫 DB、不寫 confirmed CRM fact。`pnpm visit:relationship-confirmation-state-boundary-dry-run` 覆蓋 domain record allowlist、contact sentinel redaction、unknown card drop、route source contract、no provider/no fake usage/no DB persistence；`pnpm ai:protocol-registry-qa` 驗證 AgentFacts refs 仍為 internal-only/guarded。
 
+`ITA-RCG-003` 若把 preparation page 的 local card state 接到 transient boundary 並作為 theater build 前置檢查，完成前必須額外滿足：
+
+- [x] `/pre-visit/[planId]` 的「建立劇場舞台」與右側劇場入口必須共用同一條 handler，並在 `router.push(theaterHref)` 前 POST `/api/visits/[id]/relationship-confirmation-state`。
+- [x] UI 只能送 `cardId`、`state`、`updatedAt`；不得送 person label、relationship detail、confirmation prompt、raw transcript、provider payload、email、phone、policy number、secret/token/cookie/OTP 或 payment data。
+- [x] Relationship confirmation panel 必須顯示 validated record count，以及 `currentPersistence=local-only-ui-state`、`requiresProductDecision=true`、`persistedToDatabase=false`。
+- [x] Quickstart / local demo flow 不得被 server boundary 阻擋；正式持久化仍需 product/schema decision。
+- [x] AgentFacts-style manifest 必須新增 internal-only UI bridge evidence refs 與 `pnpm visit:relationship-confirmation-state-ui-qa` proof command。
+- [x] 需跑 `pnpm visit:relationship-confirmation-state-ui-qa`、`pnpm visit:relationship-confirmation-state-boundary-dry-run`、`pnpm visit:relationship-confirmation-dry-run`、`pnpm visit:theater-handoff-dry-run`、`pnpm ai:protocol-registry-qa`、`pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+
+ITA-RCG-003 evidence note（2026-06-22）：`/pre-visit/[planId]` 已將 relationship confirmation card state 提升到頁面層，右上主 CTA 與劇場卡共用 `handlePrimaryAction()`，在劇場建場跳轉前先送 transient boundary；panel 顯示 boundary badge、已驗證/已確認/轉追問數、`currentPersistence` / `requiresProductDecision` / `persistedToDatabase` guardrail 與 no-provider/no-DB/no-CRM-write proof。新增 `pnpm visit:relationship-confirmation-state-ui-qa` 靜態驗證 UI route wiring、validation-before-push、panel guardrails、route no Prisma persistence 與 package script。
+
 ---
 
 ## 7. Data / DB Acceptance

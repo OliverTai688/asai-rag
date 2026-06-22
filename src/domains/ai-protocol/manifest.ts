@@ -615,7 +615,7 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
       displayName: "Visit preparation package",
       ownerSurface: "/pre-visit",
       module: "VISIT",
-      version: "2026-06-22.relationship-confirmation-state-boundary",
+      version: "2026-06-22.relationship-confirmation-state-ui-boundary",
       status: "active",
     },
     capabilities: [
@@ -648,6 +648,12 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
         label: "Relationship confirmation card state boundary",
         summary: "Validates advisor card-state selections through an owner-scoped transient API envelope, preserving only card id, state, updatedAt, evidence refs, and safe note summary.",
         humanTrigger: "Advisor marks relationship confirmation cards before a theater build or future writeback review.",
+      },
+      {
+        id: "relationship-confirmation-state-ui-boundary",
+        label: "Relationship confirmation state UI boundary",
+        summary: "Posts local advisor card-state selections from the visit preparation page to the transient validation boundary before theater build, surfacing validated counts and persistence guardrails.",
+        humanTrigger: "Advisor reviews relationship confirmation cards and starts theater build from the preparation package.",
       },
     ],
     interfaces: {
@@ -695,6 +701,12 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
           label: "Relationship confirmation card state validation",
           actionBoundary:
             "Validates local advisor card-state selections into a least-disclosure envelope only; current persistence remains local-only and DB storage requires a product/schema decision before any write.",
+        },
+        {
+          id: "relationship-confirmation-state-ui-boundary",
+          label: "Relationship confirmation state UI validation",
+          actionBoundary:
+            "The visit preparation UI posts only card id/state/updatedAt selections to the transient validation route before theater build, displays currentPersistence/requiresProductDecision/persistedToDatabase, and still performs no provider call, CRM fact write, or DB persistence.",
         },
       ],
       exportTargets: defaultExportTargets,
@@ -766,6 +778,7 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
         "pnpm visit:theater-handoff-dry-run",
         "pnpm visit:relationship-confirmation-dry-run",
         "pnpm visit:relationship-confirmation-state-boundary-dry-run",
+        "pnpm visit:relationship-confirmation-state-ui-qa",
         "pnpm visit:route-b-red-line-context-dry-run",
         "pnpm visit:route-b-red-line-context-bff-qa",
       ],
@@ -796,7 +809,9 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
           "buildVisitRelationshipConfirmationStateBoundary",
           "relationship-graph-prep-confirmation-cards",
           "relationship-confirmation-card-state-boundary",
+          "relationship-confirmation-state-ui-boundary",
           "relationship-confirmation-theater-handoff-grounding",
+          "RelationshipConfirmationPanel.data-relationship-confirmation-state-boundary",
           "VisitRelationshipConfirmationDeck.proof.writesConfirmedCrmFact=false",
           "VisitRelationshipConfirmationStateBoundary.storageDecision.currentPersistence=local-only-ui-state",
           "VisitRelationshipConfirmationStateBoundary.storageDecision.requiresProductDecision=true",
@@ -827,6 +842,7 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
           "Question rationale and evidence summary keep facts, inferences, unknowns, and recommendations separate.",
           "Relationship graph confirmation cards are deterministic no-provider preparation aids; advisor card state stays local and does not write confirmed CRM facts.",
           "Relationship confirmation card-state boundary validates advisor selections through an owner-scoped transient API while preserving only card id, state, updatedAt, evidence refs, and redacted safe note summary; current persistence remains local-only until product/schema approval.",
+          "Visit preparation UI now posts local relationship confirmation card states to the transient boundary before theater build and surfaces currentPersistence/requiresProductDecision/persistedToDatabase without DB persistence.",
           "Visit-to-theater handoff now carries relationship confirmation cards into Route B known materials and sourceSummary.relationshipConfirmation; unknown cards remain narrator questions and local advisor selection state is not persisted.",
           "Visit-to-theater handoff summarizes question evidence sources and fact/inference/unknown material counts before Route B consumes the stage packet.",
           "Route B red-line action context can now be consumed by visit question reasoning as evidence-needed or escalation advisor reminders; it does not overwrite visit facts, create legal findings, send notifications, call providers, or write confirmed CRM facts.",

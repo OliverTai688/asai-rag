@@ -48,6 +48,10 @@ import {
   type VisitRelationshipConfirmationDeck,
 } from "@/domains/visit/relationship-confirmation";
 import type {
+  VisitRelationshipConfirmationAdvisorState,
+  VisitRelationshipConfirmationStateBoundary,
+} from "@/domains/visit/relationship-confirmation-state";
+import type {
   VisitRouteBRedLineContext,
   VisitRouteBRedLineContextItem,
 } from "@/domains/visit/route-b-red-line-context";
@@ -113,12 +117,21 @@ type DecisionSignal = {
 };
 
 type VisitTheaterUiStatus = "READY" | "NEEDS_MORE_INFO" | "BLOCKED_SENSITIVE";
-type AdvisorConfirmationState = "needs_confirmation" | "confirmed_in_meeting" | "ask_in_interview";
+type AdvisorConfirmationState = VisitRelationshipConfirmationAdvisorState;
 type VisitRouteBRedLineContextStatus =
   | "READY"
   | "NO_ROUTE_B_SESSION"
   | "NO_FEEDBACK_REVIEW"
   | "NO_ACTION_CONTEXT";
+
+type RelationshipConfirmationStateBoundaryResponse = {
+  visitPlan: {
+    id: string;
+    clientId: string;
+    updatedAt?: string;
+  };
+  relationshipConfirmationState: VisitRelationshipConfirmationStateBoundary;
+};
 
 type VisitRouteBRedLineContextResponse = {
   status: VisitRouteBRedLineContextStatus;
@@ -199,6 +212,21 @@ function isVisitGenerationPayload(value: unknown): value is VisitGenerationPaylo
   );
 }
 
+function isRelationshipConfirmationStateBoundaryResponse(
+  value: unknown,
+): value is RelationshipConfirmationStateBoundaryResponse {
+  if (!isRecord(value) || !isRecord(value.relationshipConfirmationState)) return false;
+
+  const boundary = value.relationshipConfirmationState;
+
+  return (
+    boundary.sourceActionId === "relationship-confirmation-card-state-boundary" &&
+    isRecord(boundary.summary) &&
+    isRecord(boundary.storageDecision) &&
+    isRecord(boundary.proof)
+  );
+}
+
 export default function VisitPlanDetailPage() {
   return (
     <Suspense fallback={<PlanLoadingState />}>
@@ -225,6 +253,13 @@ function VisitPlanDetailContent() {
   const [routeBContext, setRouteBContext] = useState<VisitRouteBRedLineContextResponse | null>(null);
   const [routeBContextError, setRouteBContextError] = useState<string | null>(null);
   const [isLoadingRouteBContext, setIsLoadingRouteBContext] = useState(false);
+  const [relationshipConfirmationCardStates, setRelationshipConfirmationCardStates] = useState<
+    Record<string, AdvisorConfirmationState>
+  >({});
+  const [relationshipStateBoundary, setRelationshipStateBoundary] =
+    useState<RelationshipConfirmationStateBoundaryResponse | null>(null);
+  const [relationshipStateBoundaryError, setRelationshipStateBoundaryError] = useState<string | null>(null);
+  const [isValidatingRelationshipStateBoundary, setIsValidatingRelationshipStateBoundary] = useState(false);
   const activeRouteBContext =
     !isQuickstart && routeBContext?.visitPlanId === planId ? routeBContext : null;
   const activeRouteBContextError = !isQuickstart && planId ? routeBContextError : null;
@@ -370,6 +405,9 @@ function VisitPlanDetailContent() {
   const priorityQuestions = getPriorityQuestions(plan.spinQuestions);
   const decisionSignals = buildDecisionSignals(client);
   const relationshipFocus = getRelationshipFocusCopy(client);
+  const isPrimaryActionBusy = isGenerating || isValidatingRelationshipStateBoundary;
+  const activeRelationshipStateBoundary =
+    relationshipStateBoundary?.visitPlan.id === plan.id ? relationshipStateBoundary : null;
 
   const applyQuickstartFixture = () => {
     const fixture = getQuickstartVisitFixture();
@@ -428,7 +466,66 @@ function VisitPlanDetailContent() {
     }
   };
 
-  const handlePrimaryAction = () => {
+  const handleRelationshipConfirmationCardStateChange = (cardId: string, state: AdvisorConfirmationState) => {
+    setRelationshipConfirmationCardStates((current) => ({ ...current, [cardId]: state }));
+    setRelationshipStateBoundary(null);
+    setRelationshipStateBoundaryError(null);
+  };
+
+  const validateRelationshipConfirmationStateBoundary = async () => {
+    if (isQuickstart || !relationshipConfirmationDeck || relationshipConfirmationDeck.summary.cardCount === 0) {
+      return true;
+    }
+
+    const cardIds = new Set(relationshipConfirmationDeck.cards.map((card) => card.id));
+    const records = Object.entries(relationshipConfirmationCardStates)
+      .filter(([cardId]) => cardIds.has(cardId))
+      .map(([cardId, state]) => ({
+        cardId,
+        state,
+        updatedAt: new Date().toISOString(),
+      }));
+
+    setIsValidatingRelationshipStateBoundary(true);
+    setRelationshipStateBoundaryError(null);
+
+    try {
+      const response = await fetch(`/api/visits/${encodeURIComponent(plan.id)}/relationship-confirmation-state`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ records }),
+      });
+      const payload = (await response.json().catch(() => null)) as unknown;
+
+      if (!response.ok) {
+        throw new Error(getApiErrorCode(payload) ?? `RELATIONSHIP_CONFIRMATION_STATE_BOUNDARY_FAILED_${response.status}`);
+      }
+
+      if (!isRelationshipConfirmationStateBoundaryResponse(payload)) {
+        throw new Error("RELATIONSHIP_CONFIRMATION_STATE_BOUNDARY_SCHEMA_MISMATCH");
+      }
+
+      setRelationshipStateBoundary(payload);
+      toast.success("關係狀態已完成邊界檢查", {
+        description: `${payload.relationshipConfirmationState.summary.acceptedRecordCount} 張卡片已驗證，仍保持 local-only。`,
+      });
+      return true;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "RELATIONSHIP_CONFIRMATION_STATE_BOUNDARY_FAILED";
+      setRelationshipStateBoundary(null);
+      setRelationshipStateBoundaryError(message);
+      toast.error("關係狀態檢查失敗", { description: message });
+      return false;
+    } finally {
+      setIsValidatingRelationshipStateBoundary(false);
+    }
+  };
+
+  const handlePrimaryAction = async () => {
+    if (isPrimaryActionBusy) {
+      return;
+    }
+
     if (!isReady) {
       void handleGenerate();
       return;
@@ -437,6 +534,13 @@ function VisitPlanDetailContent() {
     if (theaterBlocked) {
       toast.error("此客戶為高敏感資料，需先補上建場理由與風險接受。");
       return;
+    }
+
+    if (!activeRelationshipStateBoundary) {
+      const boundaryReady = await validateRelationshipConfirmationStateBoundary();
+      if (!boundaryReady) {
+        return;
+      }
     }
 
     router.push(theaterHref);
@@ -528,9 +632,9 @@ function VisitPlanDetailContent() {
             <MessageSquare className="mr-2 h-4 w-4" />
             SPIN 澄清
           </Button>
-          <Button type="button" variant="mono" className="h-10 rounded-lg" onClick={handlePrimaryAction} disabled={isGenerating}>
-            {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : isReady ? <Theater className="mr-2 h-4 w-4" /> : <Sparkles className="mr-2 h-4 w-4" />}
-            {isReady ? "建立劇場舞台" : "生成準備包"}
+          <Button type="button" variant="mono" className="h-10 rounded-lg" onClick={() => void handlePrimaryAction()} disabled={isPrimaryActionBusy}>
+            {isPrimaryActionBusy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : isReady ? <Theater className="mr-2 h-4 w-4" /> : <Sparkles className="mr-2 h-4 w-4" />}
+            {isValidatingRelationshipStateBoundary ? "檢查關係狀態" : isReady ? "建立劇場舞台" : "生成準備包"}
           </Button>
         </div>
       </header>
@@ -578,10 +682,11 @@ function VisitPlanDetailContent() {
 
         <TheaterLaunchPanel
           handoffStatus={handoffStatus}
+          isLaunching={isPrimaryActionBusy}
           isReady={isReady}
           missingCount={theaterHandoff?.missing.length ?? 0}
           npcCount={theaterHandoff?.packet.routeBCompatibility.npcCount ?? 0}
-          onLaunch={handlePrimaryAction}
+          onLaunch={() => void handlePrimaryAction()}
           openEvidenceItems={openEvidenceItems}
           theaterBlocked={theaterBlocked}
           unknownCount={theaterHandoff?.packet.unknowns.length ?? 0}
@@ -665,7 +770,16 @@ function VisitPlanDetailContent() {
             error={activeRouteBContextError}
             isLoading={activeRouteBContextLoading}
           />
-          <RelationshipConfirmationPanel deck={relationshipConfirmationDeck} />
+          <RelationshipConfirmationPanel
+            boundary={activeRelationshipStateBoundary}
+            boundaryError={relationshipStateBoundaryError}
+            deck={relationshipConfirmationDeck}
+            isQuickstart={isQuickstart}
+            isValidatingBoundary={isValidatingRelationshipStateBoundary}
+            onStateChange={handleRelationshipConfirmationCardStateChange}
+            onValidateBoundary={() => void validateRelationshipConfirmationStateBoundary()}
+            states={relationshipConfirmationCardStates}
+          />
           <EvidenceBoard buckets={evidenceBuckets} />
           <TimeBox totalMinutes={totalMinutes} />
           <NotesBox notes={plan.postVisitNotes} onOpen={() => router.push(`/pre-visit/${plan.id}/notes${isQuickstart ? "?demo=quickstart" : ""}`)} />
@@ -689,6 +803,7 @@ function BriefFact({ icon, label, value }: { icon: React.ReactNode; label: strin
 
 function TheaterLaunchPanel({
   handoffStatus,
+  isLaunching,
   isReady,
   missingCount,
   npcCount,
@@ -698,6 +813,7 @@ function TheaterLaunchPanel({
   unknownCount,
 }: {
   handoffStatus: VisitTheaterUiStatus;
+  isLaunching: boolean;
   isReady: boolean;
   missingCount: number;
   npcCount: number;
@@ -730,9 +846,9 @@ function TheaterLaunchPanel({
           高敏感客戶需補齊建場理由與風險接受，暫不啟動劇場。
         </div>
       ) : null}
-      <Button type="button" variant="mono" className="mt-5 h-10 w-full rounded-lg" onClick={onLaunch}>
-        {isReady ? <ArrowRight className="mr-2 h-4 w-4" /> : <Sparkles className="mr-2 h-4 w-4" />}
-        {isReady ? "帶入劇場建場" : "先生成準備包"}
+      <Button type="button" variant="mono" className="mt-5 h-10 w-full rounded-lg" onClick={onLaunch} disabled={isLaunching}>
+        {isLaunching ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : isReady ? <ArrowRight className="mr-2 h-4 w-4" /> : <Sparkles className="mr-2 h-4 w-4" />}
+        {isLaunching ? "檢查建場資料" : isReady ? "帶入劇場建場" : "先生成準備包"}
       </Button>
     </section>
   );
@@ -1032,17 +1148,48 @@ function RouteBRedLineContextRow({ item }: { item: VisitRouteBRedLineContextItem
   );
 }
 
-function RelationshipConfirmationPanel({ deck }: { deck: VisitRelationshipConfirmationDeck | null }) {
-  const [cardStates, setCardStates] = useState<Record<string, AdvisorConfirmationState>>({});
-
+function RelationshipConfirmationPanel({
+  boundary,
+  boundaryError,
+  deck,
+  isQuickstart,
+  isValidatingBoundary,
+  onStateChange,
+  onValidateBoundary,
+  states,
+}: {
+  boundary: RelationshipConfirmationStateBoundaryResponse | null;
+  boundaryError: string | null;
+  deck: VisitRelationshipConfirmationDeck | null;
+  isQuickstart: boolean;
+  isValidatingBoundary: boolean;
+  onStateChange: (cardId: string, state: AdvisorConfirmationState) => void;
+  onValidateBoundary: () => void;
+  states: Record<string, AdvisorConfirmationState>;
+}) {
   if (!deck || deck.summary.cardCount === 0) return null;
 
-  const setCardState = (cardId: string, state: AdvisorConfirmationState) => {
-    setCardStates((current) => ({ ...current, [cardId]: state }));
-  };
+  const boundarySummary = boundary?.relationshipConfirmationState.summary;
+  const storageDecision = boundary?.relationshipConfirmationState.storageDecision;
+  const proof = boundary?.relationshipConfirmationState.proof;
+  const localConfirmedCount = Object.values(states).filter((state) => state === "confirmed_in_meeting").length;
+  const localAskInInterviewCount = Object.values(states).filter((state) => state === "ask_in_interview").length;
+  const boundaryStatusLabel = isQuickstart
+    ? "Quickstart local"
+    : isValidatingBoundary
+      ? "驗證中"
+      : boundary
+        ? "已送 boundary"
+        : boundaryError
+          ? "需重試"
+          : "待送 boundary";
 
   return (
-    <section data-relationship-confirmation-cards className="rounded-lg border border-hairline bg-card p-4">
+    <section
+      data-relationship-confirmation-cards
+      data-relationship-confirmation-state-boundary
+      className="rounded-lg border border-hairline bg-card p-4"
+    >
       <div className="flex items-start justify-between gap-3">
         <div>
           <div className="flex items-center gap-2 text-sm font-semibold text-ink">
@@ -1053,8 +1200,11 @@ function RelationshipConfirmationPanel({ deck }: { deck: VisitRelationshipConfir
             從關係圖挑出職位、年薪、狀態、關係脈絡中的待確認點；本頁標記只作顧問檢核，不寫入 CRM 事實。
           </p>
         </div>
-        <Badge variant={deck.summary.highPriorityCount > 0 ? "default" : "outline"} className="rounded-md">
-          {deck.summary.highPriorityCount} 高優先
+        <Badge
+          variant={boundaryError ? "destructive" : boundary ? "default" : "outline"}
+          className="rounded-md"
+        >
+          {boundaryStatusLabel}
         </Badge>
       </div>
 
@@ -1064,19 +1214,54 @@ function RelationshipConfirmationPanel({ deck }: { deck: VisitRelationshipConfir
         <MiniStat label="節點" value={String(deck.summary.sourceNodeCount)} />
       </div>
 
+      <div className="mt-4 rounded-lg border border-hairline bg-paper p-3">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="text-xs font-semibold text-ink">Transient boundary</p>
+            <p className="mt-1 text-xs leading-5 text-muted-foreground">
+              建劇場前會先送 `/relationship-confirmation-state` 驗證 envelope；currentPersistence=
+              {storageDecision?.currentPersistence ?? "local-only-ui-state"}，requiresProductDecision=
+              {String(storageDecision?.requiresProductDecision ?? true)}，persistedToDatabase=
+              {String(proof?.persistedToDatabase ?? false)}。
+            </p>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            className="h-8 rounded-lg px-2 text-xs"
+            onClick={onValidateBoundary}
+            disabled={isQuickstart || isValidatingBoundary}
+          >
+            {isValidatingBoundary ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <ShieldQuestion className="mr-2 h-3.5 w-3.5" />}
+            檢查狀態邊界
+          </Button>
+        </div>
+        <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+          <MiniStat label="已驗證" value={String(boundarySummary?.acceptedRecordCount ?? deck.summary.cardCount)} />
+          <MiniStat label="已確認" value={String(boundarySummary?.confirmedCount ?? localConfirmedCount)} />
+          <MiniStat label="轉追問" value={String(boundarySummary?.askInInterviewCount ?? localAskInInterviewCount)} />
+        </div>
+        {boundaryError ? (
+          <p className="mt-3 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs leading-5 text-destructive">
+            {boundaryError}
+          </p>
+        ) : null}
+      </div>
+
       <div className="mt-4 grid gap-2">
         {deck.cards.slice(0, 5).map((card) => (
           <RelationshipConfirmationCardRow
             key={card.id}
             card={card}
-            state={cardStates[card.id] ?? "needs_confirmation"}
-            onStateChange={(state) => setCardState(card.id, state)}
+            state={states[card.id] ?? "needs_confirmation"}
+            onStateChange={(state) => onStateChange(card.id, state)}
           />
         ))}
       </div>
 
       <p className="mt-4 border-t border-hairline pt-3 text-xs leading-5 text-muted-foreground">
-        Proof：no provider call、no AiUsageLog required、no raw transcript、no confirmed CRM write；若要寫回客戶資料，需改走訪談/客戶資料的明確確認流程。
+        Proof：no provider call、no AiUsageLog required、no raw transcript、no confirmed CRM write、no DB
+        persistence；若要寫回客戶資料，需改走訪談/客戶資料的明確確認流程。
       </p>
     </section>
   );
@@ -1114,6 +1299,7 @@ function RelationshipConfirmationCardRow({
           type="button"
           variant={state === "needs_confirmation" ? "mono" : "outline"}
           className="h-8 rounded-lg px-2 text-xs"
+          aria-pressed={state === "needs_confirmation"}
           onClick={() => onStateChange("needs_confirmation")}
         >
           待確認
@@ -1122,6 +1308,7 @@ function RelationshipConfirmationCardRow({
           type="button"
           variant={state === "confirmed_in_meeting" ? "mono" : "outline"}
           className="h-8 rounded-lg px-2 text-xs"
+          aria-pressed={state === "confirmed_in_meeting"}
           onClick={() => onStateChange("confirmed_in_meeting")}
         >
           已確認
@@ -1130,6 +1317,7 @@ function RelationshipConfirmationCardRow({
           type="button"
           variant={state === "ask_in_interview" ? "mono" : "outline"}
           className="h-8 rounded-lg px-2 text-xs"
+          aria-pressed={state === "ask_in_interview"}
           onClick={() => onStateChange("ask_in_interview")}
         >
           轉追問
