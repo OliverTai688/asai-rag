@@ -84,11 +84,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 2,
+    "normalLoopsSinceLastWholeProductReview": 3,
     "lastWholeProductReviewAt": "2026-06-22T13:04:38Z",
     "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-22_lv3-whole-product-gap-review-after-notes-hub-quarantine.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "Cadence counter is 2 after ITA-005l source/API/UI contract work. Next normal loop should avoid docs-only proof and pick another source-backed slice that connects a core surface: AMM/PIM server-owned quick-note intake for /pre-visit/[planId]/notes if it can include scope checks, writeback boundaries, and no raw transcript storage; or a Route B compliance-review operator action shell only if it remains disabled/no-provider/no-notification/no-formal-finding and does not introduce formal compliance workflow without approval. If only residual browser screenshots remain, hand the exact command/checklist to the operator instead of spending a loop on evidence collection.",
+    "nextRecommendedImplementationSlice": "Cadence counter is 3 after AMM/PIM visit-scoped quick-note intake. Next normal loop should still avoid docs-only proof and pick one source-backed slice that connects core surfaces: either client/relationship graph -> preparation package evidence labels and advisor confirmation cards, or a disabled Route B compliance-review operator action shell that remains no-provider/no-notification/no-formal-finding and requires explicit approval before formal compliance workflow. Residual AMM quick-note live browser/API/DB proof can be self-run with pnpm meeting:notes-compat-qa instead of spending a loop only collecting screenshots.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {
@@ -156,5 +156,5 @@
     "lv3ImmersiveLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-immersive-loop.md",
     "lv3WholeProductGapReviewLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md"
   },
-  "updatedAt": "2026-06-22T13:46:07Z"
+  "updatedAt": "2026-06-22T14:15:58Z"
 }

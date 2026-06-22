@@ -9,6 +9,7 @@ import {
   CheckCircle2,
   FileText,
   MessageSquare,
+  NotebookPen,
   Save,
   ShieldCheck,
   Target,
@@ -42,6 +43,34 @@ type QuickCaptureAssignment = "PRIVATE_DRAFT" | "CLIENT" | "VISIT_PLAN" | "FOLLO
 type QuickCaptureDataClass = "FACT" | "CONFIRMED" | "INFERENCE" | "UNKNOWN" | "INSTRUCTION";
 
 type QuickCaptureResult = QuickCaptureReadyResult | QuickCaptureBlockedResult;
+
+interface MeetingQuickNoteResult {
+  status: "READY";
+  appended: {
+    sessionId: string;
+    turnId: string;
+    sourceLabel: "visit_meeting_quick_note";
+    reusedExistingSession: boolean;
+  };
+  snapshot: {
+    turns: Array<{ id: string }>;
+    memoryRail: {
+      total: number;
+    };
+  };
+  safety: {
+    scopeSource: "server_session";
+    providerCallAttempted: false;
+    aiUsageLogRequired: false;
+    rawAudioStored: false;
+    rawProviderPayloadStored: false;
+    rawPrivateTranscriptSidecarStored: false;
+    rawPrivateTranscriptStored: false;
+    writesConfirmedCrmFact: false;
+    routeOwnedVisitPlanScope: true;
+    browserSuppliedSessionId: false;
+  };
+}
 
 type VisitRouteBRedLineContextResponse = MeetingRouteBRedLineContextDto & {
   visitPlanId: string;
@@ -254,6 +283,10 @@ function PostVisitNotesWorkspace({
   const [captureRiskAccepted, setCaptureRiskAccepted] = useState(false);
   const [captureResult, setCaptureResult] = useState<QuickCaptureResult | null>(null);
   const [isCapturing, setIsCapturing] = useState(false);
+  const [meetingSessionId, setMeetingSessionId] = useState(initialMeetingSessionId);
+  const [meetingBridgeVersion, setMeetingBridgeVersion] = useState(0);
+  const [meetingQuickNoteResult, setMeetingQuickNoteResult] = useState<MeetingQuickNoteResult | null>(null);
+  const [isSendingMeetingQuickNote, setIsSendingMeetingQuickNote] = useState(false);
   const [routeBRedLineContext, setRouteBRedLineContext] = useState<MeetingRouteBRedLineContextDto | null>(null);
   const [routeBRedLineContextError, setRouteBRedLineContextError] = useState<string | null>(null);
   const [isRouteBRedLineContextLoading, setIsRouteBRedLineContextLoading] = useState(false);
@@ -394,6 +427,52 @@ function PostVisitNotesWorkspace({
     }
   };
 
+  const handleSendMeetingQuickNote = async () => {
+    const content = notes.trim();
+
+    if (!content) {
+      toast.error("請先寫下一段拜訪後筆記");
+      return;
+    }
+
+    if (isQuickstart || plan.id.startsWith("plan-")) {
+      toast.error("正式準備包才能同步到 AI 會議");
+      return;
+    }
+
+    setIsSendingMeetingQuickNote(true);
+    setMeetingQuickNoteResult(null);
+
+    try {
+      const response = await fetch(`/api/visits/${encodeURIComponent(plan.id)}/meeting-quick-notes`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          content,
+          occurredAt: new Date().toISOString(),
+        }),
+      });
+      const body = (await response.json().catch(() => null)) as MeetingQuickNoteResult | { error?: string } | null;
+
+      if (!response.ok || !body || !("status" in body) || body.status !== "READY") {
+        const message = body && "error" in body && body.error ? body.error : `MEETING_QUICK_NOTE_FAILED_${response.status}`;
+        throw new Error(message);
+      }
+
+      setMeetingSessionId(body.appended.sessionId);
+      setMeetingBridgeVersion((version) => version + 1);
+      setMeetingQuickNoteResult(body);
+      toast.success("已同步到 AI 會議工作台");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "MEETING_QUICK_NOTE_FAILED";
+      toast.error("同步到 AI 會議失敗", { description: message });
+    } finally {
+      setIsSendingMeetingQuickNote(false);
+    }
+  };
+
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8">
       <header className="grid gap-5 border-b border-hairline pb-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
@@ -452,12 +531,26 @@ function PostVisitNotesWorkspace({
       <main className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
         <Card className="border-hairline shadow-none">
           <CardContent className="p-5">
-            <div className="flex items-center justify-between gap-3 border-b border-hairline pb-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-hairline pb-4">
               <div>
                 <h2 className="text-base font-semibold text-ink">完整紀錄</h2>
                 <p className="mt-1 text-sm text-muted-foreground">建議用三段：摘要、客戶反應、下一步跟進。</p>
               </div>
-              <span className="text-xs tabular-nums text-muted-foreground">{notes.length} 字</span>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs tabular-nums text-muted-foreground">{notes.length} 字</span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-9 rounded-full"
+                  onClick={handleSendMeetingQuickNote}
+                  disabled={isSendingMeetingQuickNote || isQuickstart || plan.id.startsWith("plan-") || !notes.trim()}
+                  data-testid="post-visit-notes-send-meeting"
+                >
+                  <NotebookPen className="mr-2 h-4 w-4" />
+                  {isSendingMeetingQuickNote ? "同步中..." : "同步到 AI 會議"}
+                </Button>
+              </div>
             </div>
             <Textarea
               data-testid="post-visit-notes-textarea"
@@ -467,6 +560,28 @@ function PostVisitNotesWorkspace({
               className="mt-5 min-h-[460px] resize-y rounded-lg border-hairline bg-background text-base leading-7 focus-visible:ring-ring"
               autoFocus
             />
+            {meetingQuickNoteResult ? (
+              <div
+                data-testid="post-visit-meeting-quick-note-result"
+                className="mt-4 rounded-lg border border-hairline bg-paper p-3 text-sm"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 font-semibold text-ink">
+                    <CheckCircle2 className="h-4 w-4" />
+                    已同步到 AI 會議
+                  </div>
+                  <Badge variant="success">No provider</Badge>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
+                  <Badge variant="outline">
+                    {meetingQuickNoteResult.appended.reusedExistingSession ? "重用會議" : "建立會議"}
+                  </Badge>
+                  <Badge variant="outline">{meetingQuickNoteResult.snapshot.turns.length} 段</Badge>
+                  <Badge variant="outline">{meetingQuickNoteResult.snapshot.memoryRail.total} 記憶</Badge>
+                  <Badge variant="outline">browser session id: none</Badge>
+                </div>
+              </div>
+            ) : null}
           </CardContent>
         </Card>
 
@@ -616,8 +731,9 @@ function PostVisitNotesWorkspace({
           <Badge variant="outline">不需要手填 session ID</Badge>
         </div>
         <MeetingWorkspace
+          key={`${plan.id}:${meetingSessionId ?? "auto"}:${meetingBridgeVersion}`}
           planId={plan.id}
-          initialSessionId={initialMeetingSessionId}
+          initialSessionId={meetingSessionId}
           initialNoteDraft={notes}
           preferExistingSession
           routeBRedLineContext={shouldLoadRouteBRedLineContext ? routeBRedLineContext : null}

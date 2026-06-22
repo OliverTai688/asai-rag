@@ -36,8 +36,16 @@ export const appendMeetingTurnInputSchema = appendInterviewTurnInputSchema.exten
   source: z.enum(["MANUAL_NOTE", "TEXT_INPUT", "VOICE_FINAL_TRANSCRIPT"]).default("TEXT_INPUT"),
 });
 
+export const appendVisitMeetingQuickNoteInputSchema = z
+  .object({
+    content: z.string().trim().min(1).max(12000),
+    occurredAt: z.string().datetime().optional(),
+  })
+  .strict();
+
 export type CreateMeetingSessionInput = z.infer<typeof createMeetingSessionInputSchema>;
 export type AppendMeetingTurnInput = z.infer<typeof appendMeetingTurnInputSchema>;
+export type AppendVisitMeetingQuickNoteInput = z.infer<typeof appendVisitMeetingQuickNoteInputSchema>;
 
 export interface MeetingCaptureSafety {
   scopeSource: "server_session";
@@ -60,6 +68,23 @@ export interface MeetingTurnAppendDto {
   memories: InterviewMemoryDto[];
   memoryRail: MeetingMemoryRailDto;
   safety: MeetingCaptureSafety;
+}
+
+export interface VisitMeetingQuickNoteAppendDto {
+  status: "READY";
+  appended: {
+    sessionId: string;
+    turnId: string;
+    sourceLabel: "visit_meeting_quick_note";
+    reusedExistingSession: boolean;
+  };
+  snapshot: MeetingSessionSnapshotDto;
+  safety: MeetingCaptureSafety & {
+    routeOwnedVisitPlanScope: true;
+    browserSuppliedSessionId: false;
+    rawPrivateTranscriptStored: false;
+    storesRawProviderPayload: false;
+  };
 }
 
 export interface MeetingMemoryRailDto {
@@ -196,6 +221,68 @@ export async function appendMeetingTurnForMember(
     ...result,
     memoryRail: buildMeetingMemoryRail(result.memories),
     safety: meetingCaptureSafety(),
+  };
+}
+
+export async function appendVisitMeetingQuickNoteForMember(
+  session: AppSession,
+  visitPlanId: string,
+  input: AppendVisitMeetingQuickNoteInput,
+): Promise<VisitMeetingQuickNoteAppendDto | null> {
+  const latestSnapshot = await findLatestMeetingSessionForMember(session, {
+    visitPlanId,
+    currentSegmentId: "capture",
+  });
+  const baseSnapshot =
+    latestSnapshot ??
+    (await createMeetingSessionForMember(session, {
+      visitPlanId,
+      currentSegmentId: "capture",
+      title: "AI 拜訪會議",
+    }));
+
+  if (!baseSnapshot) {
+    return null;
+  }
+
+  const appendResult = await appendMeetingTurnForMember(session, baseSnapshot.session.id, {
+    role: "USER",
+    modality: "TEXT",
+    source: "MANUAL_NOTE",
+    content: input.content,
+    transcriptFinal: true,
+    outlineSegmentId: "capture",
+    occurredAt: input.occurredAt,
+    issueTags: ["visit-meeting-quick-note", "post-visit-note"],
+    pqQuestionIds: [],
+  });
+
+  if (!appendResult) {
+    return null;
+  }
+
+  const snapshot = await getMeetingSessionSnapshotForMember(session, baseSnapshot.session.id);
+
+  if (!snapshot) {
+    return null;
+  }
+
+  return {
+    status: "READY",
+    appended: {
+      sessionId: snapshot.session.id,
+      turnId: appendResult.turn.id,
+      sourceLabel: "visit_meeting_quick_note",
+      reusedExistingSession: Boolean(latestSnapshot),
+    },
+    snapshot,
+    safety: {
+      ...meetingCaptureSafety(),
+      routeOwnedVisitPlanScope: true,
+      browserSuppliedSessionId: false,
+      rawPrivateTranscriptStored: false,
+      storesRawProviderPayload: false,
+    },
   };
 }
 
