@@ -84,11 +84,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 3,
+    "normalLoopsSinceLastWholeProductReview": 4,
     "lastWholeProductReviewAt": "2026-06-22T14:49:09Z",
     "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-22_lv3-whole-product-gap-review-after-relationship-cards.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "Next normal loop should stay source-backed and avoid docs-only proof. This loop completed the /pre-visit/[planId] local relationship card-state -> /api/visits/[id]/relationship-confirmation-state transient UI boundary before theater build, so do not repeat it as proof-only. Unless operator explicitly approves the VisitPlan JSON subdocument vs dedicated table persistence decision, do not implement refresh/new-context card-state persistence. Recommended next source slice: pivot to another core bridge such as AI interview/meeting quick notes -> relationship graph or visit preparation writeback cards, preserving confirmed/inference/unknown boundaries and no raw private/provider payloads. If persistence is approved, use only cardId/state/updatedAt/sourceReferenceIds/safeNoteSummary with migration/rollback/API/browser proof; residual browser-only evidence can be self-run by operator.",
+    "nextRecommendedImplementationSlice": "Cadence is now 4 normal loops since the last whole-product review, so the next loop should run the scheduled whole-product gap review prompt before more narrow implementation. This loop pivoted away from repeated relationship-card state work and completed an AMM/PIM source-backed quick-note -> persisted meeting summary -> writeback confirmation card bridge. The review should assess whether the quick-note bridge, relationship confirmation-card persistence blocker, and residual self-runnable live evidence still align with the LV3 client -> graph -> prep -> theater -> interview/writeback flow. Unless operator explicitly approves the VisitPlan JSON subdocument vs dedicated table persistence decision, do not implement refresh/new-context relationship card-state persistence.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {
@@ -156,5 +156,5 @@
     "lv3ImmersiveLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-immersive-loop.md",
     "lv3WholeProductGapReviewLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md"
   },
-  "updatedAt": "2026-06-22T16:08:00Z"
+  "updatedAt": "2026-06-22T16:20:00Z"
 }

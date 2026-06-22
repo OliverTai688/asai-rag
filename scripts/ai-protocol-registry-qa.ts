@@ -440,6 +440,7 @@ function runQa() {
 
   assertMeetingRouteBRedLineContextConsumption(manifests);
   assertMeetingNotesHubQuarantine(manifests);
+  assertMeetingQuickNoteWritebackBridge(manifests);
 
   const readinessSummary = manifests.reduce<Record<string, number>>((summary, manifest) => {
     summary[manifest.registry.readiness] = (summary[manifest.registry.readiness] ?? 0) + 1;
@@ -668,6 +669,61 @@ function assertMeetingNotesHubQuarantine(manifests: AgentProtocolManifest[]) {
 
   for (const evidenceRef of requiredEvidenceRefs) {
     push(adoption.evidenceRefs.includes(evidenceRef), `meeting notes hub evidence includes ${evidenceRef}`);
+  }
+}
+
+function assertMeetingQuickNoteWritebackBridge(manifests: AgentProtocolManifest[]) {
+  const manifest = manifests.find((item) => item.identity.agentId === "asai.meeting.prototype");
+  push(Boolean(manifest), "meeting manifest exists for quick-note writeback bridge");
+
+  if (!manifest?.proof.sourceAdoption) {
+    return;
+  }
+
+  push(
+    manifest.capabilities.some((capability) => capability.id === "meeting-visit-quick-note-writeback-bridge"),
+    "meeting manifest declares quick-note writeback bridge capability",
+  );
+  push(
+    manifest.interfaces.actions.some((action) => action.id === "append-visit-meeting-quick-note-to-writeback"),
+    "meeting manifest declares quick-note writeback bridge action boundary",
+  );
+  push(
+    manifest.schemas.outputDtoRefs.includes("VisitMeetingQuickNoteWritebackBridgeDto"),
+    "meeting manifest output DTOs include VisitMeetingQuickNoteWritebackBridgeDto",
+  );
+  push(
+    manifest.schemas.evidenceDtoRefs.includes("VisitMeetingQuickNoteWritebackBridgeDto.safety.directCrmWriteDisabled=true"),
+    "meeting manifest evidence includes direct CRM write disabled bridge",
+  );
+  push(
+    manifest.proof.commands.includes("pnpm meeting:quick-note-writeback-bridge-qa"),
+    "meeting proof commands include quick-note writeback bridge QA",
+  );
+
+  const adoption = manifest.proof.sourceAdoption;
+  const requiredOwnerRefs = [
+    "src/lib/interview/meeting-session-repository.ts",
+    "src/app/(dashboard)/pre-visit/[planId]/notes/page.tsx",
+    "src/components/meeting/meeting-workspace.tsx",
+    "scripts/meeting-quick-note-writeback-bridge-qa.mjs",
+  ];
+  const requiredEvidenceRefs = [
+    "buildVisitMeetingQuickNoteWritebackBridge",
+    "post-visit-meeting-writeback-bridge",
+    "visit-meeting-quick-note-writeback-bridge",
+    "summaryEndpointPattern: /api/ai/meeting/sessions/[sessionId]/summary",
+    "writebackEndpointPattern: /api/ai/meeting/sessions/[sessionId]/writebacks",
+    "VisitMeetingQuickNoteWritebackBridgeDto.status=summary_required",
+    "VisitMeetingQuickNoteWritebackBridgeDto.safety.directCrmWriteDisabled=true",
+  ];
+
+  for (const ownerRef of requiredOwnerRefs) {
+    push(adoption.ownerRefs.includes(ownerRef), `meeting quick-note writeback owner includes ${ownerRef}`);
+  }
+
+  for (const evidenceRef of requiredEvidenceRefs) {
+    push(adoption.evidenceRefs.includes(evidenceRef), `meeting quick-note writeback evidence includes ${evidenceRef}`);
   }
 }
 

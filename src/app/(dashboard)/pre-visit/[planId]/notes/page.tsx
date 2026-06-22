@@ -70,6 +70,28 @@ interface MeetingQuickNoteResult {
     routeOwnedVisitPlanScope: true;
     browserSuppliedSessionId: false;
   };
+  writebackBridge: {
+    sourceActionId: "visit-meeting-quick-note-writeback-bridge";
+    status: "summary_required";
+    acceptedWorkspaceHref: string;
+    targetSurface: "/pre-visit/[planId]/meeting";
+    summaryEndpointPattern: "/api/ai/meeting/sessions/[sessionId]/summary";
+    writebackEndpointPattern: "/api/ai/meeting/sessions/[sessionId]/writebacks";
+    requirements: {
+      persistedSummaryRequired: true;
+      advisorConfirmationRequired: true;
+      reasonRiskAcceptedForSensitive: true;
+    };
+    safety: {
+      providerCallAttempted: false;
+      aiUsageLogRequired: false;
+      browserSuppliedSessionId: false;
+      rawPrivateTranscriptStored: false;
+      storesRawProviderPayload: false;
+      writesConfirmedCrmFact: false;
+      directCrmWriteDisabled: true;
+    };
+  };
 }
 
 type VisitRouteBRedLineContextResponse = MeetingRouteBRedLineContextDto & {
@@ -579,6 +601,35 @@ function PostVisitNotesWorkspace({
                   <Badge variant="outline">{meetingQuickNoteResult.snapshot.turns.length} 段</Badge>
                   <Badge variant="outline">{meetingQuickNoteResult.snapshot.memoryRail.total} 記憶</Badge>
                   <Badge variant="outline">browser session id: none</Badge>
+                </div>
+                <div
+                  data-testid="post-visit-meeting-writeback-bridge"
+                  className="mt-3 rounded-lg border border-hairline bg-background p-3"
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-semibold text-ink">下一步：摘要到寫回確認卡</p>
+                      <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                        這則筆記已進會議 session。先在 AI 會議工作台生成可引用摘要，再從 writeback
+                        cards 選擇 CRM 候選、洞察或追蹤任務。
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-8 rounded-lg"
+                      onClick={() => router.push(meetingQuickNoteResult.writebackBridge.acceptedWorkspaceHref)}
+                    >
+                      前往工作台
+                    </Button>
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <Badge variant="secondary">{meetingQuickNoteResult.writebackBridge.status}</Badge>
+                    <Badge variant="secondary">summary required</Badge>
+                    <Badge variant="secondary">advisor confirmation</Badge>
+                    <Badge variant="secondary">CRM fact: no direct write</Badge>
+                  </div>
                 </div>
               </div>
             ) : null}

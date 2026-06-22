@@ -85,6 +85,30 @@ export interface VisitMeetingQuickNoteAppendDto {
     rawPrivateTranscriptStored: false;
     storesRawProviderPayload: false;
   };
+  writebackBridge: VisitMeetingQuickNoteWritebackBridgeDto;
+}
+
+export interface VisitMeetingQuickNoteWritebackBridgeDto {
+  sourceActionId: "visit-meeting-quick-note-writeback-bridge";
+  status: "summary_required";
+  acceptedWorkspaceHref: string;
+  targetSurface: "/pre-visit/[planId]/meeting";
+  summaryEndpointPattern: "/api/ai/meeting/sessions/[sessionId]/summary";
+  writebackEndpointPattern: "/api/ai/meeting/sessions/[sessionId]/writebacks";
+  requirements: {
+    persistedSummaryRequired: true;
+    advisorConfirmationRequired: true;
+    reasonRiskAcceptedForSensitive: true;
+  };
+  safety: {
+    providerCallAttempted: false;
+    aiUsageLogRequired: false;
+    browserSuppliedSessionId: false;
+    rawPrivateTranscriptStored: false;
+    storesRawProviderPayload: false;
+    writesConfirmedCrmFact: false;
+    directCrmWriteDisabled: true;
+  };
 }
 
 export interface MeetingMemoryRailDto {
@@ -282,6 +306,34 @@ export async function appendVisitMeetingQuickNoteForMember(
       browserSuppliedSessionId: false,
       rawPrivateTranscriptStored: false,
       storesRawProviderPayload: false,
+    },
+    writebackBridge: buildVisitMeetingQuickNoteWritebackBridge(visitPlanId),
+  };
+}
+
+export function buildVisitMeetingQuickNoteWritebackBridge(
+  visitPlanId: string,
+): VisitMeetingQuickNoteWritebackBridgeDto {
+  return {
+    sourceActionId: "visit-meeting-quick-note-writeback-bridge",
+    status: "summary_required",
+    acceptedWorkspaceHref: `/pre-visit/${encodeURIComponent(visitPlanId)}/meeting`,
+    targetSurface: "/pre-visit/[planId]/meeting",
+    summaryEndpointPattern: "/api/ai/meeting/sessions/[sessionId]/summary",
+    writebackEndpointPattern: "/api/ai/meeting/sessions/[sessionId]/writebacks",
+    requirements: {
+      persistedSummaryRequired: true,
+      advisorConfirmationRequired: true,
+      reasonRiskAcceptedForSensitive: true,
+    },
+    safety: {
+      providerCallAttempted: false,
+      aiUsageLogRequired: false,
+      browserSuppliedSessionId: false,
+      rawPrivateTranscriptStored: false,
+      storesRawProviderPayload: false,
+      writesConfirmedCrmFact: false,
+      directCrmWriteDisabled: true,
     },
   };
 }

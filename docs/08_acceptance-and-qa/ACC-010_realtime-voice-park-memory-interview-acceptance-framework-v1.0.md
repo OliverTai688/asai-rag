@@ -115,6 +115,8 @@ PIM-011c UI selector proof target（2026-06-21 whole-product review）：正式 
 
 PIM-011c UI selector proof（2026-06-21）：新增 `pnpm interview:quick-capture-ui-qa`，已證明 `/pre-visit/[planId]/notes` 可用 selector/context 送出 quick capture，不要求 raw client/visit/session ID；high-sensitive visit capture 缺 approval 409、補 reason/riskAccepted 後 READY 201、mobile follow-up review 產生 theater state proposal、desktop/mobile no overflow、API response/result panel 不 echo raw note/private sentinel、`AiUsageLog` unchanged 147->147。
 
+PIM/AMM quick-note writeback bridge proof（2026-06-23）：新增 `pnpm meeting:quick-note-writeback-bridge-qa`，已證明 `/api/visits/[id]/meeting-quick-notes` 的 response 包含 `VisitMeetingQuickNoteWritebackBridgeDto`，且 `/pre-visit/[planId]/notes` 顯示 `post-visit-meeting-writeback-bridge`。此 bridge 只把 synced quick note 指向 accepted `CLIENT_MEETING` workspace、persisted summary requirement 與 writeback confirmation cards；不得接受 browser-supplied session id、不得直接寫 CRM confirmed fact、不得保存 raw private transcript/raw provider payload、不得假寫 `AiUsageLog`。
+
 - [x] Quick-capture note 可先不歸戶，但歸戶或連到 `VisitPlan` / `Client` 時，scope 一律由 server session 推導，不信任前端 `organizationId`、`memberId`、`clientId`、`visitPlanId`。
 - [x] Note -> memory mapping 保留 source label、note/turn id、`FACT` / `CONFIRMED` / `INFERENCE` / `UNKNOWN`，且 inference 不得寫成 CRM confirmed fact。
 - [x] 手動筆記與語音 transcript 都可以成為 `InterviewMemory` candidate；raw audio 預設不保存，raw private transcript 不進 report/evidence。
