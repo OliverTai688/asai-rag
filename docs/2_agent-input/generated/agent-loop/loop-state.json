@@ -84,11 +84,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 1,
+    "normalLoopsSinceLastWholeProductReview": 2,
     "lastWholeProductReviewAt": "2026-06-22T08:24:17Z",
     "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-22_lv3-whole-product-gap-review-after-route-b-red-line-preview.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "ITA-005d Route B severe red-line action workflow. Turn the existing severe red-line watchlist preview into advisor-visible action cards with not-applicable/evidence-needed/escalate states, keep legal advice and confirmed CRM writes out of scope, persist only compliance-safe action state when DB is available, and prove no raw private/provider/contact/policy sentinels. If runtime evidence is only screenshots or operator-repeatable clicks, hand off commands instead of spending a docs-only loop.",
+    "nextRecommendedImplementationSlice": "ITA-005e Route B severe red-line action persistence boundary. Persist only compliance-safe red-line action state from the advisor-visible workflow under the owner-scoped Route B session (ruleId, state, advisorReasonCode, updatedAt), keep legal advice, formal findings, real notifications, raw private/provider payloads, and confirmed CRM writes out of scope, and prove member owner read/write, manager denial, no-provider/no fake AiUsageLog, and refresh/new-context persistence. If DB/browser runtime evidence is unavailable, add a source-backed contract fallback and hand the exact DB command to the user instead of spending a docs-only loop.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {
@@ -156,5 +156,5 @@
     "lv3ImmersiveLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-immersive-loop.md",
     "lv3WholeProductGapReviewLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md"
   },
-  "updatedAt": "2026-06-22T08:45:15Z"
+  "updatedAt": "2026-06-22T09:15:35Z"
 }

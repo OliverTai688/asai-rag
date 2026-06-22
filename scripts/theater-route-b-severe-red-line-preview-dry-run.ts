@@ -103,7 +103,7 @@ function checkUiContract(preview: RouteBSevereRedLineWarningPreview) {
   check(source.includes("ROUTE_B_SEVERE_RED_LINE_WARNING_PREVIEW"), "session UI builds static severe red-line warning preview");
   check(source.includes("RouteBSevereRedLineWarningPanel"), "session UI renders severe red-line warning panel");
   check(source.includes("守門紅線"), "session UI names the advisor-facing guard panel");
-  check(source.includes("只提醒顧問觀察"), "session UI explains watchlist-only posture");
+  check(source.includes("可標示觀察"), "session UI explains advisor action posture");
   check(source.includes("不提供法律意見"), "session UI states no legal advice");
   check(source.includes("不寫 CRM confirmed fact"), "session UI states no confirmed CRM fact write");
   check(source.includes("warning.status"), "session UI renders watchlist status");
