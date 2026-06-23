@@ -71,6 +71,7 @@
     "billing:checkout-qa": "node scripts/billing-checkout-qa.mjs",
     "billing:ecpay-disabled-qa": "node scripts/billing-ecpay-disabled-qa.mjs",
     "billing:subscription-capability-qa": "node scripts/billing-subscription-capability-qa.mjs",
+    "billing:subscription-ui-qa": "node scripts/billing-subscription-ui-qa.mjs",
     "bff:reports-qa": "node scripts/bff-reports-qa.mjs",
     "bff:visit-report-ai-qa": "node scripts/bff-visit-report-ai-qa.mjs",
     "bff:issues-qa": "node scripts/bff-issues-qa.mjs",

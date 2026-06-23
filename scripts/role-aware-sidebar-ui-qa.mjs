@@ -217,17 +217,22 @@ push(
 );
 push(
   layoutSource.includes("buildWorkspaceSidebarRenderModel") &&
-    layoutSource.includes("member: buildWorkspaceSidebarRenderModel(session, \"member\")") &&
-    layoutSource.includes("orgAdmin: buildWorkspaceSidebarRenderModel(session, \"orgAdmin\")"),
-  "dashboard layout builds member and orgAdmin render models server-side",
+    layoutSource.includes("buildBillingSubscriptionCapability") &&
+    layoutSource.includes("subscription = await buildBillingSubscriptionCapability(session)") &&
+    layoutSource.includes("member: buildWorkspaceSidebarRenderModel(session, \"member\",") &&
+    layoutSource.includes("orgAdmin: buildWorkspaceSidebarRenderModel(session, \"orgAdmin\",") &&
+    layoutSource.includes("subscription,"),
+  "dashboard layout builds member/orgAdmin render models server-side from subscription DTO",
 );
 push(
   roleAwareSidebarSource.includes("data-sidebar-surface") &&
     roleAwareSidebarSource.includes("data-assistant-scope") &&
     roleAwareSidebarSource.includes("data-sidebar-boundary") &&
+    roleAwareSidebarSource.includes("data-subscription-source") &&
+    roleAwareSidebarSource.includes("data-checkout-status") &&
     roleAwareSidebarSource.includes("aria-disabled") &&
     roleAwareSidebarSource.includes("motion-reduce:transition-none"),
-  "RoleAwareSidebar exposes testable surface, scope, boundary, disabled and reduced-motion hooks",
+  "RoleAwareSidebar exposes surface, scope, boundary, subscription, disabled and reduced-motion hooks",
 );
 push(
   !legacySidebarDiff.includes("RoleAwareSidebar") &&
@@ -244,6 +249,10 @@ const ownerOrgModel = buildWorkspaceSidebarRenderModel(session({ role: "OWNER" }
 
 push(memberModel.currentSurface === "member", "member fixture renders member surface");
 push(ownerOrgModel.currentSurface === "orgAdmin", "owner fixture renders org admin surface");
+push(
+  memberModel.subscriptionBoundary.source === "session_plan_capability_fallback",
+  "member fixture keeps explicit subscription fallback source when no DTO is injected",
+);
 push(memberModel.activeItemId === "ai-understand-client", "member fixture activates AI 了解客戶");
 push(ownerOrgModel.activeItemId === "org-settings", "owner fixture activates org settings");
 push(

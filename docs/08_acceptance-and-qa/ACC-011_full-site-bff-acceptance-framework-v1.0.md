@@ -221,6 +221,8 @@ Evidence（2026-06-23 BFF-403a）：`BILLING_SUBSCRIPTION_QA_BASE_URL=http://127
 - The slice must not create subscription orders, payment transactions, checkout redirects, ledger rows, provider calls, fake `AiUsageLog`, or real plan activation.
 - Proof should include a targeted static/API/browser command such as `pnpm billing:subscription-ui-qa` or equivalent, plus `pnpm exec tsc --noEmit --pretty false` and `pnpm lint:changed`; DB-authenticated 200 proof can be rerun by the operator with the existing BFF-403a command when DB is reachable, but it must not replace this source/UI consumption slice.
 
+Evidence（2026-06-23 BFF-403b）：`pnpm billing:subscription-ui-qa`、`pnpm nav:sidebar-ui-qa`、`pnpm nav:sidebar-renderer-contract-qa` passed. Proof covers dashboard layout server-side subscription DTO injection, workspace bootstrap navigation subscription injection, `WorkspaceSubscriptionBoundary` render-model consumption, RoleAwareSidebar subscription hooks (`data-subscription-source`, `data-checkout-status`, `data-browser-plan-assumptions-allowed`, no-provider/no-db-write flags), explicit session fallback source when DTO read is unavailable, and no browser/localStorage/sessionStorage/cookie/URL paid-plan assumption. No ECPay/OpenAI/Anthropic provider call, no subscription order/payment transaction/ledger write, no checkout redirect, no fake `AiUsageLog`, and no real plan activation was attempted. Operator can still rerun `BILLING_SUBSCRIPTION_QA_BASE_URL=http://127.0.0.1:3058 pnpm billing:subscription-capability-qa` when DB is reachable for authenticated 200 payload evidence.
+
 ---
 
 ## 5. Data-source Inventory Gates

@@ -13,7 +13,9 @@ export async function GET(request: Request) {
     const requestedSurface = toWorkspaceBootstrapSurface(
       new URL(request.url).searchParams.get("surface"),
     );
-    const navigation = buildWorkspaceBootstrapNavigation(session, requestedSurface);
+    const navigation = buildWorkspaceBootstrapNavigation(session, requestedSurface, {
+      subscription,
+    });
 
     return Response.json({
       user: session.user,

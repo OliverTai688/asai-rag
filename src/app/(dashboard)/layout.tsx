@@ -1,5 +1,7 @@
 import { DashboardShell } from "@/components/layout/dashboard-shell";
+import type { BillingSubscriptionCapabilityDto } from "@/domains/subscription/capability";
 import { requireMemberRoute } from "@/lib/auth/route-guards";
+import { buildBillingSubscriptionCapability } from "@/lib/billing/subscription-capability-repository";
 import { demoLoginAccounts, isDemoPasswordLoginEnabled } from "@/lib/demo-login";
 import { buildWorkspaceSidebarRenderModel } from "@/lib/navigation/workspace-sidebar";
 import { prisma } from "@/lib/prisma";
@@ -36,9 +38,21 @@ export default async function DashboardLayout({
         label: account.label,
       }))
     : [];
+  let subscription: BillingSubscriptionCapabilityDto | undefined;
+
+  try {
+    subscription = await buildBillingSubscriptionCapability(session);
+  } catch {
+    subscription = undefined;
+  }
+
   const sidebarNavigation = {
-    member: buildWorkspaceSidebarRenderModel(session, "member"),
-    orgAdmin: buildWorkspaceSidebarRenderModel(session, "orgAdmin"),
+    member: buildWorkspaceSidebarRenderModel(session, "member", {
+      subscription,
+    }),
+    orgAdmin: buildWorkspaceSidebarRenderModel(session, "orgAdmin", {
+      subscription,
+    }),
   };
 
   return (

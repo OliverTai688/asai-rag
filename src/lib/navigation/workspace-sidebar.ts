@@ -14,6 +14,7 @@ import {
   type SidebarPlanCapabilities,
   type SidebarSurface,
 } from "@/domains/navigation/role-aware-sidebar";
+import type { BillingSubscriptionCapabilityDto } from "@/domains/subscription/capability";
 import type { AppSession } from "@/lib/auth/session";
 
 export type WorkspaceBootstrapSurface = Extract<SidebarSurface, "member" | "orgAdmin">;
@@ -98,10 +99,51 @@ export interface WorkspaceRouteAccess {
   readonly redirectIfDenied: "/dashboard" | "/team" | "/login" | "/super-admin/login" | "/client-login";
 }
 
+export interface WorkspaceSubscriptionBoundary {
+  readonly source: "server_subscription_dto" | "session_plan_capability_fallback";
+  readonly contractVersion?: BillingSubscriptionCapabilityDto["version"];
+  readonly generatedAt?: string;
+  readonly plan: AppSession["organization"]["plan"];
+  readonly organizationStatus: AppSession["organization"]["status"];
+  readonly currentPlanStatus: AppSession["organization"]["status"];
+  readonly capability: Pick<
+    BillingSubscriptionCapabilityDto["capability"],
+    | "monthlyAiQuota"
+    | "maxMembers"
+    | "maxCollaborators"
+    | "maxUnits"
+    | "shareBrandingEnabled"
+    | "clientPortalEnabled"
+  >;
+  readonly usage: Pick<
+    BillingSubscriptionCapabilityDto["usage"],
+    "seats" | "collaborators" | "units" | "aiQuota"
+  >;
+  readonly checkoutStatus: Pick<
+    BillingSubscriptionCapabilityDto["checkoutStatus"],
+    | "status"
+    | "mode"
+    | "provider"
+    | "productionPaymentEnabled"
+    | "providerAttempted"
+    | "orderCreated"
+    | "transactionCreated"
+  >;
+  readonly activation: Pick<
+    BillingSubscriptionCapabilityDto["activation"],
+    "redirectOnlyActivationAllowed" | "browserPlanAssumptionsAllowed"
+  >;
+  readonly safety: Pick<
+    BillingSubscriptionCapabilityDto["safety"],
+    "providerCallAttempted" | "aiUsageLogRequired" | "dbWriteAttempted" | "readOnlyDbAccess"
+  >;
+}
+
 export interface WorkspaceNavigationBootstrap {
   readonly currentSurface: WorkspaceBootstrapSurface;
   readonly defaultSurface: WorkspaceBootstrapSurface;
   readonly defaultSurfaceRedirect: "/dashboard" | "/team";
+  readonly subscriptionBoundary: WorkspaceSubscriptionBoundary;
   readonly sidebarContext: SidebarContext;
   readonly sidebarSections: readonly ResolvedSidebarSection[];
   readonly surfaceSwitches: readonly WorkspaceSurfaceSwitch[];
@@ -174,6 +216,7 @@ export interface WorkspaceSidebarRenderModel {
   readonly currentSurface: WorkspaceBootstrapSurface;
   readonly defaultSurface: WorkspaceBootstrapSurface;
   readonly defaultSurfaceRedirect: WorkspaceNavigationBootstrap["defaultSurfaceRedirect"];
+  readonly subscriptionBoundary: WorkspaceSubscriptionBoundary;
   readonly primarySections: readonly WorkspaceSidebarRenderSection[];
   readonly surfaceSwitches: readonly WorkspaceSidebarRenderSurfaceSwitch[];
   readonly activeItemId?: string;
@@ -220,29 +263,149 @@ function isManagerPlusRole(role: AppSession["membership"]["role"]) {
   return isOrgAdminRole(role) || role === "MANAGER";
 }
 
-function hasAiQuotaRemaining(session: AppSession) {
-  return session.organization.monthlyAiQuota - session.organization.monthlyAiUsed > 0;
+function buildUsageMetric(input: {
+  readonly used: number;
+  readonly limit: number;
+  readonly pending?: number;
+}): BillingSubscriptionCapabilityDto["usage"]["seats"] {
+  const pending = input.pending ?? 0;
+  const committed = input.used + pending;
+
+  return {
+    used: input.used,
+    pending,
+    committed,
+    limit: input.limit,
+    remaining: Math.max(0, input.limit - committed),
+    limitExceeded: committed > input.limit,
+  };
 }
 
 export function toWorkspaceBootstrapSurface(value: string | null | undefined): WorkspaceBootstrapSurface {
   return value === "orgAdmin" ? "orgAdmin" : "member";
 }
 
-export function buildWorkspaceSidebarPlanCapabilities(session: AppSession): SidebarPlanCapabilities {
-  const role = session.membership.role;
+export function buildWorkspaceSubscriptionBoundary(
+  session: AppSession,
+  subscription?: BillingSubscriptionCapabilityDto,
+): WorkspaceSubscriptionBoundary {
+  if (subscription) {
+    return {
+      source: "server_subscription_dto",
+      contractVersion: subscription.version,
+      generatedAt: subscription.generatedAt,
+      plan: subscription.currentPlan.plan,
+      organizationStatus: subscription.organization.status,
+      currentPlanStatus: subscription.currentPlan.status,
+      capability: {
+        monthlyAiQuota: subscription.capability.monthlyAiQuota,
+        maxMembers: subscription.capability.maxMembers,
+        maxCollaborators: subscription.capability.maxCollaborators,
+        maxUnits: subscription.capability.maxUnits,
+        shareBrandingEnabled: subscription.capability.shareBrandingEnabled,
+        clientPortalEnabled: subscription.capability.clientPortalEnabled,
+      },
+      usage: subscription.usage,
+      checkoutStatus: {
+        status: subscription.checkoutStatus.status,
+        mode: subscription.checkoutStatus.mode,
+        provider: subscription.checkoutStatus.provider,
+        productionPaymentEnabled: subscription.checkoutStatus.productionPaymentEnabled,
+        providerAttempted: subscription.checkoutStatus.providerAttempted,
+        orderCreated: subscription.checkoutStatus.orderCreated,
+        transactionCreated: subscription.checkoutStatus.transactionCreated,
+      },
+      activation: {
+        redirectOnlyActivationAllowed: subscription.activation.redirectOnlyActivationAllowed,
+        browserPlanAssumptionsAllowed: subscription.activation.browserPlanAssumptionsAllowed,
+      },
+      safety: {
+        providerCallAttempted: subscription.safety.providerCallAttempted,
+        aiUsageLogRequired: subscription.safety.aiUsageLogRequired,
+        dbWriteAttempted: subscription.safety.dbWriteAttempted,
+        readOnlyDbAccess: subscription.safety.readOnlyDbAccess,
+      },
+    };
+  }
 
   return {
-    aiEnabled: session.planCapability.monthlyAiQuota > 0 && hasAiQuotaRemaining(session),
-    clientPortalEnabled: session.planCapability.clientPortalEnabled,
-    shareBrandingEnabled: session.planCapability.shareBrandingEnabled,
-    orgAdminEnabled: isManagerPlusRole(role) && session.planCapability.maxUnits > 0,
-    billingEnabled: isOrgAdminRole(role),
-    maxUnits: session.planCapability.maxUnits,
+    source: "session_plan_capability_fallback",
+    plan: session.planCapability.plan,
+    organizationStatus: session.organization.status,
+    currentPlanStatus: session.organization.status,
+    capability: {
+      monthlyAiQuota: session.planCapability.monthlyAiQuota,
+      maxMembers: session.planCapability.maxMembers,
+      maxCollaborators: session.planCapability.maxCollaborators,
+      maxUnits: session.planCapability.maxUnits,
+      shareBrandingEnabled: session.planCapability.shareBrandingEnabled,
+      clientPortalEnabled: session.planCapability.clientPortalEnabled,
+    },
+    usage: {
+      seats: buildUsageMetric({
+        used: 0,
+        limit: session.organization.seatLimit,
+      }),
+      collaborators: buildUsageMetric({
+        used: 0,
+        limit: session.planCapability.maxCollaborators,
+      }),
+      units: buildUsageMetric({
+        used: 0,
+        limit: session.planCapability.maxUnits,
+      }),
+      aiQuota: buildUsageMetric({
+        used: session.organization.monthlyAiUsed,
+        limit: session.organization.monthlyAiQuota,
+      }),
+    },
+    checkoutStatus: {
+      status: "disabled",
+      mode: "production_disabled",
+      provider: "ECPAY",
+      productionPaymentEnabled: false,
+      providerAttempted: false,
+      orderCreated: false,
+      transactionCreated: false,
+    },
+    activation: {
+      redirectOnlyActivationAllowed: false,
+      browserPlanAssumptionsAllowed: false,
+    },
+    safety: {
+      providerCallAttempted: false,
+      aiUsageLogRequired: false,
+      dbWriteAttempted: false,
+      readOnlyDbAccess: true,
+    },
   };
 }
 
-export function buildWorkspaceSidebarFeatureFlags(session: AppSession): SidebarFeatureFlags {
+export function buildWorkspaceSidebarPlanCapabilities(
+  session: AppSession,
+  subscription?: BillingSubscriptionCapabilityDto,
+): SidebarPlanCapabilities {
+  const role = session.membership.role;
+  const boundary = buildWorkspaceSubscriptionBoundary(session, subscription);
+
+  return {
+    aiEnabled:
+      boundary.capability.monthlyAiQuota > 0 &&
+      boundary.usage.aiQuota.remaining > 0,
+    clientPortalEnabled: boundary.capability.clientPortalEnabled,
+    shareBrandingEnabled: boundary.capability.shareBrandingEnabled,
+    orgAdminEnabled: isManagerPlusRole(role) && boundary.capability.maxUnits > 0,
+    billingEnabled: isOrgAdminRole(role),
+    maxUnits: boundary.capability.maxUnits,
+  };
+}
+
+export function buildWorkspaceSidebarFeatureFlags(
+  session: AppSession,
+  subscription?: BillingSubscriptionCapabilityDto,
+): SidebarFeatureFlags {
   const isManagerPlus = isManagerPlusRole(session.membership.role);
+  const boundary = buildWorkspaceSubscriptionBoundary(session, subscription);
 
   return {
     legacySpinNav:
@@ -251,21 +414,22 @@ export function buildWorkspaceSidebarFeatureFlags(session: AppSession): SidebarF
     interviewEnabled: true,
     theaterEnabled: true,
     orgAdminBeta: isManagerPlus,
-    clientPortalBeta: session.planCapability.clientPortalEnabled,
+    clientPortalBeta: boundary.capability.clientPortalEnabled,
   };
 }
 
 export function buildWorkspaceSidebarContext(
   session: AppSession,
   surface: WorkspaceBootstrapSurface = "member",
+  subscription?: BillingSubscriptionCapabilityDto,
 ): SidebarContext {
   return {
     sessionType: "app",
     surface,
     organizationRole: appRoleToNavigationRole[session.membership.role],
     managedUnitIds: session.membership.managedUnitIds,
-    planCapabilities: buildWorkspaceSidebarPlanCapabilities(session),
-    featureFlags: buildWorkspaceSidebarFeatureFlags(session),
+    planCapabilities: buildWorkspaceSidebarPlanCapabilities(session, subscription),
+    featureFlags: buildWorkspaceSidebarFeatureFlags(session, subscription),
     isDemo: session.organization.slug.includes("demo"),
   };
 }
@@ -297,9 +461,10 @@ function getOrgAdminDisabledReason(context: SidebarContext): WorkspaceSurfaceSwi
 export function buildWorkspaceSurfaceSwitches(
   session: AppSession,
   currentSurface: WorkspaceBootstrapSurface,
+  subscription?: BillingSubscriptionCapabilityDto,
 ): readonly WorkspaceSurfaceSwitch[] {
-  const memberContext = buildWorkspaceSidebarContext(session, "member");
-  const orgAdminContext = buildWorkspaceSidebarContext(session, "orgAdmin");
+  const memberContext = buildWorkspaceSidebarContext(session, "member", subscription);
+  const orgAdminContext = buildWorkspaceSidebarContext(session, "orgAdmin", subscription);
   const orgAdminAvailable = canAccessOrgAdmin(orgAdminContext);
 
   return [
@@ -462,21 +627,35 @@ export const workspaceSettingsRoutePolicy = {
 export function buildWorkspaceBootstrapNavigation(
   session: AppSession,
   requestedSurface: WorkspaceBootstrapSurface = getDefaultWorkspaceSurface(session),
+  options: { readonly subscription?: BillingSubscriptionCapabilityDto } = {},
 ): WorkspaceNavigationBootstrap {
-  const requestedContext = buildWorkspaceSidebarContext(session, requestedSurface);
+  const requestedContext = buildWorkspaceSidebarContext(
+    session,
+    requestedSurface,
+    options.subscription,
+  );
   const currentSurface =
     requestedSurface === "orgAdmin" && !canAccessOrgAdmin(requestedContext)
       ? "member"
       : requestedSurface;
-  const sidebarContext = buildWorkspaceSidebarContext(session, currentSurface);
+  const sidebarContext = buildWorkspaceSidebarContext(
+    session,
+    currentSurface,
+    options.subscription,
+  );
 
   return {
     currentSurface,
     defaultSurface: getDefaultWorkspaceSurface(session),
     defaultSurfaceRedirect: currentSurface === "orgAdmin" ? "/team" : "/dashboard",
+    subscriptionBoundary: buildWorkspaceSubscriptionBoundary(session, options.subscription),
     sidebarContext,
     sidebarSections: resolveSidebarSections(sidebarContext),
-    surfaceSwitches: buildWorkspaceSurfaceSwitches(session, currentSurface),
+    surfaceSwitches: buildWorkspaceSurfaceSwitches(
+      session,
+      currentSurface,
+      options.subscription,
+    ),
     routeGuardAlignment: workspaceRouteGuardAlignment,
     settingsRoutePolicy: workspaceSettingsRoutePolicy,
     proof: {
@@ -657,9 +836,14 @@ export function resolveWorkspaceSidebarActiveItemId(
 export function buildWorkspaceSidebarRenderModel(
   session: AppSession,
   requestedSurface: WorkspaceBootstrapSurface = getDefaultWorkspaceSurface(session),
-  options: { readonly pathname?: string } = {},
+  options: {
+    readonly pathname?: string;
+    readonly subscription?: BillingSubscriptionCapabilityDto;
+  } = {},
 ): WorkspaceSidebarRenderModel {
-  const navigation = buildWorkspaceBootstrapNavigation(session, requestedSurface);
+  const navigation = buildWorkspaceBootstrapNavigation(session, requestedSurface, {
+    subscription: options.subscription,
+  });
   const primarySections = navigation.sidebarSections.map((section) =>
     toWorkspaceSidebarRenderSection(
       section,
@@ -672,6 +856,7 @@ export function buildWorkspaceSidebarRenderModel(
     currentSurface: navigation.currentSurface,
     defaultSurface: navigation.defaultSurface,
     defaultSurfaceRedirect: navigation.defaultSurfaceRedirect,
+    subscriptionBoundary: navigation.subscriptionBoundary,
     primarySections,
     surfaceSwitches: navigation.surfaceSwitches.map(toWorkspaceSidebarRenderSurfaceSwitch),
     activeItemId: options.pathname

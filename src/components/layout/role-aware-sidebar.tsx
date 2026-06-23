@@ -403,6 +403,89 @@ function SurfaceSwitches({
   );
 }
 
+function formatUsageMetric(metric: WorkspaceSidebarRenderModel["subscriptionBoundary"]["usage"]["aiQuota"]) {
+  return `${metric.committed}/${metric.limit}`;
+}
+
+function formatSubscriptionPlan(plan: string) {
+  return plan
+    .toLowerCase()
+    .split("_")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+function SidebarSubscriptionBoundary({
+  model,
+  open,
+}: {
+  model: WorkspaceSidebarRenderModel;
+  open: boolean;
+}) {
+  const boundary = model.subscriptionBoundary;
+  const checkoutLabel =
+    boundary.checkoutStatus.status === "disabled" ? "付款未啟用" : "付款可用";
+  const sourceLabel =
+    boundary.source === "server_subscription_dto"
+      ? "server subscription DTO"
+      : "session fallback";
+  const summaryLabel = `方案 ${boundary.plan}，AI 額度 ${formatUsageMetric(
+    boundary.usage.aiQuota,
+  )}，席位 ${formatUsageMetric(boundary.usage.seats)}，${checkoutLabel}`;
+
+  if (!open) {
+    return (
+      <div
+        role="status"
+        aria-label={summaryLabel}
+        className="mx-3 mb-3 flex h-10 items-center justify-center rounded-sm border border-hairline text-muted-foreground"
+        data-subscription-source={boundary.source}
+        data-checkout-status={boundary.checkoutStatus.status}
+        data-browser-plan-assumptions-allowed={String(
+          boundary.activation.browserPlanAssumptionsAllowed,
+        )}
+        data-provider-call-attempted={String(boundary.safety.providerCallAttempted)}
+      >
+        <CreditCard className="h-4 w-4" aria-hidden="true" />
+      </div>
+    );
+  }
+
+  return (
+    <div
+      role="status"
+      aria-label={summaryLabel}
+      className="mx-3 mb-3 rounded-sm border border-hairline px-3 py-2 text-xs text-muted-foreground"
+      data-subscription-source={boundary.source}
+      data-subscription-contract-version={boundary.contractVersion}
+      data-checkout-status={boundary.checkoutStatus.status}
+      data-checkout-provider={boundary.checkoutStatus.provider}
+      data-production-payment-enabled={String(
+        boundary.checkoutStatus.productionPaymentEnabled,
+      )}
+      data-browser-plan-assumptions-allowed={String(
+        boundary.activation.browserPlanAssumptionsAllowed,
+      )}
+      data-provider-call-attempted={String(boundary.safety.providerCallAttempted)}
+      data-db-write-attempted={String(boundary.safety.dbWriteAttempted)}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <span className="font-medium text-ink">{formatSubscriptionPlan(boundary.plan)}</span>
+        <span className="rounded-sm border border-hairline px-1.5 py-0.5 text-[10px] uppercase tracking-[0.12em]">
+          {checkoutLabel}
+        </span>
+      </div>
+      <div className="mt-2 grid grid-cols-2 gap-2 text-[11px]">
+        <span>AI {formatUsageMetric(boundary.usage.aiQuota)}</span>
+        <span>席位 {formatUsageMetric(boundary.usage.seats)}</span>
+        <span>協作者 {formatUsageMetric(boundary.usage.collaborators)}</span>
+        <span>單位 {formatUsageMetric(boundary.usage.units)}</span>
+      </div>
+      <p className="mt-2 text-[10px] uppercase tracking-[0.12em]">{sourceLabel}</p>
+    </div>
+  );
+}
+
 export function RoleAwareSidebar({
   open,
   setOpen,
@@ -499,6 +582,7 @@ export function RoleAwareSidebar({
         </div>
       </nav>
 
+      <SidebarSubscriptionBoundary model={model} open={open} />
       <SurfaceSwitches model={model} open={open} onNavigate={handleNavigate} />
 
       {!mobile ? (
