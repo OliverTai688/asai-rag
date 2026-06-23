@@ -5,6 +5,7 @@ import type {
   TheaterRouteBMaterial,
   TheaterRouteBMaterialUse,
 } from "../src/domains/theater/route-b-handoff";
+import { buildTheaterRouteBMeetingSignalGroundingSummary } from "../src/domains/theater/route-b-handoff";
 import type { RouteBSessionSnapshot } from "../src/domains/theater/route-b-session";
 
 const checks: Array<{ label: string; detail?: string }> = [];
@@ -31,6 +32,30 @@ check(groupDraft.providerBoundary.providerCallAttempted === false, "group draft 
 check(groupDraft.providerBoundary.aiUsageLogWritten === false, "group draft does not fake AiUsageLog");
 check(groupDraft.persistenceEnvelope.writesConfirmedCrmFact === false, "group draft cannot write confirmed CRM facts");
 check(groupDraft.persistenceEnvelope.statePatchCount > 0, "group draft carries pending state proposal count");
+check(
+  groupDraft.inputSummary.meetingRelationshipSignalGrounding.usedInNextTurnRuntime,
+  "group draft carries meeting signal runtime grounding",
+);
+check(
+  groupDraft.inputSummary.meetingRelationshipSignalGrounding.cardCount === 2,
+  "group draft meeting signal grounding exposes safe card count",
+);
+check(
+  groupDraft.inputSummary.meetingRelationshipSignalGrounding.unknownCount === 1,
+  "group draft meeting signal grounding exposes unknown count",
+);
+check(
+  groupDraft.inputSummary.meetingRelationshipSignalGrounding.narratorQuestionCount === 1,
+  "group draft meeting signal grounding exposes narrator question count",
+);
+check(
+  groupDraft.inputSummary.meetingRelationshipSignalGrounding.boundary.sourceReferenceIdsIncluded === false,
+  "group draft meeting signal grounding excludes source reference ids",
+);
+check(
+  !Object.prototype.hasOwnProperty.call(groupDraft.inputSummary.meetingRelationshipSignalGrounding.cards[0] ?? {}, "stageCardId"),
+  "group draft meeting signal grounding drops raw stage card id",
+);
 
 const privateDraft = buildTheaterRouteBNextTurnDraft(
   baseSnapshot([
@@ -87,6 +112,12 @@ console.log(
       aiUsageLogWritten: groupDraft.providerBoundary.aiUsageLogWritten,
       writesConfirmedCrmFact: groupDraft.persistenceEnvelope.writesConfirmedCrmFact,
       rawPrivateTranscriptIncluded: groupDraft.inputSummary.rawPrivateTranscriptIncluded,
+      meetingSignalRuntimeCardCount: groupDraft.inputSummary.meetingRelationshipSignalGrounding.cardCount,
+      meetingSignalRuntimeUnknownCount: groupDraft.inputSummary.meetingRelationshipSignalGrounding.unknownCount,
+      meetingSignalRuntimeNarratorQuestionCount:
+        groupDraft.inputSummary.meetingRelationshipSignalGrounding.narratorQuestionCount,
+      meetingSignalSourceReferenceIdsIncluded:
+        groupDraft.inputSummary.meetingRelationshipSignalGrounding.boundary.sourceReferenceIdsIncluded,
     },
     null,
     2,
@@ -140,6 +171,9 @@ function baseSnapshot(turns: RouteBSessionSnapshot["turns"]): RouteBSessionSnaps
           writesConfirmedCrmFact: false,
         },
       ],
+      sourceGrounding: {
+        meetingRelationshipSignals: meetingSignalGrounding(),
+      },
     },
     characters: [
       {
@@ -247,6 +281,37 @@ function material(
     use,
     sourceRefs: [{ id: `${id}_source`, label: "QA fixture", factStatus }],
   };
+}
+
+function meetingSignalGrounding() {
+  const summary = buildTheaterRouteBMeetingSignalGroundingSummary(
+    [
+      {
+        id: "raw_meeting_session_qa_person_001",
+        status: "inference",
+        action: "ASK_IN_NEXT_VISIT",
+        priority: "high",
+        sourceLabel: "AI Meeting",
+        summary: "林太太可能是現金流與預算決策的主要影響者。",
+      },
+      {
+        id: "raw_person_reference_002",
+        status: "unknown",
+        action: "CREATE_CONFIRMATION_CARD",
+        priority: "medium",
+        sourceLabel: "AI Meeting",
+        summary: "尚未確認家庭保障排序是否由夫妻共同決定。",
+        prompt: "下一輪請確認誰會一起決定保障排序。",
+      },
+    ],
+    ["請確認家庭保障排序與預算決策是否需要林太太共同參與。"],
+  );
+
+  if (!summary) {
+    throw new Error("Expected meeting signal grounding summary fixture.");
+  }
+
+  return summary;
 }
 
 function check(condition: boolean, label: string, detail?: string) {

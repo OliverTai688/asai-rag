@@ -71,6 +71,8 @@ type RouteBProviderCandidateStatus = "idle" | "generating" | "ready" | "error";
 type RouteBMeetingSignalGrounding = NonNullable<
   NonNullable<RouteBSessionSnapshot["scene"]["sourceGrounding"]>["meetingRelationshipSignals"]
 >;
+type RouteBMeetingSignalRuntimeGrounding =
+  TheaterRouteBNextTurnDraft["inputSummary"]["meetingRelationshipSignalGrounding"];
 type RouteBRedLineActionPersistenceStatus = "idle" | "loading" | "saving" | "ready" | "error";
 
 type RouteBFeedbackReviewEmptyPayload = {
@@ -1931,6 +1933,7 @@ function RouteBNextTurnPreviewPanel({
     (draft?.nextTurn.role === "NARRATOR" ? "旁白" : "未選定");
   const addresseeName = routeBCharacterDisplayName(snapshot, draft?.nextTurn.addresseeRouteBCharacterId);
   const guardLines = draft ? nextTurnGuardLines(snapshot, draft) : [];
+  const meetingSignalRuntimeGrounding = draft?.inputSummary.meetingRelationshipSignalGrounding;
   const canConfirmAppend = Boolean(appendCandidate && appendUsageLogId && draft?.status === "READY");
   const canGenerateProviderCandidate = Boolean(draft?.status === "READY" && !isGeneratingProviderCandidate);
 
@@ -1990,6 +1993,10 @@ function RouteBNextTurnPreviewPanel({
             <p className="mt-3 rounded-md border border-hairline bg-background px-3 py-2 text-sm leading-6 text-muted-foreground">
               {draft.nextTurn.contentPreview}
             </p>
+
+            {meetingSignalRuntimeGrounding?.usedInNextTurnRuntime ? (
+              <RouteBNextTurnMeetingSignalRuntimeGroundingPanel grounding={meetingSignalRuntimeGrounding} />
+            ) : null}
 
             <div className="mt-3 space-y-2">
               {guardLines.map((line) => (
@@ -2058,6 +2065,54 @@ function RouteBNextTurnPreviewPanel({
           尚未讀取下一回合。顧問寫入群聊或私聊後會自動嘗試讀取，也可以手動按「讀取預覽」。
         </p>
       )}
+    </div>
+  );
+}
+
+function RouteBNextTurnMeetingSignalRuntimeGroundingPanel({
+  grounding,
+}: {
+  grounding: RouteBMeetingSignalRuntimeGrounding;
+}) {
+  return (
+    <div
+      className="mt-3 rounded-lg border border-hairline bg-background px-3 py-3"
+      data-route-b-next-turn-meeting-signal-runtime-grounding="true"
+    >
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge variant="outline" className="rounded-full">
+          meeting signals in runtime
+        </Badge>
+        <span className="text-xs leading-5 text-muted-foreground">
+          {grounding.cardCount} cards・{grounding.unknownCount} unknowns・{grounding.narratorQuestionCount} narrator prompts
+        </span>
+      </div>
+
+      <div className="mt-2 space-y-2">
+        {grounding.cards.slice(0, 2).map((card) => (
+          <div key={card.cardLabel} className="rounded-md border border-hairline bg-paper px-3 py-2">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <Badge variant="outline" className="text-[10px]">
+                {routeBMeetingSignalStatusLabel(card.status)}
+              </Badge>
+              <span className="rounded-full border border-hairline bg-background px-2 py-0.5 text-[10px] text-muted-foreground">
+                {card.actionLabel}
+              </span>
+              <span className="rounded-full border border-hairline bg-background px-2 py-0.5 text-[10px] text-muted-foreground">
+                {card.priorityLabel}
+              </span>
+            </div>
+            <p className="mt-2 line-clamp-2 text-xs leading-5 text-muted-foreground">{card.summary}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-3 grid gap-2 text-[11px] text-muted-foreground">
+        <ContextLine label="Raw meeting id" value={String(grounding.boundary.rawMeetingSessionIdIncluded)} />
+        <ContextLine label="Person id" value={String(grounding.boundary.rawPersonIdIncluded)} />
+        <ContextLine label="Source refs" value={String(grounding.boundary.sourceReferenceIdsIncluded)} />
+        <ContextLine label="Provider payload" value={String(grounding.boundary.rawProviderPayloadIncluded)} />
+      </div>
     </div>
   );
 }

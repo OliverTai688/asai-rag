@@ -84,11 +84,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 0,
+    "normalLoopsSinceLastWholeProductReview": 1,
     "lastWholeProductReviewAt": "2026-06-23T10:02:47Z",
     "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-23_lv3-whole-product-gap-review-theater-runtime-context.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "LV3-THEATER-MEETING-SIGNAL-RUNTIME-CONTEXT-001: carry persisted Route B scene.sourceGrounding.meetingRelationshipSignals into next-turn draft and RouteBProviderPromptContext as least-disclosure runtime grounding. Acceptance: no raw session/person/source ids, no raw transcript/provider/contact/policy leakage, no provider/no fake AiUsageLog on disabled paths, live provider success/error still writes THEATER AiUsageLog before any append candidate, UI preview exposes only safe runtime grounding marker, AgentFacts manifest adds runtime context refs, and proof runs theater:route-b-next-turn-dry-run, theater:route-b-provider-prompt-context-dry-run, theater:route-b-next-turn-provider-dry-run, theater:meeting-signal-session-source-qa, ai:protocol-registry-qa, ai:bff-audit, tsc, lint.",
+    "nextRecommendedImplementationSlice": "LV3-RELATIONSHIP-CONFIRMATION-PERSISTENCE-DECISION-001: resolve or explicitly defer the advisor relationship-confirmation state persistence shape (VisitPlan JSON subdocument vs dedicated table/migration), then implement only the smallest owner-scoped persistence/QA slice if approved. If the decision is still unavailable, select LV3-ROUTE-B-STAGE-MAP-ACCEPTANCE-RECONCILE-001 as the safe fallback source/proof slice rather than spending a full loop on browser screenshots.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {
@@ -156,5 +156,5 @@
     "lv3ImmersiveLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-immersive-loop.md",
     "lv3WholeProductGapReviewLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md"
   },
-  "updatedAt": "2026-06-23T10:02:47Z"
+  "updatedAt": "2026-06-23T10:40:00Z"
 }

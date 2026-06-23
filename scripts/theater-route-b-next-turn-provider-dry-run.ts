@@ -17,6 +17,7 @@ import type {
   TheaterRouteBMaterial,
   TheaterRouteBMaterialUse,
 } from "../src/domains/theater/route-b-handoff";
+import { buildTheaterRouteBMeetingSignalGroundingSummary } from "../src/domains/theater/route-b-handoff";
 import type { RouteBSessionSnapshot } from "../src/domains/theater/route-b-session";
 
 const checks: Array<{ label: string; detail?: string }> = [];
@@ -47,6 +48,18 @@ check(!providerInput.persistenceEnvelope.writesConfirmedCrmFact, "provider input
 check(providerInput.promptContext.actionId === "route-b-provider-prompt-context", "provider input carries prompt context action");
 check(providerInput.promptContext.librarySummary.objectionPromptCount === 12, "provider input prompt context references 12 objections");
 check(providerInput.promptContext.librarySummary.redLineRuleCount === 18, "provider input prompt context references 18 red lines");
+check(
+  providerInput.promptContext.meetingRelationshipSignalGrounding.usedInNextTurnRuntime,
+  "provider input prompt context carries meeting signal runtime grounding",
+);
+check(
+  providerInput.promptContext.meetingRelationshipSignalGrounding.cardCount === 2,
+  "provider input prompt context carries meeting signal card count",
+);
+check(
+  providerInput.promptContext.meetingRelationshipSignalGrounding.boundary.sourceReferenceIdsIncluded === false,
+  "provider input prompt context excludes source reference ids",
+);
 check(providerInput.promptContext.selectedObjections.length === 4, "provider input prompt context selects bounded objections");
 check(providerInput.promptContext.redLineCues.length === 18, "provider input prompt context carries all red-line cues");
 check(providerInput.promptContext.promptRules.immediateSevereRedLineIds.length === 5, "provider input prompt context keeps five immediate severe red lines");
@@ -69,6 +82,9 @@ const fakeProvider: TheaterRouteBNextTurnProviderAdapter = {
     assert.equal(input.outputRules.appendRequiresAdvisorConfirmation, true);
     assert.equal(input.promptContext.redLineCues.length, 18);
     assert.equal(input.promptContext.promptRules.doNotTreatObjectionsAsConfirmedCrmFacts, true);
+    assert.equal(input.promptContext.promptRules.useMeetingRelationshipSignalsAsRuntimeEvidence, true);
+    assert.equal(input.promptContext.meetingRelationshipSignalGrounding.cardCount, 2);
+    assert.equal(input.promptContext.meetingRelationshipSignalGrounding.boundary.rawMeetingSessionIdIncluded, false);
     return {
       model: "gpt-test-route-b-character",
       tokenUsage: { inputTokens: 212.9, outputTokens: 57.6 },
@@ -246,6 +262,10 @@ async function main() {
         promptContextSelectedObjections: providerInput.promptContext.selectedObjections.map((cue) => cue.id),
         promptContextImmediateSevereIds: providerInput.promptContext.promptRules.immediateSevereRedLineIds,
         promptContextPostReviewIds: providerInput.promptContext.promptRules.postReviewRedLineIds,
+        promptContextMeetingSignalRuntimeCardCount:
+          providerInput.promptContext.meetingRelationshipSignalGrounding.cardCount,
+        promptContextMeetingSignalSourceReferenceIdsIncluded:
+          providerInput.promptContext.meetingRelationshipSignalGrounding.boundary.sourceReferenceIdsIncluded,
         blockedProviderCallAttempted: blockedResult.providerCallAttempted,
         writesConfirmedCrmFact: successResult.appendCandidate.writesConfirmedCrmFact,
         rawPrivateTranscriptIncluded: successResult.appendCandidate.rawPrivateTranscriptIncluded,
@@ -337,6 +357,9 @@ function baseSnapshot(turns: RouteBSessionSnapshot["turns"]): RouteBSessionSnaps
           writesConfirmedCrmFact: false,
         },
       ],
+      sourceGrounding: {
+        meetingRelationshipSignals: meetingSignalGrounding(),
+      },
     },
     characters: [
       {
@@ -444,6 +467,37 @@ function material(
     use,
     sourceRefs: [{ id: `${id}_source`, label: "QA fixture", factStatus }],
   };
+}
+
+function meetingSignalGrounding() {
+  const summary = buildTheaterRouteBMeetingSignalGroundingSummary(
+    [
+      {
+        id: "raw_meeting_session_qa_person_001",
+        status: "inference",
+        action: "ASK_IN_NEXT_VISIT",
+        priority: "high",
+        sourceLabel: "AI Meeting",
+        summary: "林太太可能是現金流與預算決策的主要影響者。",
+      },
+      {
+        id: "raw_person_reference_002",
+        status: "unknown",
+        action: "CREATE_CONFIRMATION_CARD",
+        priority: "medium",
+        sourceLabel: "AI Meeting",
+        summary: "尚未確認家庭保障排序是否由夫妻共同決定。",
+        prompt: "下一輪請確認誰會一起決定保障排序。",
+      },
+    ],
+    ["請確認家庭保障排序與預算決策是否需要林太太共同參與。"],
+  );
+
+  if (!summary) {
+    throw new Error("Expected meeting signal grounding summary fixture.");
+  }
+
+  return summary;
 }
 
 function check(condition: boolean, label: string, detail?: string) {

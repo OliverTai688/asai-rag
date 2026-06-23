@@ -73,13 +73,9 @@ expect(
 expect(
   "meeting grounding source path does not use raw browser session/person ids",
   !/meetingSessionId|personIdFromBrowser|sourceReferenceIds/.test(
-    [
-      source.theaterBuild,
-      source.handoffDomain,
-      source.repository,
-      source.bffRepository,
-      source.sessionPage,
-    ].join("\n"),
+    [source.theaterBuild, source.handoffDomain, source.repository, source.bffRepository, source.sessionPage]
+      .join("\n")
+      .replace(/sourceReferenceIdsIncluded/g, ""),
   ),
 );
 

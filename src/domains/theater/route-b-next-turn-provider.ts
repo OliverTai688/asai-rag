@@ -303,6 +303,7 @@ function buildNextTurnPromptContext(draft: TheaterRouteBNextTurnDraft) {
   return buildRouteBProviderPromptContext({
     personaHints,
     unknowns: draft.nextTurn.rationale,
+    meetingRelationshipSignalGrounding: draft.inputSummary.meetingRelationshipSignalGrounding,
     maxItems: 4,
   });
 }

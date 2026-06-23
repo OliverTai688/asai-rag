@@ -237,6 +237,7 @@ function buildTheaterRouteBNextTurnProviderInputFromSafeInput(input: TheaterRout
     promptContext: {
       actionId: input.promptContext.actionId,
       librarySummary: input.promptContext.librarySummary,
+      meetingRelationshipSignalGrounding: input.promptContext.meetingRelationshipSignalGrounding,
       selectedObjections: input.promptContext.selectedObjections,
       redLineCues: input.promptContext.redLineCues,
       promptRules: input.promptContext.promptRules,

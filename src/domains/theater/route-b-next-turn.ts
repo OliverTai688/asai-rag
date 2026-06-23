@@ -10,6 +10,7 @@ import type {
   TheaterRouteBHandoffPacket,
   TheaterRouteBMaterial,
   TheaterRouteBMaterialUse,
+  TheaterRouteBMeetingSignalGroundingSummary,
   TheaterRouteBPersonaHint,
   TheaterRouteBRelation,
   TheaterRouteBSourceRef,
@@ -20,6 +21,44 @@ import type {
 import type { RouteBSessionSnapshot } from "./route-b-session";
 
 export type TheaterRouteBNextTurnDraftStatus = "READY" | "NEEDS_ADVISOR_TURN" | "NO_CHARACTER";
+
+export interface TheaterRouteBMeetingSignalRuntimeGroundingCard {
+  cardLabel: string;
+  status: "confirmed" | "inference" | "unknown";
+  factBoundary: "roleplay-evidence-context-not-confirmed-crm-fact";
+  sourceLabel: string;
+  action: string;
+  actionLabel: string;
+  priority: string;
+  priorityLabel: string;
+  summary: string;
+  narratorQuestion?: string;
+}
+
+export interface TheaterRouteBMeetingSignalRuntimeGrounding {
+  source: "RouteBSessionSnapshot.scene.sourceGrounding.meetingRelationshipSignals";
+  usedInNextTurnRuntime: boolean;
+  providerPromptUsage: "roleplay-evidence-context-only";
+  cardCount: number;
+  unknownCount: number;
+  narratorQuestionCount: number;
+  cards: TheaterRouteBMeetingSignalRuntimeGroundingCard[];
+  narratorQuestions: string[];
+  boundary: {
+    rawMeetingSessionIdIncluded: false;
+    rawPersonIdIncluded: false;
+    sourceReferenceIdsIncluded: false;
+    rawTranscriptIncluded: false;
+    rawProviderPayloadIncluded: false;
+    personalContactIncluded: false;
+    policyIdentifierIncluded: false;
+    providerCallAttempted: false;
+    aiUsageLogWritten: false;
+    writesRelationshipGraph: false;
+    writesVisitPlan: false;
+    writesConfirmedCrmFact: false;
+  };
+}
 
 export interface TheaterRouteBNextTurnDraft {
   agentId: "asai.theater.route_b";
@@ -40,6 +79,7 @@ export interface TheaterRouteBNextTurnDraft {
     historyCount: number;
     historyVisibilitySummary: Record<TheaterRouteBVisibilityScope, number>;
     narratorQueueCount: number;
+    meetingRelationshipSignalGrounding: TheaterRouteBMeetingSignalRuntimeGrounding;
     rawPrivateTranscriptIncluded: false;
   };
   nextTurn: {
@@ -178,6 +218,9 @@ function buildBaseDraft(
       historyCount: history.length,
       historyVisibilitySummary: summarizeVisibility(history),
       narratorQueueCount: handoff.scene.narratorQuestions.length,
+      meetingRelationshipSignalGrounding: buildMeetingSignalRuntimeGrounding(
+        handoff.scene.sourceGrounding?.meetingRelationshipSignals,
+      ),
       rawPrivateTranscriptIncluded: false,
     },
     nextTurn: {
@@ -463,6 +506,77 @@ function summarizeVisibility(history: TheaterRouteBTurnRef[]): Record<TheaterRou
     },
     { GROUP: 0, PRIVATE: 0, DIRECTOR_ONLY: 0, NARRATOR: 0 },
   );
+}
+
+function buildMeetingSignalRuntimeGrounding(
+  source: TheaterRouteBMeetingSignalGroundingSummary | undefined,
+): TheaterRouteBMeetingSignalRuntimeGrounding {
+  const cards = (source?.cards ?? [])
+    .slice(0, 6)
+    .map((card, index) => {
+      const summary = sanitizeRouteBText(card.summary).slice(0, 220);
+      const sourceLabel = sanitizeRouteBText(card.sourceLabel || "AI Meeting").slice(0, 80);
+      const narratorQuestion = card.narratorQuestion ? sanitizeRouteBText(card.narratorQuestion).slice(0, 180) : undefined;
+
+      if (!summary && !sourceLabel && !narratorQuestion) return undefined;
+
+      return {
+        cardLabel: `signal-${index + 1}`,
+        status: card.status,
+        factBoundary: "roleplay-evidence-context-not-confirmed-crm-fact" as const,
+        sourceLabel: sourceLabel || "AI Meeting",
+        action: sanitizeRouteBText(card.action).slice(0, 80) || "KEEP_AS_CONTEXT",
+        actionLabel: meetingSignalActionLabel(card.action),
+        priority: sanitizeRouteBText(card.priority).slice(0, 40) || "unspecified",
+        priorityLabel: meetingSignalPriorityLabel(card.priority),
+        summary: summary || "會議訊號待補摘要",
+        narratorQuestion,
+      };
+    })
+    .filter(isDefined);
+  const narratorQuestions = (source?.narratorQuestions ?? [])
+    .slice(0, 4)
+    .map((question) => sanitizeRouteBText(question).slice(0, 180))
+    .filter(Boolean);
+
+  return {
+    source: "RouteBSessionSnapshot.scene.sourceGrounding.meetingRelationshipSignals",
+    usedInNextTurnRuntime: cards.length > 0 || narratorQuestions.length > 0,
+    providerPromptUsage: "roleplay-evidence-context-only",
+    cardCount: cards.length,
+    unknownCount: cards.filter((card) => card.status === "unknown").length,
+    narratorQuestionCount: narratorQuestions.length,
+    cards,
+    narratorQuestions,
+    boundary: {
+      rawMeetingSessionIdIncluded: false,
+      rawPersonIdIncluded: false,
+      sourceReferenceIdsIncluded: false,
+      rawTranscriptIncluded: false,
+      rawProviderPayloadIncluded: false,
+      personalContactIncluded: false,
+      policyIdentifierIncluded: false,
+      providerCallAttempted: false,
+      aiUsageLogWritten: false,
+      writesRelationshipGraph: false,
+      writesVisitPlan: false,
+      writesConfirmedCrmFact: false,
+    },
+  };
+}
+
+function meetingSignalActionLabel(action: string): string {
+  if (action === "CREATE_CONFIRMATION_CARD") return "confirmation-card";
+  if (action === "ASK_IN_NEXT_VISIT") return "next-visit-question";
+  if (action === "KEEP_AS_CONTEXT") return "roleplay-context";
+  return sanitizeRouteBText(action).slice(0, 80) || "roleplay-context";
+}
+
+function meetingSignalPriorityLabel(priority: string): string {
+  if (priority === "high") return "high";
+  if (priority === "medium") return "medium";
+  if (priority === "low") return "low";
+  return sanitizeRouteBText(priority).slice(0, 40) || "unspecified";
 }
 
 function normalizeCharacterRole(value: string): TheaterRouteBCharacterRole {

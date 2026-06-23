@@ -1,4 +1,5 @@
 import type { TheaterRouteBCharacterRole } from "./route-b-handoff";
+import type { TheaterRouteBMeetingSignalRuntimeGrounding } from "./route-b-next-turn";
 import {
   buildRouteBObjectionRedLineLibrarySummary,
   getRouteBRedLineLibrary,
@@ -33,15 +34,21 @@ export interface RouteBProviderPromptRedLineCue {
   writesConfirmedCrmFact: false;
 }
 
+export interface RouteBProviderPromptContextInput extends RouteBObjectionSelectionInput {
+  meetingRelationshipSignalGrounding?: TheaterRouteBMeetingSignalRuntimeGrounding;
+}
+
 export interface RouteBProviderPromptContext {
   agentId: "asai.theater.route_b";
   actionId: "route-b-provider-prompt-context";
   registryReadiness: "internal-only";
   librarySummary: ReturnType<typeof buildRouteBObjectionRedLineLibrarySummary>;
+  meetingRelationshipSignalGrounding: TheaterRouteBMeetingSignalRuntimeGrounding;
   selectedObjections: RouteBProviderPromptObjectionCue[];
   redLineCues: RouteBProviderPromptRedLineCue[];
   promptRules: {
     useAsRoleplayCoachingContext: true;
+    useMeetingRelationshipSignalsAsRuntimeEvidence: true;
     doNotTreatObjectionsAsConfirmedCrmFacts: true;
     doNotProvideLegalAdvice: true;
     immediateSevereRedLineIds: RouteBRedLineRuleId[];
@@ -59,9 +66,11 @@ export interface RouteBProviderPromptContext {
 }
 
 export function buildRouteBProviderPromptContext(
-  input: RouteBObjectionSelectionInput = {},
+  input: RouteBProviderPromptContextInput = {},
 ): RouteBProviderPromptContext {
   const librarySummary = buildRouteBObjectionRedLineLibrarySummary();
+  const meetingRelationshipSignalGrounding =
+    input.meetingRelationshipSignalGrounding ?? buildEmptyMeetingRelationshipSignalGrounding();
   const selectedObjections = selectRouteBObjectionPrompts(input).map((prompt) => ({
     id: prompt.id,
     label: sanitizePromptText(prompt.label),
@@ -90,10 +99,12 @@ export function buildRouteBProviderPromptContext(
     actionId: "route-b-provider-prompt-context",
     registryReadiness: "internal-only",
     librarySummary,
+    meetingRelationshipSignalGrounding,
     selectedObjections,
     redLineCues,
     promptRules: {
       useAsRoleplayCoachingContext: true,
+      useMeetingRelationshipSignalsAsRuntimeEvidence: true,
       doNotTreatObjectionsAsConfirmedCrmFacts: true,
       doNotProvideLegalAdvice: true,
       immediateSevereRedLineIds: librarySummary.immediateDetectionIds,
@@ -107,6 +118,33 @@ export function buildRouteBProviderPromptContext(
       storesRawProviderPayload: false,
       rawPrivateTranscriptAllowed: false,
       directPrivateDialogAllowed: false,
+    },
+  };
+}
+
+function buildEmptyMeetingRelationshipSignalGrounding(): TheaterRouteBMeetingSignalRuntimeGrounding {
+  return {
+    source: "RouteBSessionSnapshot.scene.sourceGrounding.meetingRelationshipSignals",
+    usedInNextTurnRuntime: false,
+    providerPromptUsage: "roleplay-evidence-context-only",
+    cardCount: 0,
+    unknownCount: 0,
+    narratorQuestionCount: 0,
+    cards: [],
+    narratorQuestions: [],
+    boundary: {
+      rawMeetingSessionIdIncluded: false,
+      rawPersonIdIncluded: false,
+      sourceReferenceIdsIncluded: false,
+      rawTranscriptIncluded: false,
+      rawProviderPayloadIncluded: false,
+      personalContactIncluded: false,
+      policyIdentifierIncluded: false,
+      providerCallAttempted: false,
+      aiUsageLogWritten: false,
+      writesRelationshipGraph: false,
+      writesVisitPlan: false,
+      writesConfirmedCrmFact: false,
     },
   };
 }

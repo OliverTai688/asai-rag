@@ -23,6 +23,12 @@ check(
 );
 check(source.includes("cache: \"no-store\""), "next-turn preview fetch is no-store");
 check(source.includes("RouteBNextTurnPreviewPanel"), "next-turn preview panel is rendered in Route B stage");
+check(
+  source.includes("data-route-b-next-turn-meeting-signal-runtime-grounding") &&
+    source.includes("meetingRelationshipSignalGrounding") &&
+    source.includes("sourceReferenceIdsIncluded"),
+  "next-turn preview renders safe meeting signal runtime grounding marker",
+);
 check(source.includes("onAdvisorTurnCommitted={fetchNextTurnDraft}"), "advisor turn write triggers next-turn preview refresh");
 check(source.includes("generatedTextAllowed={String(draft.nextTurn.generatedTextAllowed)}"), "UI exposes generatedTextAllowed guard");
 check(source.includes("draft.providerBoundary.providerCallAttempted"), "UI exposes providerCallAttempted boundary");
@@ -31,7 +37,12 @@ check(source.includes("draft.providerBoundary.storesRawProviderPayload"), "UI ex
 check(source.includes("draft.privacyProof.directPrivateDialogReturned"), "UI exposes private dialog boundary");
 check(source.includes("draft.persistenceEnvelope.writesConfirmedCrmFact"), "UI exposes writesConfirmedCrmFact boundary");
 check(source.includes("nextTurnGuardLines"), "UI renders named-addressee and consecutive-speaker guard evidence");
-check(source.includes("等待 provider candidate"), "UI shows provider candidate wait state");
+check(
+  source.includes('providerCandidateStatus === "generating"') &&
+    source.includes("setProviderCandidateStatus(\"ready\")") &&
+    source.includes("setPendingAppendUsageLogId(payload.usageLogId)"),
+  "UI tracks provider candidate wait/ready state before append",
+);
 check(
   source.includes("/append-candidate") &&
     source.includes("confirmedByAdvisor: true") &&
@@ -47,6 +58,7 @@ console.log(
     {
       checkedFile: pagePath,
       checkedCount: checks.length,
+      meetingSignalRuntimeGroundingMarker: true,
       providerCallAttempted: false,
       aiUsageLogWritten: false,
       generatedTextAllowed: false,
