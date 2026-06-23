@@ -184,6 +184,17 @@
 
 ITA-003n evidence note（2026-06-22）：新增 owner-scoped `POST /api/theater/route-b/sessions/[sessionId]/next-turn/provider-candidate`，由 persisted `RouteBSessionSnapshot` 與 server-side next-turn draft 建立 provider input，注入 `RouteBProviderPromptContext`，只在 session/quota/key/input guard 通過後呼叫 OpenAI JSON mode。Success path 先寫 THEATER/OpenAI `AiUsageLog` 與 org usage，再回 safe append candidate + `usageLogId`；provider error / schema mismatch 先寫 sanitized error usage log；guard paths維持 no-provider/no-fake-usage/no-append。`/theater/[sessionId]` 只在 candidate 安全旗標與 `usageLogId` 俱全時啟用既有 append confirmation。`pnpm theater:route-b-next-turn-provider-route-qa`、`pnpm theater:route-b-provider-prompt-context-dry-run`、`pnpm ai:protocol-registry-qa`、`pnpm ai:bff-audit`、`pnpm exec tsc --noEmit --pretty false` 通過；剩餘純瀏覽器截圖或成本型手動點擊 proof 可由 operator 在 dev server + provider key 可用時自行重跑，不阻擋下一輪 source-backed `ITA-005d`。
 
+### 5.10 Route B meeting-signal runtime context acceptance
+
+`LV3-THEATER-MEETING-SIGNAL-RUNTIME-CONTEXT-001` 若把 persisted meeting-derived relationship signal grounding 接進 next-turn / provider prompt context，完成前必須額外滿足：
+
+- [ ] `buildTheaterRouteBNextTurnDraft()` 必須從 `RouteBSessionSnapshot.scene.sourceGrounding.meetingRelationshipSignals` 產出 least-disclosure grounding summary，至少包含 card count、unknown count、narrator-question count、safe card summaries 與 source/action/priority labels；不得回 raw meeting session id、person id、sourceReferenceIds、raw transcript 或 raw provider payload。
+- [ ] `buildRouteBProviderPromptContext()` 或 next-turn provider input 必須消費上述 grounding summary 作為 roleplay/evidence context，並保持 `registryReadiness=internal-only`、`storesRawProviderPayload=false`、`rawPrivateTranscriptAllowed=false`、`directPrivateDialogAllowed=false`。
+- [ ] Provider-disabled draft path 不得呼叫 provider、不得寫 fake `AiUsageLog`；live provider path 若使用該 context，success/error 仍必須先寫 THEATER `AiUsageLog` 並只回 safe append candidate。
+- [ ] `/theater/[sessionId]` 的 next-turn preview 必須能顯示 runtime 已使用 meeting-signal grounding 的摘要或 guard flag，但不得要求顧問輸入 raw session/person id。
+- [ ] AgentFacts-style manifest 必須新增 runtime context evidence refs / proof command，且不得宣稱 external-ready、external-registered 或正式 NANDA publication。
+- [ ] 需跑 `pnpm theater:route-b-next-turn-dry-run`、`pnpm theater:route-b-provider-prompt-context-dry-run`、`pnpm theater:route-b-next-turn-provider-dry-run`、`pnpm theater:meeting-signal-session-source-qa`、`pnpm ai:protocol-registry-qa`、`pnpm ai:bff-audit`、`pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。若只剩 live browser/API/DB screenshot evidence，可交由 operator 用既有 Route B session 自行重跑，不得取代 source/runtime context proof。
+
 ---
 
 ## 6. Feedback / Compliance Acceptance
