@@ -51,9 +51,25 @@ type HandoffNotice = {
 };
 type HandoffReview = VisitTheaterHandoffResponse;
 type ClientBuildReview = TheaterClientBuildResponse;
+type MeetingSignalStageStatus = "confirmed" | "inference" | "unknown";
+type MeetingSignalStageCard = {
+  id: string;
+  status: MeetingSignalStageStatus;
+  action: string;
+  priority: string;
+  sourceLabel: string;
+  summary: string;
+  prompt: string;
+};
 
 const CLASS_PREFIX: Record<DataClass, string> = { fact: "FACT", inference: "INFERENCE", unknown: "UNKNOWN" };
 const CLASS_LABEL: Record<DataClass, string> = { fact: "確認事實", inference: "推論", unknown: "待確認" };
+const MEETING_SIGNAL_MATERIAL_PREFIX = "meeting_relationship_signal_card=";
+const MEETING_SIGNAL_STATUS_LABEL: Record<MeetingSignalStageStatus, string> = {
+  confirmed: "FACT 確認事實",
+  inference: "INFERENCE 推論",
+  unknown: "UNKNOWN 待確認",
+};
 
 const CATEGORY_FIELD: Record<MaterialCategory, string | null> = {
   focus: "focus_client",
@@ -123,6 +139,60 @@ function buildVisitHandoffIntroMessage(
 // hidden [[SEG:<id>]] marker, which we strip before showing the reply.
 function stripSegmentMarker(content: string): string {
   return content.replace(/\[\[SEG:[a-z0-9-]+\]\]/gi, "").trimEnd();
+}
+
+function getMeetingSignalStageCards(materials: string[]): MeetingSignalStageCard[] {
+  return materials.map(parseMeetingSignalMaterial).filter((card): card is MeetingSignalStageCard => Boolean(card));
+}
+
+function parseMeetingSignalMaterial(material: string): MeetingSignalStageCard | null {
+  const body = material.replace(/^(FACT|INFERENCE|UNKNOWN):\s*/, "");
+  if (!body.includes(MEETING_SIGNAL_MATERIAL_PREFIX)) return null;
+
+  const fields = body
+    .split("；")
+    .map((field) => field.trim())
+    .filter(Boolean);
+  const id = getMeetingSignalField(fields, "meeting_relationship_signal_card");
+  if (!id) return null;
+
+  return {
+    id,
+    status: normalizeMeetingSignalStatus(getMeetingSignalField(fields, "status")),
+    action: getMeetingSignalField(fields, "action"),
+    priority: getMeetingSignalField(fields, "priority"),
+    sourceLabel: getMeetingSignalField(fields, "source"),
+    summary: getMeetingSignalField(fields, "summary") || getMeetingSignalField(fields, "relationship"),
+    prompt: getMeetingSignalField(fields, "prompt"),
+  };
+}
+
+function getMeetingSignalField(fields: string[], key: string) {
+  const prefix = `${key}=`;
+  return fields.find((field) => field.startsWith(prefix))?.slice(prefix.length).trim() ?? "";
+}
+
+function normalizeMeetingSignalStatus(status: string): MeetingSignalStageStatus {
+  if (status === "confirmed" || status === "inference" || status === "unknown") return status;
+  return "unknown";
+}
+
+function getMeetingSignalActionLabel(action: string) {
+  if (action === "CREATE_CONFIRMATION_CARD") return "建立確認卡";
+  if (action === "ASK_IN_NEXT_VISIT") return "下次拜訪補問";
+  if (action === "KEEP_AS_CONTEXT") return "保留舞台脈絡";
+  return action || "保留舞台脈絡";
+}
+
+function getMeetingSignalPriorityLabel(priority: string) {
+  if (priority === "high") return "高優先";
+  if (priority === "medium") return "中優先";
+  if (priority === "low") return "低優先";
+  return priority || "未分級";
+}
+
+function getMeetingSignalNarratorPreviews(questions: string[]) {
+  return questions.filter((question) => question.includes(MEETING_SIGNAL_MATERIAL_PREFIX));
 }
 
 function appendTranscriptText(base: string, transcript: string) {
@@ -901,6 +971,8 @@ function VisitSourceReviewPanel({
   const blocked = review.handoff.status === "BLOCKED_SENSITIVE";
   const sourceCounts = review.handoff.sourceSummary.sourceCounts;
   const canApprove = reason.trim().length >= 8 && riskAccepted && !isApproving;
+  const meetingSignalCards = getMeetingSignalStageCards(review.handoff.knownMaterials);
+  const meetingSignalNarratorPreviews = getMeetingSignalNarratorPreviews(packet.narratorQuestions);
 
   return (
     <section className="rounded-xl border border-hairline bg-card p-4">
@@ -969,6 +1041,10 @@ function VisitSourceReviewPanel({
         />
       </div>
 
+      {meetingSignalCards.length ? (
+        <MeetingSignalStageReview cards={meetingSignalCards} narratorQuestions={meetingSignalNarratorPreviews} />
+      ) : null}
+
       {review.handoff.warnings.length ? (
         <div className="mt-3 rounded-lg border border-hairline bg-paper px-3 py-2 text-xs leading-5 text-muted-foreground">
           <span className="font-semibold text-ink">注意事項：</span>
@@ -976,6 +1052,82 @@ function VisitSourceReviewPanel({
         </div>
       ) : null}
     </section>
+  );
+}
+
+function MeetingSignalStageReview({
+  cards,
+  narratorQuestions,
+}: {
+  cards: MeetingSignalStageCard[];
+  narratorQuestions: string[];
+}) {
+  return (
+    <div
+      className="mt-4 rounded-lg border border-hairline bg-paper p-3"
+      data-meeting-signal-stage-cards="true"
+    >
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-ink">會議關係訊號舞台卡</p>
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">
+            AI Meeting 衍生的關係線索會以 fact / inference / unknown chip 進入劇場建場；此區只作舞台 grounding。
+          </p>
+        </div>
+        <Badge variant="outline" className="w-fit tabular-nums">
+          {cards.length} 張
+        </Badge>
+      </div>
+
+      <div className="mt-3 grid gap-2 md:grid-cols-2">
+        {cards.slice(0, 4).map((card) => (
+          <article key={card.id} className="min-w-0 rounded-md border border-hairline bg-card px-3 py-2">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <Badge variant="outline" className="text-[10px]">
+                {MEETING_SIGNAL_STATUS_LABEL[card.status]}
+              </Badge>
+              <span className="rounded-full border border-hairline bg-paper px-2 py-0.5 text-[10px] text-muted-foreground">
+                {getMeetingSignalPriorityLabel(card.priority)}
+              </span>
+            </div>
+            <p className="mt-2 line-clamp-2 text-sm font-semibold leading-5 text-ink">
+              {card.summary || "會議關係訊號待補摘要"}
+            </p>
+            <div className="mt-2 flex flex-wrap gap-1.5 text-[10px] text-muted-foreground">
+              <span className="rounded-full border border-hairline bg-paper px-2 py-0.5">
+                來源：{card.sourceLabel || "AI Meeting"}
+              </span>
+              <span className="rounded-full border border-hairline bg-paper px-2 py-0.5">
+                動作：{getMeetingSignalActionLabel(card.action)}
+              </span>
+            </div>
+            {card.prompt ? (
+              <p className="mt-2 line-clamp-2 text-xs leading-5 text-muted-foreground">旁白提問：{card.prompt}</p>
+            ) : null}
+          </article>
+        ))}
+      </div>
+
+      {narratorQuestions.length ? (
+        <div
+          className="mt-3 rounded-md border border-hairline bg-card px-3 py-2"
+          data-meeting-signal-narrator-preview="true"
+        >
+          <p className="text-xs font-semibold text-ink">旁白補問 preview</p>
+          <ul className="mt-1 space-y-1">
+            {narratorQuestions.slice(0, 2).map((question, index) => (
+              <li key={`${question}-${index}`} className="line-clamp-2 text-xs leading-5 text-muted-foreground">
+                {question}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
+      <p className="mt-3 text-[11px] leading-5 text-muted-foreground">
+        Stage-only：不寫回關係圖、VisitPlan 或 CRM 事實；若要持久化確認狀態，仍需 product/schema decision。
+      </p>
+    </div>
   );
 }
 

@@ -55,6 +55,19 @@ expect(
   source.theaterBuild.includes('SourceCountPill label="會議"') &&
     source.theaterBuild.includes("meetingRelationshipSignals"),
 );
+expect(
+  "theater build source review renders meeting signal stage cards",
+  source.theaterBuild.includes("data-meeting-signal-stage-cards") &&
+    source.theaterBuild.includes("getMeetingSignalStageCards") &&
+    source.theaterBuild.includes("MEETING_SIGNAL_STATUS_LABEL") &&
+    source.theaterBuild.includes("meeting_relationship_signal_card="),
+);
+expect(
+  "theater build source review previews narrator questions and no-write boundary",
+  source.theaterBuild.includes("data-meeting-signal-narrator-preview") &&
+    source.theaterBuild.includes("旁白補問 preview") &&
+    source.theaterBuild.includes("不寫回關係圖、VisitPlan 或 CRM 事實"),
+);
 
 for (const check of checks) {
   const icon = check.status === "pass" ? "PASS" : "FAIL";

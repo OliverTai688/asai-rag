@@ -84,11 +84,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 2,
+    "normalLoopsSinceLastWholeProductReview": 3,
     "lastWholeProductReviewAt": "2026-06-23T08:19:47Z",
     "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-23_lv3-whole-product-gap-review-meeting-prep-signal.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "LV3-THEATER-MEETING-SIGNAL-STAGE-001: surface meeting-derived relationship signal cards inside /theater/build source review and Route B stage setup with fact/inference/unknown chips, source labels, and narrator-question previews, still without CRM/VisitPlan/relationship-graph writes. Acceptance should cover source/UI contract proof, no raw session/person id workflow, no provider/no fake AiUsageLog, no raw transcript/provider/contact/policy leakage, desktop/mobile overflow sanity if a dev server is already available, tsc, and lint:changed.",
+    "nextRecommendedImplementationSlice": "LV3-THEATER-MEETING-SIGNAL-STAGE-SESSION-001: carry the meeting-derived relationship signal stage-card summary from /theater/build into the Route B session creation/source metadata preview so the persisted stage can show which meeting signals grounded the scene, still without CRM/VisitPlan/relationship-graph writes. Acceptance should cover owner-scoped source propagation, no raw session/person id workflow, no provider/no fake AiUsageLog, no raw transcript/provider/contact/policy leakage, targeted Route B source/session proof, tsc, and lint:changed; if only live browser overflow proof remains, hand the self-runnable command to the operator.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {
@@ -156,5 +156,5 @@
     "lv3ImmersiveLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-immersive-loop.md",
     "lv3WholeProductGapReviewLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md"
   },
-  "updatedAt": "2026-06-23T09:00:47Z"
+  "updatedAt": "2026-06-23T09:21:48Z"
 }
