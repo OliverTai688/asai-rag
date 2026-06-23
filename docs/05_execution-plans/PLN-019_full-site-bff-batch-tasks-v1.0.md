@@ -567,6 +567,17 @@ Evidence（2026-06-23 BFF-403b）：完成 source-backed subscription capability
 - [ ] 更新 `AGENTS.md`、`PLN-019`、必要 report / issue-question。
 - [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`、必要 Browser QA。
 
+Whole-product review note（2026-06-23 after BFF-402e/BFF-403b）：下一個 normal loop 應選 source-backed `BFF-404a release readiness BFF gate projection`，不要再以 docs-only evidence、重跑 billing scripts、或單一 payment blocked note 當本輪成果。範圍是把既有 `/api/platform/release-readiness` 的 `bffGates.billing_bff` 從粗粒度 `warning/blocked` 改成可審計的分項 gate：checkout disabled contract、ECPay notify disabled skeleton、server-only CheckMacValue boundary、ledger idempotency contract、subscription UI consumption、query confirmation、`PaymentTransaction` persistence/upsert、confirmed activation、refund/void/manual review。已完成的 guarded-disabled/source proof 可以標示 pass/warning；query、transaction persistence、activation、refund/void 與 production env/callback 必須保持 blocked/operator gap。Proof 至少要新增或整合 `pnpm bff:release-readiness-qa`，驗證 platform-only 讀取、private/payment sentinel 0、BFF subgate statuses、no provider call、no DB write、no fake `AiUsageLog`、以及 release-readiness 不宣稱 public launch ready。
+
+### Batch BFF-404a - Release Readiness BFF Gate Projection
+
+- [ ] `/api/platform/release-readiness` 的 `bffGates` 回傳 billing subgates，分辨已 proof 的 guarded-disabled/source boundary 與仍 blocked 的 provider/DB/operator gap。
+- [ ] Billing subgates 至少包含 checkout disabled、notify disabled skeleton、CheckMacValue boundary、ledger idempotency contract、subscription UI consumption、query confirmation、payment transaction persistence、confirmed activation、refund/void/manual review。
+- [ ] `bff_surface_gates` control detail 不只計算 script 是否存在，也能說明 billing lifecycle 哪些子門檻仍 blocked。
+- [ ] 新增 `pnpm bff:release-readiness-qa` 或更新既有 release-readiness QA，覆蓋 platform-only 200/403、required BFF subgates、private/payment sentinel 0、no provider/no DB write/no fake usage posture。
+- [ ] Report 明確寫出此切片不是 production payment enablement，不做真 payment、email、notification、refund/void、provider call 或 external registry publication。
+- [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`；必要時補 `pnpm demo:release-readiness-qa` 由 operator 自行重跑的 handoff command。
+
 ---
 
 ## Current BFF Blockers

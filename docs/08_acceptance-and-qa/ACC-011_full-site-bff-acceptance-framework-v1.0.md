@@ -242,6 +242,15 @@ Evidence（2026-06-23 BFF-403a）：`BILLING_SUBSCRIPTION_QA_BASE_URL=http://127
 
 Evidence（2026-06-23 BFF-403b）：`pnpm billing:subscription-ui-qa`、`pnpm nav:sidebar-ui-qa`、`pnpm nav:sidebar-renderer-contract-qa` passed. Proof covers dashboard layout server-side subscription DTO injection, workspace bootstrap navigation subscription injection, `WorkspaceSubscriptionBoundary` render-model consumption, RoleAwareSidebar subscription hooks (`data-subscription-source`, `data-checkout-status`, `data-browser-plan-assumptions-allowed`, no-provider/no-db-write flags), explicit session fallback source when DTO read is unavailable, and no browser/localStorage/sessionStorage/cookie/URL paid-plan assumption. No ECPay/OpenAI/Anthropic provider call, no subscription order/payment transaction/ledger write, no checkout redirect, no fake `AiUsageLog`, and no real plan activation was attempted. Operator can still rerun `BILLING_SUBSCRIPTION_QA_BASE_URL=http://127.0.0.1:3058 pnpm billing:subscription-capability-qa` when DB is reachable for authenticated 200 payload evidence.
 
+`BFF-404a` release readiness BFF gate projection is acceptable only if:
+
+- `GET /api/platform/release-readiness` remains platform-only: regular app/member/client sessions must not read platform readiness or BFF inventory details.
+- `bffGates` includes per-surface BFF status and billing subgates that distinguish completed guarded-disabled/source boundaries from still-blocked provider, DB, activation, refund/void, and operator-env requirements.
+- Billing subgates must not collapse `BFF-402e` into production payment readiness. ECPay server query confirmation, real `PaymentTransaction` persistence/upsert, confirmed transaction/query activation, production payment env/callback, and refund/void/manual review must remain blocked until their own implementation/proof exists.
+- The readiness DTO and QA output must not expose HashKey, HashIV, CheckMacValue, provider raw payload, provider account identifiers, payment token, card data, raw payment data, raw cookie, secret, token, OTP, raw private transcript, client private sentinels, or env values.
+- The slice must not create subscription orders, payment transactions, checkout redirects, ledger rows, provider calls, fake `AiUsageLog`, real email, real notification, real payment, refund, void, or real plan activation.
+- Proof should include `pnpm bff:release-readiness-qa` or equivalent targeted static/API command, plus `pnpm exec tsc --noEmit --pretty false` and `pnpm lint:changed`. Browser/full smoke evidence may be handed off as `DEMO_QA_BASE_URL=<local server> pnpm demo:release-readiness-qa` when the remaining evidence is operator-runnable and not needed to validate the source slice.
+
 ---
 
 ## 5. Data-source Inventory Gates
