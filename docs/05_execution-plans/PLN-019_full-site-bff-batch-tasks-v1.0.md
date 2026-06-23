@@ -512,12 +512,14 @@ Whole-product review 註記（2026-06-23 runtime proof gate）：`pnpm lv3:cross
 
 目標：把 subscription capability、quota、seat usage 從 server contract 回傳。
 
-- [ ] 建立 `/api/billing/subscription` 或 `/api/org/billing`。
-- [ ] DTO 包含 current plan、capability、quota、seat/collaborator/unit usage、checkout status。
-- [ ] Plan activation 只由 confirmed transaction/query 控制。
-- [ ] Workspace bootstrap 與 org/member UI 使用 server capability，不使用 hardcoded plan assumptions。
+- [x] 建立 `/api/billing/subscription` 或 `/api/org/billing`。
+- [x] DTO 包含 current plan、capability、quota、seat/collaborator/unit usage、checkout status。
+- [x] Plan activation 只由 confirmed transaction/query 控制。
+- [ ] Workspace bootstrap 與 org/member UI 使用 server capability，不使用 hardcoded plan assumptions。（2026-06-23 已接 workspace bootstrap；org/member UI consumption 待補。）
 - [ ] API/browser proof 覆蓋 plan change persistence。
-- [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+- [x] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+
+Evidence（2026-06-23 BFF-403a）：新增 read-only `GET /api/billing/subscription`、`BillingSubscriptionCapabilityDto` 與 workspace bootstrap `subscription` contract。`BILLING_SUBSCRIPTION_QA_BASE_URL=http://127.0.0.1:3058 pnpm billing:subscription-capability-qa` 已通過 source/API guarded proof：unauth 401、shared auth error/no-store/request-id、目前 DB `P1001 DatabaseNotReachable` 下 authenticated request fail-closed 為 503 `BILLING_SUBSCRIPTION_UNAVAILABLE` 且 `providerAttempted=false`、payment/private sentinel 0、repository 只有 read/count，沒有 subscription order/payment transaction write，也沒有 ECPay/OpenAI/Anthropic provider call。此 evidence 不代表 org/member UI 已改用 subscription DTO，也不代表 real plan change persistence、confirmed transaction/query activation、ledger idempotency 或 production payment enablement 已完成。
 
 ---
 

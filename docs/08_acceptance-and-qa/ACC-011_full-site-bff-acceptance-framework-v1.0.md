@@ -202,6 +202,17 @@ Evidence（2026-06-23 BFF-402a）：`pnpm notification:visit-reminder-disabled-q
 
 Evidence（2026-06-23 BFF-402b）：`pnpm billing:ecpay-disabled-qa` passed 57/57 checks. Proof covers source boundary, notify invalid 400, notify form payload 503 disabled, duplicate notify 503 disabled with duplicate-safe/no-ledger/no-transaction/no-activation posture, query invalid 400, query unauth 401, DB-unavailable authenticated query 503 `BILLING_ECPAY_AUTH_UNAVAILABLE` with `providerAttempted=false`, no-store/request-id, and payment/private sentinel 0. No ECPay provider call, no DB write, no fake `AiUsageLog`, no real payment, and no production checkout enablement was attempted.
 
+`BFF-403a` subscription capability BFF read contract is acceptable as a partial subscription gate only if:
+
+- `GET /api/billing/subscription` requires current member auth and rejects unauthenticated requests with 401.
+- DTO is versioned and includes current plan/status, server-side capability, quota, seat/collaborator/unit usage, checkout disabled status, and activation boundary.
+- The route/repository may read session/org/member/unit data but must not create subscription orders, payment transactions, checkout redirects, ledger rows, provider calls, or fake `AiUsageLog` records.
+- Response must prove redirect-only activation and browser plan assumptions are not allowed; plan activation remains allowed only from confirmed transaction/query paths.
+- Response and logs must not expose HashKey, HashIV, CheckMacValue, provider raw payload, provider account identifiers, payment token, card data, raw payment data, raw cookie, secret, token, OTP, or env values.
+- Workspace bootstrap may include the same server capability contract, but org/member UI consumption and real plan-change persistence remain separate proof requirements.
+
+Evidence（2026-06-23 BFF-403a）：`BILLING_SUBSCRIPTION_QA_BASE_URL=http://127.0.0.1:3058 pnpm billing:subscription-capability-qa` passed. Proof covers source boundary, unauth 401, no-store/request-id, DB-unavailable authenticated 503 `BILLING_SUBSCRIPTION_UNAVAILABLE` with `providerAttempted=false`, payment/private sentinel 0, and repository no-write checks. No ECPay/OpenAI/Anthropic provider call, no DB write, no fake `AiUsageLog`, no real payment, and no production checkout/plan activation was attempted. Authenticated 200 + bootstrap payload proof can be rerun by operator with the same command when DB is reachable; it is not a product decision blocker.
+
 ---
 
 ## 5. Data-source Inventory Gates

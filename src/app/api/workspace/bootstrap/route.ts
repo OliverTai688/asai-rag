@@ -1,4 +1,5 @@
 import { authErrorResponse, requireCurrentMember } from "@/lib/auth/current-workspace";
+import { buildBillingSubscriptionCapability } from "@/lib/billing/subscription-capability-repository";
 import {
   buildWorkspaceBootstrapNavigation,
   toWorkspaceBootstrapSurface,
@@ -7,6 +8,7 @@ import {
 export async function GET(request: Request) {
   try {
     const session = await requireCurrentMember();
+    const subscription = await buildBillingSubscriptionCapability(session);
     const aiRemaining = Math.max(0, session.organization.monthlyAiQuota - session.organization.monthlyAiUsed);
     const requestedSurface = toWorkspaceBootstrapSurface(
       new URL(request.url).searchParams.get("surface"),
@@ -18,6 +20,7 @@ export async function GET(request: Request) {
       organization: session.organization,
       membership: session.membership,
       planCapability: session.planCapability,
+      subscription,
       aiQuota: {
         monthly: session.organization.monthlyAiQuota,
         used: session.organization.monthlyAiUsed,
