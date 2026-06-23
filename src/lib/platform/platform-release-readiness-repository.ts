@@ -176,6 +176,17 @@ function billingBffSubgates() {
         "src/domains/subscription/ecpay.ts",
       ],
     ),
+    provenSubgate(
+      "payment_transaction_upsert_payload_boundary",
+      "Payment transaction upsert payload boundary",
+      "pnpm billing:payment-transaction-upsert-boundary-qa",
+      "PaymentTransaction upsert payload boundary is typed and dry-run proven: allowlisted create/update columns only, server-resolved organization scope, no provider call, no DB write, no raw payment data, and no activation.",
+      [
+        "scripts/billing-payment-transaction-upsert-boundary-qa.mjs",
+        "scripts/billing-payment-transaction-upsert-boundary-dry-run.ts",
+        "src/domains/subscription/payment-transaction-persistence.ts",
+      ],
+    ),
     blockedSubgate(
       "payment_transaction_persistence",
       "Payment transaction persistence",

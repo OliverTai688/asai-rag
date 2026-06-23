@@ -84,11 +84,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 3,
+    "normalLoopsSinceLastWholeProductReview": 4,
     "lastWholeProductReviewAt": "2026-06-23T10:02:47Z",
     "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-23_lv3-whole-product-gap-review-theater-runtime-context.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "LV3-RELATIONSHIP-CONFIRMATION-PERSISTENCE-IMPLEMENTATION-001: if the operator answers Option A (`visit-plan-json-subdocument`) or Option B (`dedicated-relationship-confirmation-state-table`) in issue-question, implement only that smallest owner-scoped persistence slice with migration/rollback/API/UI/DB proof and the existing allowlist. If the operator answers Option C (`defer-relationship-confirmation-persistence`) or no answer is available, do not repeat blocker docs or stage-map screenshots; choose the next safe source-backed LV3 bridge outside this persistence blocker.",
+    "nextRecommendedImplementationSlice": "CADENCE-WHOLE-PRODUCT-REVIEW-001: normal LV3 loop counter reached 4 after the PaymentTransaction upsert payload boundary slice. The next heartbeat should read and execute `docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md`, reassessing core client -> relationship -> preparation -> theater -> interview writeback flow, BFF/payment readiness blockers, and whether relationship confirmation persistence has received an operator A/B/C decision.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {
@@ -156,5 +156,5 @@
     "lv3ImmersiveLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-immersive-loop.md",
     "lv3WholeProductGapReviewLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md"
   },
-  "updatedAt": "2026-06-23T11:03:48Z"
+  "updatedAt": "2026-06-23T11:44:13Z"
 }

@@ -553,6 +553,20 @@ Whole-product review 註記（2026-06-23 runtime proof gate）：`pnpm lv3:cross
 
 ---
 
+### Batch BFF-402i - PaymentTransaction Upsert Payload Boundary
+
+目標：把 BFF-402g 的 guarded contract 往 live repository 實作前推一格，先定義未來 upsert 只能使用的 allowlisted payload boundary，但仍不寫 DB、不呼叫 provider、不啟用方案。
+
+- [x] 新增 versioned `asai.billing.payment_transaction_upsert_boundary.v1`。
+- [x] Boundary 定義 `PaymentTransaction` create/update allowlist 欄位、server-resolved organization scope、notify checksum/query confirmation 前置條件。
+- [x] 新增 dry-run builder，能產生 notify/query draft payload；draft 僅為可審查結構，不執行 `.upsert()`。
+- [x] Release readiness 新增 `payment_transaction_upsert_payload_boundary` pass subgate，但 live `payment_transaction_persistence` 保持 blocked/db。
+- [x] Proof 明確證明 no provider call、no DB write、no raw payment data、no fake `AiUsageLog`、no activation。
+
+完成註記（2026-06-23 BFF-402i PaymentTransaction upsert payload boundary）：新增 `BILLING_PAYMENT_TRANSACTION_UPSERT_BOUNDARY_VERSION`、`buildPaymentTransactionUpsertBoundary()`、`buildPaymentTransactionUpsertBoundaryDraft()`，並新增 `pnpm billing:payment-transaction-upsert-boundary-qa`。Proof：`pnpm billing:payment-transaction-upsert-boundary-qa` 通過 source/static + TypeScript dry-run；`pnpm bff:release-readiness-qa` 通過，readiness 會顯示 `payment_transaction_upsert_payload_boundary` pass，但 `payment_transaction_persistence` 仍 blocked/db。此結果不代表 real `PaymentTransaction` DB upsert/write、real ECPay server query confirmation、confirmed activation、production payment env/callback、refund/void/manual review 或 production payment enablement 已完成。
+
+---
+
 ### Batch BFF-402h - Confirmed Activation Guarded Contract
 
 目標：先把 confirmed transaction/query 之後才可啟用方案的 precondition contract 落成 typed boundary，讓 notify/query 都明確宣告啟用必須依賴 confirmed ledger、PaymentTransaction persistence/write proof、server query/checksum proof；不寫 DB、不啟用 plan、不信任 browser/redirect/localStorage plan 訊號。
@@ -623,7 +637,7 @@ Whole-product review note（2026-06-23 after BFF-402e/BFF-403b）：下一個 no
 - [x] Report 明確寫出此切片不是 production payment enablement，不做真 payment、email、notification、refund/void、provider call 或 external registry publication。
 - [x] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`；必要時補 `pnpm demo:release-readiness-qa` 由 operator 自行重跑的 handoff command。
 
-Evidence（2026-06-23 BFF-404a / updated after BFF-402h）：`src/lib/platform/platform-release-readiness-repository.ts` 新增 `billingBffSubgates()` / `billingBffGate()`，`bffGates.billing_bff` 仍為 blocked，但回傳 checkout disabled、ECPay notify/query disabled skeleton、server-only checksum boundary、ledger idempotency contract、subscription UI consumption、ECPay server query guarded boundary、ECPay server query confirmation、PaymentTransaction persistence guarded contract、PaymentTransaction live persistence、confirmed activation guarded contract、confirmed activation live proof、production payment env/callback、refund/void/manual review 等子門檻。已完成的 guarded/source contracts 可 pass；real provider query confirmation、live transaction persistence、live activation、production env/callback、refund/void 仍 blocked。新增 `pnpm bff:release-readiness-qa` 驗證 platform route guard source、required subgates、package script、owner docs/acceptance、no provider call、no DB mutation、no fake `AiUsageLog`、no raw payment/private/provider sentinel；`pnpm bff:release-readiness-qa`、`pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed` 通過。Full browser/platform smoke 可由 operator 於 dev server 可用時自行重跑 `DEMO_QA_BASE_URL=http://localhost:3000 pnpm demo:release-readiness-qa`，但此 residual smoke 不取代 source proof。
+Evidence（2026-06-23 BFF-404a / updated after BFF-402i）：`src/lib/platform/platform-release-readiness-repository.ts` 新增 `billingBffSubgates()` / `billingBffGate()`，`bffGates.billing_bff` 仍為 blocked，但回傳 checkout disabled、ECPay notify/query disabled skeleton、server-only checksum boundary、ledger idempotency contract、subscription UI consumption、ECPay server query guarded boundary、ECPay server query confirmation、PaymentTransaction persistence guarded contract、PaymentTransaction upsert payload boundary、PaymentTransaction live persistence、confirmed activation guarded contract、confirmed activation live proof、production payment env/callback、refund/void/manual review 等子門檻。已完成的 guarded/source contracts 可 pass；real provider query confirmation、live transaction persistence、live activation、production env/callback、refund/void 仍 blocked。新增/更新 `pnpm bff:release-readiness-qa` 驗證 platform route guard source、required subgates、package script、owner docs/acceptance、no provider call、no DB mutation、no fake `AiUsageLog`、no raw payment/private/provider sentinel；`pnpm bff:release-readiness-qa`、`pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed` 通過。Full browser/platform smoke 可由 operator 於 dev server 可用時自行重跑 `DEMO_QA_BASE_URL=http://localhost:3000 pnpm demo:release-readiness-qa`，但此 residual smoke 不取代 source proof。
 
 ---
 

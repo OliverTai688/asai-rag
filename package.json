@@ -78,6 +78,7 @@
     "billing:ecpay-checkmac-qa": "node scripts/billing-ecpay-checkmac-qa.mjs",
     "billing:ecpay-query-boundary-qa": "node scripts/billing-ecpay-query-boundary-qa.mjs",
     "billing:payment-transaction-persistence-qa": "node scripts/billing-payment-transaction-persistence-qa.mjs",
+    "billing:payment-transaction-upsert-boundary-qa": "node scripts/billing-payment-transaction-upsert-boundary-qa.mjs",
     "billing:confirmed-activation-qa": "node scripts/billing-confirmed-activation-qa.mjs",
     "billing:ledger-idempotency-qa": "node scripts/billing-ledger-idempotency-qa.mjs",
     "billing:subscription-capability-qa": "node scripts/billing-subscription-capability-qa.mjs",
