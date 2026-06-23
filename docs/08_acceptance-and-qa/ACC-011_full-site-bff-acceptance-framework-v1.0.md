@@ -202,6 +202,15 @@ Evidence（2026-06-23 BFF-402a）：`pnpm notification:visit-reminder-disabled-q
 
 Evidence（2026-06-23 BFF-402b）：`pnpm billing:ecpay-disabled-qa` passed 57/57 checks. Proof covers source boundary, notify invalid 400, notify form payload 503 disabled, duplicate notify 503 disabled with duplicate-safe/no-ledger/no-transaction/no-activation posture, query invalid 400, query unauth 401, DB-unavailable authenticated query 503 `BILLING_ECPAY_AUTH_UNAVAILABLE` with `providerAttempted=false`, no-store/request-id, and payment/private sentinel 0. No ECPay provider call, no DB write, no fake `AiUsageLog`, no real payment, and no production checkout enablement was attempted.
 
+`BFF-402d` transaction ledger idempotency contract proof is acceptable before full transaction persistence only if:
+
+- A shared ledger contract defines `organizationId + provider + merchantTradeNo` uniqueness, server-owned upsert target, duplicate notification behavior, accepted activation statuses, and no raw provider/checksum storage.
+- ECPay notify/query disabled DTOs include this contract without attempting provider calls, DB writes, order updates, transaction creation, or plan activation.
+- Plan-change disabled DTO references the same contract version/scope and still blocks redirect-only activation, browser plan assumptions, and organization plan mutation.
+- Proof explicitly states this is not real `PaymentTransaction` persistence/upsert and does not satisfy CheckMacValue validation, ECPay server query confirmation, refund/void/manual review, or production payment enablement.
+
+Evidence（2026-06-23 BFF-402d）：`pnpm billing:ledger-idempotency-qa` passed static source contract checks; `pnpm billing:plan-change-boundary-qa` passed source proof; `BILLING_ECPAY_DISABLED_QA_BASE_URL=http://127.0.0.1:3061 pnpm billing:ecpay-disabled-qa` passed 73/73 checks. Proof covers shared `asai.billing.ledger_idempotency.v1`, notify/query DTO ledger contract, duplicate notify no-write/no-activation posture, plan-change contract reference, no ECPay provider call, no DB write, no fake `AiUsageLog`, and payment/private sentinel 0. Authenticated query disabled DTO runtime proof remains DB-availability dependent; rerun the same ECPay QA command when DB is reachable.
+
 `BFF-403a` subscription capability BFF read contract is acceptable as a partial subscription gate only if:
 
 - `GET /api/billing/subscription` requires current member auth and rejects unauthenticated requests with 401.

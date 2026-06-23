@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { OrganizationPlan } from "@/generated/prisma/enums";
 import { selfServeCheckoutPlans, type SelfServeCheckoutPlan } from "./checkout";
+import { BILLING_LEDGER_IDEMPOTENCY_CONTRACT_VERSION } from "./ledger";
 
 export const BILLING_PLAN_CHANGE_CONTRACT_VERSION =
   "asai.billing.plan_change_activation.v1";
@@ -33,6 +34,9 @@ export type BillingPlanChangeDisabledDto = {
   };
   idempotency: {
     strategy: "transaction_ledger_required_before_plan_mutation";
+    ledgerContractVersion: typeof BILLING_LEDGER_IDEMPOTENCY_CONTRACT_VERSION;
+    ledgerScope: "organization_provider_merchant_trade_no";
+    requiredLedgerStatusesBeforePlanMutation: ["PAID", "QUERY_CONFIRMED"];
     keySource: "server_derived_when_enabled";
     duplicateSafe: true;
     duplicateLedgerWritePrevented: true;
@@ -109,6 +113,9 @@ export function buildDisabledBillingPlanChangeDto(input: {
     },
     idempotency: {
       strategy: "transaction_ledger_required_before_plan_mutation",
+      ledgerContractVersion: BILLING_LEDGER_IDEMPOTENCY_CONTRACT_VERSION,
+      ledgerScope: "organization_provider_merchant_trade_no",
+      requiredLedgerStatusesBeforePlanMutation: ["PAID", "QUERY_CONFIRMED"],
       keySource: "server_derived_when_enabled",
       duplicateSafe: true,
       duplicateLedgerWritePrevented: true,

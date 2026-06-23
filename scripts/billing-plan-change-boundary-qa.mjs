@@ -39,6 +39,10 @@ if (checks.some((check) => check.status === "fail")) {
 function runStaticProof() {
   assertFileContains("src/domains/subscription/plan-change.ts", [
     "asai.billing.plan_change_activation.v1",
+    "BILLING_LEDGER_IDEMPOTENCY_CONTRACT_VERSION",
+    "ledgerContractVersion: BILLING_LEDGER_IDEMPOTENCY_CONTRACT_VERSION",
+    'ledgerScope: "organization_provider_merchant_trade_no"',
+    'requiredLedgerStatusesBeforePlanMutation: ["PAID", "QUERY_CONFIRMED"]',
     'planActivationSource: "confirmed_transaction_or_query_only"',
     "redirectOnlyActivationAllowed: false",
     "browserPlanAssumptionsAllowed: false",
@@ -77,6 +81,7 @@ function runStaticProof() {
   ]);
 
   for (const filePath of [
+    "src/domains/subscription/ledger.ts",
     "src/domains/subscription/plan-change.ts",
     "src/app/api/billing/plan-change/route.ts",
   ]) {
@@ -151,6 +156,16 @@ async function runApiProof() {
   push(planChange?.provider === "ECPAY", "plan-change declares ECPay provider");
   push(planChange?.providerAttempted === false, "plan-change does not contact provider");
   push(planChange?.order?.orderCreated === false, "plan-change creates no order");
+  push(
+    planChange?.idempotency?.ledgerContractVersion === "asai.billing.ledger_idempotency.v1",
+    "plan-change references shared ledger idempotency contract",
+    planChange?.idempotency?.ledgerContractVersion ?? "",
+  );
+  push(
+    planChange?.idempotency?.ledgerScope === "organization_provider_merchant_trade_no",
+    "plan-change requires server-owned ledger uniqueness scope",
+    planChange?.idempotency?.ledgerScope ?? "",
+  );
   push(planChange?.idempotency?.ledgerWriteAttempted === false, "plan-change writes no transaction ledger");
   push(planChange?.idempotency?.transactionCreated === false, "plan-change creates no payment transaction");
   push(planChange?.idempotency?.planUpdated === false, "plan-change does not update plan");

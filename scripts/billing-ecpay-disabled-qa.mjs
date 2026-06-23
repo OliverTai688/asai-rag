@@ -53,6 +53,8 @@ function verifyStaticBoundaries() {
   assertFileContains("src/domains/subscription/ecpay.ts", [
     "asai.billing.ecpay.notify.v1",
     "asai.billing.ecpay.query.v1",
+    "buildEcpayNotifyLedgerIdempotencyContract",
+    "buildEcpayQueryLedgerIdempotencyContract",
     "providerAttempted: false",
     "checkMacValueVerified: false",
     "rawCheckMacValueEchoed: false",
@@ -62,6 +64,17 @@ function verifyStaticBoundaries() {
     "redirectOnlyActivationAllowed: false",
     "providerRawPayloadStored: false",
     "manual_review_failure_refund_void",
+  ]);
+  assertFileContains("src/domains/subscription/ledger.ts", [
+    "asai.billing.ledger_idempotency.v1",
+    "organization_provider_merchant_trade_no",
+    'uniqueBy: ["organizationId", "provider", "merchantTradeNo"]',
+    'mutation: "upsert_when_enabled"',
+    'acceptedLedgerStatuses: ["PAID", "QUERY_CONFIRMED"]',
+    "duplicateWritePrevented: true",
+    "organizationPlanUpdated: false",
+    "providerRawPayloadStored: false",
+    "rawCheckMacValueStored: false",
   ]);
   assertFileContains("src/app/api/billing/ecpay/notify/route.ts", [
     "BILLING_ECPAY_NOTIFY_DISABLED",
@@ -78,6 +91,7 @@ function verifyStaticBoundaries() {
     "status: 503",
   ]);
   for (const filePath of [
+    "src/domains/subscription/ledger.ts",
     "src/domains/subscription/ecpay.ts",
     "src/app/api/billing/ecpay/notify/route.ts",
     "src/app/api/billing/ecpay/query/route.ts",
@@ -220,6 +234,7 @@ async function verifyNotifyBoundary() {
     ["duplicate", second],
   ]) {
     const notification = response.body?.notification;
+    const ledger = notification?.ledger;
     check(response.status === 503, `ECPay notify ${label} returns disabled 503`, `status=${response.status}`);
     check(response.body?.error === "BILLING_ECPAY_NOTIFY_DISABLED", `ECPay notify ${label} declares disabled error`);
     check(notification?.version === "asai.billing.ecpay.notify.v1", `ECPay notify ${label} is versioned`);
@@ -233,6 +248,16 @@ async function verifyNotifyBoundary() {
     check(notification?.idempotency?.ledgerWriteAttempted === false, `ECPay notify ${label} writes no ledger`);
     check(notification?.idempotency?.transactionCreated === false, `ECPay notify ${label} creates no transaction`);
     check(notification?.idempotency?.orderUpdated === false, `ECPay notify ${label} updates no order`);
+    check(ledger?.version === "asai.billing.ledger_idempotency.v1", `ECPay notify ${label} includes ledger contract`);
+    check(
+      ledger?.scope === "organization_provider_merchant_trade_no",
+      `ECPay notify ${label} uses server-owned ledger uniqueness scope`,
+    );
+    check(ledger?.lookup?.merchantTradeNo === payload.MerchantTradeNo, `ECPay notify ${label} ledger keeps idempotency key`);
+    check(ledger?.writePlan?.dbWriteAttempted === false, `ECPay notify ${label} ledger writes no DB`);
+    check(ledger?.writePlan?.duplicateWritePrevented === true, `ECPay notify ${label} ledger is duplicate-safe`);
+    check(ledger?.activationGate?.organizationPlanUpdated === false, `ECPay notify ${label} ledger blocks plan mutation`);
+    check(ledger?.dataBoundary?.providerRawPayloadStored === false, `ECPay notify ${label} ledger stores no raw provider payload`);
     check(notification?.activation?.allowed === false, `ECPay notify ${label} does not activate plan`);
     check(notification?.dataBoundary?.providerCredentialsReturned === false, `ECPay notify ${label} returns no credentials`);
     check(notification?.dataBoundary?.providerRawPayloadStored === false, `ECPay notify ${label} stores no raw provider payload`);
@@ -267,6 +292,7 @@ async function verifyQueryBoundary() {
   }
 
   const query = disabled.body?.query;
+  const ledger = query?.ledger;
   check(disabled.status === 503, "ECPay query returns disabled 503", `status=${disabled.status}`);
   check(disabled.body?.error === "BILLING_ECPAY_QUERY_DISABLED", "ECPay query declares disabled error");
   check(query?.version === "asai.billing.ecpay.query.v1", "ECPay query is versioned");
@@ -277,6 +303,12 @@ async function verifyQueryBoundary() {
   check(query?.idempotency?.ledgerWriteAttempted === false, "ECPay query writes no ledger");
   check(query?.idempotency?.transactionCreated === false, "ECPay query creates no transaction");
   check(query?.idempotency?.orderUpdated === false, "ECPay query updates no order");
+  check(ledger?.version === "asai.billing.ledger_idempotency.v1", "ECPay query includes ledger contract");
+  check(ledger?.scope === "organization_provider_merchant_trade_no", "ECPay query uses server-owned ledger uniqueness scope");
+  check(ledger?.writePlan?.dbWriteAttempted === false, "ECPay query ledger writes no DB");
+  check(ledger?.writePlan?.duplicateWritePrevented === true, "ECPay query ledger is duplicate-safe");
+  check(ledger?.activationGate?.organizationPlanUpdated === false, "ECPay query ledger blocks plan mutation");
+  check(ledger?.dataBoundary?.providerRawPayloadStored === false, "ECPay query ledger stores no raw provider payload");
   check(query?.activation?.allowed === false, "ECPay query does not activate plan");
   check(query?.dataBoundary?.providerRawPayloadStored === false, "ECPay query stores no raw provider payload");
   check(hasNoStore(disabled), "ECPay query disabled response uses no-store cache header");

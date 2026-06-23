@@ -1,4 +1,9 @@
 import { z } from "zod";
+import {
+  buildEcpayNotifyLedgerIdempotencyContract,
+  buildEcpayQueryLedgerIdempotencyContract,
+  type BillingLedgerIdempotencyContractDto,
+} from "./ledger";
 
 export const BILLING_ECPAY_NOTIFY_CONTRACT_VERSION = "asai.billing.ecpay.notify.v1";
 export const BILLING_ECPAY_QUERY_CONTRACT_VERSION = "asai.billing.ecpay.query.v1";
@@ -62,6 +67,7 @@ export type DisabledEcpayNotifyDto = {
     transactionCreated: false;
     orderUpdated: false;
   };
+  ledger: BillingLedgerIdempotencyContractDto;
   activation: ActivationBoundaryDto;
   dataBoundary: DataBoundaryDto;
   requiredProof: Array<
@@ -89,6 +95,7 @@ export type DisabledEcpayQueryDto = {
     transactionCreated: false;
     orderUpdated: false;
   };
+  ledger: BillingLedgerIdempotencyContractDto;
   activation: ActivationBoundaryDto;
   dataBoundary: DataBoundaryDto;
   requiredProof: Array<
@@ -122,6 +129,7 @@ export function buildDisabledEcpayNotifyDto(input: EcpayNotifyInput, now = new D
       transactionCreated: false,
       orderUpdated: false,
     },
+    ledger: buildEcpayNotifyLedgerIdempotencyContract(input),
     activation: {
       allowed: false,
       reason: "server_notification_query_not_verified",
@@ -158,6 +166,7 @@ export function buildDisabledEcpayQueryDto(input: EcpayQueryInput, now = new Dat
       transactionCreated: false,
       orderUpdated: false,
     },
+    ledger: buildEcpayQueryLedgerIdempotencyContract(input),
     activation: {
       allowed: false,
       reason: "ecpay_provider_disabled",

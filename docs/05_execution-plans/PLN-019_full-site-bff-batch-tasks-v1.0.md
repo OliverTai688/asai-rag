@@ -494,6 +494,21 @@ Whole-product review 註記（2026-06-23 runtime proof gate）：`pnpm lv3:cross
 
 ---
 
+### Batch BFF-402d - Transaction Ledger Idempotency Contract
+
+目標：先把 ECPay notify/query 與 plan-change activation 共同依賴的 transaction ledger idempotency 規則落成 typed source contract；不啟用真 provider call、不寫 `PaymentTransaction`、不啟用 plan、不做 refund/void/destructive payment action。
+
+- [x] 新增 shared `BillingLedgerIdempotencyContractDto`，明確 `organizationId + provider + merchantTradeNo` 唯一 scope、server-owned upsert target、duplicate notification 不重複啟用計畫。
+- [x] `POST /api/billing/ecpay/notify` 的 disabled DTO 內含 ledger contract，duplicate notify response 可驗 `dbWriteAttempted=false`、`duplicateWritePrevented=true`、`organizationPlanUpdated=false`、`providerRawPayloadStored=false`。
+- [x] `POST /api/billing/ecpay/query` 的 disabled DTO 內含同一 ledger contract；DB auth 不可達時仍 fail closed，不呼叫 provider。
+- [x] `POST /api/billing/plan-change` 的 disabled DTO 明確引用 `asai.billing.ledger_idempotency.v1`、ledger scope 與啟用前允許的 ledger status `PAID` / `QUERY_CONFIRMED`。
+- [x] Targeted QA `pnpm billing:ledger-idempotency-qa`、`pnpm billing:plan-change-boundary-qa`、`BILLING_ECPAY_DISABLED_QA_BASE_URL=http://127.0.0.1:3061 pnpm billing:ecpay-disabled-qa` 通過。
+- [x] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+
+完成註記（2026-06-23 BFF-402d transaction ledger idempotency contract）：已新增 `src/domains/subscription/ledger.ts` 與 `pnpm billing:ledger-idempotency-qa`，並讓 ECPay notify/query disabled DTO 與 plan-change disabled DTO 指向同一個 ledger idempotency contract。Proof：`pnpm billing:ledger-idempotency-qa` 通過 static source gate；`pnpm billing:plan-change-boundary-qa` 通過 source gate；`BILLING_ECPAY_DISABLED_QA_BASE_URL=http://127.0.0.1:3061 pnpm billing:ecpay-disabled-qa` 通過 73/73 checks，覆蓋 duplicate notify response 內的 ledger contract、no DB write/no activation/no raw provider payload/no provider call。此結果不代表已完成真正 `PaymentTransaction` persistence/upsert、CheckMacValue 驗證、ECPay server query confirmation、confirmed transaction/query activation、refund/void/manual review 或 production payment enablement。
+
+---
+
 ## Batch BFF-402 - ECPay Notification / Query / Idempotency
 
 目標：付款狀態只信任 server notification/query confirmation。
