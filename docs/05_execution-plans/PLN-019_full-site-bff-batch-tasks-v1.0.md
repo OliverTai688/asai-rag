@@ -571,12 +571,14 @@ Whole-product review note（2026-06-23 after BFF-402e/BFF-403b）：下一個 no
 
 ### Batch BFF-404a - Release Readiness BFF Gate Projection
 
-- [ ] `/api/platform/release-readiness` 的 `bffGates` 回傳 billing subgates，分辨已 proof 的 guarded-disabled/source boundary 與仍 blocked 的 provider/DB/operator gap。
-- [ ] Billing subgates 至少包含 checkout disabled、notify disabled skeleton、CheckMacValue boundary、ledger idempotency contract、subscription UI consumption、query confirmation、payment transaction persistence、confirmed activation、refund/void/manual review。
-- [ ] `bff_surface_gates` control detail 不只計算 script 是否存在，也能說明 billing lifecycle 哪些子門檻仍 blocked。
-- [ ] 新增 `pnpm bff:release-readiness-qa` 或更新既有 release-readiness QA，覆蓋 platform-only 200/403、required BFF subgates、private/payment sentinel 0、no provider/no DB write/no fake usage posture。
-- [ ] Report 明確寫出此切片不是 production payment enablement，不做真 payment、email、notification、refund/void、provider call 或 external registry publication。
-- [ ] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`；必要時補 `pnpm demo:release-readiness-qa` 由 operator 自行重跑的 handoff command。
+- [x] `/api/platform/release-readiness` 的 `bffGates` 回傳 billing subgates，分辨已 proof 的 guarded-disabled/source boundary 與仍 blocked 的 provider/DB/operator gap。
+- [x] Billing subgates 至少包含 checkout disabled、notify disabled skeleton、checksum boundary、ledger idempotency contract、subscription UI consumption、query confirmation、payment transaction persistence、confirmed activation、production env/callback、refund/void/manual review。
+- [x] `bff_surface_gates` control detail 不只計算 script 是否存在，也能說明 billing lifecycle 哪些子門檻仍 blocked。
+- [x] 新增 `pnpm bff:release-readiness-qa` 或更新既有 release-readiness QA，覆蓋 platform-only source boundary、required BFF subgates、private/payment sentinel 0、no provider/no DB write/no fake usage posture。
+- [x] Report 明確寫出此切片不是 production payment enablement，不做真 payment、email、notification、refund/void、provider call 或 external registry publication。
+- [x] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`；必要時補 `pnpm demo:release-readiness-qa` 由 operator 自行重跑的 handoff command。
+
+Evidence（2026-06-23 BFF-404a）：`src/lib/platform/platform-release-readiness-repository.ts` 新增 `billingBffSubgates()` / `billingBffGate()`，`bffGates.billing_bff` 仍為 blocked，但回傳 checkout disabled、ECPay notify/query disabled skeleton、server-only checksum boundary、ledger idempotency contract、subscription UI consumption、ECPay server query confirmation、PaymentTransaction persistence、confirmed activation、production payment env/callback、refund/void/manual review 等子門檻。前五項依既有 proof script/source 可 pass；query、transaction persistence、activation、production env/callback、refund/void 仍 blocked。新增 `pnpm bff:release-readiness-qa` 驗證 platform route guard source、required subgates、package script、owner docs/acceptance、no provider call、no DB mutation、no fake `AiUsageLog`、no raw payment/private/provider sentinel；`pnpm bff:release-readiness-qa`、`pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed` 通過。Full browser/platform smoke 可由 operator 於 dev server 可用時自行重跑 `DEMO_QA_BASE_URL=http://localhost:3000 pnpm demo:release-readiness-qa`，但此 residual smoke 不取代 BFF-404a source proof。
 
 ---
 

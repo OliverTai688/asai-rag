@@ -68,6 +68,7 @@
     "bff:org-writes-qa": "node scripts/bff-org-writes-qa.mjs",
     "bff:client-portal-qa": "node scripts/bff-client-portal-qa.mjs",
     "bff:platform-qa": "node scripts/bff-platform-qa.mjs",
+    "bff:release-readiness-qa": "node scripts/bff-release-readiness-qa.mjs",
     "billing:checkout-qa": "node scripts/billing-checkout-qa.mjs",
     "billing:ecpay-disabled-qa": "node scripts/billing-ecpay-disabled-qa.mjs",
     "billing:ecpay-checkmac-qa": "node scripts/billing-ecpay-checkmac-qa.mjs",

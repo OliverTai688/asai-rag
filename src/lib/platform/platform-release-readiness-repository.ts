@@ -16,6 +16,24 @@ const STATUS_WEIGHT: Record<ReleaseGateStatus, number> = {
   blocked: 2,
 };
 
+interface BffSubgate {
+  key: string;
+  label: string;
+  status: ReleaseGateStatus;
+  blockerType: "none" | "source" | "db" | "provider_env" | "operator_approval" | "production_approval";
+  evidenceCommand: string;
+  detail: string;
+}
+
+interface BffSurfaceGate {
+  key: string;
+  surface: string;
+  status: ReleaseGateStatus;
+  evidenceCommand: string;
+  detail: string;
+  subgates?: BffSubgate[];
+}
+
 function monthStart() {
   const now = new Date();
   return new Date(now.getFullYear(), now.getMonth(), 1);
@@ -47,6 +65,141 @@ function worstStatus(statuses: ReleaseGateStatus[]) {
 
 function projectFileExists(path: string) {
   return existsSync(join(/* turbopackIgnore: true */ process.cwd(), path));
+}
+
+function projectFilesExist(paths: string[]) {
+  return paths.every((path) => projectFileExists(path));
+}
+
+function provenSubgate(key: string, label: string, evidenceCommand: string, detail: string, sourceFiles: string[]) {
+  const sourceReady = projectFilesExist(sourceFiles);
+
+  return {
+    key,
+    label,
+    status: sourceReady ? "pass" : "blocked",
+    blockerType: sourceReady ? "none" : "source",
+    evidenceCommand,
+    detail: sourceReady ? detail : "Required source or proof script is missing.",
+  } satisfies BffSubgate;
+}
+
+function blockedSubgate(
+  key: string,
+  label: string,
+  blockerType: BffSubgate["blockerType"],
+  evidenceCommand: string,
+  detail: string,
+) {
+  return {
+    key,
+    label,
+    status: "blocked",
+    blockerType,
+    evidenceCommand,
+    detail,
+  } satisfies BffSubgate;
+}
+
+function billingBffSubgates() {
+  return [
+    provenSubgate(
+      "checkout_disabled_contract",
+      "Checkout disabled contract",
+      "pnpm billing:checkout-qa",
+      "Server-owned checkout BFF stays disabled and does not issue redirects, provider payloads, orders, transactions, or activation.",
+      ["scripts/billing-checkout-qa.mjs", "src/app/api/billing/checkout/route.ts", "src/domains/subscription/checkout.ts"],
+    ),
+    provenSubgate(
+      "ecpay_notify_disabled_skeleton",
+      "ECPay notify/query disabled skeleton",
+      "pnpm billing:ecpay-disabled-qa",
+      "Notification/query routes accept provider-shaped payloads but remain guarded-disabled with duplicate-safe no-write/no-activation posture.",
+      [
+        "scripts/billing-ecpay-disabled-qa.mjs",
+        "src/app/api/billing/ecpay/notify/route.ts",
+        "src/app/api/billing/ecpay/query/route.ts",
+        "src/domains/subscription/ecpay.ts",
+      ],
+    ),
+    provenSubgate(
+      "ecpay_checksum_boundary",
+      "Server-only checksum boundary",
+      "pnpm billing:ecpay-checkmac-qa",
+      "Payment notification checksum validation is server-only and still guarded-disabled before server query and ledger persistence.",
+      ["scripts/billing-ecpay-checkmac-qa.mjs", "src/domains/subscription/ecpay-checkmac.ts"],
+    ),
+    provenSubgate(
+      "ledger_idempotency_contract",
+      "Ledger idempotency contract",
+      "pnpm billing:ledger-idempotency-qa",
+      "Shared ledger contract defines uniqueness scope, duplicate-safe write plan, and no activation before confirmed ledger status.",
+      ["scripts/billing-ledger-idempotency-qa.mjs", "src/domains/subscription/ledger.ts"],
+    ),
+    provenSubgate(
+      "subscription_ui_consumption",
+      "Subscription UI consumption",
+      "pnpm billing:subscription-ui-qa",
+      "Workspace/bootstrap/sidebar consume the server subscription DTO and do not infer paid capability from browser state.",
+      [
+        "scripts/billing-subscription-ui-qa.mjs",
+        "src/lib/navigation/workspace-sidebar.ts",
+        "src/components/layout/role-aware-sidebar.tsx",
+      ],
+    ),
+    blockedSubgate(
+      "ecpay_server_query_confirmation",
+      "ECPay server query confirmation",
+      "provider_env",
+      "BFF-402f pending",
+      "No server-to-server provider query confirmation proof exists yet; production payment cannot pass without it.",
+    ),
+    blockedSubgate(
+      "payment_transaction_persistence",
+      "Payment transaction persistence",
+      "db",
+      "BFF-402g pending",
+      "Real PaymentTransaction persistence/upsert is still not implemented or proven.",
+    ),
+    blockedSubgate(
+      "confirmed_activation",
+      "Confirmed activation",
+      "source",
+      "BFF-402h pending",
+      "Organization plan activation must stay blocked until confirmed transaction/query paths exist.",
+    ),
+    blockedSubgate(
+      "production_payment_env_callback",
+      "Production payment env and callback",
+      "production_approval",
+      "operator manual-setting + callback proof pending",
+      "Production ECPay env, callback domain, and live callback proof require operator setup and approval.",
+    ),
+    blockedSubgate(
+      "refund_void_manual_review",
+      "Refund, void, and manual review",
+      "operator_approval",
+      "explicit approval required",
+      "Destructive payment actions remain out of scope until separately approved.",
+    ),
+  ];
+}
+
+function billingBffGate() {
+  const subgates = billingBffSubgates();
+  const passCount = subgates.filter((item) => item.status === "pass").length;
+  const blocked = subgates.filter((item) => item.status === "blocked");
+
+  return {
+    key: "billing_bff",
+    surface: "billing",
+    status: worstStatus(subgates.map((item) => item.status)),
+    evidenceCommand: "pnpm bff:release-readiness-qa",
+    detail:
+      `${passCount}/${subgates.length} billing subgate(s) are proven. ` +
+      `Blocked: ${blocked.map((item) => item.key).join(", ")}.`,
+    subgates,
+  } satisfies BffSurfaceGate;
 }
 
 function bffSurfaceGates() {
@@ -93,24 +246,8 @@ function bffSurfaceGates() {
       evidenceCommand: "pnpm public:status-qa",
       detail: "Public pricing/status/CTA/lead capture uses a public-safe BFF contract with consent, honeypot, rate-limit, and no production payment/email/notification side effect.",
     },
-    {
-      key: "billing_bff",
-      surface: "billing",
-      status: projectFileExists("scripts/billing-checkout-qa.mjs") ? "warning" : "blocked",
-      evidenceCommand: projectFileExists("scripts/billing-checkout-qa.mjs")
-        ? "pnpm billing:checkout-qa"
-        : "BFF-401/BFF-402 pending",
-      detail: projectFileExists("scripts/billing-checkout-qa.mjs")
-        ? "Checkout disabled/sandbox BFF contract is proven; notification/query/idempotency remains blocked before real payment."
-        : "Checkout and notification/query idempotency BFF gates are not complete.",
-    },
-  ] satisfies Array<{
-    key: string;
-    surface: string;
-    status: ReleaseGateStatus;
-    evidenceCommand: string;
-    detail: string;
-  }>;
+    billingBffGate(),
+  ] satisfies BffSurfaceGate[];
 
   return {
     status: worstStatus(gates.map((item) => item.status)),
@@ -247,13 +384,13 @@ export async function getPlatformReleaseReadiness() {
       ecpayChecklistReady ? "pass" : "blocked",
       "ecpay_checklist",
       "ECPay test checklist",
-      "ECPay test flow, CheckMacValue, callback, and query proof are still missing.",
+      "ECPay test flow, checksum validation, callback, and query proof are still missing.",
     ),
     gate(
       bffGates.status,
       "bff_surface_gates",
       "Full-site BFF surface gates",
-      `${bffGates.gates.filter((item) => item.status === "pass").length}/${bffGates.gates.length} BFF surface gate(s) have proof commands available.`,
+      `${bffGates.gates.filter((item) => item.status === "pass").length}/${bffGates.gates.length} BFF surface gate(s) have proof commands available; billing subgates keep unfinished payment lifecycle blockers visible.`,
     ),
   ];
 

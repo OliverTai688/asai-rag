@@ -251,6 +251,8 @@ Evidence（2026-06-23 BFF-403b）：`pnpm billing:subscription-ui-qa`、`pnpm na
 - The slice must not create subscription orders, payment transactions, checkout redirects, ledger rows, provider calls, fake `AiUsageLog`, real email, real notification, real payment, refund, void, or real plan activation.
 - Proof should include `pnpm bff:release-readiness-qa` or equivalent targeted static/API command, plus `pnpm exec tsc --noEmit --pretty false` and `pnpm lint:changed`. Browser/full smoke evidence may be handed off as `DEMO_QA_BASE_URL=<local server> pnpm demo:release-readiness-qa` when the remaining evidence is operator-runnable and not needed to validate the source slice.
 
+Evidence（2026-06-23 BFF-404a）：`pnpm bff:release-readiness-qa` passed. Proof covers platform-only release-readiness route source (`requirePlatformUser` + `canReadPlatformSummary`), `billingBffSubgates()` / `billingBffGate()` source projection, required billing subgate keys, BFF-402f/BFF-402g/BFF-402h blocked markers, package script registration, owner docs and acceptance refs, and omission of raw payment/provider/private mutation sentinels. The repository still uses read-only Prisma aggregates/counts only; no provider call, no DB mutation, no fake `AiUsageLog`, no real payment, no email, no notification, no refund/void, and no plan activation were attempted. `billing_bff` remains blocked until server query confirmation, real `PaymentTransaction` persistence/upsert, confirmed activation, production payment env/callback, and refund/void/manual review have their own proof.
+
 ---
 
 ## 5. Data-source Inventory Gates
