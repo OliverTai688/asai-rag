@@ -479,6 +479,21 @@ Whole-product review 註記（2026-06-23 runtime proof gate）：`pnpm lv3:cross
 
 ---
 
+### Batch BFF-402b - ECPay Notify/Query Disabled Skeleton
+
+目標：先建立 ECPay callback/query 的 server-owned fail-closed contract，避免 payment callback 或 query 被 UI/redirect 誤當成功；不啟用真 ECPay credentials、不產生或驗證真 CheckMacValue、不寫 transaction ledger、不啟用 plan。
+
+- [x] 建立 `POST /api/billing/ecpay/notify`，支援 JSON 與 `application/x-www-form-urlencoded` notification payload parsing；invalid payload 回 400。
+- [x] Notify 在 provider/env proof 未完成時回 503 disabled posture，明確 `providerAttempted=false`、`checkMacValueVerified=false`、`ledgerWriteAttempted=false`、`transactionCreated=false`、`orderUpdated=false`、`activation.allowed=false`。
+- [x] 建立 `POST /api/billing/ecpay/query` server-owned confirmation skeleton；invalid payload 400、unauth 401，DB auth 不可達時 fail closed 為 `BILLING_ECPAY_AUTH_UNAVAILABLE` 且 `providerAttempted=false`。
+- [x] DTO 不回 HashKey、HashIV、raw CheckMacValue、provider raw payload、payment token、card data、raw payment data、secret/token/cookie/OTP；也不儲存 raw provider payload。
+- [x] Targeted QA `pnpm billing:ecpay-disabled-qa` 覆蓋 source boundary、notify 400/503、duplicate notify disabled idempotency posture、query 400/401、DB-unavailable 503 fail-closed、private/payment sentinel 0。
+- [x] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+
+完成註記（2026-06-23 BFF-402b ECPay notify/query disabled skeleton）：已新增 `src/domains/subscription/ecpay.ts`、`POST /api/billing/ecpay/notify`、`POST /api/billing/ecpay/query` 與 `pnpm billing:ecpay-disabled-qa`。Proof 通過 57/57 checks：source static boundary、notify invalid 400、notify form payload 503 disabled、duplicate notify 503 disabled 且 duplicate-safe/no ledger write/no transaction/no activation、query invalid 400、query unauth 401、目前 DB `P1001 DatabaseNotReachable` 下 authenticated query fail closed 為 `BILLING_ECPAY_AUTH_UNAVAILABLE`、response no-store/request-id、payment/private sentinel 0。此結果不代表真 CheckMacValue 驗證、ECPay server query、transaction ledger persistence、refund/void/manual review 或 production payment enablement 已完成。
+
+---
+
 ## Batch BFF-402 - ECPay Notification / Query / Idempotency
 
 目標：付款狀態只信任 server notification/query confirmation。

@@ -1,0 +1,183 @@
+import { z } from "zod";
+
+export const BILLING_ECPAY_NOTIFY_CONTRACT_VERSION = "asai.billing.ecpay.notify.v1";
+export const BILLING_ECPAY_QUERY_CONTRACT_VERSION = "asai.billing.ecpay.query.v1";
+
+export const ecpayNotifyInputSchema = z
+  .object({
+    MerchantTradeNo: z.string().trim().min(1).max(64),
+    TradeNo: z.string().trim().min(1).max(64).optional(),
+    RtnCode: z.coerce.number().int().optional(),
+    RtnMsg: z.string().trim().max(120).optional(),
+    TradeAmt: z.coerce.number().int().nonnegative().optional(),
+    PaymentDate: z.string().trim().max(64).optional(),
+    PaymentType: z.string().trim().max(64).optional(),
+    CheckMacValue: z.string().trim().min(1).max(256).optional(),
+  })
+  .passthrough();
+
+export const ecpayQueryInputSchema = z.object({
+  merchantTradeNo: z.string().trim().min(1).max(64),
+});
+
+export type EcpayNotifyInput = z.infer<typeof ecpayNotifyInputSchema>;
+export type EcpayQueryInput = z.infer<typeof ecpayQueryInputSchema>;
+
+type DataBoundaryDto = {
+  providerCredentialsReturned: false;
+  providerRawPayloadReturned: false;
+  providerRawPayloadStored: false;
+  browserGeneratedChecksumAllowed: false;
+  paymentTokenReturned: false;
+};
+
+type ActivationBoundaryDto = {
+  allowed: false;
+  reason: "server_notification_query_not_verified" | "ecpay_provider_disabled";
+  redirectOnlyActivationAllowed: false;
+};
+
+export type DisabledEcpayNotifyDto = {
+  version: typeof BILLING_ECPAY_NOTIFY_CONTRACT_VERSION;
+  status: "disabled";
+  source: "guarded_disabled";
+  provider: "ECPAY";
+  providerAttempted: false;
+  receivedAt: string;
+  notification: {
+    merchantTradeNo: string;
+    providerTradeNoAccepted: boolean;
+    returnCodeAccepted: number | null;
+    amountAccepted: boolean;
+    paymentDateAccepted: boolean;
+    checkMacValueProvided: boolean;
+    checkMacValueVerified: false;
+    rawCheckMacValueEchoed: false;
+  };
+  idempotency: {
+    key: string;
+    duplicateSafe: true;
+    ledgerWriteAttempted: false;
+    duplicateLedgerWritePrevented: true;
+    transactionCreated: false;
+    orderUpdated: false;
+  };
+  activation: ActivationBoundaryDto;
+  dataBoundary: DataBoundaryDto;
+  requiredProof: Array<
+    "checkmac_validation" | "server_query_confirmation" | "transaction_ledger_idempotency" | "manual_review_failure_refund_void"
+  >;
+};
+
+export type DisabledEcpayQueryDto = {
+  version: typeof BILLING_ECPAY_QUERY_CONTRACT_VERSION;
+  status: "disabled";
+  source: "guarded_disabled";
+  provider: "ECPAY";
+  providerAttempted: false;
+  queriedAt: string;
+  query: {
+    merchantTradeNo: string;
+    queryAttempted: false;
+    confirmationReceived: false;
+    providerStatusAccepted: false;
+  };
+  idempotency: {
+    key: string;
+    ledgerWriteAttempted: false;
+    duplicateSafe: true;
+    transactionCreated: false;
+    orderUpdated: false;
+  };
+  activation: ActivationBoundaryDto;
+  dataBoundary: DataBoundaryDto;
+  requiredProof: Array<
+    "server_query_confirmation" | "transaction_ledger_idempotency" | "manual_review_failure_refund_void"
+  >;
+};
+
+export function buildDisabledEcpayNotifyDto(input: EcpayNotifyInput, now = new Date()): DisabledEcpayNotifyDto {
+  return {
+    version: BILLING_ECPAY_NOTIFY_CONTRACT_VERSION,
+    status: "disabled",
+    source: "guarded_disabled",
+    provider: "ECPAY",
+    providerAttempted: false,
+    receivedAt: now.toISOString(),
+    notification: {
+      merchantTradeNo: input.MerchantTradeNo,
+      providerTradeNoAccepted: Boolean(input.TradeNo),
+      returnCodeAccepted: input.RtnCode ?? null,
+      amountAccepted: input.TradeAmt !== undefined,
+      paymentDateAccepted: Boolean(input.PaymentDate),
+      checkMacValueProvided: Boolean(input.CheckMacValue),
+      checkMacValueVerified: false,
+      rawCheckMacValueEchoed: false,
+    },
+    idempotency: {
+      key: input.MerchantTradeNo,
+      duplicateSafe: true,
+      ledgerWriteAttempted: false,
+      duplicateLedgerWritePrevented: true,
+      transactionCreated: false,
+      orderUpdated: false,
+    },
+    activation: {
+      allowed: false,
+      reason: "server_notification_query_not_verified",
+      redirectOnlyActivationAllowed: false,
+    },
+    dataBoundary: disabledPaymentDataBoundary(),
+    requiredProof: [
+      "checkmac_validation",
+      "server_query_confirmation",
+      "transaction_ledger_idempotency",
+      "manual_review_failure_refund_void",
+    ],
+  };
+}
+
+export function buildDisabledEcpayQueryDto(input: EcpayQueryInput, now = new Date()): DisabledEcpayQueryDto {
+  return {
+    version: BILLING_ECPAY_QUERY_CONTRACT_VERSION,
+    status: "disabled",
+    source: "guarded_disabled",
+    provider: "ECPAY",
+    providerAttempted: false,
+    queriedAt: now.toISOString(),
+    query: {
+      merchantTradeNo: input.merchantTradeNo,
+      queryAttempted: false,
+      confirmationReceived: false,
+      providerStatusAccepted: false,
+    },
+    idempotency: {
+      key: input.merchantTradeNo,
+      ledgerWriteAttempted: false,
+      duplicateSafe: true,
+      transactionCreated: false,
+      orderUpdated: false,
+    },
+    activation: {
+      allowed: false,
+      reason: "ecpay_provider_disabled",
+      redirectOnlyActivationAllowed: false,
+    },
+    dataBoundary: disabledPaymentDataBoundary(),
+    requiredProof: [
+      "server_query_confirmation",
+      "transaction_ledger_idempotency",
+      "manual_review_failure_refund_void",
+    ],
+  };
+}
+
+function disabledPaymentDataBoundary(): DataBoundaryDto {
+  return {
+    providerCredentialsReturned: false,
+    providerRawPayloadReturned: false,
+    providerRawPayloadStored: false,
+    browserGeneratedChecksumAllowed: false,
+    paymentTokenReturned: false,
+  };
+}

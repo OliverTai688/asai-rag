@@ -69,6 +69,7 @@
     "bff:client-portal-qa": "node scripts/bff-client-portal-qa.mjs",
     "bff:platform-qa": "node scripts/bff-platform-qa.mjs",
     "billing:checkout-qa": "node scripts/billing-checkout-qa.mjs",
+    "billing:ecpay-disabled-qa": "node scripts/billing-ecpay-disabled-qa.mjs",
     "bff:reports-qa": "node scripts/bff-reports-qa.mjs",
     "bff:visit-report-ai-qa": "node scripts/bff-visit-report-ai-qa.mjs",
     "bff:issues-qa": "node scripts/bff-issues-qa.mjs",

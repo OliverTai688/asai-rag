@@ -84,11 +84,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 2,
+    "normalLoopsSinceLastWholeProductReview": 3,
     "lastWholeProductReviewAt": "2026-06-22T16:33:43Z",
     "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-23_lv3-whole-product-gap-review-runtime-proof-gate.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "BFF-402b ECPay notify/query/idempotency fail-closed skeleton, or another source-backed release-hardening slice that removes fake success without enabling real provider delivery. BFF-402a is complete: /api/notifications/visit-reminder no longer returns mock email success and pnpm notification:visit-reminder-disabled-qa proves source boundary, 401/400, DB-unavailable 503 fail-closed, no provider/no private leak. Full authenticated disabled DTO runtime proof can be rerun by the operator when DB is reachable; do not spend the next loop on docs-only evidence or residual proof unless specifically requested. If relationship persistence product/schema decision is made, that can outrank BFF-402b.",
+    "nextRecommendedImplementationSlice": "BFF-403 subscription capability BFF, or BFF-402c real ECPay ledger/idempotency contract only if DB/provider env is available and approved. BFF-402b is complete as a fail-closed notify/query skeleton: pnpm billing:ecpay-disabled-qa proves notify 400/503, duplicate notify disabled idempotency posture, query 400/401, DB-unavailable 503 fail-closed, no provider/no payment leak. Do not spend the next loop on docs-only evidence or residual authenticated DB proof unless specifically requested; operator can rerun the same command when DB is reachable. If relationship persistence product/schema decision is made, that can outrank billing.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {
@@ -156,5 +156,5 @@
     "lv3ImmersiveLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-immersive-loop.md",
     "lv3WholeProductGapReviewLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md"
   },
-  "updatedAt": "2026-06-23T00:55:00Z"
+  "updatedAt": "2026-06-23T01:06:56Z"
 }

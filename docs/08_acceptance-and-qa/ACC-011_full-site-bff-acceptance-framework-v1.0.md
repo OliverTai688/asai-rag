@@ -192,6 +192,16 @@ Evidence（2026-06-21 BFF-401a）：`BILLING_CHECKOUT_QA_BASE_URL=http://127.0.0
 
 Evidence（2026-06-23 BFF-402a）：`pnpm notification:visit-reminder-disabled-qa` covers source removal of mock success, unauth 401, invalid input 400, DB-unavailable 503 fail-closed with `providerAttempted=false`, no-store/request-id, and private sentinel 0. The current local Supabase DB target returned Prisma `P1001 DatabaseNotReachable`, so authenticated disabled DTO runtime proof is deferred to rerun the same command when DB is reachable; the source DTO remains guarded-disabled and no provider/job/email/notification was attempted.
 
+`BFF-402b` ECPay notify/query disabled skeleton proof is acceptable before full payment callback/query launch only if:
+
+- `POST /api/billing/ecpay/notify` accepts a provider-shaped payload but fails closed with 503 disabled until CheckMacValue validation, server query confirmation, and ledger idempotency are implemented.
+- Notify invalid input returns 400; repeated notify payloads expose duplicate-safe disabled posture without creating transactions, updating orders, activating plans, or writing ledger rows.
+- `POST /api/billing/ecpay/query` is server-owned/authenticated; invalid input returns 400, unauthenticated requests return 401, and auth DB outage fails closed without provider query attempts.
+- Response and logs do not expose HashKey, HashIV, raw CheckMacValue, provider raw payload, payment token, card data, raw payment data, raw cookie, secret, token, OTP, or env values.
+- This proof does not satisfy full BFF-402: real CheckMacValue validation, ECPay server query confirmation, transaction ledger persistence, refund/void/manual review, and real plan activation remain blocked until provider/env/DB proof is completed.
+
+Evidence（2026-06-23 BFF-402b）：`pnpm billing:ecpay-disabled-qa` passed 57/57 checks. Proof covers source boundary, notify invalid 400, notify form payload 503 disabled, duplicate notify 503 disabled with duplicate-safe/no-ledger/no-transaction/no-activation posture, query invalid 400, query unauth 401, DB-unavailable authenticated query 503 `BILLING_ECPAY_AUTH_UNAVAILABLE` with `providerAttempted=false`, no-store/request-id, and payment/private sentinel 0. No ECPay provider call, no DB write, no fake `AiUsageLog`, no real payment, and no production checkout enablement was attempted.
+
 ---
 
 ## 5. Data-source Inventory Gates
