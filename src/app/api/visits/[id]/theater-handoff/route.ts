@@ -3,6 +3,7 @@ import type { VisitTheaterSensitivityApproval } from "@/domains/theater/visit-ha
 import { z } from "zod";
 import { authErrorResponse, requireCurrentMember } from "@/lib/auth/current-workspace";
 import { getVisitPlanForMember } from "@/lib/visits/visit-plan-repository";
+import { getVisitMeetingRelationshipSignalDeckForMember } from "@/lib/visits/meeting-relationship-signal-repository";
 import type { AppSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
 
@@ -53,7 +54,7 @@ export async function POST(req: Request, ctx: VisitTheaterHandoffRouteContext) {
       );
     }
 
-    const response = buildHandoffResponse(session, source, parsedBody.data);
+    const response = await buildHandoffResponse(session, source, parsedBody.data);
 
     if (source.client.sensitivityLevel === "HIGHLY_SENSITIVE") {
       await prisma.interactionEvent.create({
@@ -82,11 +83,18 @@ export async function POST(req: Request, ctx: VisitTheaterHandoffRouteContext) {
   }
 }
 
-function buildHandoffResponse(
+async function buildHandoffResponse(
   session: AppSession,
   source: NonNullable<Awaited<ReturnType<typeof getVisitPlanForMember>>>,
   sensitivityApproval?: VisitTheaterSensitivityApproval,
 ) {
+  const meetingRelationshipSignalResult = await getVisitMeetingRelationshipSignalDeckForMember(
+    session,
+    source.visitPlan.id,
+  );
+  const meetingRelationshipSignalDeck =
+    meetingRelationshipSignalResult.status === "OK" ? meetingRelationshipSignalResult.data.deck : null;
+
   const handoff = buildVisitTheaterHandoff({
     organizationId: session.organization.id,
     memberId: session.user.id,
@@ -95,6 +103,7 @@ function buildHandoffResponse(
     visitPlan: source.visitPlan,
     sessionId: `visit_theater_${source.visitPlan.id}`,
     sensitivityApproval,
+    meetingRelationshipSignalDeck,
   });
 
   return Response.json(

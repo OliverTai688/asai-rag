@@ -916,10 +916,11 @@ function VisitSourceReviewPanel({
             已從 {review.client.name} 的準備包整理角色、關係、提問依據與待確認項；推論與未知會停留在建構包，不會寫回 CRM 事實。
           </p>
         </div>
-        <div className="grid grid-cols-3 gap-2 text-center sm:min-w-72">
+        <div className="grid grid-cols-2 gap-2 text-center sm:min-w-96 md:grid-cols-4">
           <SourceCountPill label="目標" value={sourceCounts.objectives} />
           <SourceCountPill label="提問" value={sourceCounts.spinQuestions} />
           <SourceCountPill label="依據" value={sourceCounts.questionEvidence} />
+          <SourceCountPill label="會議" value={sourceCounts.meetingRelationshipSignals ?? 0} />
         </div>
       </div>
 
@@ -1195,6 +1196,8 @@ type VisitTheaterHandoffResponse = {
         policies: number;
         objections: number;
         visitMaterials: number;
+        relationshipConfirmationCards: number;
+        meetingRelationshipSignals: number;
       };
     };
     packet: TheaterBuildPacket;

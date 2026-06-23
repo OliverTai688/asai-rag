@@ -47,15 +47,18 @@ const sourceAdoptionRequirements: Record<string, { ownerRefs: string[]; evidence
       "src/app/api/visits/[id]/relationship-confirmation-state/route.ts",
       "src/app/api/visits/[id]/route-b-red-line-context/route.ts",
       "src/app/api/visits/[id]/meeting-relationship-signals/route.ts",
+      "src/app/api/visits/[id]/theater-handoff/route.ts",
       "src/domains/visit/ai-evidence-dto.ts",
       "src/domains/visit/relationship-confirmation.ts",
       "src/domains/visit/relationship-confirmation-state.ts",
       "src/domains/visit/meeting-relationship-signal.ts",
       "src/domains/visit/route-b-red-line-context.ts",
       "src/domains/theater/visit-handoff.ts",
+      "src/app/(dashboard)/theater/build/page.tsx",
       "src/lib/visits/visit-plan-repository.ts",
       "src/lib/visits/route-b-red-line-context-repository.ts",
       "src/lib/visits/meeting-relationship-signal-repository.ts",
+      "scripts/visit-meeting-signal-theater-handoff-qa.mjs",
     ],
     evidenceRefs: [
       "buildProviderSafeClientSnapshot",
@@ -70,6 +73,7 @@ const sourceAdoptionRequirements: Record<string, { ownerRefs: string[]; evidence
       "relationship-confirmation-state-ui-boundary",
       "relationship-confirmation-theater-handoff-grounding",
       "meeting-notes-relationship-confirmation-signal",
+      "meeting-relationship-signal-theater-handoff-grounding",
       "RelationshipConfirmationPanel.data-relationship-confirmation-state-boundary",
       "VisitRelationshipConfirmationDeck.proof.writesConfirmedCrmFact=false",
       "VisitRelationshipConfirmationStateBoundary.storageDecision.currentPersistence=local-only-ui-state",
@@ -82,9 +86,16 @@ const sourceAdoptionRequirements: Record<string, { ownerRefs: string[]; evidence
       "VisitMeetingRelationshipSignalBffDto.proof.writesRelationshipGraph=false",
       "MeetingRelationshipSignalPanel.data-meeting-relationship-signal-cards",
       "VisitTheaterHandoff.sourceSummary.evidenceSummary.relationshipConfirmation",
+      "VisitTheaterHandoff.sourceSummary.evidenceSummary.meetingRelationshipSignals",
       "VisitTheaterRelationshipConfirmationHandoffSummary.localAdvisorStatePersisted=false",
       "VisitTheaterRelationshipConfirmationHandoffSummary.providerCallAttempted=false",
       "VisitTheaterRelationshipConfirmationHandoffSummary.writesConfirmedCrmFact=false",
+      "VisitTheaterMeetingRelationshipSignalHandoffSummary.ownerScopedVisitPlanRequired=true",
+      "VisitTheaterMeetingRelationshipSignalHandoffSummary.providerCallAttempted=false",
+      "VisitTheaterMeetingRelationshipSignalHandoffSummary.persistedToDatabase=false",
+      "VisitTheaterMeetingRelationshipSignalHandoffSummary.writesRelationshipGraph=false",
+      "VisitTheaterMeetingRelationshipSignalHandoffSummary.writesVisitPlan=false",
+      "VisitTheaterMeetingRelationshipSignalHandoffSummary.writesConfirmedCrmFact=false",
       "buildVisitRouteBRedLineContextFromFeedbackReview",
       "getVisitRouteBRedLineContextForMember",
       "VisitRouteBRedLineContextBffDto.proof.browserSuppliedTheaterSessionId=false",
@@ -101,6 +112,7 @@ const sourceAdoptionRequirements: Record<string, { ownerRefs: string[]; evidence
       "pnpm visit:relationship-confirmation-state-ui-qa",
       "pnpm visit:meeting-relationship-signal-dry-run",
       "pnpm visit:meeting-relationship-signal-bff-ui-qa",
+      "pnpm visit:meeting-signal-theater-handoff-qa",
       "pnpm visit:route-b-red-line-context-dry-run",
       "pnpm visit:route-b-red-line-context-bff-qa",
     ],
@@ -758,6 +770,14 @@ function assertVisitMeetingRelationshipSignal(manifests: AgentProtocolManifest[]
     "visit manifest declares meeting relationship signal action boundary",
   );
   push(
+    manifest.capabilities.some((capability) => capability.id === "meeting-relationship-signal-theater-handoff-grounding"),
+    "visit manifest declares meeting signal theater handoff capability",
+  );
+  push(
+    manifest.interfaces.actions.some((action) => action.id === "meeting-relationship-signal-theater-handoff-grounding"),
+    "visit manifest declares meeting signal theater handoff action boundary",
+  );
+  push(
     manifest.schemas.inputDtoRefs.includes("VisitMeetingRelationshipSignalInput"),
     "visit manifest input DTOs include VisitMeetingRelationshipSignalInput",
   );
@@ -772,6 +792,10 @@ function assertVisitMeetingRelationshipSignal(manifests: AgentProtocolManifest[]
   push(
     manifest.schemas.outputDtoRefs.includes("VisitMeetingRelationshipSignalBffDto"),
     "visit manifest output DTOs include VisitMeetingRelationshipSignalBffDto",
+  );
+  push(
+    manifest.schemas.outputDtoRefs.includes("VisitTheaterHandoff.sourceSummary.evidenceSummary.meetingRelationshipSignals"),
+    "visit manifest output DTOs include meeting signal theater handoff summary",
   );
   push(
     manifest.schemas.evidenceDtoRefs.includes(
@@ -791,12 +815,21 @@ function assertVisitMeetingRelationshipSignal(manifests: AgentProtocolManifest[]
     manifest.proof.commands.includes("pnpm visit:meeting-relationship-signal-bff-ui-qa"),
     "visit proof commands include meeting relationship signal BFF/UI QA",
   );
+  push(
+    manifest.proof.commands.includes("pnpm visit:meeting-signal-theater-handoff-qa"),
+    "visit proof commands include meeting signal theater handoff QA",
+  );
 
   const adoption = manifest.proof.sourceAdoption;
   const requiredOwnerRefs = [
     "src/app/api/visits/[id]/meeting-relationship-signals/route.ts",
+    "src/app/api/visits/[id]/theater-handoff/route.ts",
+    "src/app/(dashboard)/pre-visit/[planId]/page.tsx",
+    "src/app/(dashboard)/theater/build/page.tsx",
+    "src/domains/theater/visit-handoff.ts",
     "src/lib/visits/meeting-relationship-signal-repository.ts",
     "src/domains/visit/meeting-relationship-signal.ts",
+    "scripts/visit-meeting-signal-theater-handoff-qa.mjs",
     "scripts/visit-meeting-relationship-signal-bff-ui-qa.mjs",
     "scripts/visit-meeting-relationship-signal-dry-run.mjs",
     "scripts/visit-meeting-relationship-signal-dry-run.ts",
@@ -818,6 +851,16 @@ function assertVisitMeetingRelationshipSignal(manifests: AgentProtocolManifest[]
     "VisitMeetingRelationshipSignalBffDto.proof.writesVisitPlan=false",
     "MeetingRelationshipSignalPanel.data-meeting-relationship-signal-cards",
     "/api/visits/[id]/meeting-relationship-signals",
+    "meeting-relationship-signal-theater-handoff-grounding",
+    "VisitTheaterHandoff.sourceSummary.evidenceSummary.meetingRelationshipSignals",
+    "VisitTheaterMeetingRelationshipSignalHandoffSummary.ownerScopedVisitPlanRequired=true",
+    "VisitTheaterMeetingRelationshipSignalHandoffSummary.providerCallAttempted=false",
+    "VisitTheaterMeetingRelationshipSignalHandoffSummary.persistedToDatabase=false",
+    "VisitTheaterMeetingRelationshipSignalHandoffSummary.writesRelationshipGraph=false",
+    "VisitTheaterMeetingRelationshipSignalHandoffSummary.writesVisitPlan=false",
+    "VisitTheaterMeetingRelationshipSignalHandoffSummary.writesConfirmedCrmFact=false",
+    "meetingRelationshipSignalDeck",
+    "SourceCountPill label=會議",
   ];
 
   for (const ownerRef of requiredOwnerRefs) {

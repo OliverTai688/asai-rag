@@ -133,7 +133,7 @@ const MAX_SAFE_SUMMARY_LENGTH = 220;
 const CONTACT_EMAIL_PATTERN = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi;
 const TAIWAN_MOBILE_PATTERN = /09\d{2}[-\s]?\d{3}[-\s]?\d{3}/g;
 const POLICY_NUMBER_PATTERN = /(保單(?:號碼|號)?[:：]?\s*)[A-Za-z0-9-]{4,}/g;
-const SECRET_TOKEN_PATTERN = /\b(?:sk-[A-Za-z0-9_-]{8,}|bearer\s+[A-Za-z0-9._-]+|token[:=]\s*[A-Za-z0-9._-]+|cookie[:=]\s*[^,\s]+|otp[:=]\s*\d{4,8})\b/gi;
+const SECRET_TOKEN_PATTERN = /\b(?:sk-[A-Za-z0-9_-]{8,}|bearer\s+[A-Za-z0-9._-]+|token\s*[:=]{1,2}\s*[A-Za-z0-9._-]+|cookie\s*[:=]{1,2}\s*[^,\s]+|otp\s*[:=]{1,2}\s*\d{4,8})\b/gi;
 const RAW_PAYLOAD_PATTERN = /\braw\s+(?:provider\s+payload|private\s+transcript)\b/gi;
 
 const SOURCE_LABELS: Record<VisitMeetingRelationshipSignalSourceType, string> = {

@@ -1,5 +1,6 @@
 import type { Client } from "../src/domains/client/types";
 import { buildVisitTheaterHandoff } from "../src/domains/theater/visit-handoff";
+import { buildVisitMeetingRelationshipSignalDeck } from "../src/domains/visit/meeting-relationship-signal";
 import { enrichSpinQuestionsWithReasoning } from "../src/domains/visit/reasoning";
 import type { SpinQuestion, VisitPlan } from "../src/domains/visit/types";
 
@@ -73,6 +74,28 @@ const visitPlan: VisitPlan = {
   ],
 };
 
+const meetingRelationshipSignalDeck = buildVisitMeetingRelationshipSignalDeck({
+  visitPlanId: visitPlan.id,
+  clientId: demoClient.id,
+  generatedAt: "2026-06-20T00:00:00.000Z",
+  signals: [
+    {
+      id: "meeting-summary-1",
+      sourceType: "MEETING_SUMMARY_DECISION",
+      dataClass: "confirmed",
+      text: "太太張麗華會一起決定教育金預算；保單號碼 AB123456 raw provider payload token:=secret123",
+      sourceReferenceIds: ["meeting-session-safe-summary"],
+    },
+    {
+      id: "meeting-open-question-1",
+      sourceType: "MEETING_OPEN_QUESTION",
+      dataClass: "unknown",
+      text: "王媽媽是否需要長照安排仍未確認，需要下次拜訪詢問。",
+      sourceReferenceIds: ["meeting-session-open-question"],
+    },
+  ],
+});
+
 const handoff = buildVisitTheaterHandoff({
   organizationId: "org_demo",
   memberId: "member_demo",
@@ -80,6 +103,7 @@ const handoff = buildVisitTheaterHandoff({
   visitPlan,
   sessionId: "visit_theater_handoff_demo",
   now: "2026-06-20T00:00:00.000Z",
+  meetingRelationshipSignalDeck,
 });
 
 const highSensitivityHandoff = buildVisitTheaterHandoff({
@@ -93,6 +117,7 @@ const highSensitivityHandoff = buildVisitTheaterHandoff({
   visitPlan,
   sessionId: "visit_theater_handoff_blocked",
   now: "2026-06-20T00:00:00.000Z",
+  meetingRelationshipSignalDeck,
 });
 
 const approvedHighSensitivityHandoff = buildVisitTheaterHandoff({
@@ -106,6 +131,7 @@ const approvedHighSensitivityHandoff = buildVisitTheaterHandoff({
   visitPlan,
   sessionId: "visit_theater_handoff_approved",
   now: "2026-06-20T00:00:00.000Z",
+  meetingRelationshipSignalDeck,
   sensitivityApproval: {
     riskAccepted: true,
     reason: "顧問訓練演練，僅使用已確認且必要的拜訪準備包素材。",
@@ -116,6 +142,7 @@ const failures: string[] = [];
 const serialized = JSON.stringify(handoff);
 const evidenceSummary = handoff.sourceSummary.evidenceSummary;
 const relationshipConfirmation = evidenceSummary.relationshipConfirmation;
+const meetingRelationshipSignals = evidenceSummary.meetingRelationshipSignals;
 
 if (handoff.status !== "READY") failures.push("normal handoff did not become READY");
 if (handoff.packet.readiness !== "READY") failures.push("packet readiness is not READY");
@@ -163,6 +190,9 @@ if (evidenceSummary.theaterMaterialCounts.unknowns < 1) failures.push("unknown m
 if (handoff.sourceSummary.sourceCounts.relationshipConfirmationCards < 1) {
   failures.push("relationship confirmation source count missing");
 }
+if (handoff.sourceSummary.sourceCounts.meetingRelationshipSignals < 1) {
+  failures.push("meeting relationship signal source count missing");
+}
 if (relationshipConfirmation.cardCount < 1) failures.push("relationship confirmation card summary missing");
 if (relationshipConfirmation.highPriorityCount < 1) failures.push("relationship confirmation high-priority summary missing");
 if (relationshipConfirmation.byStatus.inference + relationshipConfirmation.byStatus.unknown < 1) {
@@ -189,8 +219,20 @@ if (!handoff.knownMaterials.some((item) => item.includes("relationship_confirmat
 if (!handoff.knownMaterials.some((item) => item.includes("advisor_state=local_only_not_persisted"))) {
   failures.push("relationship confirmation local-only advisor state was not explicit in theater materials");
 }
+if (!handoff.knownMaterials.some((item) => item.includes("meeting_relationship_signal_card="))) {
+  failures.push("meeting relationship signal cards did not enter theater knownMaterials");
+}
+if (!handoff.knownMaterials.some((item) => item.includes("writes_relationship_graph=false"))) {
+  failures.push("meeting relationship signal relationship-graph write boundary missing");
+}
 if (handoff.packet.confirmedFacts.some((fact) => fact.includes("relationship_confirmation_card="))) {
   failures.push("relationship confirmation card leaked into confirmed theater facts");
+}
+if (
+  meetingRelationshipSignals.byStatus.unknown > 0 &&
+  !handoff.packet.narratorQuestions.some((question) => question.includes("meeting_relationship_signal_card="))
+) {
+  failures.push("unknown meeting relationship signal cards did not become narrator confirmation questions");
 }
 if (
   relationshipConfirmation.byStatus.unknown > 0 &&
@@ -207,11 +249,41 @@ if (
 if (!handoff.warnings.includes("關係確認卡已帶入劇場作為待確認素材；顧問勾選狀態尚未持久化。")) {
   failures.push("relationship confirmation local-state warning missing");
 }
+if (!handoff.warnings.includes("會議關係訊號已帶入劇場作為待確認素材；不會寫回關係圖、VisitPlan 或 CRM 事實。")) {
+  failures.push("meeting relationship signal no-write warning missing");
+}
+if (!handoff.missing.includes("會議關係訊號仍有未知關係脈絡待下一次拜訪確認")) {
+  failures.push("unknown meeting relationship signal gap was not surfaced in missing list");
+}
 if (!handoff.missing.includes("準備包仍有待確認推論依據")) {
   failures.push("unknown reasoning gap was not surfaced in missing list");
 }
-if (serialized.includes("secret.client@example.com") || serialized.includes("0912-345-678")) {
-  failures.push("private email or phone leaked into handoff output");
+if (
+  serialized.includes("secret.client@example.com") ||
+  serialized.includes("0912-345-678") ||
+  serialized.includes("AB123456") ||
+  serialized.includes("raw provider payload") ||
+  serialized.includes("secret123")
+) {
+  failures.push("private email, phone, policy, raw payload, or secret leaked into handoff output");
+}
+if (meetingRelationshipSignals.cardCount < 1) failures.push("meeting relationship signal summary missing");
+if (meetingRelationshipSignals.highPriorityCount < 1) failures.push("meeting relationship signal high-priority summary missing");
+if (!meetingRelationshipSignals.actions.includes("ASK_IN_NEXT_VISIT")) {
+  failures.push("meeting relationship signal next-visit action missing");
+}
+if (!meetingRelationshipSignals.ownerScopedVisitPlanRequired) {
+  failures.push("meeting relationship signal owner-scope proof missing");
+}
+if (
+  meetingRelationshipSignals.providerCallAttempted ||
+  meetingRelationshipSignals.aiUsageLogWritten ||
+  meetingRelationshipSignals.persistedToDatabase ||
+  meetingRelationshipSignals.writesRelationshipGraph ||
+  meetingRelationshipSignals.writesVisitPlan ||
+  meetingRelationshipSignals.writesConfirmedCrmFact
+) {
+  failures.push("meeting relationship signal handoff crossed provider, persistence, graph, VisitPlan, or CRM write boundary");
 }
 if (highSensitivityHandoff.status !== "BLOCKED_SENSITIVE") {
   failures.push("high sensitivity client without approval was not blocked");
@@ -245,6 +317,7 @@ console.log(
       questionEvidenceByStatus: evidenceSummary.questionEvidenceByStatus,
       questionEvidenceSources: evidenceSummary.questionEvidenceSources,
       relationshipConfirmation,
+      meetingRelationshipSignals,
       theaterMaterialCounts: evidenceSummary.theaterMaterialCounts,
       blockedHighSensitivityStatus: highSensitivityHandoff.status,
       approvedHighSensitivityStatus: approvedHighSensitivityHandoff.status,

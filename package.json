@@ -36,6 +36,7 @@
     "visit:relationship-confirmation-state-ui-qa": "node scripts/visit-relationship-confirmation-state-ui-qa.mjs",
     "visit:meeting-relationship-signal-dry-run": "node scripts/visit-meeting-relationship-signal-dry-run.mjs",
     "visit:meeting-relationship-signal-bff-ui-qa": "node scripts/visit-meeting-relationship-signal-bff-ui-qa.mjs",
+    "visit:meeting-signal-theater-handoff-qa": "node scripts/visit-meeting-signal-theater-handoff-qa.mjs",
     "visit:route-b-red-line-context-dry-run": "node scripts/visit-route-b-red-line-context-dry-run.mjs",
     "visit:route-b-red-line-context-bff-qa": "node scripts/visit-route-b-red-line-context-bff-contract-qa.mjs",
     "meeting:contract-dry-run": "node scripts/meeting-contract-dry-run.mjs",

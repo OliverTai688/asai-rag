@@ -34,6 +34,7 @@ try {
       "src/domains/interview/outlines/theater-field-build.ts",
       "src/domains/interview/types.ts",
       "src/domains/visit/reasoning.ts",
+      "src/domains/visit/meeting-relationship-signal.ts",
       "src/domains/visit/types.ts",
       "src/domains/client/types.ts",
     ],

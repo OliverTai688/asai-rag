@@ -322,6 +322,7 @@ function VisitPlanDetailContent() {
   const activeRouteBContextLoading = !isQuickstart && Boolean(planId) && isLoadingRouteBContext;
   const activeMeetingRelationshipSignals =
     !isQuickstart && meetingRelationshipSignals?.visitPlanId === planId ? meetingRelationshipSignals : null;
+  const meetingRelationshipSignalDeck = activeMeetingRelationshipSignals?.deck ?? null;
   const activeMeetingRelationshipSignalError = !isQuickstart && planId ? meetingRelationshipSignalError : null;
   const activeMeetingRelationshipSignalLoading =
     !isQuickstart && Boolean(planId) && isLoadingMeetingRelationshipSignals;
@@ -342,8 +343,9 @@ function VisitPlanDetailContent() {
       client,
       visitPlan: plan,
       sessionId: `previsit_theater_${plan.id}`,
+      meetingRelationshipSignalDeck,
     });
-  }, [client, plan]);
+  }, [client, meetingRelationshipSignalDeck, plan]);
   const relationshipConfirmationDeck = useMemo(
     () => (client ? buildVisitRelationshipConfirmationDeck(client) : null),
     [client],

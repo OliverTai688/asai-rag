@@ -7,6 +7,10 @@ import {
   type VisitRelationshipConfirmationDeck,
 } from "../visit/relationship-confirmation";
 import type {
+  VisitMeetingRelationshipSignalAction,
+  VisitMeetingRelationshipSignalDeck,
+} from "../visit/meeting-relationship-signal";
+import type {
   ObjectionHandling,
   SpinQuestion,
   VisitMaterial,
@@ -32,6 +36,24 @@ export interface VisitTheaterRelationshipConfirmationHandoffSummary {
   rawPrivateTranscriptIncluded: false;
 }
 
+export interface VisitTheaterMeetingRelationshipSignalHandoffSummary {
+  cardCount: number;
+  highPriorityCount: number;
+  byStatus: Record<VisitQuestionEvidenceStatus, number>;
+  actions: VisitMeetingRelationshipSignalAction[];
+  meetingSourceCount: number;
+  narratorQuestionCount: number;
+  ownerScopedVisitPlanRequired: true;
+  providerCallAttempted: false;
+  aiUsageLogWritten: false;
+  persistedToDatabase: false;
+  writesRelationshipGraph: false;
+  writesVisitPlan: false;
+  writesConfirmedCrmFact: false;
+  storesRawProviderPayload: false;
+  rawPrivateTranscriptIncluded: false;
+}
+
 export interface VisitTheaterSensitivityApproval {
   riskAccepted: boolean;
   reason?: string;
@@ -46,6 +68,7 @@ export interface VisitTheaterHandoffInput {
   sessionId?: string;
   now?: string;
   sensitivityApproval?: VisitTheaterSensitivityApproval;
+  meetingRelationshipSignalDeck?: VisitMeetingRelationshipSignalDeck | null;
 }
 
 export interface VisitTheaterHandoff {
@@ -66,11 +89,13 @@ export interface VisitTheaterHandoff {
       objections: number;
       visitMaterials: number;
       relationshipConfirmationCards: number;
+      meetingRelationshipSignals: number;
     };
     evidenceSummary: {
       questionEvidenceByStatus: Record<VisitQuestionEvidenceStatus, number>;
       questionEvidenceSources: VisitQuestionEvidenceSource[];
       relationshipConfirmation: VisitTheaterRelationshipConfirmationHandoffSummary;
+      meetingRelationshipSignals: VisitTheaterMeetingRelationshipSignalHandoffSummary;
       theaterMaterialCounts: {
         facts: number;
         inferences: number;
@@ -85,7 +110,12 @@ const DEFAULT_SEGMENT_ID = "theater-focus";
 export function buildVisitTheaterHandoff(input: VisitTheaterHandoffInput): VisitTheaterHandoff {
   const now = input.now ?? new Date().toISOString();
   const relationshipConfirmationDeck = buildVisitRelationshipConfirmationDeck(input.client, now);
-  const knownMaterials = buildVisitTheaterKnownMaterials(input, relationshipConfirmationDeck);
+  const meetingRelationshipSignalDeck = input.meetingRelationshipSignalDeck ?? null;
+  const knownMaterials = buildVisitTheaterKnownMaterials(
+    input,
+    relationshipConfirmationDeck,
+    meetingRelationshipSignalDeck,
+  );
   const context = buildTheaterFieldBuildContext({
     organizationId: input.organizationId,
     memberId: input.memberId,
@@ -98,10 +128,13 @@ export function buildVisitTheaterHandoff(input: VisitTheaterHandoffInput): Visit
     now,
   });
 
-  const warnings = buildWarnings(input, relationshipConfirmationDeck);
-  const missing = buildMissingItems(input, relationshipConfirmationDeck);
+  const warnings = buildWarnings(input, relationshipConfirmationDeck, meetingRelationshipSignalDeck);
+  const missing = buildMissingItems(input, relationshipConfirmationDeck, meetingRelationshipSignalDeck);
   const blockedBySensitivity = isBlockedBySensitivity(input);
-  const packet = blockedBySensitivity ? blockPacketForSensitivity(context.packet, input.client.name) : context.packet;
+  const packetWithMeetingQuestions = addMeetingSignalNarratorQuestions(context.packet, meetingRelationshipSignalDeck);
+  const packet = blockedBySensitivity
+    ? blockPacketForSensitivity(packetWithMeetingQuestions, input.client.name)
+    : packetWithMeetingQuestions;
 
   return {
     status: blockedBySensitivity ? "BLOCKED_SENSITIVE" : packet.readiness,
@@ -121,11 +154,13 @@ export function buildVisitTheaterHandoff(input: VisitTheaterHandoffInput): Visit
         objections: input.visitPlan.objections.length,
         visitMaterials: input.visitPlan.materials.length,
         relationshipConfirmationCards: relationshipConfirmationDeck.summary.cardCount,
+        meetingRelationshipSignals: meetingRelationshipSignalDeck?.summary.cardCount ?? 0,
       },
       evidenceSummary: {
         questionEvidenceByStatus: countQuestionEvidenceByStatus(input.visitPlan.spinQuestions),
         questionEvidenceSources: collectQuestionEvidenceSources(input.visitPlan.spinQuestions),
         relationshipConfirmation: summarizeRelationshipConfirmationDeck(relationshipConfirmationDeck),
+        meetingRelationshipSignals: summarizeMeetingRelationshipSignalDeck(meetingRelationshipSignalDeck),
         theaterMaterialCounts: countTheaterMaterialsByPrefix(knownMaterials),
       },
     },
@@ -138,6 +173,7 @@ export function buildVisitTheaterKnownMaterials(
     input.client,
     input.now ?? new Date().toISOString(),
   ),
+  meetingRelationshipSignalDeck = input.meetingRelationshipSignalDeck ?? null,
 ): string[] {
   const { client, visitPlan } = input;
   const materials: string[] = [
@@ -149,6 +185,7 @@ export function buildVisitTheaterKnownMaterials(
     ),
     ...visitPlan.spinQuestions.flatMap((question) => buildQuestionMaterials(question)),
     ...buildRelationshipConfirmationMaterials(relationshipConfirmationDeck),
+    ...buildMeetingRelationshipSignalMaterials(meetingRelationshipSignalDeck),
     ...visitPlan.objections.map((objection) => buildObjectionMaterial(objection)),
     ...visitPlan.materials.map((visitMaterial) => buildVisitMaterialEvidence(visitMaterial)),
   ];
@@ -187,6 +224,34 @@ function buildRelationshipConfirmationMaterials(deck: VisitRelationshipConfirmat
         `evidence=${card.evidenceDetail}`,
         `prompt=${card.confirmationPrompt}`,
         "advisor_state=local_only_not_persisted",
+        "writes_confirmed_crm_fact=false",
+      ]
+        .filter(Boolean)
+        .join("；"),
+    ),
+  );
+}
+
+function buildMeetingRelationshipSignalMaterials(deck: VisitMeetingRelationshipSignalDeck | null): string[] {
+  if (!deck?.cards.length) return [];
+
+  return deck.cards.map((card) =>
+    material(
+      prefixForEvidence(card.evidenceStatus),
+      [
+        `meeting_relationship_signal_card=${card.id}`,
+        `relationship=會議關係訊號：${card.title}`,
+        `status=${card.evidenceStatus}`,
+        `action=${card.recommendedAction}`,
+        `priority=${card.priority}`,
+        `source=${card.sourceLabel}`,
+        `summary=${card.safeSummary}`,
+        `prompt=${card.confirmationPrompt}`,
+        card.sourceReferenceIds.length > 0 ? `source_refs=${card.sourceReferenceIds.slice(0, 3).join(",")}` : "",
+        "advisor_confirmation_required=true",
+        "persisted_to_database=false",
+        "writes_relationship_graph=false",
+        "writes_visit_plan=false",
         "writes_confirmed_crm_fact=false",
       ]
         .filter(Boolean)
@@ -256,6 +321,7 @@ function buildScenario(client: Client, visitPlan: VisitPlan): string {
 function buildWarnings(
   input: VisitTheaterHandoffInput,
   relationshipConfirmationDeck: VisitRelationshipConfirmationDeck,
+  meetingRelationshipSignalDeck: VisitMeetingRelationshipSignalDeck | null,
 ): string[] {
   const warnings: string[] = [];
   if (input.client.sensitivityLevel === "SENSITIVE") warnings.push("敏感客戶：進劇場前需確認演練素材邊界。");
@@ -269,12 +335,16 @@ function buildWarnings(
   if (relationshipConfirmationDeck.summary.cardCount > 0) {
     warnings.push("關係確認卡已帶入劇場作為待確認素材；顧問勾選狀態尚未持久化。");
   }
+  if (meetingRelationshipSignalDeck?.summary.cardCount) {
+    warnings.push("會議關係訊號已帶入劇場作為待確認素材；不會寫回關係圖、VisitPlan 或 CRM 事實。");
+  }
   return warnings;
 }
 
 function buildMissingItems(
   input: VisitTheaterHandoffInput,
   relationshipConfirmationDeck: VisitRelationshipConfirmationDeck,
+  meetingRelationshipSignalDeck: VisitMeetingRelationshipSignalDeck | null,
 ): string[] {
   const missing = [...input.client.complianceChecklist.missingItems];
   if (input.visitPlan.materials.some((item) => !item.checked)) missing.push("拜訪材料尚未全部確認");
@@ -283,6 +353,9 @@ function buildMissingItems(
   }
   if (relationshipConfirmationDeck.summary.unknownCount > 0) {
     missing.push("關係確認卡仍有未知關係/欄位待現場確認");
+  }
+  if (meetingRelationshipSignalDeck?.summary.unknownCount) {
+    missing.push("會議關係訊號仍有未知關係脈絡待下一次拜訪確認");
   }
   return unique(missing);
 }
@@ -310,6 +383,23 @@ function blockPacketForSensitivity(packet: TheaterBuildPacket, clientName: strin
       canStartSimulation: false,
       migrationNote: "高敏感客戶尚未完成建場確認；不得啟動 Theater Route B 或 legacy 演練。",
     },
+  };
+}
+
+function addMeetingSignalNarratorQuestions(
+  packet: TheaterBuildPacket,
+  deck: VisitMeetingRelationshipSignalDeck | null,
+): TheaterBuildPacket {
+  const questions =
+    deck?.cards
+      .filter((card) => card.evidenceStatus === "unknown" || card.recommendedAction === "ASK_IN_NEXT_VISIT")
+      .map((card) => `meeting_relationship_signal_card=${card.id}：${card.confirmationPrompt}`) ?? [];
+
+  if (questions.length === 0) return packet;
+
+  return {
+    ...packet,
+    narratorQuestions: unique([...packet.narratorQuestions, ...questions]),
   };
 }
 
@@ -380,6 +470,40 @@ function summarizeRelationshipConfirmationDeck(
   };
 }
 
+function summarizeMeetingRelationshipSignalDeck(
+  deck: VisitMeetingRelationshipSignalDeck | null,
+): VisitTheaterMeetingRelationshipSignalHandoffSummary {
+  const byStatus: Record<VisitQuestionEvidenceStatus, number> = {
+    confirmed: 0,
+    inference: 0,
+    unknown: 0,
+  };
+
+  for (const card of deck?.cards ?? []) {
+    byStatus[card.evidenceStatus] += 1;
+  }
+
+  return {
+    cardCount: deck?.summary.cardCount ?? 0,
+    highPriorityCount: deck?.summary.highPriorityCount ?? 0,
+    byStatus,
+    actions: Array.from(new Set((deck?.cards ?? []).map((card) => card.recommendedAction))).sort() as VisitMeetingRelationshipSignalAction[],
+    meetingSourceCount: deck?.summary.meetingSourceCount ?? 0,
+    narratorQuestionCount:
+      deck?.cards.filter((card) => card.evidenceStatus === "unknown" || card.recommendedAction === "ASK_IN_NEXT_VISIT")
+        .length ?? 0,
+    ownerScopedVisitPlanRequired: true,
+    providerCallAttempted: deck?.proof.providerCallAttempted ?? false,
+    aiUsageLogWritten: deck?.proof.aiUsageLogWritten ?? false,
+    persistedToDatabase: deck?.proof.persistedToDatabase ?? false,
+    writesRelationshipGraph: deck?.writebackBoundary.writesRelationshipGraph ?? false,
+    writesVisitPlan: deck?.writebackBoundary.writesVisitPlan ?? false,
+    writesConfirmedCrmFact: deck?.proof.writesConfirmedCrmFact ?? false,
+    storesRawProviderPayload: deck?.proof.storesRawProviderPayload ?? false,
+    rawPrivateTranscriptIncluded: deck?.proof.rawPrivateTranscriptIncluded ?? false,
+  };
+}
+
 function countTheaterMaterialsByPrefix(materials: string[]): VisitTheaterHandoff["sourceSummary"]["evidenceSummary"]["theaterMaterialCounts"] {
   return materials.reduce(
     (counts, item) => {
@@ -401,6 +525,12 @@ function sanitizeMaterialText(value: string): string {
     .replace(/\s+/g, " ")
     .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "[email removed]")
     .replace(/09\d{2}[-\s]?\d{3}[-\s]?\d{3}/g, "[phone removed]")
+    .replace(/(保單(?:號碼|號)?[:：]?\s*)[A-Za-z0-9-]{4,}/g, "$1[policy removed]")
+    .replace(
+      /\b(?:sk-[A-Za-z0-9_-]{8,}|bearer\s+[A-Za-z0-9._-]+|token\s*[:=]{1,2}\s*[A-Za-z0-9._-]+|cookie\s*[:=]{1,2}\s*[^,\s]+|otp\s*[:=]{1,2}\s*\d{4,8})\b/gi,
+      "[secret removed]",
+    )
+    .replace(/\braw\s+(?:provider\s+payload|private\s+transcript)\b/gi, "[raw payload removed]")
     .trim();
 }
 
