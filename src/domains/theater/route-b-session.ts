@@ -1,4 +1,5 @@
 import type { RouteBRedLineActionPersistenceState } from "./route-b-red-line-action-workflow";
+import type { TheaterRouteBSourceGrounding } from "./route-b-handoff";
 
 export type RouteBSessionSnapshot = {
   session: {
@@ -24,6 +25,7 @@ export type RouteBSessionSnapshot = {
     narratorQuestions: unknown;
     statePatchCount: number;
     visibilityRules: unknown;
+    sourceGrounding?: TheaterRouteBSourceGrounding;
     redLineActionState?: RouteBRedLineActionPersistenceState;
   };
   characters: Array<{
@@ -64,6 +66,7 @@ export function toPublicRouteBSessionSnapshot(snapshot: RouteBSessionSnapshot): 
       narratorQuestions: snapshot.scene.narratorQuestions,
       statePatchCount: snapshot.scene.statePatchCount,
       visibilityRules: snapshot.scene.visibilityRules,
+      sourceGrounding: snapshot.scene.sourceGrounding,
     },
   };
 }

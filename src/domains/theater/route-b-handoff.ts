@@ -27,6 +27,52 @@ export interface TheaterRouteBSourceRef {
   factStatus: TheaterRouteBFactStatus;
 }
 
+export type TheaterRouteBMeetingSignalGroundingStatus = "confirmed" | "inference" | "unknown";
+
+export interface TheaterRouteBMeetingSignalGroundingInput {
+  id?: string;
+  status: TheaterRouteBMeetingSignalGroundingStatus;
+  action: string;
+  priority: string;
+  sourceLabel: string;
+  summary: string;
+  prompt?: string;
+}
+
+export interface TheaterRouteBMeetingSignalGroundingCard {
+  stageCardId: string;
+  status: TheaterRouteBMeetingSignalGroundingStatus;
+  action: string;
+  priority: string;
+  sourceLabel: string;
+  summary: string;
+  narratorQuestion?: string;
+}
+
+export interface TheaterRouteBMeetingSignalGroundingSummary {
+  cardCount: number;
+  unknownCount: number;
+  narratorQuestionCount: number;
+  cards: TheaterRouteBMeetingSignalGroundingCard[];
+  narratorQuestions: string[];
+  boundary: {
+    ownerScopedVisitPlanRequired: true;
+    browserSuppliedSessionId: false;
+    browserSuppliedPersonId: false;
+    providerCallAttempted: false;
+    aiUsageLogWritten: false;
+    storesRawProviderPayload: false;
+    rawTranscriptStored: false;
+    writesRelationshipGraph: false;
+    writesVisitPlan: false;
+    writesConfirmedCrmFact: false;
+  };
+}
+
+export interface TheaterRouteBSourceGrounding {
+  meetingRelationshipSignals?: TheaterRouteBMeetingSignalGroundingSummary;
+}
+
 export interface TheaterRouteBMaterial {
   id: string;
   text: string;
@@ -93,6 +139,7 @@ export interface TheaterRouteBScene {
   narratorQuestions: TheaterRouteBMaterial[];
   visibilityRules: TheaterRouteBVisibilityRule[];
   statePatches: TheaterRouteBStatePatch[];
+  sourceGrounding?: TheaterRouteBSourceGrounding;
 }
 
 export interface TheaterRouteBAiUsageCallPlan {
@@ -162,6 +209,7 @@ export interface TheaterRouteBCharacterInput {
 export interface BuildTheaterRouteBHandoffOptions {
   routeBEnabled?: boolean;
   now?: string;
+  meetingRelationshipSignals?: TheaterRouteBMeetingSignalGroundingSummary | null;
 }
 
 export interface BuildTheaterRouteBDirectorInputOptions {
@@ -186,6 +234,41 @@ export interface BuildTheaterRouteBStatePatchInput {
 }
 
 const HIDDEN_TEXT = "[removed]";
+
+export function buildTheaterRouteBMeetingSignalGroundingSummary(
+  cards: TheaterRouteBMeetingSignalGroundingInput[],
+  narratorQuestions: string[] = [],
+): TheaterRouteBMeetingSignalGroundingSummary | undefined {
+  const safeCards = cards
+    .slice(0, 6)
+    .map((card, index) => sanitizeMeetingSignalGroundingCard(card, index))
+    .filter((card) => card.summary || card.sourceLabel || card.narratorQuestion);
+  const safeNarratorQuestions = unique(narratorQuestions).slice(0, 4).map(sanitizeRouteBText).filter(Boolean);
+
+  if (!safeCards.length && !safeNarratorQuestions.length) {
+    return undefined;
+  }
+
+  return {
+    cardCount: safeCards.length,
+    unknownCount: safeCards.filter((card) => card.status === "unknown").length,
+    narratorQuestionCount: safeNarratorQuestions.length,
+    cards: safeCards,
+    narratorQuestions: safeNarratorQuestions,
+    boundary: {
+      ownerScopedVisitPlanRequired: true,
+      browserSuppliedSessionId: false,
+      browserSuppliedPersonId: false,
+      providerCallAttempted: false,
+      aiUsageLogWritten: false,
+      storesRawProviderPayload: false,
+      rawTranscriptStored: false,
+      writesRelationshipGraph: false,
+      writesVisitPlan: false,
+      writesConfirmedCrmFact: false,
+    },
+  };
+}
 
 export function buildTheaterRouteBHandoff(
   packet: TheaterBuildPacket,
@@ -214,6 +297,7 @@ export function buildTheaterRouteBHandoff(
     narratorQuestions: buildNarratorMaterials(packet),
     visibilityRules: buildVisibilityRules(),
     statePatches: buildInitialStatePatches(packet, characters),
+    sourceGrounding: buildRouteBSourceGrounding(options.meetingRelationshipSignals),
   };
 
   return {
@@ -238,6 +322,16 @@ export function buildTheaterRouteBHandoff(
       migrationBoundary:
         "本 handoff 是 TDF setup draft / TheaterBuildPacket 到 ITA-003 schema migration 的交接契約；不改 Prisma、不寫 DB、不呼叫 provider。",
     },
+  };
+}
+
+function buildRouteBSourceGrounding(
+  meetingRelationshipSignals?: TheaterRouteBMeetingSignalGroundingSummary | null,
+): TheaterRouteBSourceGrounding | undefined {
+  if (!meetingRelationshipSignals) return undefined;
+
+  return {
+    meetingRelationshipSignals: sanitizeMeetingSignalGroundingSummary(meetingRelationshipSignals),
   };
 }
 
@@ -480,6 +574,69 @@ function material(
     use,
     sourceRefs,
   };
+}
+
+function sanitizeMeetingSignalGroundingSummary(
+  summary: TheaterRouteBMeetingSignalGroundingSummary,
+): TheaterRouteBMeetingSignalGroundingSummary {
+  const safeCards = summary.cards
+    .slice(0, 6)
+    .map((card, index) => ({
+      stageCardId: `route_b_meeting_signal_${index + 1}`,
+      status: normalizeMeetingSignalStatus(card.status),
+      action: sanitizeRouteBText(card.action),
+      priority: sanitizeRouteBText(card.priority),
+      sourceLabel: sanitizeRouteBText(card.sourceLabel || "AI Meeting"),
+      summary: sanitizeRouteBText(card.summary),
+      ...(card.narratorQuestion ? { narratorQuestion: sanitizeRouteBText(card.narratorQuestion) } : {}),
+    }))
+    .filter((card) => card.summary || card.sourceLabel || card.narratorQuestion);
+  const safeNarratorQuestions = unique(summary.narratorQuestions ?? []).slice(0, 4).map(sanitizeRouteBText).filter(Boolean);
+
+  return {
+    cardCount: safeCards.length,
+    unknownCount: safeCards.filter((card) => card.status === "unknown").length,
+    narratorQuestionCount: safeNarratorQuestions.length,
+    cards: safeCards,
+    narratorQuestions: safeNarratorQuestions,
+    boundary: {
+      ownerScopedVisitPlanRequired: true,
+      browserSuppliedSessionId: false,
+      browserSuppliedPersonId: false,
+      providerCallAttempted: false,
+      aiUsageLogWritten: false,
+      storesRawProviderPayload: false,
+      rawTranscriptStored: false,
+      writesRelationshipGraph: false,
+      writesVisitPlan: false,
+      writesConfirmedCrmFact: false,
+    },
+  };
+}
+
+function sanitizeMeetingSignalGroundingCard(
+  card: TheaterRouteBMeetingSignalGroundingInput,
+  index: number,
+): TheaterRouteBMeetingSignalGroundingCard {
+  const narratorQuestion = sanitizeRouteBText(card.prompt ?? "");
+
+  return {
+    stageCardId: `route_b_meeting_signal_${index + 1}`,
+    status: normalizeMeetingSignalStatus(card.status),
+    action: sanitizeRouteBText(card.action),
+    priority: sanitizeRouteBText(card.priority),
+    sourceLabel: sanitizeRouteBText(card.sourceLabel || "AI Meeting"),
+    summary: sanitizeRouteBText(card.summary),
+    ...(narratorQuestion ? { narratorQuestion } : {}),
+  };
+}
+
+function normalizeMeetingSignalStatus(status: TheaterRouteBMeetingSignalGroundingStatus): TheaterRouteBMeetingSignalGroundingStatus {
+  if (status === "confirmed" || status === "inference" || status === "unknown") {
+    return status;
+  }
+
+  return "unknown";
 }
 
 function sourceRefsForPacket(packet: TheaterBuildPacket, factStatus: TheaterRouteBFactStatus): TheaterRouteBSourceRef[] {

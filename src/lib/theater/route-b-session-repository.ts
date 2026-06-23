@@ -84,6 +84,7 @@ export function buildRouteBSessionDraft(
     statePatches: handoff.scene.statePatches,
     relationships: handoff.scene.relationships,
     narratorQuestions: handoff.scene.narratorQuestions,
+    sourceGrounding: handoff.scene.sourceGrounding,
   };
 
   const sessionData: Prisma.TheaterSessionUncheckedCreateInput = {
@@ -111,6 +112,7 @@ export function buildRouteBSessionDraft(
       compatibility: handoff.compatibility,
       runtimeActivation: handoff.runtimeActivation,
       aiUsagePlan: handoff.aiUsagePlan,
+      sourceGrounding: handoff.scene.sourceGrounding,
       createdFromHandoffAt: nowIso,
       writesConfirmedCrmFact: false,
     }),

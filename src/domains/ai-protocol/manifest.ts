@@ -1156,7 +1156,7 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
       displayName: "Route B relationship theater",
       ownerSurface: "/theater/[sessionId]",
       module: "THEATER",
-      version: "2026-06-23.lv3-cross-flow-public-snapshot-boundary",
+      version: "2026-06-23.meeting-signal-source-grounding",
       status: "active",
     },
     capabilities: [
@@ -1165,6 +1165,13 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
         label: "Route B stage session",
         summary: "Persists multi-character stage sessions, group/private turns, and state proposals without provider runtime claims.",
         humanTrigger: "Advisor opens a Route B theater session.",
+      },
+      {
+        id: "route-b-meeting-signal-source-grounding",
+        label: "Meeting signal source grounding",
+        summary:
+          "Carries safe meeting-derived relationship signal stage cards into persisted Route B session source metadata and stage preview without raw session/person ids, provider calls, VisitPlan writes, relationship graph writes, or confirmed CRM fact writes.",
+        humanTrigger: "Advisor creates a Route B theater session from a preparation package enriched by AI Meeting relationship signals.",
       },
       {
         id: "route-b-runtime-preflight",
@@ -1297,6 +1304,12 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
       actions: [
         { id: "state-proposal", label: "State proposal", actionBoundary: "State patches require confirmation and do not write confirmed CRM facts." },
         {
+          id: "route-b-meeting-signal-source-grounding",
+          label: "Meeting signal source grounding",
+          actionBoundary:
+            "Accepts only sanitized meeting signal stage-card summaries from the owner-scoped preparation handoff, persists them as Route B session source metadata, and exposes only card counts, safe summaries, narrator prompts, and no-write/no-provider flags.",
+        },
+        {
           id: "route-b-director",
           label: "Director preflight",
           actionBoundary: "Requires advisor utterance, scoped history, safe input summary, and success/error AiUsageLog plan before provider calls.",
@@ -1402,6 +1415,7 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
     schemas: {
       inputDtoRefs: [
         "TheaterRouteBHandoffPacket",
+        "TheaterRouteBMeetingSignalGroundingSummary",
         "RouteBTurnInput",
         "RouteBSessionSnapshot",
         "RouteBRuntimeRequest",
@@ -1427,6 +1441,7 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
       ],
       outputDtoRefs: [
         "RouteBSessionDto",
+        "RouteBMeetingSignalGroundingPanel",
         "RouteBTurnDto",
         "RouteBRuntimeInputPreview",
         "RouteBOrchestrationRuntimePreview",
@@ -1470,6 +1485,17 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
       evidenceDtoRefs: [
         "visibilityScope",
         "statePatches",
+        "buildTheaterRouteBMeetingSignalGroundingSummary",
+        "TheaterRouteBScene.sourceGrounding.meetingRelationshipSignals",
+        "RouteBSessionSnapshot.scene.sourceGrounding",
+        "RouteBMeetingSignalGroundingPanel",
+        "data-route-b-meeting-signal-source-grounding",
+        "TheaterRouteBMeetingSignalGroundingSummary.boundary.browserSuppliedSessionId=false",
+        "TheaterRouteBMeetingSignalGroundingSummary.boundary.browserSuppliedPersonId=false",
+        "TheaterRouteBMeetingSignalGroundingSummary.boundary.providerCallAttempted=false",
+        "TheaterRouteBMeetingSignalGroundingSummary.boundary.writesRelationshipGraph=false",
+        "TheaterRouteBMeetingSignalGroundingSummary.boundary.writesVisitPlan=false",
+        "TheaterRouteBMeetingSignalGroundingSummary.boundary.writesConfirmedCrmFact=false",
         "runtimeInputPreview.sourceAlignment",
         "runtimeInputPreview.orchestration",
         "runtimeInputPreview.feedback",
@@ -1604,6 +1630,7 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
       sourceAuditModule: "THEATER",
       commands: [
         ...commonProofCommands,
+        "pnpm theater:meeting-signal-session-source-qa",
         "pnpm theater:route-b-runtime-qa",
         "pnpm theater:route-b-interaction-qa",
         "pnpm theater:route-b-orchestration-dry-run",
@@ -1658,9 +1685,22 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
           "src/lib/theater/route-b-boundary.ts",
           "src/lib/theater/route-b-session-bff-repository.ts",
           "src/lib/theater/route-b-session-repository.ts",
+          "scripts/theater-meeting-signal-session-source-qa.mjs",
         ],
         evidenceRefs: [
           "RouteBRuntimeInputPreview",
+          "route-b-meeting-signal-source-grounding",
+          "buildTheaterRouteBMeetingSignalGroundingSummary",
+          "TheaterRouteBScene.sourceGrounding.meetingRelationshipSignals",
+          "RouteBSessionSnapshot.scene.sourceGrounding",
+          "RouteBMeetingSignalGroundingPanel",
+          "data-route-b-meeting-signal-source-grounding",
+          "TheaterRouteBMeetingSignalGroundingSummary.boundary.browserSuppliedSessionId=false",
+          "TheaterRouteBMeetingSignalGroundingSummary.boundary.browserSuppliedPersonId=false",
+          "TheaterRouteBMeetingSignalGroundingSummary.boundary.providerCallAttempted=false",
+          "TheaterRouteBMeetingSignalGroundingSummary.boundary.writesRelationshipGraph=false",
+          "TheaterRouteBMeetingSignalGroundingSummary.boundary.writesVisitPlan=false",
+          "TheaterRouteBMeetingSignalGroundingSummary.boundary.writesConfirmedCrmFact=false",
           "runtimeInputPreview.sourceAlignment",
           "runtimeInputPreview.orchestration",
           "RouteBOrchestrationRuntimePreview",
@@ -1803,6 +1843,7 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
           "Severe red-line action workflow dry-run proves advisor action states for evidence-needed, not-applicable, and escalation stay no-provider, no-notification, and no confirmed CRM fact writes.",
           "Severe red-line action persistence QA proves only ruleId/state/advisorReasonCode/updatedAt can be stored under owner-scoped sceneState.redLineActionState; no raw private transcript, raw provider payload, legal advice, formal finding, real notification, or confirmed CRM fact write is introduced.",
           "LV3 cross-flow proof trims public RouteBSessionSnapshot responses through toPublicRouteBSessionSnapshot so session create/read/turn/append responses omit internal scene.redLineActionState persistence envelopes while owner-scoped feedback review continues consuming internal scene state.",
+          "Meeting-derived relationship signal stage cards can now be carried from /theater/build into Route B session sourceGrounding, persisted under sceneState/metadata, and rendered on the stage as safe source metadata without raw session/person ids, provider calls, VisitPlan writes, relationship graph writes, or confirmed CRM fact writes.",
           "Runtime director preflight returns only a least-disclosure orchestration preview; it does not expose raw director input, raw private lane content, or provider payload.",
           "Visibility scope, private lane, and state proposal writes are server-owned and owner-scoped.",
           "Director, character, and live feedback provider enablement remains blocked until explicit approval and runtime wiring proof.",

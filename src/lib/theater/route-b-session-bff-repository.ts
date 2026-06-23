@@ -648,6 +648,7 @@ export async function appendRouteBNextTurnCandidateForMember(
 
 function toRouteBSessionSnapshot(record: RouteBSessionRecord): RouteBSessionSnapshot {
   const sceneState = asRecord(record.sceneState);
+  const sourceGrounding = sanitizeJson(sceneState.sourceGrounding);
   const aiUsageLogRequiredFor = readUsageLogRequirements(record.metadata);
   const charactersById = new Map(record.characters.map((character) => [character.id, character]));
 
@@ -675,6 +676,7 @@ function toRouteBSessionSnapshot(record: RouteBSessionRecord): RouteBSessionSnap
       narratorQuestions: sanitizeJson(sceneState.narratorQuestions ?? []),
       statePatchCount: Array.isArray(sceneState.statePatches) ? sceneState.statePatches.length : 0,
       visibilityRules: sanitizeJson(record.visibilityRules ?? []),
+      sourceGrounding: isRouteBSourceGrounding(sourceGrounding) ? sourceGrounding : undefined,
       redLineActionState: isRouteBRedLineActionPersistenceState(sceneState.redLineActionState)
         ? sceneState.redLineActionState
         : buildRouteBRedLineActionPersistenceState(),
@@ -708,6 +710,11 @@ function toRouteBSessionSnapshot(record: RouteBSessionRecord): RouteBSessionSnap
       thirdPartyVisibleForDirectMessage: false,
     },
   };
+}
+
+function isRouteBSourceGrounding(value: unknown): value is NonNullable<RouteBSessionSnapshot["scene"]["sourceGrounding"]> {
+  const record = asRecord(value);
+  return Object.keys(record).length > 0;
 }
 
 function readUsageLogRequirements(value: Prisma.JsonValue | null): string[] {

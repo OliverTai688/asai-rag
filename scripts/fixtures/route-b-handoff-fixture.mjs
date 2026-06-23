@@ -82,6 +82,37 @@ export function buildRouteBHandoffFixture(prefix = "route_b_qa") {
           allowedWriteTargets: ["SCENE_PRIVATE_STATE", "RELATIONSHIP_STATE"],
         },
       ],
+      sourceGrounding: {
+        meetingRelationshipSignals: {
+          cardCount: 1,
+          unknownCount: 1,
+          narratorQuestionCount: 1,
+          cards: [
+            {
+              stageCardId: "route_b_meeting_signal_1",
+              status: "unknown",
+              action: "ASK_IN_NEXT_VISIT",
+              priority: "high",
+              sourceLabel: "AI Meeting",
+              summary: "林太太可能需要共同參與保障決策，仍待確認。",
+              narratorQuestion: "請確認林太太是否會一起參與家庭保障討論。",
+            },
+          ],
+          narratorQuestions: ["請確認林太太是否會一起參與家庭保障討論。"],
+          boundary: {
+            ownerScopedVisitPlanRequired: true,
+            browserSuppliedSessionId: false,
+            browserSuppliedPersonId: false,
+            providerCallAttempted: false,
+            aiUsageLogWritten: false,
+            storesRawProviderPayload: false,
+            rawTranscriptStored: false,
+            writesRelationshipGraph: false,
+            writesVisitPlan: false,
+            writesConfirmedCrmFact: false,
+          },
+        },
+      },
     },
     aiUsagePlan: {
       noProviderDuringHandoffBuild: true,

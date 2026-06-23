@@ -1,8 +1,19 @@
-import type { TheaterRouteBHandoffPacket } from "@/domains/theater/route-b-handoff";
+import type {
+  TheaterRouteBHandoffPacket,
+  TheaterRouteBMeetingSignalGroundingSummary,
+} from "@/domains/theater/route-b-handoff";
 
 export function validateRouteBHandoffBoundary(handoff: TheaterRouteBHandoffPacket): string | undefined {
   if (handoff.scene.statePatches.some((patch) => patch.writesConfirmedCrmFact !== false)) {
     return "Route B state patches cannot write confirmed CRM facts.";
+  }
+
+  const meetingSignalGroundingIssue = validateMeetingSignalGroundingBoundary(
+    handoff.scene.sourceGrounding?.meetingRelationshipSignals,
+  );
+
+  if (meetingSignalGroundingIssue) {
+    return meetingSignalGroundingIssue;
   }
 
   if (handoff.aiUsagePlan.noProviderDuringHandoffBuild !== true) {
@@ -33,6 +44,74 @@ export function isTheaterRouteBHandoffPacket(value: unknown): value is TheaterRo
   if (!isRecord(value.runtimeActivation)) return false;
 
   return true;
+}
+
+function validateMeetingSignalGroundingBoundary(
+  summary?: TheaterRouteBMeetingSignalGroundingSummary,
+): string | undefined {
+  if (!summary) return undefined;
+
+  const boundary = summary.boundary;
+  const cards = Array.isArray(summary.cards) ? summary.cards : null;
+  const narratorQuestions = Array.isArray(summary.narratorQuestions) ? summary.narratorQuestions : null;
+
+  if (!cards || !narratorQuestions) {
+    return "Route B meeting-signal grounding must include cards and narratorQuestions arrays.";
+  }
+
+  if (cards.some(hasForbiddenGroundingCardShape)) {
+    return "Route B meeting-signal grounding cards cannot include raw source ids, meeting session ids, person ids, or source reference ids.";
+  }
+
+  if (
+    !boundary ||
+    boundary.ownerScopedVisitPlanRequired !== true ||
+    boundary.browserSuppliedSessionId !== false ||
+    boundary.browserSuppliedPersonId !== false ||
+    boundary.providerCallAttempted !== false ||
+    boundary.aiUsageLogWritten !== false ||
+    boundary.storesRawProviderPayload !== false ||
+    boundary.rawTranscriptStored !== false ||
+    boundary.writesRelationshipGraph !== false ||
+    boundary.writesVisitPlan !== false ||
+    boundary.writesConfirmedCrmFact !== false
+  ) {
+    return "Route B meeting-signal grounding must keep owner scope, no-provider, no-raw, and no-write boundary flags.";
+  }
+
+  if (containsForbiddenGroundingValue(summary)) {
+    return "Route B meeting-signal grounding cannot include raw transcript, provider, contact, policy, or payment sentinels.";
+  }
+
+  return undefined;
+}
+
+function hasForbiddenGroundingCardShape(card: unknown): boolean {
+  if (!isRecord(card)) return true;
+
+  return ["id", "meetingSessionId", "personId", "sourceReferenceIds", "rawTranscript", "rawProviderPayload"].some((key) =>
+    Object.prototype.hasOwnProperty.call(card, key),
+  );
+}
+
+function containsForbiddenGroundingValue(value: unknown): boolean {
+  if (typeof value === "string") {
+    return (
+      /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i.test(value) ||
+      /09\d{2}[-\s]?\d{3}[-\s]?\d{3}/.test(value) ||
+      /\b(rawPayload|providerPayload|authorization|cookie|secret|token|otp|payment|policyNumber|rawTranscript)\b/i.test(value)
+    );
+  }
+
+  if (Array.isArray(value)) {
+    return value.some(containsForbiddenGroundingValue);
+  }
+
+  if (isRecord(value)) {
+    return Object.values(value).some(containsForbiddenGroundingValue);
+  }
+
+  return false;
 }
 
 function hasString(record: Record<string, unknown>, key: string): boolean {

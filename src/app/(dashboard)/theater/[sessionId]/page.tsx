@@ -68,6 +68,9 @@ const EMPTY_TURNS: TheaterTurn[] = [];
 type RouteBFeedbackReviewStatus = "idle" | "loading" | "ready" | "empty" | "error" | "generating";
 type RouteBComplianceReviewIntakeStatus = "idle" | "loading" | "ready" | "empty" | "error";
 type RouteBProviderCandidateStatus = "idle" | "generating" | "ready" | "error";
+type RouteBMeetingSignalGrounding = NonNullable<
+  NonNullable<RouteBSessionSnapshot["scene"]["sourceGrounding"]>["meetingRelationshipSignals"]
+>;
 type RouteBRedLineActionPersistenceStatus = "idle" | "loading" | "saving" | "ready" | "error";
 
 type RouteBFeedbackReviewEmptyPayload = {
@@ -501,6 +504,7 @@ function RouteBSessionStage({
   const relationships = routeBRecords(snapshot.scene.relationships);
   const narratorQuestions = routeBRecords(snapshot.scene.narratorQuestions);
   const visibilityRules = routeBRecords(snapshot.scene.visibilityRules);
+  const meetingSignalGrounding = snapshot.scene.sourceGrounding?.meetingRelationshipSignals ?? null;
   const directorTurns = snapshot.turns.filter((turn) => turn.visibilityScope === "DIRECTOR_ONLY");
   const groupTurns = snapshot.turns.filter((turn) => turn.visibilityScope === "GROUP" || !turn.visibilityScope);
   const provider = snapshot.session.provider;
@@ -822,13 +826,15 @@ function RouteBSessionStage({
             </div>
             <p className="mt-1 text-sm text-muted-foreground">
               {snapshot.characters.length} 位角色・{relationships.length} 條關係・{snapshot.scene.statePatchCount} 個狀態更新
+              {meetingSignalGrounding ? `・${meetingSignalGrounding.cardCount} 個會議訊號` : ""}
             </p>
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-2 text-center sm:min-w-80">
+        <div className="grid grid-cols-2 gap-2 text-center sm:min-w-[26rem] sm:grid-cols-4">
           <RouteBMetric label="角色" value={snapshot.characters.length} />
           <RouteBMetric label="旁白補問" value={narratorQuestions.length} />
+          <RouteBMetric label="會議訊號" value={meetingSignalGrounding?.cardCount ?? 0} />
           <RouteBMetric label="私聊外洩" value={snapshot.visibilityProof.thirdPartyVisibleForDirectMessage ? "需查" : "0"} />
         </div>
       </header>
@@ -962,6 +968,8 @@ function RouteBSessionStage({
         </main>
 
         <aside className="space-y-3">
+          {meetingSignalGrounding ? <RouteBMeetingSignalGroundingPanel grounding={meetingSignalGrounding} /> : null}
+
           <RouteBFeedbackReviewPanel
             error={feedbackReviewError}
             onGenerate={generateFeedbackReview}
@@ -1028,6 +1036,71 @@ function RouteBSessionStage({
         </aside>
       </div>
     </div>
+  );
+}
+
+function RouteBMeetingSignalGroundingPanel({ grounding }: { grounding: RouteBMeetingSignalGrounding }) {
+  return (
+    <Card className="border-hairline shadow-none" data-route-b-meeting-signal-source-grounding="true">
+      <CardContent className="space-y-4 p-5">
+        <div className="flex items-start gap-3">
+          <BrainCircuit className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+          <div className="min-w-0">
+            <h2 className="text-sm font-semibold text-ink">會議訊號來源</h2>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+              {grounding.cardCount} 張 stage card・{grounding.unknownCount} 個待確認・{grounding.narratorQuestionCount} 個旁白補問
+            </p>
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          {grounding.cards.slice(0, 3).map((card) => (
+            <div key={card.stageCardId} className="rounded-lg border border-hairline bg-paper px-3 py-2">
+              <div className="flex flex-wrap items-center gap-1.5">
+                <Badge variant="outline" className="text-[10px]">
+                  {routeBMeetingSignalStatusLabel(card.status)}
+                </Badge>
+                <span className="rounded-full border border-hairline bg-background px-2 py-0.5 text-[10px] text-muted-foreground">
+                  {routeBMeetingSignalPriorityLabel(card.priority)}
+                </span>
+              </div>
+              <p className="mt-2 line-clamp-2 text-sm font-medium leading-5 text-ink">{card.summary || "會議訊號待補摘要"}</p>
+              <div className="mt-2 flex flex-wrap gap-1.5 text-[10px] text-muted-foreground">
+                <span className="rounded-full border border-hairline bg-background px-2 py-0.5">
+                  來源：{card.sourceLabel || "AI Meeting"}
+                </span>
+                <span className="rounded-full border border-hairline bg-background px-2 py-0.5">
+                  動作：{routeBMeetingSignalActionLabel(card.action)}
+                </span>
+              </div>
+              {card.narratorQuestion ? (
+                <p className="mt-2 line-clamp-2 text-xs leading-5 text-muted-foreground">旁白補問：{card.narratorQuestion}</p>
+              ) : null}
+            </div>
+          ))}
+        </div>
+
+        {grounding.narratorQuestions.length ? (
+          <div className="rounded-lg border border-hairline bg-paper px-3 py-2">
+            <p className="text-xs font-semibold text-ink">補問 preview</p>
+            <ul className="mt-1 space-y-1">
+              {grounding.narratorQuestions.slice(0, 2).map((question, index) => (
+                <li key={`${question}-${index}`} className="line-clamp-2 text-xs leading-5 text-muted-foreground">
+                  {question}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+
+        <div className="grid gap-2 text-[11px] text-muted-foreground">
+          <ContextLine label="Owner visit scope" value={String(grounding.boundary.ownerScopedVisitPlanRequired)} />
+          <ContextLine label="Browser session id" value={String(grounding.boundary.browserSuppliedSessionId)} />
+          <ContextLine label="Provider call" value={String(grounding.boundary.providerCallAttempted)} />
+          <ContextLine label="CRM fact write" value={String(grounding.boundary.writesConfirmedCrmFact)} />
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -2144,6 +2217,26 @@ function routeBVisibilityText(record: Record<string, unknown>): string {
   const visibleTo = typeof record.visibleTo === "string" ? record.visibleTo : "UNKNOWN";
   const canQuote = record.canBeQuotedInGroup === true ? "可引用" : "不可引用";
   return `${label}・${visibleTo}・${canQuote}`;
+}
+
+function routeBMeetingSignalStatusLabel(status: RouteBMeetingSignalGrounding["cards"][number]["status"]): string {
+  if (status === "confirmed") return "FACT";
+  if (status === "inference") return "INFERENCE";
+  return "UNKNOWN";
+}
+
+function routeBMeetingSignalActionLabel(action: string): string {
+  if (action === "CREATE_CONFIRMATION_CARD") return "確認卡";
+  if (action === "ASK_IN_NEXT_VISIT") return "補問";
+  if (action === "KEEP_AS_CONTEXT") return "脈絡";
+  return action || "脈絡";
+}
+
+function routeBMeetingSignalPriorityLabel(priority: string): string {
+  if (priority === "high") return "高優先";
+  if (priority === "medium") return "中優先";
+  if (priority === "low") return "低優先";
+  return priority || "未分級";
 }
 
 function firstRouteBText(value: unknown): string | undefined {

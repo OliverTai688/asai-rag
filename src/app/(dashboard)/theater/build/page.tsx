@@ -35,7 +35,11 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { theaterFieldBuildOutline } from "@/domains/interview/outlines";
 import { buildTheaterFieldBuildContext } from "@/domains/interview/theater-build";
 import type { TheaterBuildCharacterSeed, TheaterBuildPacket } from "@/domains/interview/types";
-import { buildTheaterRouteBHandoff } from "@/domains/theater/route-b-handoff";
+import {
+  buildTheaterRouteBHandoff,
+  buildTheaterRouteBMeetingSignalGroundingSummary,
+  type TheaterRouteBMeetingSignalGroundingInput,
+} from "@/domains/theater/route-b-handoff";
 import type { RouteBSessionSnapshot } from "@/domains/theater/route-b-session";
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
@@ -52,15 +56,7 @@ type HandoffNotice = {
 type HandoffReview = VisitTheaterHandoffResponse;
 type ClientBuildReview = TheaterClientBuildResponse;
 type MeetingSignalStageStatus = "confirmed" | "inference" | "unknown";
-type MeetingSignalStageCard = {
-  id: string;
-  status: MeetingSignalStageStatus;
-  action: string;
-  priority: string;
-  sourceLabel: string;
-  summary: string;
-  prompt: string;
-};
+type MeetingSignalStageCard = TheaterRouteBMeetingSignalGroundingInput;
 
 const CLASS_PREFIX: Record<DataClass, string> = { fact: "FACT", inference: "INFERENCE", unknown: "UNKNOWN" };
 const CLASS_LABEL: Record<DataClass, string> = { fact: "確認事實", inference: "推論", unknown: "待確認" };
@@ -638,7 +634,16 @@ export default function TheaterBuildPage() {
     setIsStartingRouteB(true);
     setRouteBStartError(null);
     try {
-      const handoff = buildTheaterRouteBHandoff(packet, { routeBEnabled: true });
+      const meetingSignalGrounding = handoffReview
+        ? buildTheaterRouteBMeetingSignalGroundingSummary(
+            getMeetingSignalStageCards(handoffReview.handoff.knownMaterials),
+            getMeetingSignalNarratorPreviews(packet.narratorQuestions),
+          )
+        : undefined;
+      const handoff = buildTheaterRouteBHandoff(packet, {
+        routeBEnabled: true,
+        meetingRelationshipSignals: meetingSignalGrounding,
+      });
       const response = await fetch("/api/theater/route-b/sessions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1080,8 +1085,8 @@ function MeetingSignalStageReview({
       </div>
 
       <div className="mt-3 grid gap-2 md:grid-cols-2">
-        {cards.slice(0, 4).map((card) => (
-          <article key={card.id} className="min-w-0 rounded-md border border-hairline bg-card px-3 py-2">
+        {cards.slice(0, 4).map((card, index) => (
+          <article key={card.id ?? `meeting-signal-card-${index}`} className="min-w-0 rounded-md border border-hairline bg-card px-3 py-2">
             <div className="flex flex-wrap items-center gap-1.5">
               <Badge variant="outline" className="text-[10px]">
                 {MEETING_SIGNAL_STATUS_LABEL[card.status]}

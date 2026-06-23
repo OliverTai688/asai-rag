@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import type { TheaterBuildPacket } from "../src/domains/interview/types";
-import { buildTheaterRouteBHandoff } from "../src/domains/theater/route-b-handoff";
+import {
+  buildTheaterRouteBHandoff,
+  buildTheaterRouteBMeetingSignalGroundingSummary,
+} from "../src/domains/theater/route-b-handoff";
 import {
   buildRouteBSessionDraft,
   buildRouteBTurnCreateData,
@@ -84,9 +87,25 @@ const packet: TheaterBuildPacket = {
   },
 };
 
+const meetingSignalGrounding = buildTheaterRouteBMeetingSignalGroundingSummary(
+  [
+    {
+      id: "meeting_session_raw_123_person_raw_456",
+      status: "unknown",
+      action: "ASK_IN_NEXT_VISIT",
+      priority: "high",
+      sourceLabel: "AI Meeting",
+      summary: "林太太可能需要共同參與保障決策，仍待確認。",
+      prompt: "請確認林太太是否會一起參與家庭保障討論。",
+    },
+  ],
+  ["請確認林太太是否會一起參與家庭保障討論。"],
+);
+
 const handoff = buildTheaterRouteBHandoff(packet, {
   routeBEnabled: true,
   now: "2026-06-20T00:00:00.000Z",
+  meetingRelationshipSignals: meetingSignalGrounding,
 });
 
 const draft = buildRouteBSessionDraft(
@@ -114,6 +133,20 @@ const partnerId = mustString(partner.id, "partner id");
 check(draft.sessionData.routeBEnabled === true, "session payload enables Route B only when handoff is enabled");
 check(draft.sessionData.routeBSceneId === handoff.scene.id, "session payload stores Route B scene id");
 check(draft.sessionData.routeBSourcePacketId === handoff.sourcePacketId, "session payload stores source packet id");
+const persistedSceneState = draft.sessionData.sceneState as Record<string, unknown>;
+const persistedMetadata = draft.sessionData.metadata as Record<string, unknown>;
+const persistedGrounding = persistedSceneState.sourceGrounding as Record<string, unknown>;
+const persistedMeetingGrounding = persistedGrounding.meetingRelationshipSignals as Record<string, unknown>;
+const persistedMeetingBoundary = persistedMeetingGrounding.boundary as Record<string, unknown>;
+const persistedMeetingCards = persistedMeetingGrounding.cards as Array<Record<string, unknown>>;
+check(persistedMeetingGrounding.cardCount === 1, "session sceneState stores one safe meeting signal grounding card");
+check(persistedMeetingGrounding.narratorQuestionCount === 1, "session sceneState stores meeting signal narrator question count");
+check(persistedMeetingCards[0]?.stageCardId === "route_b_meeting_signal_1", "meeting signal grounding does not persist raw meeting/person ids");
+check(persistedMeetingBoundary.providerCallAttempted === false, "meeting signal grounding keeps provider call false");
+check(persistedMeetingBoundary.writesRelationshipGraph === false, "meeting signal grounding writes no relationship graph");
+check(persistedMeetingBoundary.writesVisitPlan === false, "meeting signal grounding writes no VisitPlan");
+check(persistedMeetingBoundary.writesConfirmedCrmFact === false, "meeting signal grounding writes no confirmed CRM fact");
+check(Boolean((persistedMetadata.sourceGrounding as Record<string, unknown>)?.meetingRelationshipSignals), "session metadata carries source grounding preview");
 check(draft.sessionData.personaType === TheaterPersonaType.CONSERVATIVE, "legacy personaType remains compatibility-only");
 check(draft.sessionData.tension === 0, "legacy tension is neutralized for Route B draft");
 check(draft.charactersData.length === 3, "character payloads are created for focus and NPCs");

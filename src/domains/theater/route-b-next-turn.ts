@@ -253,6 +253,7 @@ function buildHandoffFromSessionSnapshot(snapshot: RouteBSessionSnapshot): Theat
       narratorQuestions: readMaterials(snapshot.scene.narratorQuestions, "route_b_next_turn_narrator", "UNKNOWN", "NARRATOR_QUESTION"),
       visibilityRules: readVisibilityRules(snapshot.scene.visibilityRules),
       statePatches: [],
+      sourceGrounding: snapshot.scene.sourceGrounding,
     },
     aiUsagePlan: buildAiUsagePlan(),
     runtimeActivation: {

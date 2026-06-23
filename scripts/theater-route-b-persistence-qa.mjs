@@ -53,6 +53,13 @@ async function runProof() {
   push(created.body?.characters?.length === 3, "persisted Route B session returns focus and NPC characters");
   push(created.body?.turns?.length === 1, "persisted Route B session returns opening director turn");
   push(created.body?.turns?.[0]?.visibilityScope === "DIRECTOR_ONLY", "opening turn is director-only");
+  const createdMeetingGrounding = created.body?.scene?.sourceGrounding?.meetingRelationshipSignals;
+  push(createdMeetingGrounding?.cardCount === 1, "created session returns meeting signal source grounding");
+  push(createdMeetingGrounding?.cards?.[0]?.stageCardId === "route_b_meeting_signal_1", "created session source grounding omits raw meeting/person ids");
+  push(createdMeetingGrounding?.boundary?.browserSuppliedSessionId === false, "created session source grounding rejects browser-supplied meeting session id");
+  push(createdMeetingGrounding?.boundary?.writesRelationshipGraph === false, "created session source grounding writes no relationship graph");
+  push(createdMeetingGrounding?.boundary?.writesVisitPlan === false, "created session source grounding writes no VisitPlan");
+  push(createdMeetingGrounding?.boundary?.writesConfirmedCrmFact === false, "created session source grounding writes no confirmed CRM fact");
   push(created.body?.session?.provider?.callAttempted === false, "persisted session creation does not call provider");
   push(created.body?.session?.provider?.usageLogWritten === false, "persisted session creation does not fake usage log");
   push(
@@ -68,6 +75,9 @@ async function runProof() {
   push(readBack.status === 200, "Route B persisted session can be read by owner", `status=${readBack.status}`);
   push(readBack.body?.session?.id === createdSessionId, "read-back session id matches created session");
   push(readBack.body?.characters?.some((character) => character.routeBCharacterId === "character_focus_lin"), "read-back keeps routeB logical character id");
+  const readBackMeetingGrounding = readBack.body?.scene?.sourceGrounding?.meetingRelationshipSignals;
+  push(readBackMeetingGrounding?.cardCount === 1, "read-back keeps meeting signal source grounding");
+  push(readBackMeetingGrounding?.boundary?.providerCallAttempted === false, "read-back meeting signal grounding remains no-provider");
   push(readBack.body?.visibilityProof?.ownerOnlyRead === true, "read-back declares owner-only read boundary");
   push(readBack.body?.visibilityProof?.thirdPartyVisibleForDirectMessage === false, "read-back keeps private/direct-message proof false");
   pushNoPrivateSentinel(readBackText, "persisted session read response has no private sentinel");
@@ -127,6 +137,12 @@ async function runProof() {
   push(dbProof.characterCount === 3, "DB proof has three theater_character rows", JSON.stringify(dbProof));
   push(dbProof.openingTurnCount === 1, "DB proof has one director-only opening turn", JSON.stringify(dbProof));
   push(dbProof.dbCharacterIdsAreSessionScoped === true, "DB character ids are session-scoped and repeatable");
+  const meetingGroundingDbProof = await getMeetingGroundingDbProof(createdSessionId);
+  push(meetingGroundingDbProof.cardCount === 1, "DB proof stores meeting signal grounding under scene_state", JSON.stringify(meetingGroundingDbProof));
+  push(meetingGroundingDbProof.providerCallAttempted === false, "DB proof keeps meeting signal grounding no-provider", JSON.stringify(meetingGroundingDbProof));
+  push(meetingGroundingDbProof.writesRelationshipGraph === false, "DB proof keeps meeting signal grounding graph-write disabled", JSON.stringify(meetingGroundingDbProof));
+  push(meetingGroundingDbProof.writesVisitPlan === false, "DB proof keeps meeting signal grounding VisitPlan-write disabled", JSON.stringify(meetingGroundingDbProof));
+  push(meetingGroundingDbProof.writesConfirmedCrmFact === false, "DB proof keeps meeting signal grounding CRM fact-write disabled", JSON.stringify(meetingGroundingDbProof));
 
   const afterUsageCount = await countTheaterUsageLogs();
   push(afterUsageCount === beforeUsageCount, "Route B persistence writes no fake AiUsageLog", `before=${beforeUsageCount} after=${afterUsageCount}`);
@@ -241,6 +257,31 @@ async function getRedLineActionDbProof(sessionId) {
     recordCount: Number(row.record_count ?? 0),
     escalateCount: Number(row.escalate_count ?? 0),
     allowedFieldOnly: row.allowed_field_only === true,
+  };
+}
+
+async function getMeetingGroundingDbProof(sessionId) {
+  const result = await db.query(
+    `
+      SELECT
+        COALESCE((scene_state #>> '{sourceGrounding,meetingRelationshipSignals,cardCount}')::int, 0) AS card_count,
+        COALESCE((scene_state #>> '{sourceGrounding,meetingRelationshipSignals,boundary,providerCallAttempted}')::boolean, true) AS provider_call_attempted,
+        COALESCE((scene_state #>> '{sourceGrounding,meetingRelationshipSignals,boundary,writesRelationshipGraph}')::boolean, true) AS writes_relationship_graph,
+        COALESCE((scene_state #>> '{sourceGrounding,meetingRelationshipSignals,boundary,writesVisitPlan}')::boolean, true) AS writes_visit_plan,
+        COALESCE((scene_state #>> '{sourceGrounding,meetingRelationshipSignals,boundary,writesConfirmedCrmFact}')::boolean, true) AS writes_confirmed_crm_fact
+      FROM theater_sessions
+      WHERE id = $1
+    `,
+    [sessionId],
+  );
+  const row = result.rows[0] ?? {};
+
+  return {
+    cardCount: Number(row.card_count ?? 0),
+    providerCallAttempted: row.provider_call_attempted === true,
+    writesRelationshipGraph: row.writes_relationship_graph === true,
+    writesVisitPlan: row.writes_visit_plan === true,
+    writesConfirmedCrmFact: row.writes_confirmed_crm_fact === true,
   };
 }
 
