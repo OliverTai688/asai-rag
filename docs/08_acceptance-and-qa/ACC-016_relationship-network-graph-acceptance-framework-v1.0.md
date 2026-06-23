@@ -36,11 +36,13 @@
 
 ### D0. Shadow contract / dry-run（REL-004a，不動 schema）
 
-- [ ] `RelationshipEdgeDraft` / backfill DTO 位於 domain/repository/server boundary；UI 不直接 import Prisma，也不改 Prisma schema 或 `src/generated`。
-- [ ] Dry-run 從既有 `FamilyMember.parentMemberId` + `relation` 推導 candidate edges，輸出 deterministic count、duplicate guard、unsupported relationship warnings；重跑 idempotent。
-- [ ] Candidate edge metadata allowlist 不含 email、phone、raw private transcript、raw provider payload、policy number、secret/token；僅保留 FACT/INFERENCE/UNKNOWN、安全摘要與 source references。
-- [ ] `pnpm client:relationship-edge-shadow-qa` 覆蓋單親、雙親、配偶、手足、社會關係、unknown/inference sentinel、no schema/no DB write/no provider proof。
-- [ ] REL-004 migration approval / rollback note 未被 REL-004a 視為已完成；REL-004a 只證明 contract readiness。
+- [x] `RelationshipEdgeDraft` / backfill DTO 位於 domain/repository/server boundary；UI 不直接 import Prisma，也不改 Prisma schema 或 `src/generated`。
+- [x] Dry-run 從既有 `FamilyMember.parentMemberId` + `relation` 推導 candidate edges，輸出 deterministic count、duplicate guard、unsupported relationship warnings；重跑 idempotent。
+- [x] Candidate edge metadata allowlist 不含 email、phone、raw private transcript、raw provider payload、policy number、secret/token；僅保留 FACT/INFERENCE/UNKNOWN、安全摘要與 source references。
+- [x] `pnpm client:relationship-edge-shadow-qa` 覆蓋單親、雙親、配偶、手足、社會關係、unknown/inference sentinel、no schema/no DB write/no provider proof。
+- [x] REL-004 migration approval / rollback note 未被 REL-004a 視為已完成；REL-004a 只證明 contract readiness。
+
+REL-004a evidence（2026-06-23）：`pnpm client:relationship-edge-shadow-qa` pass，9 draft edges、duplicateDraftIds 0、warningCodes `UNSUPPORTED_ROOT_RELATION` / `MISSING_PARENT_MEMBER`，proof flags `schemaChanged=false`、`databaseWriteAttempted=false`、`providerCallAttempted=false`、`generatedClientFacingPayload=false`。
 
 ### D1. Edge model 持久化（REL-004，動 schema）
 
