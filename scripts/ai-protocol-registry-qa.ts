@@ -46,6 +46,7 @@ const sourceAdoptionRequirements: Record<string, { ownerRefs: string[]; evidence
       "src/app/(dashboard)/pre-visit/[planId]/page.tsx",
       "src/app/api/visits/[id]/relationship-confirmation-state/route.ts",
       "src/app/api/visits/[id]/route-b-red-line-context/route.ts",
+      "src/app/api/visits/[id]/meeting-relationship-signals/route.ts",
       "src/domains/visit/ai-evidence-dto.ts",
       "src/domains/visit/relationship-confirmation.ts",
       "src/domains/visit/relationship-confirmation-state.ts",
@@ -54,6 +55,7 @@ const sourceAdoptionRequirements: Record<string, { ownerRefs: string[]; evidence
       "src/domains/theater/visit-handoff.ts",
       "src/lib/visits/visit-plan-repository.ts",
       "src/lib/visits/route-b-red-line-context-repository.ts",
+      "src/lib/visits/meeting-relationship-signal-repository.ts",
     ],
     evidenceRefs: [
       "buildProviderSafeClientSnapshot",
@@ -62,6 +64,7 @@ const sourceAdoptionRequirements: Record<string, { ownerRefs: string[]; evidence
       "buildVisitRelationshipConfirmationDeck",
       "buildVisitRelationshipConfirmationStateBoundary",
       "buildVisitMeetingRelationshipSignalDeck",
+      "getVisitMeetingRelationshipSignalDeckForMember",
       "relationship-graph-prep-confirmation-cards",
       "relationship-confirmation-card-state-boundary",
       "relationship-confirmation-state-ui-boundary",
@@ -75,6 +78,9 @@ const sourceAdoptionRequirements: Record<string, { ownerRefs: string[]; evidence
       "VisitRelationshipConfirmationStateBoundary.proof.writesConfirmedCrmFact=false",
       "VisitMeetingRelationshipSignalDeck.writebackBoundary.currentPersistence=deterministic-preview-only",
       "VisitMeetingRelationshipSignalDeck.proof.writesConfirmedCrmFact=false",
+      "VisitMeetingRelationshipSignalBffDto.proof.browserSuppliedSessionId=false",
+      "VisitMeetingRelationshipSignalBffDto.proof.writesRelationshipGraph=false",
+      "MeetingRelationshipSignalPanel.data-meeting-relationship-signal-cards",
       "VisitTheaterHandoff.sourceSummary.evidenceSummary.relationshipConfirmation",
       "VisitTheaterRelationshipConfirmationHandoffSummary.localAdvisorStatePersisted=false",
       "VisitTheaterRelationshipConfirmationHandoffSummary.providerCallAttempted=false",
@@ -94,6 +100,7 @@ const sourceAdoptionRequirements: Record<string, { ownerRefs: string[]; evidence
       "pnpm visit:relationship-confirmation-state-boundary-dry-run",
       "pnpm visit:relationship-confirmation-state-ui-qa",
       "pnpm visit:meeting-relationship-signal-dry-run",
+      "pnpm visit:meeting-relationship-signal-bff-ui-qa",
       "pnpm visit:route-b-red-line-context-dry-run",
       "pnpm visit:route-b-red-line-context-bff-qa",
     ],
@@ -763,6 +770,10 @@ function assertVisitMeetingRelationshipSignal(manifests: AgentProtocolManifest[]
     "visit manifest output DTOs include VisitMeetingRelationshipSignalDeck",
   );
   push(
+    manifest.schemas.outputDtoRefs.includes("VisitMeetingRelationshipSignalBffDto"),
+    "visit manifest output DTOs include VisitMeetingRelationshipSignalBffDto",
+  );
+  push(
     manifest.schemas.evidenceDtoRefs.includes(
       "VisitMeetingRelationshipSignalDeck.writebackBoundary.currentPersistence=deterministic-preview-only",
     ),
@@ -776,16 +787,24 @@ function assertVisitMeetingRelationshipSignal(manifests: AgentProtocolManifest[]
     manifest.proof.commands.includes("pnpm visit:meeting-relationship-signal-dry-run"),
     "visit proof commands include meeting relationship signal dry-run",
   );
+  push(
+    manifest.proof.commands.includes("pnpm visit:meeting-relationship-signal-bff-ui-qa"),
+    "visit proof commands include meeting relationship signal BFF/UI QA",
+  );
 
   const adoption = manifest.proof.sourceAdoption;
   const requiredOwnerRefs = [
+    "src/app/api/visits/[id]/meeting-relationship-signals/route.ts",
+    "src/lib/visits/meeting-relationship-signal-repository.ts",
     "src/domains/visit/meeting-relationship-signal.ts",
+    "scripts/visit-meeting-relationship-signal-bff-ui-qa.mjs",
     "scripts/visit-meeting-relationship-signal-dry-run.mjs",
     "scripts/visit-meeting-relationship-signal-dry-run.ts",
   ];
   const requiredEvidenceRefs = [
     "buildVisitMeetingRelationshipSignalDeck",
     "meetingWritebackCandidateToRelationshipSignal",
+    "getVisitMeetingRelationshipSignalDeckForMember",
     "VISIT_MEETING_RELATIONSHIP_SIGNAL_ALLOWED_FIELDS",
     "meeting-notes-relationship-confirmation-signal",
     "VisitMeetingRelationshipSignalDeck.writebackBoundary.currentPersistence=deterministic-preview-only",
@@ -793,6 +812,12 @@ function assertVisitMeetingRelationshipSignal(manifests: AgentProtocolManifest[]
     "VisitMeetingRelationshipSignalDeck.writebackBoundary.writesVisitPlan=false",
     "VisitMeetingRelationshipSignalDeck.proof.persistedToDatabase=false",
     "VisitMeetingRelationshipSignalDeck.proof.writesConfirmedCrmFact=false",
+    "VisitMeetingRelationshipSignalBffDto.proof.ownerScopedMeetingSessionLookup=true",
+    "VisitMeetingRelationshipSignalBffDto.proof.browserSuppliedSessionId=false",
+    "VisitMeetingRelationshipSignalBffDto.proof.writesRelationshipGraph=false",
+    "VisitMeetingRelationshipSignalBffDto.proof.writesVisitPlan=false",
+    "MeetingRelationshipSignalPanel.data-meeting-relationship-signal-cards",
+    "/api/visits/[id]/meeting-relationship-signals",
   ];
 
   for (const ownerRef of requiredOwnerRefs) {

@@ -55,6 +55,12 @@ import type {
   VisitRouteBRedLineContext,
   VisitRouteBRedLineContextItem,
 } from "@/domains/visit/route-b-red-line-context";
+import type {
+  VisitMeetingRelationshipSignalAction,
+  VisitMeetingRelationshipSignalCard,
+  VisitMeetingRelationshipSignalDeck,
+  VisitMeetingRelationshipSignalPriority,
+} from "@/domains/visit/meeting-relationship-signal";
 import { VisitService } from "@/domains/visit/service";
 import { useVisitStore } from "@/domains/visit/store";
 import type {
@@ -159,6 +165,52 @@ type VisitRouteBRedLineContextResponse = {
   };
 };
 
+type VisitMeetingRelationshipSignalStatus =
+  | "READY"
+  | "NO_MEETING_SESSION"
+  | "SUMMARY_REQUIRED"
+  | "NO_SIGNAL_CARDS";
+
+type VisitMeetingRelationshipSignalResponse = {
+  status: VisitMeetingRelationshipSignalStatus;
+  visitPlanId: string;
+  clientId: string;
+  deck: VisitMeetingRelationshipSignalDeck;
+  source: {
+    matchedBy: "visitPlanId";
+    sourceActionId: "meeting-notes-relationship-confirmation-signal";
+    sourceMeetingUpdatedAt?: string;
+    sourceSummaryUpdatedAt?: string;
+    acceptedWorkspaceHref: string;
+    summaryEndpointPattern: "/api/ai/meeting/sessions/[sessionId]/summary";
+    writebackEndpointPattern: "/api/ai/meeting/sessions/[sessionId]/writebacks";
+  };
+  summary: {
+    quickNoteSignalCount: number;
+    summarySignalCount: number;
+    writebackCandidateSignalCount: number;
+    cardCount: number;
+    highPriorityCount: number;
+    unknownCount: number;
+    inferenceCount: number;
+  };
+  proof: {
+    ownerScopedVisitPlan: true;
+    ownerScopedMeetingSessionLookup: true;
+    browserSuppliedSessionId: false;
+    browserSuppliedPersonId: false;
+    providerCallAttempted: false;
+    aiUsageLogRequired: false;
+    aiUsageLogWritten: false;
+    persistedToDatabase: false;
+    writesRelationshipGraph: false;
+    writesVisitPlan: false;
+    writesConfirmedCrmFact: false;
+    storesRawPrivateTranscript: false;
+    storesRawProviderPayload: false;
+  };
+};
+
 function normalizeParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
 }
@@ -253,6 +305,10 @@ function VisitPlanDetailContent() {
   const [routeBContext, setRouteBContext] = useState<VisitRouteBRedLineContextResponse | null>(null);
   const [routeBContextError, setRouteBContextError] = useState<string | null>(null);
   const [isLoadingRouteBContext, setIsLoadingRouteBContext] = useState(false);
+  const [meetingRelationshipSignals, setMeetingRelationshipSignals] =
+    useState<VisitMeetingRelationshipSignalResponse | null>(null);
+  const [meetingRelationshipSignalError, setMeetingRelationshipSignalError] = useState<string | null>(null);
+  const [isLoadingMeetingRelationshipSignals, setIsLoadingMeetingRelationshipSignals] = useState(false);
   const [relationshipConfirmationCardStates, setRelationshipConfirmationCardStates] = useState<
     Record<string, AdvisorConfirmationState>
   >({});
@@ -264,6 +320,11 @@ function VisitPlanDetailContent() {
     !isQuickstart && routeBContext?.visitPlanId === planId ? routeBContext : null;
   const activeRouteBContextError = !isQuickstart && planId ? routeBContextError : null;
   const activeRouteBContextLoading = !isQuickstart && Boolean(planId) && isLoadingRouteBContext;
+  const activeMeetingRelationshipSignals =
+    !isQuickstart && meetingRelationshipSignals?.visitPlanId === planId ? meetingRelationshipSignals : null;
+  const activeMeetingRelationshipSignalError = !isQuickstart && planId ? meetingRelationshipSignalError : null;
+  const activeMeetingRelationshipSignalLoading =
+    !isQuickstart && Boolean(planId) && isLoadingMeetingRelationshipSignals;
   const groupedQuestions = useMemo(() => {
     const questions = plan?.spinQuestions ?? [];
     return (["S", "P", "I", "N"] as const).map((type) => ({
@@ -326,6 +387,49 @@ function VisitPlanDetailContent() {
     }
 
     void loadPlan();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isQuickstart, planId]);
+
+  useEffect(() => {
+    if (isQuickstart || !planId) return;
+
+    let cancelled = false;
+    const targetPlanId = planId;
+
+    async function loadMeetingRelationshipSignals() {
+      try {
+        setIsLoadingMeetingRelationshipSignals(true);
+        setMeetingRelationshipSignalError(null);
+        const response = await fetch(`/api/visits/${encodeURIComponent(targetPlanId)}/meeting-relationship-signals`, {
+          cache: "no-store",
+        });
+
+        if (!response.ok) {
+          throw new Error(`VISIT_MEETING_RELATIONSHIP_SIGNALS_LOAD_FAILED_${response.status}`);
+        }
+
+        const payload = (await response.json()) as VisitMeetingRelationshipSignalResponse;
+        if (!cancelled) {
+          setMeetingRelationshipSignals(payload);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setMeetingRelationshipSignals(null);
+          setMeetingRelationshipSignalError(
+            error instanceof Error ? error.message : "VISIT_MEETING_RELATIONSHIP_SIGNALS_LOAD_FAILED",
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoadingMeetingRelationshipSignals(false);
+        }
+      }
+    }
+
+    void loadMeetingRelationshipSignals();
 
     return () => {
       cancelled = true;
@@ -770,6 +874,12 @@ function VisitPlanDetailContent() {
             error={activeRouteBContextError}
             isLoading={activeRouteBContextLoading}
           />
+          <MeetingRelationshipSignalPanel
+            error={activeMeetingRelationshipSignalError}
+            isLoading={activeMeetingRelationshipSignalLoading}
+            response={activeMeetingRelationshipSignals}
+            onOpenMeeting={() => router.push(`/pre-visit/${plan.id}/meeting${isQuickstart ? "?demo=quickstart" : ""}`)}
+          />
           <RelationshipConfirmationPanel
             boundary={activeRelationshipStateBoundary}
             boundaryError={relationshipStateBoundaryError}
@@ -1144,6 +1254,106 @@ function RouteBRedLineContextRow({ item }: { item: VisitRouteBRedLineContextItem
       </div>
       <p className="mt-2 text-xs font-semibold leading-5 text-ink">{item.label}</p>
       <p className="mt-1 line-clamp-3 text-xs leading-5 text-muted-foreground">{item.detail}</p>
+    </div>
+  );
+}
+
+function MeetingRelationshipSignalPanel({
+  error,
+  isLoading,
+  onOpenMeeting,
+  response,
+}: {
+  error: string | null;
+  isLoading: boolean;
+  onOpenMeeting: () => void;
+  response: VisitMeetingRelationshipSignalResponse | null;
+}) {
+  if (!isLoading && !response && !error) return null;
+
+  const deck = response?.deck;
+  const cards = deck?.cards ?? [];
+  const hasCards = response?.status === "READY" && cards.length > 0;
+  const badgeLabel = isLoading ? "檢查中" : error ? "暫不可用" : getMeetingSignalStatusLabel(response?.status);
+
+  return (
+    <section
+      data-meeting-relationship-signal-cards
+      className="rounded-lg border border-hairline bg-card p-4"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="flex items-center gap-2 text-sm font-semibold text-ink">
+            <Mic className="h-4 w-4" />
+            會議關係訊號
+          </div>
+          <p className="mt-2 text-xs leading-5 text-muted-foreground">
+            {isLoading
+              ? "正在檢查這份準備包對應的 AI 會議快記、摘要與寫回候選。"
+              : error
+                ? "會議訊號暫時無法載入；不影響目前準備包使用。"
+                : getMeetingSignalStatusCopy(response?.status)}
+          </p>
+        </div>
+        <Badge variant={hasCards ? "default" : error ? "destructive" : "outline"} className="rounded-md">
+          {badgeLabel}
+        </Badge>
+      </div>
+
+      <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+        <MiniStat label="快記" value={String(response?.summary.quickNoteSignalCount ?? 0)} />
+        <MiniStat label="候選" value={String(response?.summary.writebackCandidateSignalCount ?? 0)} />
+        <MiniStat label="卡片" value={String(response?.summary.cardCount ?? 0)} />
+      </div>
+
+      {hasCards ? (
+        <div className="mt-4 grid gap-2">
+          {cards.slice(0, 4).map((card) => (
+            <MeetingRelationshipSignalCardRow key={card.id} card={card} />
+          ))}
+        </div>
+      ) : (
+        <div className="mt-4">
+          <EmptyPrepCopy copy={error ? error : "AI 會議產生摘要或寫回候選後，這裡會出現可帶回關係圖確認的訊號卡。"} />
+        </div>
+      )}
+
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-hairline pt-3">
+        <p className="text-xs leading-5 text-muted-foreground">
+          Proof：owner-scoped visitPlanId、no browser session/person id、no provider call、no AiUsageLog required、
+          no relationship graph write、no confirmed CRM fact write。
+        </p>
+        <Button type="button" variant="outline" className="h-8 rounded-lg px-2 text-xs" onClick={onOpenMeeting}>
+          <Mic className="mr-2 h-3.5 w-3.5" />
+          開啟 AI 會議
+        </Button>
+      </div>
+    </section>
+  );
+}
+
+function MeetingRelationshipSignalCardRow({ card }: { card: VisitMeetingRelationshipSignalCard }) {
+  return (
+    <div className="rounded-lg border border-hairline bg-background p-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge variant={card.priority === "HIGH" ? "default" : "outline"} className="rounded-md">
+          {getMeetingSignalPriorityLabel(card.priority)}
+        </Badge>
+        <Badge variant="outline" className="rounded-md">
+          {getEvidenceStatusLabel(card.evidenceStatus)}
+        </Badge>
+        <Badge variant="outline" className="rounded-md">
+          {getMeetingSignalActionLabel(card.recommendedAction)}
+        </Badge>
+      </div>
+      <p className="mt-2 text-xs font-semibold leading-5 text-ink">{card.title}</p>
+      <p className="mt-1 line-clamp-3 text-xs leading-5 text-muted-foreground">{card.safeSummary}</p>
+      <p className="mt-2 border-l border-hairline pl-3 text-xs leading-5 text-muted-foreground">
+        {card.confirmationPrompt}
+      </p>
+      <p className="mt-2 text-[11px] leading-5 text-muted-foreground">
+        資料來源：{card.sourceLabel}；目前只作準備包檢核，不建立客戶 confirmed fact。
+      </p>
     </div>
   );
 }
@@ -1598,6 +1808,38 @@ function getRouteBActionStateLabel(state: VisitRouteBRedLineContextItem["actionS
   if (state === "EVIDENCE_NEEDED") return "需要佐證";
   if (state === "NOT_APPLICABLE") return "不適用";
   return "觀察中";
+}
+
+function getMeetingSignalStatusLabel(status: VisitMeetingRelationshipSignalStatus | undefined) {
+  if (status === "READY") return "已回帶";
+  if (status === "SUMMARY_REQUIRED") return "待摘要";
+  if (status === "NO_SIGNAL_CARDS") return "無卡片";
+  return "尚無會議";
+}
+
+function getMeetingSignalStatusCopy(status: VisitMeetingRelationshipSignalStatus | undefined) {
+  if (status === "READY") {
+    return "已將 AI 會議快記、摘要與寫回候選轉成可確認的關係訊號卡。";
+  }
+  if (status === "SUMMARY_REQUIRED") {
+    return "已找到 AI 會議快記；請先在會議工作台產生摘要與寫回候選。";
+  }
+  if (status === "NO_SIGNAL_CARDS") {
+    return "已找到會議摘要，但目前沒有可轉成關係確認卡的安全訊號。";
+  }
+  return "建立或補強 AI 會議後，關係確認訊號會自動回帶到這份準備包。";
+}
+
+function getMeetingSignalPriorityLabel(priority: VisitMeetingRelationshipSignalPriority) {
+  if (priority === "HIGH") return "高優先";
+  if (priority === "MEDIUM") return "中優先";
+  return "低優先";
+}
+
+function getMeetingSignalActionLabel(action: VisitMeetingRelationshipSignalAction) {
+  if (action === "ASK_IN_NEXT_VISIT") return "下次追問";
+  if (action === "CREATE_CONFIRMATION_CARD") return "建確認卡";
+  return "保留脈絡";
 }
 
 function getRelationshipCardPriorityLabel(priority: VisitRelationshipConfirmationCard["priority"]) {
