@@ -60,6 +60,8 @@ async function runApiProof() {
   const detail = await memberRequestJson("GET", `/api/clients/${createdClientId}/relationship-graph`);
   const detailText = JSON.stringify(detail.body);
   const graph = detail.body?.graph;
+  const edgeShadow = detail.body?.edgeShadow;
+  const edgeShadowText = JSON.stringify(edgeShadow ?? {});
 
   push(detail.status === 200, "relationship graph detail returns 200", `status=${detail.status}`);
   push(graph?.version === "2026-06-20.relationship-graph-review.v1", "relationship graph DTO has stable version");
@@ -102,6 +104,31 @@ async function runApiProof() {
   push(
     Array.isArray(graph?.suggestedQuestions) && graph.suggestedQuestions.length > 0,
     "relationship graph returns suggested prep questions",
+  );
+  push(
+    edgeShadow?.version === "2026-06-23.relationship-edge-shadow.v1",
+    "relationship graph response includes edge shadow BFF summary",
+  );
+  push(
+    edgeShadow?.sourceMemberCount === graph?.nodes?.length - 1,
+    "edge shadow source member count matches family nodes",
+    `source=${edgeShadow?.sourceMemberCount ?? ""}`,
+  );
+  push(
+    edgeShadow?.draftEdgeCount === edgeShadow?.sourceMemberCount &&
+      edgeShadow?.counts?.total === edgeShadow?.draftEdgeCount,
+    "edge shadow BFF summary counts candidate edges without returning drafts",
+    `drafts=${edgeShadow?.draftEdgeCount ?? ""}`,
+  );
+  push(
+    edgeShadow?.proof?.clientFacingDraftEdgesReturned === false && edgeShadow?.proof?.formalSchemaApproved === false,
+    "edge shadow BFF summary keeps formal edge migration approval-gated",
+  );
+  push(
+    !["draftEdges", "draftId", "sourceNodeId", "targetNodeId", "sourceReferenceIds", "metadata", "clientId"].some((key) =>
+      edgeShadowText.includes(key),
+    ),
+    "edge shadow BFF summary omits server-only draft edge payload",
   );
   push(
     !detailText.includes(qaPrivateEmailPrefix) && !detailText.includes(qaPrivatePhone),

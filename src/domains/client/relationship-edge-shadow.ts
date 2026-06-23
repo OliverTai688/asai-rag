@@ -65,6 +65,24 @@ export interface RelationshipEdgeShadowBackfillResult {
   };
 }
 
+export interface RelationshipEdgeShadowBffSummary {
+  version: RelationshipEdgeShadowBackfillResult["version"];
+  generatedAt: string;
+  sourceMemberCount: number;
+  draftEdgeCount: number;
+  duplicateDraftIdCount: number;
+  unsupportedRelations: string[];
+  warningCodes: RelationshipEdgeShadowWarningCode[];
+  counts: RelationshipEdgeShadowBackfillResult["counts"];
+  proof: {
+    schemaChanged: false;
+    databaseWriteAttempted: false;
+    providerCallAttempted: false;
+    clientFacingDraftEdgesReturned: false;
+    formalSchemaApproved: false;
+  };
+}
+
 interface BuildRelationshipEdgeShadowOptions {
   now?: string;
 }
@@ -168,6 +186,28 @@ export function assertRelationshipEdgeShadowSafety(result: RelationshipEdgeShado
   }
 
   return failures;
+}
+
+export function toRelationshipEdgeShadowBffSummary(
+  result: RelationshipEdgeShadowBackfillResult,
+): RelationshipEdgeShadowBffSummary {
+  return {
+    version: result.version,
+    generatedAt: result.generatedAt,
+    sourceMemberCount: result.sourceMemberCount,
+    draftEdgeCount: result.draftEdges.length,
+    duplicateDraftIdCount: result.duplicateDraftIds.length,
+    unsupportedRelations: result.unsupportedRelations,
+    warningCodes: unique(result.warnings.map((warning) => warning.code)) as RelationshipEdgeShadowWarningCode[],
+    counts: result.counts,
+    proof: {
+      schemaChanged: false,
+      databaseWriteAttempted: false,
+      providerCallAttempted: false,
+      clientFacingDraftEdgesReturned: false,
+      formalSchemaApproved: false,
+    },
+  };
 }
 
 function buildDraftInputForMember(

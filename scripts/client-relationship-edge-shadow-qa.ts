@@ -3,6 +3,7 @@ import type { Client } from "../src/domains/client/types";
 import {
   assertRelationshipEdgeShadowSafety,
   buildRelationshipEdgeShadowBackfill,
+  toRelationshipEdgeShadowBffSummary,
   type RelationshipEdgeDraft,
 } from "../src/domains/client/relationship-edge-shadow";
 
@@ -53,12 +54,15 @@ const fixtureClient: Client = {
 
 const firstRun = buildRelationshipEdgeShadowBackfill(fixtureClient, { now });
 const secondRun = buildRelationshipEdgeShadowBackfill(fixtureClient, { now });
+const bffSummary = toRelationshipEdgeShadowBffSummary(firstRun);
 const failures = [
   ...assertRelationshipEdgeShadowSafety(firstRun),
   ...assertSourceBoundaries(),
   ...assertResultShape(firstRun),
+  ...assertBffSummary(firstRun, bffSummary),
   ...assertIdempotence(firstRun, secondRun),
   ...assertPrivateSentinels(firstRun),
+  ...assertPrivateSentinels(bffSummary),
 ];
 
 if (failures.length > 0) {
@@ -78,6 +82,7 @@ console.log(
       unsupportedRelations: firstRun.unsupportedRelations,
       duplicateDraftIds: firstRun.duplicateDraftIds.length,
       proof: firstRun.proof,
+      bffSummary,
     },
     null,
     2,
@@ -144,6 +149,49 @@ function assertResultShape(result: ReturnType<typeof buildRelationshipEdgeShadow
   return shapeFailures;
 }
 
+function assertBffSummary(
+  result: ReturnType<typeof buildRelationshipEdgeShadowBackfill>,
+  summary: ReturnType<typeof toRelationshipEdgeShadowBffSummary>,
+): string[] {
+  const summaryFailures: string[] = [];
+  const serialized = JSON.stringify(summary);
+  const forbiddenServerOnlyKeys = [
+    "draftEdges",
+    "draftId",
+    "clientId",
+    "sourceNodeId",
+    "targetNodeId",
+    "sourceReferenceIds",
+    "metadata",
+    "safeSummary",
+    "relationLabel",
+  ];
+
+  if (summary.version !== result.version) summaryFailures.push("BFF summary version mismatch");
+  if (summary.sourceMemberCount !== result.sourceMemberCount) summaryFailures.push("BFF summary source count mismatch");
+  if (summary.draftEdgeCount !== result.draftEdges.length) summaryFailures.push("BFF summary draft count mismatch");
+  if (summary.duplicateDraftIdCount !== result.duplicateDraftIds.length) {
+    summaryFailures.push("BFF summary duplicate draft count mismatch");
+  }
+  if (summary.counts.total !== result.counts.total) summaryFailures.push("BFF summary total count mismatch");
+  if (!summary.warningCodes.includes("MISSING_PARENT_MEMBER")) summaryFailures.push("BFF summary missing parent warning code");
+  if (!summary.warningCodes.includes("UNSUPPORTED_ROOT_RELATION")) {
+    summaryFailures.push("BFF summary missing unsupported relation warning code");
+  }
+  if (summary.proof.schemaChanged || summary.proof.databaseWriteAttempted || summary.proof.providerCallAttempted) {
+    summaryFailures.push("BFF summary proof flags must stay no-schema/no-db/no-provider");
+  }
+  if (summary.proof.clientFacingDraftEdgesReturned || summary.proof.formalSchemaApproved) {
+    summaryFailures.push("BFF summary must not claim draft-edge payload or formal schema approval");
+  }
+
+  for (const key of forbiddenServerOnlyKeys) {
+    if (serialized.includes(key)) summaryFailures.push(`BFF summary leaked server-only key: ${key}`);
+  }
+
+  return summaryFailures;
+}
+
 function assertIdempotence(
   firstRun: ReturnType<typeof buildRelationshipEdgeShadowBackfill>,
   secondRun: ReturnType<typeof buildRelationshipEdgeShadowBackfill>,
@@ -153,7 +201,7 @@ function assertIdempotence(
   return firstJson === secondJson ? [] : ["relationship edge shadow dry-run is not idempotent"];
 }
 
-function assertPrivateSentinels(result: ReturnType<typeof buildRelationshipEdgeShadowBackfill>): string[] {
+function assertPrivateSentinels(result: object): string[] {
   const serialized = JSON.stringify(result);
   const forbidden = [
     emailSentinel,

@@ -44,6 +44,15 @@
 
 REL-004a evidence（2026-06-23）：`pnpm client:relationship-edge-shadow-qa` pass，9 draft edges、duplicateDraftIds 0、warningCodes `UNSUPPORTED_ROOT_RELATION` / `MISSING_PARENT_MEMBER`，proof flags `schemaChanged=false`、`databaseWriteAttempted=false`、`providerCallAttempted=false`、`generatedClientFacingPayload=false`。
 
+### D0.5. Shadow BFF summary（REL-004b，不動 schema）
+
+- [x] `/api/clients/[id]/relationship-graph` response 以 current-member scoped repository 回傳 `edgeShadow` summary，不新增 route/provider，也不繞過 `canReadClientDetail`。
+- [x] Summary 只含 version、source count、candidate count、warning code、counts 與 proof flags；不得含 `draftEdges`、draft id、source/target node id、source references、metadata、client id。
+- [x] Proof flags 必須維持 `schemaChanged=false`、`databaseWriteAttempted=false`、`providerCallAttempted=false`、`clientFacingDraftEdgesReturned=false`、`formalSchemaApproved=false`。
+- [x] `pnpm client:relationship-edge-shadow-bff-qa` 通過，且 `client:relationship-graph-qa` 包含 edgeShadow API contract 斷言。
+
+REL-004b evidence（2026-06-23）：`pnpm client:relationship-edge-shadow-qa` pass，BFF summary 無 server-only draft payload；`pnpm client:relationship-edge-shadow-bff-qa` pass，source-level contract 確認 repository 掛載 summary、Graph QA 已覆蓋 `edgeShadow`、Prisma schema 仍未新增 `RelationshipEdge`。
+
 ### D1. Edge model 持久化（REL-004，動 schema）
 
 - [ ] `RelationshipEdge` 全表帶可驗證 `organizationId`（經 client）；UI 不直接 import Prisma。

@@ -1,6 +1,11 @@
 import { ClientStatus } from "@/generated/prisma/enums";
 import type { ClientRelationshipGraphReview } from "@/domains/client/relationship-graph";
 import { buildClientRelationshipGraphReview } from "@/domains/client/relationship-graph";
+import type { RelationshipEdgeShadowBffSummary } from "@/domains/client/relationship-edge-shadow";
+import {
+  buildRelationshipEdgeShadowBackfill,
+  toRelationshipEdgeShadowBffSummary,
+} from "@/domains/client/relationship-edge-shadow";
 import { canReadClientDetail } from "@/lib/auth/policies";
 import type { AppSession } from "@/lib/auth/session";
 import { toClientDto } from "@/lib/clients/client-dto";
@@ -29,6 +34,7 @@ export type ClientRelationshipGraphResponse = {
     kycStatus: string;
   };
   graph: ClientRelationshipGraphReview;
+  edgeShadow: RelationshipEdgeShadowBffSummary;
 };
 
 export async function getClientRelationshipGraphForMember(
@@ -54,6 +60,7 @@ export async function getClientRelationshipGraphForMember(
 
   const client = toClientDto(record);
   const graph = buildClientRelationshipGraphReview(client);
+  const edgeShadow = toRelationshipEdgeShadowBffSummary(buildRelationshipEdgeShadowBackfill(client));
 
   return {
     status: "OK",
@@ -65,6 +72,7 @@ export async function getClientRelationshipGraphForMember(
         kycStatus: client.kycStatus,
       },
       graph,
+      edgeShadow,
     },
   };
 }

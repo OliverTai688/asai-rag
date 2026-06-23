@@ -93,6 +93,7 @@
     "client:relationship-graph-polish-qa": "node scripts/client-relationship-graph-polish-qa.mjs",
     "client:relationship-graph-write-qa": "node scripts/client-relationship-graph-write-qa.mjs",
     "client:relationship-edge-shadow-qa": "node scripts/client-relationship-edge-shadow-qa.mjs",
+    "client:relationship-edge-shadow-bff-qa": "node scripts/client-relationship-edge-shadow-bff-qa.mjs",
     "theater:client-build-qa": "node scripts/theater-client-build-qa.mjs",
     "theater:direct-field-qa": "node scripts/theater-direct-field-qa.mjs",
     "theater:route-b-handoff-dry-run": "node scripts/theater-route-b-handoff-dry-run.mjs",
