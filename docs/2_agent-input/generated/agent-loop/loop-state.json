@@ -84,11 +84,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 4,
-    "lastWholeProductReviewAt": "2026-06-23T10:02:47Z",
-    "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-23_lv3-whole-product-gap-review-theater-runtime-context.md",
+    "normalLoopsSinceLastWholeProductReview": 0,
+    "lastWholeProductReviewAt": "2026-06-23T12:05:43Z",
+    "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-23_lv3-whole-product-gap-review-relationship-edge-shadow-contract.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "CADENCE-WHOLE-PRODUCT-REVIEW-001: normal LV3 loop counter reached 4 after the PaymentTransaction upsert payload boundary slice. The next heartbeat should read and execute `docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md`, reassessing core client -> relationship -> preparation -> theater -> interview writeback flow, BFF/payment readiness blockers, and whether relationship confirmation persistence has received an operator A/B/C decision.",
+    "nextRecommendedImplementationSlice": "REL-004a relationship-edge shadow contract + backfill dry-run: source-backed no-schema slice that defines server-only RelationshipEdgeDraft/backfill DTOs, metadata allowlist, idempotent candidate generation, and `pnpm client:relationship-edge-shadow-qa` proof. Do not run Prisma migration/db write until REL-004 receives migration/rollback approval.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {
@@ -156,5 +156,5 @@
     "lv3ImmersiveLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-immersive-loop.md",
     "lv3WholeProductGapReviewLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md"
   },
-  "updatedAt": "2026-06-23T11:44:13Z"
+  "updatedAt": "2026-06-23T12:05:43Z"
 }

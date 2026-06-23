@@ -5,7 +5,7 @@
 - 研究依據：`docs/07_research-and-design/RES-024_relationship-network-graph-creation-gap-research-v1.0.md`
 - 建立日期：2026-06-20
 
-本框架定義 REL-001..REL-005 的驗收條目。每張 batch 卡完成前須通過對應段落，並保存 proof（API response、DB 查詢、Browser 截圖、command output）。
+本框架定義 REL-001..REL-005 的驗收條目。每張 batch 卡完成前須通過對應段落，並保存 proof（API response、DB 查詢、Browser 截圖、command output）。2026-06-23 fifth-loop review 新增 REL-004a，作為正式 edge table migration 前的不動 schema contract / dry-run bridge。
 
 ---
 
@@ -32,7 +32,17 @@
 - [ ] 雙親、手足、社會關係可正確呈現；node/edge 數與 `client.family` 對應一致。
 - [ ] edge list / node DTO 不含 email、phone 等私密欄位（sentinel 掃描 0）。
 
-## D. Edge model 持久化（REL-004，動 schema）
+## D. Edge model readiness and persistence（REL-004a / REL-004）
+
+### D0. Shadow contract / dry-run（REL-004a，不動 schema）
+
+- [ ] `RelationshipEdgeDraft` / backfill DTO 位於 domain/repository/server boundary；UI 不直接 import Prisma，也不改 Prisma schema 或 `src/generated`。
+- [ ] Dry-run 從既有 `FamilyMember.parentMemberId` + `relation` 推導 candidate edges，輸出 deterministic count、duplicate guard、unsupported relationship warnings；重跑 idempotent。
+- [ ] Candidate edge metadata allowlist 不含 email、phone、raw private transcript、raw provider payload、policy number、secret/token；僅保留 FACT/INFERENCE/UNKNOWN、安全摘要與 source references。
+- [ ] `pnpm client:relationship-edge-shadow-qa` 覆蓋單親、雙親、配偶、手足、社會關係、unknown/inference sentinel、no schema/no DB write/no provider proof。
+- [ ] REL-004 migration approval / rollback note 未被 REL-004a 視為已完成；REL-004a 只證明 contract readiness。
+
+### D1. Edge model 持久化（REL-004，動 schema）
 
 - [ ] `RelationshipEdge` 全表帶可驗證 `organizationId`（經 client）；UI 不直接 import Prisma。
 - [ ] `pnpm prisma:validate`、`pnpm prisma:generate` 通過；`db push`/migration dry-run 附 rollback note。
