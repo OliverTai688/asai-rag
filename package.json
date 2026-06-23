@@ -124,6 +124,7 @@
     "public:pricing-qa": "node scripts/public-pricing-qa.mjs",
     "public:status-qa": "node scripts/public-status-qa.mjs",
     "public:status-degraded-qa": "node scripts/public-status-degraded-qa.mjs",
+    "notification:visit-reminder-disabled-qa": "node scripts/notification-visit-reminder-disabled-qa.mjs",
     "interview:memory-dry-run": "node scripts/interview-memory-dry-run.mjs",
     "interview:park-loop-dry-run": "node scripts/interview-park-loop-dry-run.mjs",
     "interview:theater-build-dry-run": "node scripts/interview-theater-build-dry-run.mjs",

@@ -181,6 +181,17 @@ If the command does not exist yet, the responsible card must create or update it
 
 Evidence（2026-06-21 BFF-401a）：`BILLING_CHECKOUT_QA_BASE_URL=http://127.0.0.1:3046 pnpm billing:checkout-qa` covers unauth 401, invalid/non-self-serve plan 400, disabled 503, no-store/request-id, no provider attempt, no redirect payload, no order/transaction insert, redirect-only activation disabled, browser checksum generation disabled, and payment/private sentinel 0.
 
+`BFF-402a` visit reminder disabled proof is acceptable before real notification launch only if:
+
+- `/api/notifications/visit-reminder` no longer returns fake `success: true` delivery or "sent successfully" copy.
+- The route validates input, requires current member auth, and returns 401 for unauthenticated requests and 400 for invalid payloads.
+- Disabled notification posture returns 503 and explicitly proves `providerAttempted=false`, `jobQueued=false`, `realEmailSent=false`, `realNotificationSent=false`, and `mockSuccess=false`.
+- Auth database outage fails closed with a 503 unavailable error and still proves provider delivery was not attempted.
+- Response and logs do not echo recipient email or expose raw cookie, secret, token, provider payload, private transcript, payment data, or env values.
+- This proof does not satisfy full BFF-402: ECPay notification validation, query confirmation, duplicate notify idempotency, refund/void/manual review, and real notification delivery remain blocked until provider/env proof is completed.
+
+Evidence（2026-06-23 BFF-402a）：`pnpm notification:visit-reminder-disabled-qa` covers source removal of mock success, unauth 401, invalid input 400, DB-unavailable 503 fail-closed with `providerAttempted=false`, no-store/request-id, and private sentinel 0. The current local Supabase DB target returned Prisma `P1001 DatabaseNotReachable`, so authenticated disabled DTO runtime proof is deferred to rerun the same command when DB is reachable; the source DTO remains guarded-disabled and no provider/job/email/notification was attempted.
+
 ---
 
 ## 5. Data-source Inventory Gates

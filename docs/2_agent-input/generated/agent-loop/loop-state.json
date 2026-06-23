@@ -84,11 +84,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 1,
+    "normalLoopsSinceLastWholeProductReview": 2,
     "lastWholeProductReviewAt": "2026-06-22T16:33:43Z",
     "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-23_lv3-whole-product-gap-review-runtime-proof-gate.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "BFF-402a notification disabled boundary / visit reminder mock-success replacement, or another source-backed release-hardening slice that connects two product surfaces. BFF-305b is complete: pnpm public:status-degraded-qa proves public status/pricing/pages stay 200 with invalid DB and /api/bff/notifications returns disabled_no_delivery instead of 404. Do not spend the next loop on docs-only evidence or rerunning full cross-flow proof unless the operator specifically wants the residual DB-backed proof; if relationship persistence is still undecided, prefer a source slice that removes fake success around notification/email/payment boundaries while keeping real delivery disabled.",
+    "nextRecommendedImplementationSlice": "BFF-402b ECPay notify/query/idempotency fail-closed skeleton, or another source-backed release-hardening slice that removes fake success without enabling real provider delivery. BFF-402a is complete: /api/notifications/visit-reminder no longer returns mock email success and pnpm notification:visit-reminder-disabled-qa proves source boundary, 401/400, DB-unavailable 503 fail-closed, no provider/no private leak. Full authenticated disabled DTO runtime proof can be rerun by the operator when DB is reachable; do not spend the next loop on docs-only evidence or residual proof unless specifically requested. If relationship persistence product/schema decision is made, that can outrank BFF-402b.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {
@@ -156,5 +156,5 @@
     "lv3ImmersiveLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-immersive-loop.md",
     "lv3WholeProductGapReviewLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md"
   },
-  "updatedAt": "2026-06-22T17:05:00Z"
+  "updatedAt": "2026-06-23T00:55:00Z"
 }

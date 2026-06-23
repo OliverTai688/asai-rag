@@ -463,6 +463,22 @@ Whole-product review 註記（2026-06-23 runtime proof gate）：`pnpm lv3:cross
 
 ---
 
+### Batch BFF-402a - Visit Reminder Notification Disabled Boundary
+
+目標：先移除 production-facing visit reminder mock success，建立 authenticated、no-delivery、no-provider 的通知邊界；不啟用真 email、真 notification、job queue 或 provider。
+
+- [x] `/api/notifications/visit-reminder` 不再回 `success: true` 或「Reminder email sent successfully」類 fake delivery 文案。
+- [x] Route 需驗證 input 並要求 current member session；unauth 401、invalid payload 400。
+- [x] Authenticated 且 DB 可用時回 503 disabled posture，DTO 明確 `providerAttempted=false`、`jobQueued=false`、`realEmailSent=false`、`realNotificationSent=false`、`mockSuccess=false`。
+- [x] Auth DB 不可達時 fail closed 為 `VISIT_REMINDER_AUTH_UNAVAILABLE`，仍 `providerAttempted=false`，不得嘗試 real delivery。
+- [x] Response 不 echo `agentEmail`、不暴露 raw cookie/secret/token/provider payload/private transcript/payment data。
+- [x] Targeted QA `pnpm notification:visit-reminder-disabled-qa` 覆蓋 source boundary、401/400、DB-unavailable 503 fail-closed、private sentinel 0；DB 可達後可由 operator 重跑同一 command 驗 authenticated disabled DTO。
+- [x] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+
+完成註記（2026-06-23 BFF-402a visit reminder disabled boundary）：已將 `/api/notifications/visit-reminder` 從 mock email success 改為 shared validation + current-member auth + versioned disabled/no-delivery DTO；新增 DB-unavailable fail-closed fallback 與 `pnpm notification:visit-reminder-disabled-qa`。Proof 在目前 Supabase DB host `P1001 DatabaseNotReachable` 下通過 source/static、unauth 401、invalid 400、auth DB-unavailable 503、no-store/request-id、providerAttempted=false、private sentinel 0；同一 QA command 可於 DB 可達時驗 authenticated disabled DTO。此切片不啟用 real email、real notification、job queue、provider call、fake `AiUsageLog` 或 payment notification/query/idempotency；完整 BFF-402 ECPay notify/query/idempotency 仍待後續。
+
+---
+
 ## Batch BFF-402 - ECPay Notification / Query / Idempotency
 
 目標：付款狀態只信任 server notification/query confirmation。
