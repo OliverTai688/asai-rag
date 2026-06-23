@@ -115,6 +115,8 @@ Whole-product review note（2026-06-21 after AMM-008）：AMM 已具備跨狀態
 
 進度註記：2026-06-22 AMM-005c no-DB fallback 已新增 `src/domains/interview/meeting-session-lookup.ts` 與 `pnpm meeting:notes-compat-contract-dry-run`，用 fixture 證明 visit-scoped latest session / client-direct session 選擇規則，並 source-audit notes bridge、latest-session route、MeetingWorkspace reuse、manifest 與 package script contract。此命令不連 DB、不啟 browser、不呼叫 provider；仍不勾選 Browser/API/DB proof，待 DB DNS 恢復後重跑 `DEMO_QA_BASE_URL=http://localhost:<port> pnpm meeting:notes-compat-qa`。
 
+Whole-product review 註記（2026-06-23 after BFF-402h）：BFF/payment guarded contract 已連續完成後，下一個正常 LV3 loop 應回到 AMM-005c，補齊 `/pre-visit/[planId]/notes` 的 Browser/API/DB proof，或修正 proof 中暴露的 accepted source 問題。這不是採納隔離中的 `/notes` prototype；驗收目標仍是已接入正式 `MeetingWorkspace` 的 pre-visit notes bridge。
+
 ## Batch AMM-006 — 寫回邊界（行動項 / CRM）
 - [x] 沿用 `src/domains/interview/writeback-boundary.ts`：行動項 → follow-up task、confirmed fact → CRM candidate、inference → insight、unknown → follow-up。
 - [x] confirmed + 人工勾選才寫回；inference 永不變 CRM fact。

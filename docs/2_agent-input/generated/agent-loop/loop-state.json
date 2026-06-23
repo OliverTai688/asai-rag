@@ -84,11 +84,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 4,
-    "lastWholeProductReviewAt": "2026-06-23T04:14:05Z",
-    "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-23_lv3-whole-product-gap-review-release-readiness-bff.md",
+    "normalLoopsSinceLastWholeProductReview": 0,
+    "lastWholeProductReviewAt": "2026-06-23T06:36:47Z",
+    "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-23_lv3-whole-product-gap-review-amm-notes-compat.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "Run the scheduled whole-product gap review loop with docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md. Four normal loops have now completed since the last review; reassess LV3 advisor-system flow, BFF release blockers, billing payment lifecycle gates, AI meeting/notes entrypoints, and cross-surface client -> relationship graph -> previsit -> theater continuity before selecting the next source-backed implementation slice.",
+    "nextRecommendedImplementationSlice": "AMM-005c notes/postVisitNotes compatibility proof closure. Run the accepted pre-visit notes bridge through Browser/API/DB proof with DEMO_QA_BASE_URL=http://localhost:<port> pnpm meeting:notes-compat-qa, fix any source or QA contract issue exposed by the proof, and keep the quarantined /notes prototype out of scope. If only residual screenshots or manually repeatable browser evidence remain, hand them to the operator instead of adding docs-only proof churn.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {
@@ -156,5 +156,5 @@
     "lv3ImmersiveLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-immersive-loop.md",
     "lv3WholeProductGapReviewLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md"
   },
-  "updatedAt": "2026-06-23T06:15:47Z"
+  "updatedAt": "2026-06-23T06:36:47Z"
 }
