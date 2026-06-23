@@ -4,6 +4,11 @@ import {
   buildEcpayQueryLedgerIdempotencyContract,
   type BillingLedgerIdempotencyContractDto,
 } from "./ledger";
+import {
+  buildGuardedEcpayCheckMacValidation,
+  type EcpayCheckMacHashInfo,
+  type EcpayCheckMacValidationDto,
+} from "./ecpay-checkmac";
 
 export const BILLING_ECPAY_NOTIFY_CONTRACT_VERSION = "asai.billing.ecpay.notify.v1";
 export const BILLING_ECPAY_QUERY_CONTRACT_VERSION = "asai.billing.ecpay.query.v1";
@@ -56,9 +61,10 @@ export type DisabledEcpayNotifyDto = {
     amountAccepted: boolean;
     paymentDateAccepted: boolean;
     checkMacValueProvided: boolean;
-    checkMacValueVerified: false;
+    checkMacValueVerified: boolean;
     rawCheckMacValueEchoed: false;
   };
+  checkMacValidation: EcpayCheckMacValidationDto;
   idempotency: {
     key: string;
     duplicateSafe: true;
@@ -103,7 +109,13 @@ export type DisabledEcpayQueryDto = {
   >;
 };
 
-export function buildDisabledEcpayNotifyDto(input: EcpayNotifyInput, now = new Date()): DisabledEcpayNotifyDto {
+export function buildDisabledEcpayNotifyDto(
+  input: EcpayNotifyInput,
+  now = new Date(),
+  checkMacHashInfo: EcpayCheckMacHashInfo | null = null,
+): DisabledEcpayNotifyDto {
+  const checkMacValidation = buildGuardedEcpayCheckMacValidation(input, checkMacHashInfo);
+
   return {
     version: BILLING_ECPAY_NOTIFY_CONTRACT_VERSION,
     status: "disabled",
@@ -118,9 +130,10 @@ export function buildDisabledEcpayNotifyDto(input: EcpayNotifyInput, now = new D
       amountAccepted: input.TradeAmt !== undefined,
       paymentDateAccepted: Boolean(input.PaymentDate),
       checkMacValueProvided: Boolean(input.CheckMacValue),
-      checkMacValueVerified: false,
+      checkMacValueVerified: checkMacValidation.verified,
       rawCheckMacValueEchoed: false,
     },
+    checkMacValidation,
     idempotency: {
       key: input.MerchantTradeNo,
       duplicateSafe: true,

@@ -211,6 +211,16 @@ Evidence（2026-06-23 BFF-402b）：`pnpm billing:ecpay-disabled-qa` passed 57/5
 
 Evidence（2026-06-23 BFF-402d）：`pnpm billing:ledger-idempotency-qa` passed static source contract checks; `pnpm billing:plan-change-boundary-qa` passed source proof; `BILLING_ECPAY_DISABLED_QA_BASE_URL=http://127.0.0.1:3061 pnpm billing:ecpay-disabled-qa` passed 73/73 checks. Proof covers shared `asai.billing.ledger_idempotency.v1`, notify/query DTO ledger contract, duplicate notify no-write/no-activation posture, plan-change contract reference, no ECPay provider call, no DB write, no fake `AiUsageLog`, and payment/private sentinel 0. Authenticated query disabled DTO runtime proof remains DB-availability dependent; rerun the same ECPay QA command when DB is reachable.
 
+`BFF-402e` server-only CheckMacValue validation boundary proof is acceptable before full payment callback/query launch only if:
+
+- CheckMacValue canonicalization and verification are implemented in server-side/domain code only; browser code never receives HashKey/HashIV and never generates CheckMacValue.
+- The verifier follows ECPay All-In-One checksum posture: omit `CheckMacValue`, sort fields A-Z, sandwich with HashKey/HashIV, URL encode with ECPay-compatible replacements, lowercase, SHA256, and uppercase output.
+- `POST /api/billing/ecpay/notify` may report valid checksum as verified and tampered checksum as invalid, but both paths must remain guarded-disabled until server query confirmation and transaction ledger persistence exist.
+- Response and logs must not echo raw CheckMacValue, HashKey, HashIV, raw provider payload, payment token, card data, raw payment data, cookie, secret, token, OTP, or env values.
+- Proof must explicitly state that this does not satisfy ECPay server query confirmation, real `PaymentTransaction` persistence/upsert, confirmed activation, refund/void/manual review, or production payment enablement.
+
+Evidence（2026-06-23 BFF-402e）：`pnpm billing:ecpay-checkmac-qa` passed static contract + deterministic fixture checks; `BILLING_ECPAY_DISABLED_QA_BASE_URL=http://127.0.0.1:3062 pnpm billing:ecpay-disabled-qa` passed 99/99 runtime checks; `pnpm billing:ledger-idempotency-qa` still passed. Proof covers valid CheckMacValue verified, duplicate valid notify duplicate-safe/no-write/no-activation, tampered CheckMacValue invalid, no HashKey/HashIV/raw checksum echo, no provider call, no DB write, no fake `AiUsageLog`, no raw provider payload, and payment/private sentinel 0. Query confirmation remains DB/provider dependent; in this run authenticated query reached the existing DB-unavailable fallback and did not contact ECPay.
+
 `BFF-403a` subscription capability BFF read contract is acceptable as a partial subscription gate only if:
 
 - `GET /api/billing/subscription` requires current member auth and rejects unauthenticated requests with 401.

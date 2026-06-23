@@ -509,6 +509,20 @@ Whole-product review 註記（2026-06-23 runtime proof gate）：`pnpm lv3:cross
 
 ---
 
+### Batch BFF-402e - Server-only CheckMacValue Validation Boundary
+
+目標：先把 ECPay notification 的 CheckMacValue canonicalization / verification 落到 server-only domain contract；可使用 server env 進行 checksum 驗證，但仍不啟用真付款、不呼叫 provider query、不寫 transaction ledger、不啟用 plan。
+
+- [x] 新增 `asai.billing.ecpay.checkmac.v1` contract，依 ECPay All-In-One SHA256 規則排除 `CheckMacValue`、A-Z 排序、前後加 `HashKey` / `HashIV`、URL encode + lowercase + SHA256 uppercase。
+- [x] `POST /api/billing/ecpay/notify` 只在 server route 讀取 `ECPAY_HASH_KEY` / `ECPAY_HASH_IV`；DTO 不回 HashKey、HashIV、raw CheckMacValue，也不允許 browser 產生 checksum。
+- [x] Notify valid checksum 可回 `checkMacValueVerified=true` 與 `checkMacValidation.status=verified`，tampered checksum 回 `status=invalid`；兩者仍維持 503 guarded-disabled、no provider call、no ledger write、no transaction/order update、no plan activation。
+- [x] Targeted QA `pnpm billing:ecpay-checkmac-qa`、`BILLING_ECPAY_DISABLED_QA_BASE_URL=http://127.0.0.1:3062 pnpm billing:ecpay-disabled-qa`、`pnpm billing:ledger-idempotency-qa` 通過。
+- [x] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+
+完成註記（2026-06-23 BFF-402e server-only CheckMacValue validation boundary）：新增 `src/domains/subscription/ecpay-checkmac.ts`、`pnpm billing:ecpay-checkmac-qa`，並讓 notify route server-side 讀 env 後注入 `buildDisabledEcpayNotifyDto()`。Proof：`pnpm billing:ecpay-checkmac-qa` 通過 static + deterministic fixture；`BILLING_ECPAY_DISABLED_QA_BASE_URL=http://127.0.0.1:3062 pnpm billing:ecpay-disabled-qa` 通過 99/99 checks，覆蓋 valid checksum verified、duplicate valid checksum verified、tampered checksum invalid、response/payment/private sentinel 0、no raw checksum/HashKey/HashIV echo、no DB write/no provider/no activation；`pnpm billing:ledger-idempotency-qa` 仍通過。此結果不代表 ECPay server query confirmation、真正 `PaymentTransaction` persistence/upsert、confirmed transaction/query activation、refund/void/manual review 或 production payment enablement 已完成。
+
+---
+
 ## Batch BFF-402 - ECPay Notification / Query / Idempotency
 
 目標：付款狀態只信任 server notification/query confirmation。
@@ -557,7 +571,7 @@ Evidence（2026-06-23 BFF-403b）：完成 source-backed subscription capability
 
 ## Current BFF Blockers
 
-- ECPay production credentials、HashKey/HashIV、callback domain、server notification/query proof 需要 operator approval。
+- ECPay production credentials、callback domain、server query proof、`PaymentTransaction` persistence/upsert、confirmed transaction/query activation、refund/void/manual review 仍需後續 implementation/proof；refund/void/destructive payment action 仍需逐項 explicit approval。
 - Production auth provider/email/SSO、platform MFA、client-user OTP 仍需 operator/product 決策。
 - Existing realtime voice workstream 已占用 `ARC-007/PLN-018/ACC-010`，本 BFF workstream 使用 `ARC-008/PLN-019/ACC-011`。
 - 若 BFF tasks 改 route/layout/server action/cookies/session 行為，先讀 `node_modules/next/dist/docs/` 對應 Next.js 版本文件。

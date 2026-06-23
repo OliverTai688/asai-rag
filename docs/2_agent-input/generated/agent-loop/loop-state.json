@@ -84,11 +84,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 3,
+    "normalLoopsSinceLastWholeProductReview": 4,
     "lastWholeProductReviewAt": "2026-06-23T02:33:04Z",
     "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-23_lv3-whole-product-gap-review-subscription-ui-consumption.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "Next normal loop should remain source-backed and avoid docs-only proof. BFF-402d transaction ledger idempotency source contract is now implemented; the next highest billing/release blocker is BFF-402e CheckMacValue validation and ECPay server-query confirmation guarded transition. Prefer a narrow source/proof slice that adds server-only checksum canonicalization/validation or query adapter boundary without exposing HashKey/HashIV to the browser, without enabling production payment, without writing raw provider payloads, and without activating organization plans until confirmed ledger persistence/upsert proof exists. If provider/env proof is unavailable, provide static/domain contract plus self-runnable API QA command rather than docs-only evidence.",
+    "nextRecommendedImplementationSlice": "Cadence has reached four normal implementation/proof loops since the last whole-product review, so the next automation loop should enter scheduled whole-product gap review via docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md before selecting another implementation slice. Review should account for BFF-402e now being resolved: server-only CheckMacValue validation is implemented and proofed, while ECPay server query confirmation, real PaymentTransaction persistence/upsert, confirmed transaction/query activation, production payment env/callback, and refund/void/manual review remain blockers.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {
@@ -156,5 +156,5 @@
     "lv3ImmersiveLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-immersive-loop.md",
     "lv3WholeProductGapReviewLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md"
   },
-  "updatedAt": "2026-06-23T03:34:05Z"
+  "updatedAt": "2026-06-23T03:54:04Z"
 }

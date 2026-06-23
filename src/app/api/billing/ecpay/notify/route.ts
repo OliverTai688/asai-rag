@@ -3,8 +3,10 @@ import { apiErrors } from "@/lib/api/errors";
 import { apiErrorResponse, privateJsonResponse } from "@/lib/api/response";
 import { flattenZodIssues, type ParsedJsonBody } from "@/lib/api/validation";
 import type { EcpayNotifyInput } from "@/domains/subscription/ecpay";
+import type { EcpayCheckMacHashInfo } from "@/domains/subscription/ecpay-checkmac";
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
 export async function POST(request: Request) {
   const parsed = await parseEcpayNotifyBody(request);
@@ -16,7 +18,7 @@ export async function POST(request: Request) {
   return privateJsonResponse(
     {
       error: "BILLING_ECPAY_NOTIFY_DISABLED",
-      notification: buildDisabledEcpayNotifyDto(parsed.data),
+      notification: buildDisabledEcpayNotifyDto(parsed.data, new Date(), readEcpayCheckMacHashInfoFromEnv()),
     },
     { status: 503 },
   );
@@ -65,4 +67,18 @@ async function readNotifyBody(request: Request): Promise<unknown> {
   }
 
   return null;
+}
+
+function readEcpayCheckMacHashInfoFromEnv(): EcpayCheckMacHashInfo | null {
+  const hashKey = process.env.ECPAY_HASH_KEY?.trim();
+  const hashIv = process.env.ECPAY_HASH_IV?.trim();
+
+  if (!hashKey || !hashIv) {
+    return null;
+  }
+
+  return {
+    hashKey,
+    hashIv,
+  };
 }

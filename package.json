@@ -70,6 +70,7 @@
     "bff:platform-qa": "node scripts/bff-platform-qa.mjs",
     "billing:checkout-qa": "node scripts/billing-checkout-qa.mjs",
     "billing:ecpay-disabled-qa": "node scripts/billing-ecpay-disabled-qa.mjs",
+    "billing:ecpay-checkmac-qa": "node scripts/billing-ecpay-checkmac-qa.mjs",
     "billing:ledger-idempotency-qa": "node scripts/billing-ledger-idempotency-qa.mjs",
     "billing:subscription-capability-qa": "node scripts/billing-subscription-capability-qa.mjs",
     "billing:subscription-ui-qa": "node scripts/billing-subscription-ui-qa.mjs",
