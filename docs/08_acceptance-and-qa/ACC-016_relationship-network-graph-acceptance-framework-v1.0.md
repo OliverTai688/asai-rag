@@ -53,6 +53,15 @@ REL-004a evidence（2026-06-23）：`pnpm client:relationship-edge-shadow-qa` pa
 
 REL-004b evidence（2026-06-23）：`pnpm client:relationship-edge-shadow-qa` pass，BFF summary 無 server-only draft payload；`pnpm client:relationship-edge-shadow-bff-qa` pass，source-level contract 確認 repository 掛載 summary、Graph QA 已覆蓋 `edgeShadow`、Prisma schema 仍未新增 `RelationshipEdge`。
 
+### D0.6. Shadow handoff consumer（REL-004c，不動 schema）
+
+- [x] `buildVisitTheaterHandoff()` 從 server/domain `client` 產生 `relationshipEdgeShadow` summary，並放入 `sourceSummary.evidenceSummary`、`sourceCounts.relationshipEdgeShadowCandidates` 與 theater `knownMaterials`。
+- [x] Handoff payload 不含 `draftEdges`、draft id、source/target node id、source references、metadata；只含 candidate/type/status counts、warning code 與 proof boundary。
+- [x] Handoff warning/missing 明確顯示 formal `RelationshipEdge` schema 未核可；劇場只能用摘要，不得寫回 relationship graph、VisitPlan 或 confirmed CRM fact。
+- [x] `pnpm visit:theater-handoff-dry-run` 通過，且輸出 `providerCallAttempted=false`、`databaseWriteAttempted=false`、`clientFacingDraftEdgesReturned=false`、`formalSchemaApproved=false`。
+
+REL-004c evidence（2026-06-23）：`pnpm visit:theater-handoff-dry-run` pass，5 candidate edges、`UNSUPPORTED_ROOT_RELATION` warning、summary 進入 theater knownMaterials/sourceSummary，server-only draft payload sentinel 0；no provider/no DB/no writeback boundary 維持。
+
 ### D1. Edge model 持久化（REL-004，動 schema）
 
 - [ ] `RelationshipEdge` 全表帶可驗證 `organizationId`（經 client）；UI 不直接 import Prisma。

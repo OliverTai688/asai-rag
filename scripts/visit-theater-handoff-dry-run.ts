@@ -17,7 +17,7 @@ const demoClient: Client = {
     { id: "child", relation: "子", name: "王小明", age: 12 },
     { id: "mother", relation: "母", name: "王媽媽", age: 68 },
     { id: "advisor", relation: "合作夥伴", name: "會計師林先生" },
-    { id: "overflow", relation: "朋友", name: "多餘角色" },
+    { id: "overflow", relation: "親戚", name: "多餘角色" },
   ],
   existingPolicies: [
     { id: "policy-1", type: "醫療險", provider: "Nuva Life", amount: 1000000 },
@@ -143,6 +143,7 @@ const serialized = JSON.stringify(handoff);
 const evidenceSummary = handoff.sourceSummary.evidenceSummary;
 const relationshipConfirmation = evidenceSummary.relationshipConfirmation;
 const meetingRelationshipSignals = evidenceSummary.meetingRelationshipSignals;
+const relationshipEdgeShadow = evidenceSummary.relationshipEdgeShadow;
 
 if (handoff.status !== "READY") failures.push("normal handoff did not become READY");
 if (handoff.packet.readiness !== "READY") failures.push("packet readiness is not READY");
@@ -193,6 +194,9 @@ if (handoff.sourceSummary.sourceCounts.relationshipConfirmationCards < 1) {
 if (handoff.sourceSummary.sourceCounts.meetingRelationshipSignals < 1) {
   failures.push("meeting relationship signal source count missing");
 }
+if (handoff.sourceSummary.sourceCounts.relationshipEdgeShadowCandidates < 1) {
+  failures.push("relationship edge shadow candidate count missing");
+}
 if (relationshipConfirmation.cardCount < 1) failures.push("relationship confirmation card summary missing");
 if (relationshipConfirmation.highPriorityCount < 1) failures.push("relationship confirmation high-priority summary missing");
 if (relationshipConfirmation.byStatus.inference + relationshipConfirmation.byStatus.unknown < 1) {
@@ -225,8 +229,20 @@ if (!handoff.knownMaterials.some((item) => item.includes("meeting_relationship_s
 if (!handoff.knownMaterials.some((item) => item.includes("writes_relationship_graph=false"))) {
   failures.push("meeting relationship signal relationship-graph write boundary missing");
 }
+if (!handoff.knownMaterials.some((item) => item.includes("relationship_edge_shadow_summary=true"))) {
+  failures.push("relationship edge shadow summary did not enter theater knownMaterials");
+}
+if (!handoff.knownMaterials.some((item) => item.includes("client_facing_draft_edges_returned=false"))) {
+  failures.push("relationship edge shadow draft-edge payload boundary missing");
+}
+if (!handoff.knownMaterials.some((item) => item.includes("formal_schema_approved=false"))) {
+  failures.push("relationship edge shadow formal schema approval boundary missing");
+}
 if (handoff.packet.confirmedFacts.some((fact) => fact.includes("relationship_confirmation_card="))) {
   failures.push("relationship confirmation card leaked into confirmed theater facts");
+}
+if (handoff.packet.confirmedFacts.some((fact) => fact.includes("relationship_edge_shadow_summary=true"))) {
+  failures.push("relationship edge shadow summary leaked into confirmed theater facts");
 }
 if (
   meetingRelationshipSignals.byStatus.unknown > 0 &&
@@ -252,8 +268,20 @@ if (!handoff.warnings.includes("關係確認卡已帶入劇場作為待確認素
 if (!handoff.warnings.includes("會議關係訊號已帶入劇場作為待確認素材；不會寫回關係圖、VisitPlan 或 CRM 事實。")) {
   failures.push("meeting relationship signal no-write warning missing");
 }
+if (!handoff.warnings.includes("RelationshipEdge shadow summary 已帶入劇場作為 edge-model readiness；不回傳 draft edges、不寫回關係圖。")) {
+  failures.push("relationship edge shadow summary warning missing");
+}
+if (!handoff.warnings.includes("RelationshipEdge shadow summary 含待確認 warning；正式 edge table migration 前仍需人工審查。")) {
+  failures.push("relationship edge shadow warning boundary missing");
+}
 if (!handoff.missing.includes("會議關係訊號仍有未知關係脈絡待下一次拜訪確認")) {
   failures.push("unknown meeting relationship signal gap was not surfaced in missing list");
+}
+if (!handoff.missing.includes("正式 RelationshipEdge schema 尚未核可；劇場只能使用安全摘要，不可寫回關係圖")) {
+  failures.push("relationship edge shadow formal-schema missing item not surfaced");
+}
+if (!handoff.missing.includes("RelationshipEdge shadow summary 仍有待確認 warning")) {
+  failures.push("relationship edge shadow warning missing item not surfaced");
 }
 if (!handoff.missing.includes("準備包仍有待確認推論依據")) {
   failures.push("unknown reasoning gap was not surfaced in missing list");
@@ -266,6 +294,16 @@ if (
   serialized.includes("secret123")
 ) {
   failures.push("private email, phone, policy, raw payload, or secret leaked into handoff output");
+}
+if (
+  serialized.includes("draftEdges") ||
+  serialized.includes("draftId") ||
+  serialized.includes("sourceNodeId") ||
+  serialized.includes("targetNodeId") ||
+  serialized.includes("sourceReferenceIds") ||
+  serialized.includes("metadata")
+) {
+  failures.push("relationship edge shadow leaked server-only draft edge payload into handoff output");
 }
 if (meetingRelationshipSignals.cardCount < 1) failures.push("meeting relationship signal summary missing");
 if (meetingRelationshipSignals.highPriorityCount < 1) failures.push("meeting relationship signal high-priority summary missing");
@@ -284,6 +322,28 @@ if (
   meetingRelationshipSignals.writesConfirmedCrmFact
 ) {
   failures.push("meeting relationship signal handoff crossed provider, persistence, graph, VisitPlan, or CRM write boundary");
+}
+if (relationshipEdgeShadow.draftEdgeCount < 1) failures.push("relationship edge shadow summary missing");
+if (relationshipEdgeShadow.sourceMemberCount !== demoClient.family.length) {
+  failures.push("relationship edge shadow source member count mismatch");
+}
+if (!relationshipEdgeShadow.warningCodes.includes("UNSUPPORTED_ROOT_RELATION")) {
+  failures.push("relationship edge shadow unsupported relation warning missing");
+}
+if (
+  relationshipEdgeShadow.proof.schemaChanged ||
+  relationshipEdgeShadow.proof.databaseWriteAttempted ||
+  relationshipEdgeShadow.proof.providerCallAttempted ||
+  relationshipEdgeShadow.proof.clientFacingDraftEdgesReturned ||
+  relationshipEdgeShadow.proof.formalSchemaApproved ||
+  relationshipEdgeShadow.persistedToDatabase ||
+  relationshipEdgeShadow.writesRelationshipGraph ||
+  relationshipEdgeShadow.writesVisitPlan ||
+  relationshipEdgeShadow.writesConfirmedCrmFact ||
+  relationshipEdgeShadow.storesRawProviderPayload ||
+  relationshipEdgeShadow.rawPrivateTranscriptIncluded
+) {
+  failures.push("relationship edge shadow handoff crossed provider, persistence, graph, VisitPlan, CRM, or draft-payload boundary");
 }
 if (highSensitivityHandoff.status !== "BLOCKED_SENSITIVE") {
   failures.push("high sensitivity client without approval was not blocked");
@@ -318,6 +378,7 @@ console.log(
       questionEvidenceSources: evidenceSummary.questionEvidenceSources,
       relationshipConfirmation,
       meetingRelationshipSignals,
+      relationshipEdgeShadow,
       theaterMaterialCounts: evidenceSummary.theaterMaterialCounts,
       blockedHighSensitivityStatus: highSensitivityHandoff.status,
       approvedHighSensitivityStatus: approvedHighSensitivityHandoff.status,

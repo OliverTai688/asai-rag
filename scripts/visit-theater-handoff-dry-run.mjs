@@ -36,6 +36,8 @@ try {
       "src/domains/visit/reasoning.ts",
       "src/domains/visit/meeting-relationship-signal.ts",
       "src/domains/visit/types.ts",
+      "src/domains/client/relationship-edge-shadow.ts",
+      "src/domains/client/relationship-graph.ts",
       "src/domains/client/types.ts",
     ],
     { cwd: root, stdio: "inherit" },

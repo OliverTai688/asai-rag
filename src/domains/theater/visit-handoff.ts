@@ -1,4 +1,9 @@
 import type { Client, FamilyMember, Policy } from "../client/types";
+import type { RelationshipEdgeShadowBffSummary } from "../client/relationship-edge-shadow";
+import {
+  buildRelationshipEdgeShadowBackfill,
+  toRelationshipEdgeShadowBffSummary,
+} from "../client/relationship-edge-shadow";
 import { buildTheaterFieldBuildContext } from "../interview/theater-build";
 import type { TheaterBuildPacket } from "../interview/types";
 import {
@@ -54,6 +59,15 @@ export interface VisitTheaterMeetingRelationshipSignalHandoffSummary {
   rawPrivateTranscriptIncluded: false;
 }
 
+export interface VisitTheaterRelationshipEdgeShadowHandoffSummary extends RelationshipEdgeShadowBffSummary {
+  persistedToDatabase: false;
+  writesRelationshipGraph: false;
+  writesVisitPlan: false;
+  writesConfirmedCrmFact: false;
+  storesRawProviderPayload: false;
+  rawPrivateTranscriptIncluded: false;
+}
+
 export interface VisitTheaterSensitivityApproval {
   riskAccepted: boolean;
   reason?: string;
@@ -90,12 +104,14 @@ export interface VisitTheaterHandoff {
       visitMaterials: number;
       relationshipConfirmationCards: number;
       meetingRelationshipSignals: number;
+      relationshipEdgeShadowCandidates: number;
     };
     evidenceSummary: {
       questionEvidenceByStatus: Record<VisitQuestionEvidenceStatus, number>;
       questionEvidenceSources: VisitQuestionEvidenceSource[];
       relationshipConfirmation: VisitTheaterRelationshipConfirmationHandoffSummary;
       meetingRelationshipSignals: VisitTheaterMeetingRelationshipSignalHandoffSummary;
+      relationshipEdgeShadow: VisitTheaterRelationshipEdgeShadowHandoffSummary;
       theaterMaterialCounts: {
         facts: number;
         inferences: number;
@@ -111,10 +127,12 @@ export function buildVisitTheaterHandoff(input: VisitTheaterHandoffInput): Visit
   const now = input.now ?? new Date().toISOString();
   const relationshipConfirmationDeck = buildVisitRelationshipConfirmationDeck(input.client, now);
   const meetingRelationshipSignalDeck = input.meetingRelationshipSignalDeck ?? null;
+  const relationshipEdgeShadow = buildVisitTheaterRelationshipEdgeShadowSummary(input.client, now);
   const knownMaterials = buildVisitTheaterKnownMaterials(
     input,
     relationshipConfirmationDeck,
     meetingRelationshipSignalDeck,
+    relationshipEdgeShadow,
   );
   const context = buildTheaterFieldBuildContext({
     organizationId: input.organizationId,
@@ -128,8 +146,18 @@ export function buildVisitTheaterHandoff(input: VisitTheaterHandoffInput): Visit
     now,
   });
 
-  const warnings = buildWarnings(input, relationshipConfirmationDeck, meetingRelationshipSignalDeck);
-  const missing = buildMissingItems(input, relationshipConfirmationDeck, meetingRelationshipSignalDeck);
+  const warnings = buildWarnings(
+    input,
+    relationshipConfirmationDeck,
+    meetingRelationshipSignalDeck,
+    relationshipEdgeShadow,
+  );
+  const missing = buildMissingItems(
+    input,
+    relationshipConfirmationDeck,
+    meetingRelationshipSignalDeck,
+    relationshipEdgeShadow,
+  );
   const blockedBySensitivity = isBlockedBySensitivity(input);
   const packetWithMeetingQuestions = addMeetingSignalNarratorQuestions(context.packet, meetingRelationshipSignalDeck);
   const packet = blockedBySensitivity
@@ -155,12 +183,14 @@ export function buildVisitTheaterHandoff(input: VisitTheaterHandoffInput): Visit
         visitMaterials: input.visitPlan.materials.length,
         relationshipConfirmationCards: relationshipConfirmationDeck.summary.cardCount,
         meetingRelationshipSignals: meetingRelationshipSignalDeck?.summary.cardCount ?? 0,
+        relationshipEdgeShadowCandidates: relationshipEdgeShadow.draftEdgeCount,
       },
       evidenceSummary: {
         questionEvidenceByStatus: countQuestionEvidenceByStatus(input.visitPlan.spinQuestions),
         questionEvidenceSources: collectQuestionEvidenceSources(input.visitPlan.spinQuestions),
         relationshipConfirmation: summarizeRelationshipConfirmationDeck(relationshipConfirmationDeck),
         meetingRelationshipSignals: summarizeMeetingRelationshipSignalDeck(meetingRelationshipSignalDeck),
+        relationshipEdgeShadow,
         theaterMaterialCounts: countTheaterMaterialsByPrefix(knownMaterials),
       },
     },
@@ -174,6 +204,10 @@ export function buildVisitTheaterKnownMaterials(
     input.now ?? new Date().toISOString(),
   ),
   meetingRelationshipSignalDeck = input.meetingRelationshipSignalDeck ?? null,
+  relationshipEdgeShadow = buildVisitTheaterRelationshipEdgeShadowSummary(
+    input.client,
+    input.now ?? new Date().toISOString(),
+  ),
 ): string[] {
   const { client, visitPlan } = input;
   const materials: string[] = [
@@ -186,6 +220,7 @@ export function buildVisitTheaterKnownMaterials(
     ...visitPlan.spinQuestions.flatMap((question) => buildQuestionMaterials(question)),
     ...buildRelationshipConfirmationMaterials(relationshipConfirmationDeck),
     ...buildMeetingRelationshipSignalMaterials(meetingRelationshipSignalDeck),
+    ...buildRelationshipEdgeShadowMaterials(relationshipEdgeShadow),
     ...visitPlan.objections.map((objection) => buildObjectionMaterial(objection)),
     ...visitPlan.materials.map((visitMaterial) => buildVisitMaterialEvidence(visitMaterial)),
   ];
@@ -206,6 +241,23 @@ export function buildVisitTheaterKnownMaterials(
   }
 
   return unique(materials).slice(0, 60);
+}
+
+function buildVisitTheaterRelationshipEdgeShadowSummary(
+  client: Client,
+  now: string,
+): VisitTheaterRelationshipEdgeShadowHandoffSummary {
+  const summary = toRelationshipEdgeShadowBffSummary(buildRelationshipEdgeShadowBackfill(client, { now }));
+
+  return {
+    ...summary,
+    persistedToDatabase: false,
+    writesRelationshipGraph: false,
+    writesVisitPlan: false,
+    writesConfirmedCrmFact: false,
+    storesRawProviderPayload: false,
+    rawPrivateTranscriptIncluded: false,
+  };
 }
 
 function buildRelationshipConfirmationMaterials(deck: VisitRelationshipConfirmationDeck): string[] {
@@ -258,6 +310,42 @@ function buildMeetingRelationshipSignalMaterials(deck: VisitMeetingRelationshipS
         .join("；"),
     ),
   );
+}
+
+function buildRelationshipEdgeShadowMaterials(summary: VisitTheaterRelationshipEdgeShadowHandoffSummary): string[] {
+  if (summary.draftEdgeCount === 0) return [];
+
+  const typeCounts = Object.entries(summary.counts.byType)
+    .filter(([, count]) => count > 0)
+    .map(([type, count]) => `${type}:${count}`)
+    .join(",");
+  const statusCounts = Object.entries(summary.counts.byFactStatus)
+    .filter(([, count]) => count > 0)
+    .map(([status, count]) => `${status}:${count}`)
+    .join(",");
+
+  return [
+    material(
+      summary.warningCodes.length > 0 ? "UNKNOWN" : "INFERENCE",
+      [
+        "relationship_edge_shadow_summary=true",
+        `candidate_edges=${summary.draftEdgeCount}`,
+        `source_members=${summary.sourceMemberCount}`,
+        `edge_types=${typeCounts || "none"}`,
+        `fact_status=${statusCounts || "none"}`,
+        summary.warningCodes.length > 0 ? `warning_codes=${summary.warningCodes.join(",")}` : "warning_codes=none",
+        summary.unsupportedRelations.length > 0 ? `unsupported_relations=${summary.unsupportedRelations.join(",")}` : "",
+        "client_facing_draft_edges_returned=false",
+        "formal_schema_approved=false",
+        "writes_relationship_graph=false",
+        "writes_visit_plan=false",
+        "writes_confirmed_crm_fact=false",
+        "persisted_to_database=false",
+      ]
+        .filter(Boolean)
+        .join("；"),
+    ),
+  ];
 }
 
 function buildClientMaterials(client: Client): string[] {
@@ -322,6 +410,7 @@ function buildWarnings(
   input: VisitTheaterHandoffInput,
   relationshipConfirmationDeck: VisitRelationshipConfirmationDeck,
   meetingRelationshipSignalDeck: VisitMeetingRelationshipSignalDeck | null,
+  relationshipEdgeShadow: VisitTheaterRelationshipEdgeShadowHandoffSummary,
 ): string[] {
   const warnings: string[] = [];
   if (input.client.sensitivityLevel === "SENSITIVE") warnings.push("敏感客戶：進劇場前需確認演練素材邊界。");
@@ -338,6 +427,12 @@ function buildWarnings(
   if (meetingRelationshipSignalDeck?.summary.cardCount) {
     warnings.push("會議關係訊號已帶入劇場作為待確認素材；不會寫回關係圖、VisitPlan 或 CRM 事實。");
   }
+  if (relationshipEdgeShadow.draftEdgeCount > 0) {
+    warnings.push("RelationshipEdge shadow summary 已帶入劇場作為 edge-model readiness；不回傳 draft edges、不寫回關係圖。");
+  }
+  if (relationshipEdgeShadow.warningCodes.length > 0) {
+    warnings.push("RelationshipEdge shadow summary 含待確認 warning；正式 edge table migration 前仍需人工審查。");
+  }
   return warnings;
 }
 
@@ -345,6 +440,7 @@ function buildMissingItems(
   input: VisitTheaterHandoffInput,
   relationshipConfirmationDeck: VisitRelationshipConfirmationDeck,
   meetingRelationshipSignalDeck: VisitMeetingRelationshipSignalDeck | null,
+  relationshipEdgeShadow: VisitTheaterRelationshipEdgeShadowHandoffSummary,
 ): string[] {
   const missing = [...input.client.complianceChecklist.missingItems];
   if (input.visitPlan.materials.some((item) => !item.checked)) missing.push("拜訪材料尚未全部確認");
@@ -356,6 +452,12 @@ function buildMissingItems(
   }
   if (meetingRelationshipSignalDeck?.summary.unknownCount) {
     missing.push("會議關係訊號仍有未知關係脈絡待下一次拜訪確認");
+  }
+  if (!relationshipEdgeShadow.proof.formalSchemaApproved) {
+    missing.push("正式 RelationshipEdge schema 尚未核可；劇場只能使用安全摘要，不可寫回關係圖");
+  }
+  if (relationshipEdgeShadow.warningCodes.length > 0) {
+    missing.push("RelationshipEdge shadow summary 仍有待確認 warning");
   }
   return unique(missing);
 }
