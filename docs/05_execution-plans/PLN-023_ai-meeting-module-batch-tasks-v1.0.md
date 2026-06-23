@@ -108,7 +108,7 @@ Whole-product review note（2026-06-21 after AMM-008）：AMM 已具備跨狀態
 - [x] `/pre-visit/[planId]/notes` 保留 BFF-owned `postVisitNotes` / `postVisitAnalysis` read-write-reload，同頁提供進入或內嵌同一 owner-scoped `CLIENT_MEETING` workspace 的路徑，不要求 raw session ID。
 - [x] 手動拜訪筆記、quick-capture 結果與 meeting turns/summary 明確分層：raw note 不成 raw transcript，不保存 raw provider payload，inference / unknown 不升格 confirmed CRM fact。
 - [x] 顯示 latest `InterviewMeetingSummary`、writeback confirmation 狀態與 legacy notes saved state；refresh/new browser context 後可同時看見 `postVisitNotes` 與 meeting summary / memory evidence。
-- [ ] Browser/API/DB proof 覆蓋 owner success、manager/foreign denial、raw private/provider sentinel blocked、`AiUsageLog` no-provider unchanged 或 provider path success/error log、desktop/mobile no overflow、console error 0。
+- [x] Browser/API/DB proof 覆蓋 owner success、manager/foreign denial、raw private/provider sentinel blocked、`AiUsageLog` no-provider unchanged 或 provider path success/error log、desktop/mobile no overflow、console error 0。
 - [x] 新增可重跑 proof command（建議 `pnpm meeting:notes-compat-qa`）；跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
 
 進度註記：2026-06-21 AMM-005c source bridge 已完成；`/pre-visit/[planId]/notes` 嵌入正式 `MeetingWorkspace`，以 `GET /api/ai/meeting/sessions?visitPlanId=` 找回 owner-scoped latest `CLIENT_MEETING`，並保留 legacy `postVisitNotes` save/read path、quick-capture boundary、latest summary/writeback UI。`pnpm meeting:notes-compat-qa` 已新增但本輪 local DB/browser proof 被 `.env` Supabase host `db.wwocdcicvpmbdmqvskzi.supabase.co` DNS `ENOTFOUND` 阻擋；proof checkbox 保持未完成，待 DB 可解析後重跑。
@@ -116,6 +116,8 @@ Whole-product review note（2026-06-21 after AMM-008）：AMM 已具備跨狀態
 進度註記：2026-06-22 AMM-005c no-DB fallback 已新增 `src/domains/interview/meeting-session-lookup.ts` 與 `pnpm meeting:notes-compat-contract-dry-run`，用 fixture 證明 visit-scoped latest session / client-direct session 選擇規則，並 source-audit notes bridge、latest-session route、MeetingWorkspace reuse、manifest 與 package script contract。此命令不連 DB、不啟 browser、不呼叫 provider；仍不勾選 Browser/API/DB proof，待 DB DNS 恢復後重跑 `DEMO_QA_BASE_URL=http://localhost:<port> pnpm meeting:notes-compat-qa`。
 
 Whole-product review 註記（2026-06-23 after BFF-402h）：BFF/payment guarded contract 已連續完成後，下一個正常 LV3 loop 應回到 AMM-005c，補齊 `/pre-visit/[planId]/notes` 的 Browser/API/DB proof，或修正 proof 中暴露的 accepted source 問題。這不是採納隔離中的 `/notes` prototype；驗收目標仍是已接入正式 `MeetingWorkspace` 的 pre-visit notes bridge。
+
+完成註記：2026-06-23 AMM-005c Browser/API/DB proof 已完成。`DEMO_QA_BASE_URL=http://localhost:3000 pnpm meeting:notes-compat-qa` 通過，覆蓋 member 建立 QA client/visit、legacy `postVisitNotes` 儲存與 refresh、新 browser context 讀回同一 meeting session 與 persisted summary、meeting manual note append、deterministic summary、manager 404 denial、raw provider payload 409/no echo、desktop/mobile no overflow、console error 0、no-provider `AiUsageLog` 180->180 unchanged。第一次用 `127.0.0.1` 失敗是 Next dev `allowedDevOrigins` 阻擋 HMR/hydration，不是產品 route proof；正式 proof 需用 `localhost` 或設定 allowed dev origin。
 
 ## Batch AMM-006 — 寫回邊界（行動項 / CRM）
 - [x] 沿用 `src/domains/interview/writeback-boundary.ts`：行動項 → follow-up task、confirmed fact → CRM candidate、inference → insight、unknown → follow-up。
