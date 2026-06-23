@@ -1,3 +1,4 @@
+import { toPublicRouteBSessionSnapshot } from "@/domains/theater/route-b-session";
 import { authErrorResponse, requireCurrentMember } from "@/lib/auth/current-workspace";
 import { getRouteBSessionForMember } from "@/lib/theater/route-b-session-bff-repository";
 
@@ -15,7 +16,7 @@ export async function GET(_req: Request, ctx: RouteBSessionRouteContext) {
       return Response.json({ error: "ROUTE_B_SESSION_NOT_FOUND" }, { status: 404 });
     }
 
-    return Response.json(result.data, {
+    return Response.json(toPublicRouteBSessionSnapshot(result.data), {
       headers: {
         "Cache-Control": "no-store",
       },

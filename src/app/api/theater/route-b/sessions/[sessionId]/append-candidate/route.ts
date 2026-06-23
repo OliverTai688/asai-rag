@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { toPublicRouteBSessionSnapshot } from "@/domains/theater/route-b-session";
 import { authErrorResponse, requireCurrentMember } from "@/lib/auth/current-workspace";
 import { appendRouteBNextTurnCandidateForMember } from "@/lib/theater/route-b-session-bff-repository";
 
@@ -85,7 +86,7 @@ export async function POST(req: Request, ctx: RouteBAppendCandidateRouteContext)
       );
     }
 
-    return Response.json(result.data, {
+    return Response.json(toPublicRouteBSessionSnapshot(result.data), {
       status: 201,
       headers: {
         "Cache-Control": "no-store",

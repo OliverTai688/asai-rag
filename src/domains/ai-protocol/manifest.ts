@@ -1028,7 +1028,7 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
       displayName: "Route B relationship theater",
       ownerSurface: "/theater/[sessionId]",
       module: "THEATER",
-      version: "2026-06-22.ita-005l-compliance-review-queue",
+      version: "2026-06-23.lv3-cross-flow-public-snapshot-boundary",
       status: "active",
     },
     capabilities: [
@@ -1445,9 +1445,11 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
         "TheaterRouteBFeedbackReview.persistenceEnvelope.writesConfirmedCrmFact=false",
         "TheaterRouteBFeedbackReview.redLineActionState.consumedByFeedbackReview=true",
         "TheaterRouteBFeedbackReview.redLineLibrary.redLineRuleCount=18",
+        "toPublicRouteBSessionSnapshot",
         "AiUsageLog count unchanged",
       ],
-      dtoBoundary: "Stage session DTO is internal; external metadata cannot expose private lane content.",
+      dtoBoundary:
+        "Public Route B session snapshots are serialized through toPublicRouteBSessionSnapshot and omit internal scene.redLineActionState persistence envelopes; external metadata cannot expose private lane content.",
     },
     auth: {
       sessionType: "app-member",
@@ -1492,6 +1494,7 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
         "pnpm theater:route-b-feedback-review-qa",
         "pnpm theater:route-b-compliance-review-intake-qa",
         "pnpm theater:route-b-compliance-review-queue-qa",
+        "pnpm lv3:cross-flow-no-provider-qa",
       ],
       sourceAdoption: {
         status: "adopted",
@@ -1648,6 +1651,7 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
           "TheaterRouteBFeedbackReview.persistenceEnvelope.writesConfirmedCrmFact=false",
           "TheaterRouteBFeedbackReview.redLineActionState.consumedByFeedbackReview=true",
           "TheaterRouteBFeedbackReview.redLineLibrary.redLineRuleCount=18",
+          "toPublicRouteBSessionSnapshot",
           "providerCallAttempted=false",
           "writesConfirmedCrmFact=false",
         ],
@@ -1670,6 +1674,7 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
           "Severe red-line preview dry-run proves the stage UI surfaces five severe immediate watchlist cues from provider prompt context without provider calls, auto-blocking, legal advice, formal findings, or CRM fact writes.",
           "Severe red-line action workflow dry-run proves advisor action states for evidence-needed, not-applicable, and escalation stay no-provider, no-notification, and no confirmed CRM fact writes.",
           "Severe red-line action persistence QA proves only ruleId/state/advisorReasonCode/updatedAt can be stored under owner-scoped sceneState.redLineActionState; no raw private transcript, raw provider payload, legal advice, formal finding, real notification, or confirmed CRM fact write is introduced.",
+          "LV3 cross-flow proof trims public RouteBSessionSnapshot responses through toPublicRouteBSessionSnapshot so session create/read/turn/append responses omit internal scene.redLineActionState persistence envelopes while owner-scoped feedback review continues consuming internal scene state.",
           "Runtime director preflight returns only a least-disclosure orchestration preview; it does not expose raw director input, raw private lane content, or provider payload.",
           "Visibility scope, private lane, and state proposal writes are server-owned and owner-scoped.",
           "Director, character, and live feedback provider enablement remains blocked until explicit approval and runtime wiring proof.",

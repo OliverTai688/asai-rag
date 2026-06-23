@@ -55,3 +55,15 @@ export type RouteBSessionSnapshot = {
     thirdPartyVisibleForDirectMessage: false;
   };
 };
+
+export function toPublicRouteBSessionSnapshot(snapshot: RouteBSessionSnapshot): RouteBSessionSnapshot {
+  return {
+    ...snapshot,
+    scene: {
+      relationships: snapshot.scene.relationships,
+      narratorQuestions: snapshot.scene.narratorQuestions,
+      statePatchCount: snapshot.scene.statePatchCount,
+      visibilityRules: snapshot.scene.visibilityRules,
+    },
+  };
+}

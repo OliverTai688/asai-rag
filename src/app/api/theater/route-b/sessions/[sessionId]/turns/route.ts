@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { toPublicRouteBSessionSnapshot } from "@/domains/theater/route-b-session";
 import { authErrorResponse, requireCurrentMember } from "@/lib/auth/current-workspace";
 import { appendRouteBAdvisorTurnForMember } from "@/lib/theater/route-b-session-bff-repository";
 
@@ -63,7 +64,7 @@ export async function POST(req: Request, ctx: RouteBSessionTurnRouteContext) {
       return Response.json({ error: "INVALID_STATE_PATCH_TARGET" }, { status: 400 });
     }
 
-    return Response.json(result.data, {
+    return Response.json(toPublicRouteBSessionSnapshot(result.data), {
       status: 201,
       headers: {
         "Cache-Control": "no-store",

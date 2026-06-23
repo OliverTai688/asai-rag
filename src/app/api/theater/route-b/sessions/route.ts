@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { toPublicRouteBSessionSnapshot } from "@/domains/theater/route-b-session";
 import type { TheaterRouteBHandoffPacket } from "@/domains/theater/route-b-handoff";
 import { authErrorResponse, requireCurrentMember } from "@/lib/auth/current-workspace";
 import {
@@ -72,7 +73,7 @@ export async function POST(req: Request) {
       );
     }
 
-    return Response.json(result.data, {
+    return Response.json(toPublicRouteBSessionSnapshot(result.data), {
       status: 201,
       headers: {
         "Cache-Control": "no-store",
