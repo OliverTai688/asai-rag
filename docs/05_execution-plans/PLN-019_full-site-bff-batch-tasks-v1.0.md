@@ -538,6 +538,21 @@ Whole-product review 註記（2026-06-23 runtime proof gate）：`pnpm lv3:cross
 
 ---
 
+### Batch BFF-402g - PaymentTransaction Persistence Guarded Contract
+
+目標：先把 `PaymentTransaction` persistence/upsert 的 server-owned contract 落成 typed boundary，讓 notify/query 都明確宣告唯一 scope、允許寫入前提、最小資料保存與 blocked DB mutation；不寫 DB、不啟用 plan、不把 raw provider payload 或 checksum 存入交易。
+
+- [x] 新增 `asai.billing.payment_transaction_persistence.v1`，定義 `organizationId + provider + merchantTradeNo` unique scope、`upsert_when_enabled` mutation、`PAID` / `QUERY_CONFIRMED` verified status、allowlisted provider summary only。
+- [x] `DisabledEcpayNotifyDto` / `DisabledEcpayQueryDto` 內含 `transactionPersistence`，證明 notify 需 CheckMacValue、query 需 server query confirmation，且 `paymentTransactionUpsertAttempted=false`、`subscriptionOrderUpdated=false`、`organizationPlanUpdated=false`。
+- [x] Persistence contract 引用既有 ledger contract version/scope，保留 real provider query response validation、live DB upsert、confirmed activation、manual review/refund/void 為 remaining proof。
+- [x] Targeted QA `pnpm billing:payment-transaction-persistence-qa`、`BILLING_ECPAY_DISABLED_QA_BASE_URL=http://127.0.0.1:3064 pnpm billing:ecpay-disabled-qa`、`pnpm billing:ledger-idempotency-qa`、`pnpm bff:release-readiness-qa` 通過。
+- [x] Release readiness 新增 `payment_transaction_persistence_guarded_contract` pass subgate，但 `payment_transaction_persistence` 仍保持 blocked/db，避免把 guarded contract 寫成 live `PaymentTransaction` DB proof。
+- [x] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+
+完成註記（2026-06-23 BFF-402g PaymentTransaction persistence guarded contract）：新增 `src/domains/subscription/payment-transaction-persistence.ts` 與 `pnpm billing:payment-transaction-persistence-qa`，並讓 ECPay notify/query disabled DTO 回傳 `transactionPersistence`。Proof：`pnpm billing:payment-transaction-persistence-qa` 通過 source/static gate；`BILLING_ECPAY_DISABLED_QA_BASE_URL=http://127.0.0.1:3064 pnpm billing:ecpay-disabled-qa` 通過（DB 不可達時 query auth path 仍 fail closed，不接 provider；notify runtime 可驗 persistence contract）；`pnpm billing:ledger-idempotency-qa` 與 `pnpm bff:release-readiness-qa` 通過。此結果不代表 real `PaymentTransaction` DB upsert/write、real ECPay server query confirmation、confirmed activation、production payment env/callback、refund/void/manual review 或 production payment enablement 已完成。
+
+---
+
 ## Batch BFF-402 - ECPay Notification / Query / Idempotency
 
 目標：付款狀態只信任 server notification/query confirmation。

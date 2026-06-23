@@ -28,13 +28,26 @@ assertFileContains("src/domains/subscription/ledger.ts", [
 assertFileContains("src/domains/subscription/ecpay.ts", [
   "buildEcpayNotifyLedgerIdempotencyContract",
   "buildEcpayQueryLedgerIdempotencyContract",
+  "buildPaymentTransactionPersistenceContract",
   "ledger: BillingLedgerIdempotencyContractDto",
-  "ledger: buildEcpayNotifyLedgerIdempotencyContract(input)",
+  "const ledger = buildEcpayNotifyLedgerIdempotencyContract(input)",
   "const ledger = buildEcpayQueryLedgerIdempotencyContract(input)",
   "serverQueryBoundary: buildEcpayServerQueryBoundaryDto(input, ledger)",
+  "transactionPersistence: buildPaymentTransactionPersistenceContract",
+  "statusWhenVerified: ledger.ledgerTarget.statusWhenVerified",
   "ledgerWriteAttempted: false",
   "transactionCreated: false",
   "orderUpdated: false",
+]);
+
+assertFileContains("src/domains/subscription/payment-transaction-persistence.ts", [
+  "asai.billing.payment_transaction_persistence.v1",
+  "contractVersion: input.ledger.version",
+  "scope: input.ledger.scope",
+  "activationRequiresConfirmedLedger: true",
+  "duplicateWritePrevented: true",
+  "paymentTransactionUpsertAttempted: false",
+  "rawProviderPayloadPersisted: false",
 ]);
 
 assertFileContains("src/domains/subscription/plan-change.ts", [

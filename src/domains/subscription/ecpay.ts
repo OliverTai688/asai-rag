@@ -9,6 +9,10 @@ import {
   type EcpayCheckMacHashInfo,
   type EcpayCheckMacValidationDto,
 } from "./ecpay-checkmac";
+import {
+  buildPaymentTransactionPersistenceContract,
+  type BillingPaymentTransactionPersistenceContractDto,
+} from "./payment-transaction-persistence";
 
 export const BILLING_ECPAY_NOTIFY_CONTRACT_VERSION = "asai.billing.ecpay.notify.v1";
 export const BILLING_ECPAY_QUERY_CONTRACT_VERSION = "asai.billing.ecpay.query.v1";
@@ -76,6 +80,7 @@ export type DisabledEcpayNotifyDto = {
     orderUpdated: false;
   };
   ledger: BillingLedgerIdempotencyContractDto;
+  transactionPersistence: BillingPaymentTransactionPersistenceContractDto;
   activation: ActivationBoundaryDto;
   dataBoundary: DataBoundaryDto;
   requiredProof: Array<
@@ -105,6 +110,7 @@ export type DisabledEcpayQueryDto = {
   };
   ledger: BillingLedgerIdempotencyContractDto;
   serverQueryBoundary: EcpayServerQueryBoundaryDto;
+  transactionPersistence: BillingPaymentTransactionPersistenceContractDto;
   activation: ActivationBoundaryDto;
   dataBoundary: DataBoundaryDto;
   requiredProof: Array<
@@ -160,6 +166,7 @@ export function buildDisabledEcpayNotifyDto(
   checkMacHashInfo: EcpayCheckMacHashInfo | null = null,
 ): DisabledEcpayNotifyDto {
   const checkMacValidation = buildGuardedEcpayCheckMacValidation(input, checkMacHashInfo);
+  const ledger = buildEcpayNotifyLedgerIdempotencyContract(input);
 
   return {
     version: BILLING_ECPAY_NOTIFY_CONTRACT_VERSION,
@@ -187,7 +194,14 @@ export function buildDisabledEcpayNotifyDto(
       transactionCreated: false,
       orderUpdated: false,
     },
-    ledger: buildEcpayNotifyLedgerIdempotencyContract(input),
+    ledger,
+    transactionPersistence: buildPaymentTransactionPersistenceContract({
+      source: "ecpay_notify",
+      merchantTradeNo: input.MerchantTradeNo,
+      providerTradeNoAccepted: Boolean(input.TradeNo),
+      statusWhenVerified: ledger.ledgerTarget.statusWhenVerified,
+      ledger,
+    }),
     activation: {
       allowed: false,
       reason: "server_notification_query_not_verified",
@@ -228,6 +242,13 @@ export function buildDisabledEcpayQueryDto(input: EcpayQueryInput, now = new Dat
     },
     ledger,
     serverQueryBoundary: buildEcpayServerQueryBoundaryDto(input, ledger),
+    transactionPersistence: buildPaymentTransactionPersistenceContract({
+      source: "ecpay_query",
+      merchantTradeNo: input.merchantTradeNo,
+      providerTradeNoAccepted: ledger.lookup.providerTradeNoAccepted,
+      statusWhenVerified: ledger.ledgerTarget.statusWhenVerified,
+      ledger,
+    }),
     activation: {
       allowed: false,
       reason: "ecpay_provider_disabled",

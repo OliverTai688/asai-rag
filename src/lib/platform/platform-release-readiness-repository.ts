@@ -165,12 +165,23 @@ function billingBffSubgates() {
       "BFF-402f guarded boundary is proven; provider query proof pending",
       "The guarded server-query boundary exists, but no live/server-to-server ECPay provider query response validation proof exists yet; production payment cannot pass without it.",
     ),
+    provenSubgate(
+      "payment_transaction_persistence_guarded_contract",
+      "Payment transaction persistence guarded contract",
+      "pnpm billing:payment-transaction-persistence-qa",
+      "PaymentTransaction persistence/upsert contract is typed and guarded-disabled: unique scope, allowlisted summary only, no DB write, no raw provider payload, no order update, and no activation.",
+      [
+        "scripts/billing-payment-transaction-persistence-qa.mjs",
+        "src/domains/subscription/payment-transaction-persistence.ts",
+        "src/domains/subscription/ecpay.ts",
+      ],
+    ),
     blockedSubgate(
       "payment_transaction_persistence",
       "Payment transaction persistence",
       "db",
-      "BFF-402g pending",
-      "Real PaymentTransaction persistence/upsert is still not implemented or proven.",
+      "BFF-402g guarded contract is proven; live DB upsert proof pending",
+      "The guarded persistence contract exists, but no live PaymentTransaction DB upsert/write proof exists yet.",
     ),
     blockedSubgate(
       "confirmed_activation",

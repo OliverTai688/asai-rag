@@ -57,6 +57,7 @@ function verifyStaticBoundaries() {
     "asai.billing.ecpay.notify.v1",
     "asai.billing.ecpay.query.v1",
     "asai.billing.ecpay.server_query_boundary.v1",
+    "buildPaymentTransactionPersistenceContract",
     "buildEcpayNotifyLedgerIdempotencyContract",
     "buildEcpayQueryLedgerIdempotencyContract",
     "buildEcpayServerQueryBoundaryDto",
@@ -65,6 +66,7 @@ function verifyStaticBoundaries() {
     "browserQueryAllowed: false",
     "clientSuppliedOrganizationTrusted: false",
     "paymentTransactionUpsertAttempted: false",
+    "transactionPersistence",
     "checkMacValueVerified: checkMacValidation.verified",
     "checkMacValidation",
     "rawCheckMacValueEchoed: false",
@@ -74,6 +76,27 @@ function verifyStaticBoundaries() {
     "redirectOnlyActivationAllowed: false",
     "providerRawPayloadStored: false",
     "manual_review_failure_refund_void",
+  ]);
+  assertFileContains("src/domains/subscription/payment-transaction-persistence.ts", [
+    "asai.billing.payment_transaction_persistence.v1",
+    'table: "PaymentTransaction"',
+    'uniqueBy: ["organizationId", "provider", "merchantTradeNo"]',
+    'mutation: "upsert_when_enabled"',
+    'acceptedStatusesBeforeUpsert: ["PAID", "QUERY_CONFIRMED"]',
+    "requiresCheckMacValidationForNotify: input.source === \"ecpay_notify\"",
+    "requiresServerQueryConfirmationForQuery: input.source === \"ecpay_query\"",
+    "clientSuppliedOrganizationTrusted: false",
+    "clientSuppliedAmountTrusted: false",
+    "paymentTransactionUpsertAttempted: false",
+    "subscriptionOrderUpdated: false",
+    "organizationPlanUpdated: false",
+    "redirectOnlyActivationAllowed: false",
+    "rawProviderPayloadPersisted: false",
+    "rawCheckMacValueStored: false",
+    "allowlistedProviderSummaryOnly: true",
+    "providerCallAttempted: false",
+    "aiUsageLogRequired: false",
+    "fakeUsageLogAllowed: false",
   ]);
   assertFileContains("src/domains/subscription/ecpay-checkmac.ts", [
     "asai.billing.ecpay.checkmac.v1",
@@ -121,6 +144,7 @@ function verifyStaticBoundaries() {
   ]);
   for (const filePath of [
     "src/domains/subscription/ledger.ts",
+    "src/domains/subscription/payment-transaction-persistence.ts",
     "src/domains/subscription/ecpay.ts",
     "src/app/api/billing/ecpay/query/route.ts",
   ]) {
@@ -277,6 +301,7 @@ async function verifyNotifyBoundary() {
   ]) {
     const notification = response.body?.notification;
     const ledger = notification?.ledger;
+    const transactionPersistence = notification?.transactionPersistence;
     check(response.status === 503, `ECPay notify ${label} returns disabled 503`, `status=${response.status}`);
     check(response.body?.error === "BILLING_ECPAY_NOTIFY_DISABLED", `ECPay notify ${label} declares disabled error`);
     check(notification?.version === "asai.billing.ecpay.notify.v1", `ECPay notify ${label} is versioned`);
@@ -317,6 +342,42 @@ async function verifyNotifyBoundary() {
     check(ledger?.writePlan?.duplicateWritePrevented === true, `ECPay notify ${label} ledger is duplicate-safe`);
     check(ledger?.activationGate?.organizationPlanUpdated === false, `ECPay notify ${label} ledger blocks plan mutation`);
     check(ledger?.dataBoundary?.providerRawPayloadStored === false, `ECPay notify ${label} ledger stores no raw provider payload`);
+    check(
+      transactionPersistence?.version === "asai.billing.payment_transaction_persistence.v1",
+      `ECPay notify ${label} includes PaymentTransaction persistence contract`,
+    );
+    check(
+      transactionPersistence?.source === "ecpay_notify",
+      `ECPay notify ${label} persistence contract records notify source`,
+    );
+    check(
+      transactionPersistence?.lookup?.merchantTradeNo === payload.MerchantTradeNo,
+      `ECPay notify ${label} persistence contract keeps idempotency key`,
+    );
+    check(
+      transactionPersistence?.verifiedWritePreconditions?.requiresCheckMacValidationForNotify === true,
+      `ECPay notify ${label} persistence requires checksum validation`,
+    );
+    check(
+      transactionPersistence?.verifiedWritePreconditions?.amountFromClientTrusted === false,
+      `ECPay notify ${label} persistence does not trust client amount`,
+    );
+    check(
+      transactionPersistence?.upsertPlan?.paymentTransactionUpsertAttempted === false,
+      `ECPay notify ${label} does not upsert PaymentTransaction`,
+    );
+    check(
+      transactionPersistence?.upsertPlan?.subscriptionOrderUpdated === false,
+      `ECPay notify ${label} persistence does not update subscription order`,
+    );
+    check(
+      transactionPersistence?.dataBoundary?.rawProviderPayloadPersisted === false,
+      `ECPay notify ${label} persistence stores no raw provider payload`,
+    );
+    check(
+      transactionPersistence?.audit?.fakeUsageLogAllowed === false,
+      `ECPay notify ${label} persistence forbids fake AiUsageLog`,
+    );
     check(notification?.activation?.allowed === false, `ECPay notify ${label} does not activate plan`);
     check(notification?.dataBoundary?.providerCredentialsReturned === false, `ECPay notify ${label} returns no credentials`);
     check(notification?.dataBoundary?.providerRawPayloadStored === false, `ECPay notify ${label} stores no raw provider payload`);
@@ -370,6 +431,7 @@ async function verifyQueryBoundary() {
 
   const query = disabled.body?.query;
   const ledger = query?.ledger;
+  const transactionPersistence = query?.transactionPersistence;
   check(disabled.status === 503, "ECPay query returns disabled 503", `status=${disabled.status}`);
   check(disabled.body?.error === "BILLING_ECPAY_QUERY_DISABLED", "ECPay query declares disabled error");
   check(query?.version === "asai.billing.ecpay.query.v1", "ECPay query is versioned");
@@ -425,6 +487,39 @@ async function verifyQueryBoundary() {
   check(
     query?.serverQueryBoundary?.aiUsageLogPolicy?.fakeUsageLogAllowed === false,
     "ECPay query boundary forbids fake AiUsageLog",
+  );
+  check(
+    transactionPersistence?.version === "asai.billing.payment_transaction_persistence.v1",
+    "ECPay query includes PaymentTransaction persistence contract",
+  );
+  check(transactionPersistence?.source === "ecpay_query", "ECPay query persistence contract records query source");
+  check(
+    transactionPersistence?.verifiedWritePreconditions?.requiresServerQueryConfirmationForQuery === true,
+    "ECPay query persistence requires server query confirmation",
+  );
+  check(
+    transactionPersistence?.verifiedWritePreconditions?.providerStatusFromClientTrusted === false,
+    "ECPay query persistence does not trust client provider status",
+  );
+  check(
+    transactionPersistence?.upsertPlan?.paymentTransactionUpsertAttempted === false,
+    "ECPay query persistence does not upsert PaymentTransaction",
+  );
+  check(
+    transactionPersistence?.upsertPlan?.organizationPlanUpdated === false,
+    "ECPay query persistence blocks organization plan update",
+  );
+  check(
+    transactionPersistence?.ledgerDependency?.activationRequiresConfirmedLedger === true,
+    "ECPay query persistence requires confirmed ledger before activation",
+  );
+  check(
+    transactionPersistence?.dataBoundary?.rawProviderPayloadPersisted === false,
+    "ECPay query persistence stores no raw provider payload",
+  );
+  check(
+    transactionPersistence?.audit?.aiUsageLogRequired === false,
+    "ECPay query persistence requires no AiUsageLog for no-provider proof",
   );
   check(query?.activation?.allowed === false, "ECPay query does not activate plan");
   check(query?.dataBoundary?.providerRawPayloadStored === false, "ECPay query stores no raw provider payload");
