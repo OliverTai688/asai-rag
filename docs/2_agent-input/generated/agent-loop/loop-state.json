@@ -84,11 +84,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 4,
-    "lastWholeProductReviewAt": "2026-06-23T06:36:47Z",
-    "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-23_lv3-whole-product-gap-review-amm-notes-compat.md",
+    "normalLoopsSinceLastWholeProductReview": 0,
+    "lastWholeProductReviewAt": "2026-06-23T08:19:47Z",
+    "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-23_lv3-whole-product-gap-review-meeting-prep-signal.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "Cadence counter is now 4, so the next loop should run the scheduled fifth-loop whole-product gap review with lv3-whole-product-gap-review-loop.md. Review the new LV3-MEETING-PREP-001 meeting-notes -> relationship-confirmation signal bridge, the unresolved relationship-confirmation persistence decision, and the remaining source-to-UI bridge options before selecting the next implementation slice.",
+    "nextRecommendedImplementationSlice": "LV3-MEETING-PREP-UI-001: implement an owner-scoped BFF/UI consumption slice for VisitMeetingRelationshipSignalDeck so meeting quick notes, summaries, and writeback candidates appear as relationship confirmation signal cards in /pre-visit/[planId]. Acceptance should cover owner 200, manager/foreign denial, no raw transcript/provider/contact/policy leakage, no provider/no fake AiUsageLog, no relationship graph or confirmed CRM fact write, desktop/mobile prep page safety, ai:protocol-registry-qa, tsc, and lint:changed.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {
@@ -156,5 +156,5 @@
     "lv3ImmersiveLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-immersive-loop.md",
     "lv3WholeProductGapReviewLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md"
   },
-  "updatedAt": "2026-06-23T07:58:47Z"
+  "updatedAt": "2026-06-23T08:19:47Z"
 }
