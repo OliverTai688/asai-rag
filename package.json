@@ -114,6 +114,7 @@
     "theater:route-b-runtime-qa": "node scripts/theater-route-b-runtime-qa.mjs",
     "theater:route-b-persistence-qa": "node scripts/theater-route-b-persistence-qa.mjs",
     "theater:route-b-session-ui-qa": "node scripts/theater-route-b-session-ui-qa.mjs",
+    "theater:route-b-stage-map-acceptance-reconcile-qa": "node scripts/theater-route-b-stage-map-acceptance-reconcile-qa.mjs",
     "theater:route-b-interaction-qa": "node scripts/theater-route-b-interaction-qa.mjs",
     "theater:launch-boundary-qa": "node scripts/theater-launch-boundary-qa.mjs",
     "demo:three-ai-turn-usage-qa": "node scripts/three-ai-turn-usage-qa.mjs",
