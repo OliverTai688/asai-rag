@@ -84,11 +84,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 3,
+    "normalLoopsSinceLastWholeProductReview": 4,
     "lastWholeProductReviewAt": "2026-06-23T06:36:47Z",
     "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-23_lv3-whole-product-gap-review-amm-notes-compat.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "LV3-REL-PERSIST-001 if operator chooses VisitPlan-owned JSON subdocument or dedicated RelationshipConfirmationState table, implement one small owner-scoped persistence slice with allowlisted cardId/state/updatedAt/sourceReferenceIds/safeNoteSummary only and migration/rollback/API/browser proof. If no product/schema decision is available, pivot to another source-backed core bridge such as AI interview or AI meeting quick notes -> relationship graph / preparation writeback cards; do not repeat relationship persistence docs-only evidence.",
+    "nextRecommendedImplementationSlice": "Cadence counter is now 4, so the next loop should run the scheduled fifth-loop whole-product gap review with lv3-whole-product-gap-review-loop.md. Review the new LV3-MEETING-PREP-001 meeting-notes -> relationship-confirmation signal bridge, the unresolved relationship-confirmation persistence decision, and the remaining source-to-UI bridge options before selecting the next implementation slice.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {
@@ -156,5 +156,5 @@
     "lv3ImmersiveLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-immersive-loop.md",
     "lv3WholeProductGapReviewLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md"
   },
-  "updatedAt": "2026-06-23T07:38:47Z"
+  "updatedAt": "2026-06-23T07:58:47Z"
 }

@@ -49,6 +49,7 @@ const sourceAdoptionRequirements: Record<string, { ownerRefs: string[]; evidence
       "src/domains/visit/ai-evidence-dto.ts",
       "src/domains/visit/relationship-confirmation.ts",
       "src/domains/visit/relationship-confirmation-state.ts",
+      "src/domains/visit/meeting-relationship-signal.ts",
       "src/domains/visit/route-b-red-line-context.ts",
       "src/domains/theater/visit-handoff.ts",
       "src/lib/visits/visit-plan-repository.ts",
@@ -60,16 +61,20 @@ const sourceAdoptionRequirements: Record<string, { ownerRefs: string[]; evidence
       "enrichSpinQuestionsWithReasoning",
       "buildVisitRelationshipConfirmationDeck",
       "buildVisitRelationshipConfirmationStateBoundary",
+      "buildVisitMeetingRelationshipSignalDeck",
       "relationship-graph-prep-confirmation-cards",
       "relationship-confirmation-card-state-boundary",
       "relationship-confirmation-state-ui-boundary",
       "relationship-confirmation-theater-handoff-grounding",
+      "meeting-notes-relationship-confirmation-signal",
       "RelationshipConfirmationPanel.data-relationship-confirmation-state-boundary",
       "VisitRelationshipConfirmationDeck.proof.writesConfirmedCrmFact=false",
       "VisitRelationshipConfirmationStateBoundary.storageDecision.currentPersistence=local-only-ui-state",
       "VisitRelationshipConfirmationStateBoundary.storageDecision.requiresProductDecision=true",
       "VisitRelationshipConfirmationStateBoundary.proof.persistedToDatabase=false",
       "VisitRelationshipConfirmationStateBoundary.proof.writesConfirmedCrmFact=false",
+      "VisitMeetingRelationshipSignalDeck.writebackBoundary.currentPersistence=deterministic-preview-only",
+      "VisitMeetingRelationshipSignalDeck.proof.writesConfirmedCrmFact=false",
       "VisitTheaterHandoff.sourceSummary.evidenceSummary.relationshipConfirmation",
       "VisitTheaterRelationshipConfirmationHandoffSummary.localAdvisorStatePersisted=false",
       "VisitTheaterRelationshipConfirmationHandoffSummary.providerCallAttempted=false",
@@ -88,6 +93,7 @@ const sourceAdoptionRequirements: Record<string, { ownerRefs: string[]; evidence
       "pnpm visit:relationship-confirmation-dry-run",
       "pnpm visit:relationship-confirmation-state-boundary-dry-run",
       "pnpm visit:relationship-confirmation-state-ui-qa",
+      "pnpm visit:meeting-relationship-signal-dry-run",
       "pnpm visit:route-b-red-line-context-dry-run",
       "pnpm visit:route-b-red-line-context-bff-qa",
     ],
@@ -441,6 +447,7 @@ function runQa() {
   assertMeetingRouteBRedLineContextConsumption(manifests);
   assertMeetingNotesHubQuarantine(manifests);
   assertMeetingQuickNoteWritebackBridge(manifests);
+  assertVisitMeetingRelationshipSignal(manifests);
 
   const readinessSummary = manifests.reduce<Record<string, number>>((summary, manifest) => {
     summary[manifest.registry.readiness] = (summary[manifest.registry.readiness] ?? 0) + 1;
@@ -724,6 +731,76 @@ function assertMeetingQuickNoteWritebackBridge(manifests: AgentProtocolManifest[
 
   for (const evidenceRef of requiredEvidenceRefs) {
     push(adoption.evidenceRefs.includes(evidenceRef), `meeting quick-note writeback evidence includes ${evidenceRef}`);
+  }
+}
+
+function assertVisitMeetingRelationshipSignal(manifests: AgentProtocolManifest[]) {
+  const manifest = manifests.find((item) => item.identity.agentId === "asai.visit.preparation_package");
+  push(Boolean(manifest), "visit manifest exists for meeting relationship signal");
+
+  if (!manifest?.proof.sourceAdoption) {
+    return;
+  }
+
+  push(
+    manifest.capabilities.some((capability) => capability.id === "meeting-notes-relationship-confirmation-signal"),
+    "visit manifest declares meeting relationship signal capability",
+  );
+  push(
+    manifest.interfaces.actions.some((action) => action.id === "meeting-notes-relationship-confirmation-signal"),
+    "visit manifest declares meeting relationship signal action boundary",
+  );
+  push(
+    manifest.schemas.inputDtoRefs.includes("VisitMeetingRelationshipSignalInput"),
+    "visit manifest input DTOs include VisitMeetingRelationshipSignalInput",
+  );
+  push(
+    manifest.schemas.inputDtoRefs.includes("MeetingWritebackCandidate"),
+    "visit manifest input DTOs include MeetingWritebackCandidate",
+  );
+  push(
+    manifest.schemas.outputDtoRefs.includes("VisitMeetingRelationshipSignalDeck"),
+    "visit manifest output DTOs include VisitMeetingRelationshipSignalDeck",
+  );
+  push(
+    manifest.schemas.evidenceDtoRefs.includes(
+      "VisitMeetingRelationshipSignalDeck.writebackBoundary.currentPersistence=deterministic-preview-only",
+    ),
+    "visit manifest evidence includes deterministic preview boundary",
+  );
+  push(
+    manifest.schemas.evidenceDtoRefs.includes("VisitMeetingRelationshipSignalDeck.proof.writesConfirmedCrmFact=false"),
+    "visit manifest evidence includes no confirmed CRM fact write",
+  );
+  push(
+    manifest.proof.commands.includes("pnpm visit:meeting-relationship-signal-dry-run"),
+    "visit proof commands include meeting relationship signal dry-run",
+  );
+
+  const adoption = manifest.proof.sourceAdoption;
+  const requiredOwnerRefs = [
+    "src/domains/visit/meeting-relationship-signal.ts",
+    "scripts/visit-meeting-relationship-signal-dry-run.mjs",
+    "scripts/visit-meeting-relationship-signal-dry-run.ts",
+  ];
+  const requiredEvidenceRefs = [
+    "buildVisitMeetingRelationshipSignalDeck",
+    "meetingWritebackCandidateToRelationshipSignal",
+    "VISIT_MEETING_RELATIONSHIP_SIGNAL_ALLOWED_FIELDS",
+    "meeting-notes-relationship-confirmation-signal",
+    "VisitMeetingRelationshipSignalDeck.writebackBoundary.currentPersistence=deterministic-preview-only",
+    "VisitMeetingRelationshipSignalDeck.writebackBoundary.writesRelationshipGraph=false",
+    "VisitMeetingRelationshipSignalDeck.writebackBoundary.writesVisitPlan=false",
+    "VisitMeetingRelationshipSignalDeck.proof.persistedToDatabase=false",
+    "VisitMeetingRelationshipSignalDeck.proof.writesConfirmedCrmFact=false",
+  ];
+
+  for (const ownerRef of requiredOwnerRefs) {
+    push(adoption.ownerRefs.includes(ownerRef), `visit meeting relationship signal owner includes ${ownerRef}`);
+  }
+
+  for (const evidenceRef of requiredEvidenceRefs) {
+    push(adoption.evidenceRefs.includes(evidenceRef), `visit meeting relationship signal evidence includes ${evidenceRef}`);
   }
 }
 
