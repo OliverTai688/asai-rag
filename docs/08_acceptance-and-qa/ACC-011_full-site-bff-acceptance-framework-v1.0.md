@@ -213,6 +213,14 @@ Evidence（2026-06-23 BFF-402b）：`pnpm billing:ecpay-disabled-qa` passed 57/5
 
 Evidence（2026-06-23 BFF-403a）：`BILLING_SUBSCRIPTION_QA_BASE_URL=http://127.0.0.1:3058 pnpm billing:subscription-capability-qa` passed. Proof covers source boundary, unauth 401, no-store/request-id, DB-unavailable authenticated 503 `BILLING_SUBSCRIPTION_UNAVAILABLE` with `providerAttempted=false`, payment/private sentinel 0, and repository no-write checks. No ECPay/OpenAI/Anthropic provider call, no DB write, no fake `AiUsageLog`, no real payment, and no production checkout/plan activation was attempted. Authenticated 200 + bootstrap payload proof can be rerun by operator with the same command when DB is reachable; it is not a product decision blocker.
 
+`BFF-403b` subscription capability UI consumption is acceptable only if:
+
+- Workspace bootstrap, org/member navigation/render models, and adjacent settings/team/billing UI consume the server `subscription` contract or `/api/billing/subscription` DTO for plan capability, quota, seat/collaborator/unit usage, checkout disabled status, and activation boundary.
+- Browser UI must not infer paid-plan capability, checkout availability, or plan activation from hardcoded plan labels, redirect-only status, URL params, local storage, or client-provided organization/member scope.
+- Unavailable subscription reads must fail closed or render a guarded unavailable state; they must not enable checkout, member invite, unit creation, client portal, branding, or AI quota affordances that the server contract does not allow.
+- The slice must not create subscription orders, payment transactions, checkout redirects, ledger rows, provider calls, fake `AiUsageLog`, or real plan activation.
+- Proof should include a targeted static/API/browser command such as `pnpm billing:subscription-ui-qa` or equivalent, plus `pnpm exec tsc --noEmit --pretty false` and `pnpm lint:changed`; DB-authenticated 200 proof can be rerun by the operator with the existing BFF-403a command when DB is reachable, but it must not replace this source/UI consumption slice.
+
 ---
 
 ## 5. Data-source Inventory Gates

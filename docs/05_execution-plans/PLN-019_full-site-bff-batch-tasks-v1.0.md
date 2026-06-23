@@ -521,6 +521,8 @@ Whole-product review 註記（2026-06-23 runtime proof gate）：`pnpm lv3:cross
 
 Evidence（2026-06-23 BFF-403a）：新增 read-only `GET /api/billing/subscription`、`BillingSubscriptionCapabilityDto` 與 workspace bootstrap `subscription` contract。`BILLING_SUBSCRIPTION_QA_BASE_URL=http://127.0.0.1:3058 pnpm billing:subscription-capability-qa` 已通過 source/API guarded proof：unauth 401、shared auth error/no-store/request-id、目前 DB `P1001 DatabaseNotReachable` 下 authenticated request fail-closed 為 503 `BILLING_SUBSCRIPTION_UNAVAILABLE` 且 `providerAttempted=false`、payment/private sentinel 0、repository 只有 read/count，沒有 subscription order/payment transaction write，也沒有 ECPay/OpenAI/Anthropic provider call。此 evidence 不代表 org/member UI 已改用 subscription DTO，也不代表 real plan change persistence、confirmed transaction/query activation、ledger idempotency 或 production payment enablement 已完成。
 
+Whole-product review note（2026-06-23 after BFF-403a）：下一個 normal loop 應選 source-backed `BFF-403b subscription capability UI consumption`，不要再以 docs-only evidence 或單純重跑 BFF-403a authenticated 200 當本輪成果。範圍是讓 org/member UI、workspace navigation/render model、settings/team/billing 相鄰介面消費 workspace bootstrap 或 `/api/billing/subscription` 的 versioned `subscription` DTO，而不是 browser hardcoded plan assumptions 或只讀 `session.planCapability`。Proof 至少要證明 unavailable/read-only/no-provider/no-payment/no-activation 邊界、private/payment sentinel 0、無 subscription order/payment transaction/ledger write、desktop/mobile 或 static render 不破；real plan-change persistence、confirmed transaction/query activation、ledger idempotency 與 production ECPay env/callback 仍留在 BFF-402/403 後續子切片。
+
 ---
 
 ## Batch BFF-404 - Release Readiness BFF Gate
