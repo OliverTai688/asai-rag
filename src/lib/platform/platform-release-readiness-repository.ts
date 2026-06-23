@@ -147,12 +147,23 @@ function billingBffSubgates() {
         "src/components/layout/role-aware-sidebar.tsx",
       ],
     ),
+    provenSubgate(
+      "ecpay_server_query_guarded_boundary",
+      "ECPay server query guarded boundary",
+      "pnpm billing:ecpay-query-boundary-qa",
+      "Server query boundary is typed and guarded-disabled: server-owned scope, no browser query, no provider call, no transaction upsert, and no activation.",
+      [
+        "scripts/billing-ecpay-query-boundary-qa.mjs",
+        "src/app/api/billing/ecpay/query/route.ts",
+        "src/domains/subscription/ecpay.ts",
+      ],
+    ),
     blockedSubgate(
       "ecpay_server_query_confirmation",
       "ECPay server query confirmation",
       "provider_env",
-      "BFF-402f pending",
-      "No server-to-server provider query confirmation proof exists yet; production payment cannot pass without it.",
+      "BFF-402f guarded boundary is proven; provider query proof pending",
+      "The guarded server-query boundary exists, but no live/server-to-server ECPay provider query response validation proof exists yet; production payment cannot pass without it.",
     ),
     blockedSubgate(
       "payment_transaction_persistence",

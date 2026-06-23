@@ -56,9 +56,15 @@ function verifyStaticBoundaries() {
   assertFileContains("src/domains/subscription/ecpay.ts", [
     "asai.billing.ecpay.notify.v1",
     "asai.billing.ecpay.query.v1",
+    "asai.billing.ecpay.server_query_boundary.v1",
     "buildEcpayNotifyLedgerIdempotencyContract",
     "buildEcpayQueryLedgerIdempotencyContract",
+    "buildEcpayServerQueryBoundaryDto",
     "providerAttempted: false",
+    "serverQueryBoundary",
+    "browserQueryAllowed: false",
+    "clientSuppliedOrganizationTrusted: false",
+    "paymentTransactionUpsertAttempted: false",
     "checkMacValueVerified: checkMacValidation.verified",
     "checkMacValidation",
     "rawCheckMacValueEchoed: false",
@@ -380,6 +386,46 @@ async function verifyQueryBoundary() {
   check(ledger?.writePlan?.duplicateWritePrevented === true, "ECPay query ledger is duplicate-safe");
   check(ledger?.activationGate?.organizationPlanUpdated === false, "ECPay query ledger blocks plan mutation");
   check(ledger?.dataBoundary?.providerRawPayloadStored === false, "ECPay query ledger stores no raw provider payload");
+  check(
+    query?.serverQueryBoundary?.version === "asai.billing.ecpay.server_query_boundary.v1",
+    "ECPay query includes server query boundary contract",
+  );
+  check(
+    query?.serverQueryBoundary?.endpoint === "/api/billing/ecpay/query",
+    "ECPay query boundary points to server-owned query endpoint",
+  );
+  check(
+    query?.serverQueryBoundary?.serverOwnership?.browserQueryAllowed === false,
+    "ECPay query boundary rejects browser-side provider query",
+  );
+  check(
+    query?.serverQueryBoundary?.serverOwnership?.clientSuppliedOrganizationTrusted === false,
+    "ECPay query boundary does not trust client organization scope",
+  );
+  check(
+    query?.serverQueryBoundary?.providerQuery?.providerAttempted === false,
+    "ECPay query boundary does not call provider",
+  );
+  check(
+    query?.serverQueryBoundary?.providerQuery?.confirmationReceived === false,
+    "ECPay query boundary does not fake provider confirmation",
+  );
+  check(
+    query?.serverQueryBoundary?.confirmationGate?.requiredBeforeTransactionPersistence === true,
+    "ECPay query boundary requires confirmation before transaction persistence",
+  );
+  check(
+    query?.serverQueryBoundary?.confirmationGate?.paymentTransactionUpsertAttempted === false,
+    "ECPay query boundary does not upsert PaymentTransaction",
+  );
+  check(
+    query?.serverQueryBoundary?.confirmationGate?.organizationPlanUpdated === false,
+    "ECPay query boundary blocks organization plan update",
+  );
+  check(
+    query?.serverQueryBoundary?.aiUsageLogPolicy?.fakeUsageLogAllowed === false,
+    "ECPay query boundary forbids fake AiUsageLog",
+  );
   check(query?.activation?.allowed === false, "ECPay query does not activate plan");
   check(query?.dataBoundary?.providerRawPayloadStored === false, "ECPay query stores no raw provider payload");
   check(hasNoStore(disabled), "ECPay query disabled response uses no-store cache header");

@@ -523,6 +523,21 @@ Whole-product review 註記（2026-06-23 runtime proof gate）：`pnpm lv3:cross
 
 ---
 
+### Batch BFF-402f - ECPay Server Query Guarded Boundary
+
+目標：把 ECPay server-to-server query confirmation 的必要條件落成 typed server query boundary，讓 `/api/billing/ecpay/query` 明確拒絕 browser/provider/redirect-only activation；不呼叫真 ECPay、不寫 `PaymentTransaction`、不啟用 plan。This does not satisfy real ECPay server query confirmation.
+
+- [x] 新增 `asai.billing.ecpay.server_query_boundary.v1`，明確 server-owned endpoint、merchantTradeNo、browser query disabled、client-supplied organization/amount untrusted、return URL 不可啟用。
+- [x] `DisabledEcpayQueryDto` 內含 `serverQueryBoundary`，證明 `providerAttempted=false`、`confirmationReceived=false`、`paymentTransactionUpsertAttempted=false`、`organizationPlanUpdated=false`、no fake `AiUsageLog`。
+- [x] Query boundary 引用既有 `asai.billing.ledger_idempotency.v1`，並保留 real provider query response validation、PaymentTransaction upsert、confirmed activation、manual review/refund/void 為 remaining proof。
+- [x] Targeted QA `pnpm billing:ecpay-query-boundary-qa`、`BILLING_ECPAY_DISABLED_QA_BASE_URL=http://127.0.0.1:3063 pnpm billing:ecpay-disabled-qa`、`pnpm bff:release-readiness-qa` 通過。
+- [x] Release readiness 新增 `ecpay_server_query_guarded_boundary` pass subgate，但 `ecpay_server_query_confirmation` 仍保持 blocked/provider_env，避免把 guarded boundary 寫成真 provider confirmation。
+- [x] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+
+完成註記（2026-06-23 BFF-402f ECPay server query guarded boundary）：已在 `src/domains/subscription/ecpay.ts` 新增 `EcpayServerQueryBoundaryDto` / `buildEcpayServerQueryBoundaryDto()`，並讓 `/api/billing/ecpay/query` 的 disabled DTO 回傳 `serverQueryBoundary`。Proof：`pnpm billing:ecpay-query-boundary-qa` 通過 source/static gate；`BILLING_ECPAY_DISABLED_QA_BASE_URL=http://127.0.0.1:3063 pnpm billing:ecpay-disabled-qa` 通過（DB 不可達時仍 fail closed，不接 provider；DB 可達時可驗 runtime DTO）；`pnpm bff:release-readiness-qa` 通過。此結果不代表 real ECPay server query confirmation、`PaymentTransaction` persistence/upsert、confirmed activation、production payment env/callback、refund/void/manual review 或 production payment enablement 已完成。
+
+---
+
 ## Batch BFF-402 - ECPay Notification / Query / Idempotency
 
 目標：付款狀態只信任 server notification/query confirmation。
@@ -578,7 +593,7 @@ Whole-product review note（2026-06-23 after BFF-402e/BFF-403b）：下一個 no
 - [x] Report 明確寫出此切片不是 production payment enablement，不做真 payment、email、notification、refund/void、provider call 或 external registry publication。
 - [x] 跑 `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`；必要時補 `pnpm demo:release-readiness-qa` 由 operator 自行重跑的 handoff command。
 
-Evidence（2026-06-23 BFF-404a）：`src/lib/platform/platform-release-readiness-repository.ts` 新增 `billingBffSubgates()` / `billingBffGate()`，`bffGates.billing_bff` 仍為 blocked，但回傳 checkout disabled、ECPay notify/query disabled skeleton、server-only checksum boundary、ledger idempotency contract、subscription UI consumption、ECPay server query confirmation、PaymentTransaction persistence、confirmed activation、production payment env/callback、refund/void/manual review 等子門檻。前五項依既有 proof script/source 可 pass；query、transaction persistence、activation、production env/callback、refund/void 仍 blocked。新增 `pnpm bff:release-readiness-qa` 驗證 platform route guard source、required subgates、package script、owner docs/acceptance、no provider call、no DB mutation、no fake `AiUsageLog`、no raw payment/private/provider sentinel；`pnpm bff:release-readiness-qa`、`pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed` 通過。Full browser/platform smoke 可由 operator 於 dev server 可用時自行重跑 `DEMO_QA_BASE_URL=http://localhost:3000 pnpm demo:release-readiness-qa`，但此 residual smoke 不取代 BFF-404a source proof。
+Evidence（2026-06-23 BFF-404a）：`src/lib/platform/platform-release-readiness-repository.ts` 新增 `billingBffSubgates()` / `billingBffGate()`，`bffGates.billing_bff` 仍為 blocked，但回傳 checkout disabled、ECPay notify/query disabled skeleton、server-only checksum boundary、ledger idempotency contract、subscription UI consumption、ECPay server query guarded boundary、ECPay server query confirmation、PaymentTransaction persistence、confirmed activation、production payment env/callback、refund/void/manual review 等子門檻。前六項依既有 proof script/source 可 pass；real provider query confirmation、transaction persistence、activation、production env/callback、refund/void 仍 blocked。新增 `pnpm bff:release-readiness-qa` 驗證 platform route guard source、required subgates、package script、owner docs/acceptance、no provider call、no DB mutation、no fake `AiUsageLog`、no raw payment/private/provider sentinel；`pnpm bff:release-readiness-qa`、`pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed` 通過。Full browser/platform smoke 可由 operator 於 dev server 可用時自行重跑 `DEMO_QA_BASE_URL=http://localhost:3000 pnpm demo:release-readiness-qa`，但此 residual smoke 不取代 BFF-404a source proof。
 
 ---
 

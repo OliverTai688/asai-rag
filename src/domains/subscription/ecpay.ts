@@ -12,6 +12,8 @@ import {
 
 export const BILLING_ECPAY_NOTIFY_CONTRACT_VERSION = "asai.billing.ecpay.notify.v1";
 export const BILLING_ECPAY_QUERY_CONTRACT_VERSION = "asai.billing.ecpay.query.v1";
+export const BILLING_ECPAY_SERVER_QUERY_BOUNDARY_VERSION =
+  "asai.billing.ecpay.server_query_boundary.v1";
 
 export const ecpayNotifyInputSchema = z
   .object({
@@ -102,10 +104,53 @@ export type DisabledEcpayQueryDto = {
     orderUpdated: false;
   };
   ledger: BillingLedgerIdempotencyContractDto;
+  serverQueryBoundary: EcpayServerQueryBoundaryDto;
   activation: ActivationBoundaryDto;
   dataBoundary: DataBoundaryDto;
   requiredProof: Array<
     "server_query_confirmation" | "transaction_ledger_idempotency" | "manual_review_failure_refund_void"
+  >;
+};
+
+export type EcpayServerQueryBoundaryDto = {
+  version: typeof BILLING_ECPAY_SERVER_QUERY_BOUNDARY_VERSION;
+  status: "guarded_disabled";
+  provider: "ECPAY";
+  endpoint: "/api/billing/ecpay/query";
+  merchantTradeNo: string;
+  serverOwnership: {
+    browserQueryAllowed: false;
+    clientSuppliedOrganizationTrusted: false;
+    clientSuppliedAmountTrusted: false;
+    returnUrlActivationAllowed: false;
+  };
+  providerQuery: {
+    providerAttempted: false;
+    queryProtocol: "server_to_server";
+    confirmationReceived: false;
+    providerStatusAccepted: false;
+    rawProviderPayloadStored: false;
+    providerCredentialsReturned: false;
+  };
+  confirmationGate: {
+    requiredBeforeTransactionPersistence: true;
+    requiredBeforeActivation: true;
+    acceptedLedgerStatuses: ["PAID", "QUERY_CONFIRMED"];
+    paymentTransactionUpsertAttempted: false;
+    organizationPlanUpdated: false;
+  };
+  ledger: BillingLedgerIdempotencyContractDto;
+  aiUsageLogPolicy: {
+    required: false;
+    reason: "no_openai_or_anthropic_provider_call";
+    fakeUsageLogAllowed: false;
+  };
+  remainingProof: Array<
+    | "provider_env_and_credentials"
+    | "ecpay_server_query_response_validation"
+    | "payment_transaction_upsert"
+    | "confirmed_activation"
+    | "manual_review_failure_refund_void"
   >;
 };
 
@@ -159,6 +204,8 @@ export function buildDisabledEcpayNotifyDto(
 }
 
 export function buildDisabledEcpayQueryDto(input: EcpayQueryInput, now = new Date()): DisabledEcpayQueryDto {
+  const ledger = buildEcpayQueryLedgerIdempotencyContract(input);
+
   return {
     version: BILLING_ECPAY_QUERY_CONTRACT_VERSION,
     status: "disabled",
@@ -179,7 +226,8 @@ export function buildDisabledEcpayQueryDto(input: EcpayQueryInput, now = new Dat
       transactionCreated: false,
       orderUpdated: false,
     },
-    ledger: buildEcpayQueryLedgerIdempotencyContract(input),
+    ledger,
+    serverQueryBoundary: buildEcpayServerQueryBoundaryDto(input, ledger),
     activation: {
       allowed: false,
       reason: "ecpay_provider_disabled",
@@ -189,6 +237,53 @@ export function buildDisabledEcpayQueryDto(input: EcpayQueryInput, now = new Dat
     requiredProof: [
       "server_query_confirmation",
       "transaction_ledger_idempotency",
+      "manual_review_failure_refund_void",
+    ],
+  };
+}
+
+export function buildEcpayServerQueryBoundaryDto(
+  input: EcpayQueryInput,
+  ledger = buildEcpayQueryLedgerIdempotencyContract(input),
+): EcpayServerQueryBoundaryDto {
+  return {
+    version: BILLING_ECPAY_SERVER_QUERY_BOUNDARY_VERSION,
+    status: "guarded_disabled",
+    provider: "ECPAY",
+    endpoint: "/api/billing/ecpay/query",
+    merchantTradeNo: input.merchantTradeNo,
+    serverOwnership: {
+      browserQueryAllowed: false,
+      clientSuppliedOrganizationTrusted: false,
+      clientSuppliedAmountTrusted: false,
+      returnUrlActivationAllowed: false,
+    },
+    providerQuery: {
+      providerAttempted: false,
+      queryProtocol: "server_to_server",
+      confirmationReceived: false,
+      providerStatusAccepted: false,
+      rawProviderPayloadStored: false,
+      providerCredentialsReturned: false,
+    },
+    confirmationGate: {
+      requiredBeforeTransactionPersistence: true,
+      requiredBeforeActivation: true,
+      acceptedLedgerStatuses: ["PAID", "QUERY_CONFIRMED"],
+      paymentTransactionUpsertAttempted: false,
+      organizationPlanUpdated: false,
+    },
+    ledger,
+    aiUsageLogPolicy: {
+      required: false,
+      reason: "no_openai_or_anthropic_provider_call",
+      fakeUsageLogAllowed: false,
+    },
+    remainingProof: [
+      "provider_env_and_credentials",
+      "ecpay_server_query_response_validation",
+      "payment_transaction_upsert",
+      "confirmed_activation",
       "manual_review_failure_refund_void",
     ],
   };
