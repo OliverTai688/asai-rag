@@ -183,12 +183,23 @@ function billingBffSubgates() {
       "BFF-402g guarded contract is proven; live DB upsert proof pending",
       "The guarded persistence contract exists, but no live PaymentTransaction DB upsert/write proof exists yet.",
     ),
+    provenSubgate(
+      "confirmed_activation_guarded_contract",
+      "Confirmed activation guarded contract",
+      "pnpm billing:confirmed-activation-qa",
+      "Confirmed activation contract is typed and guarded-disabled: requires confirmed ledger and PaymentTransaction persistence, rejects browser/redirect/client plan signals, and does not mutate organization plan.",
+      [
+        "scripts/billing-confirmed-activation-qa.mjs",
+        "src/domains/subscription/confirmed-activation.ts",
+        "src/domains/subscription/ecpay.ts",
+      ],
+    ),
     blockedSubgate(
       "confirmed_activation",
       "Confirmed activation",
       "source",
-      "BFF-402h pending",
-      "Organization plan activation must stay blocked until confirmed transaction/query paths exist.",
+      "BFF-402h guarded contract is proven; live activation proof pending",
+      "Organization plan activation must stay blocked until live confirmed transaction/query, PaymentTransaction write, and plan mutation proof exist.",
     ),
     blockedSubgate(
       "production_payment_env_callback",

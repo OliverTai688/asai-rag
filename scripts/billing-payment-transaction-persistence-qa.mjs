@@ -41,7 +41,7 @@ assertFileContains("src/domains/subscription/payment-transaction-persistence.ts"
 assertFileContains("src/domains/subscription/ecpay.ts", [
   "buildPaymentTransactionPersistenceContract",
   "transactionPersistence: BillingPaymentTransactionPersistenceContractDto",
-  "transactionPersistence: buildPaymentTransactionPersistenceContract",
+  "const transactionPersistence = buildPaymentTransactionPersistenceContract",
   'source: "ecpay_notify"',
   'source: "ecpay_query"',
   "statusWhenVerified: ledger.ledgerTarget.statusWhenVerified",

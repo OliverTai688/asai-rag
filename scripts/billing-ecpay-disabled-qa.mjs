@@ -58,6 +58,7 @@ function verifyStaticBoundaries() {
     "asai.billing.ecpay.query.v1",
     "asai.billing.ecpay.server_query_boundary.v1",
     "buildPaymentTransactionPersistenceContract",
+    "buildConfirmedActivationContract",
     "buildEcpayNotifyLedgerIdempotencyContract",
     "buildEcpayQueryLedgerIdempotencyContract",
     "buildEcpayServerQueryBoundaryDto",
@@ -67,6 +68,7 @@ function verifyStaticBoundaries() {
     "clientSuppliedOrganizationTrusted: false",
     "paymentTransactionUpsertAttempted: false",
     "transactionPersistence",
+    "confirmedActivation",
     "checkMacValueVerified: checkMacValidation.verified",
     "checkMacValidation",
     "rawCheckMacValueEchoed: false",
@@ -94,6 +96,32 @@ function verifyStaticBoundaries() {
     "rawProviderPayloadPersisted: false",
     "rawCheckMacValueStored: false",
     "allowlistedProviderSummaryOnly: true",
+    "providerCallAttempted: false",
+    "aiUsageLogRequired: false",
+    "fakeUsageLogAllowed: false",
+  ]);
+  assertFileContains("src/domains/subscription/confirmed-activation.ts", [
+    "asai.billing.confirmed_activation.v1",
+    'table: "Organization"',
+    'field: "plan"',
+    'mutation: "update_when_enabled"',
+    'requiresConfirmedLedger: true',
+    'requiresPaymentTransactionPersistence: true',
+    'requiresPaymentTransactionWriteProof: true',
+    'acceptedStatusesBeforeActivation: ["PAID", "QUERY_CONFIRMED"]',
+    "redirectReturnUrlTrusted: false",
+    "browserPaymentResultTrusted: false",
+    "clientSuppliedPlanTrusted: false",
+    "clientSuppliedOrganizationTrusted: false",
+    "localStoragePlanTrusted: false",
+    "planActivated: false",
+    "organizationPlanUpdated: false",
+    "paymentTransactionUpsertAttempted:",
+    "redirectOnlyActivationAllowed: false",
+    "browserPlanAssumptionsAllowed: false",
+    "activationRequiresPaymentTransactionWrite: true",
+    "transactionPersistenceWriteAttempted:",
+    "allowlistedActivationSummaryOnly: true",
     "providerCallAttempted: false",
     "aiUsageLogRequired: false",
     "fakeUsageLogAllowed: false",
@@ -145,6 +173,7 @@ function verifyStaticBoundaries() {
   for (const filePath of [
     "src/domains/subscription/ledger.ts",
     "src/domains/subscription/payment-transaction-persistence.ts",
+    "src/domains/subscription/confirmed-activation.ts",
     "src/domains/subscription/ecpay.ts",
     "src/app/api/billing/ecpay/query/route.ts",
   ]) {
@@ -302,6 +331,7 @@ async function verifyNotifyBoundary() {
     const notification = response.body?.notification;
     const ledger = notification?.ledger;
     const transactionPersistence = notification?.transactionPersistence;
+    const confirmedActivation = notification?.confirmedActivation;
     check(response.status === 503, `ECPay notify ${label} returns disabled 503`, `status=${response.status}`);
     check(response.body?.error === "BILLING_ECPAY_NOTIFY_DISABLED", `ECPay notify ${label} declares disabled error`);
     check(notification?.version === "asai.billing.ecpay.notify.v1", `ECPay notify ${label} is versioned`);
@@ -378,6 +408,54 @@ async function verifyNotifyBoundary() {
       transactionPersistence?.audit?.fakeUsageLogAllowed === false,
       `ECPay notify ${label} persistence forbids fake AiUsageLog`,
     );
+    check(
+      confirmedActivation?.version === "asai.billing.confirmed_activation.v1",
+      `ECPay notify ${label} includes confirmed activation contract`,
+    );
+    check(
+      confirmedActivation?.source === "ecpay_notify",
+      `ECPay notify ${label} activation contract records notify source`,
+    );
+    check(
+      confirmedActivation?.confirmedTransactionPreconditions?.requiresConfirmedLedger === true,
+      `ECPay notify ${label} activation requires confirmed ledger`,
+    );
+    check(
+      confirmedActivation?.confirmedTransactionPreconditions?.requiresPaymentTransactionPersistence === true,
+      `ECPay notify ${label} activation requires PaymentTransaction persistence`,
+    );
+    check(
+      confirmedActivation?.confirmedTransactionPreconditions?.requiresCheckMacValidationForNotify === true,
+      `ECPay notify ${label} activation requires checksum validation`,
+    );
+    check(
+      confirmedActivation?.blockedClientSignals?.redirectReturnUrlTrusted === false,
+      `ECPay notify ${label} activation rejects redirect-only signal`,
+    );
+    check(
+      confirmedActivation?.blockedClientSignals?.clientSuppliedPlanTrusted === false,
+      `ECPay notify ${label} activation rejects client plan signal`,
+    );
+    check(
+      confirmedActivation?.activationPlan?.planActivated === false,
+      `ECPay notify ${label} activation does not activate plan`,
+    );
+    check(
+      confirmedActivation?.activationPlan?.organizationPlanUpdated === false,
+      `ECPay notify ${label} activation does not update organization plan`,
+    );
+    check(
+      confirmedActivation?.dependencies?.transactionPersistenceWriteAttempted === false,
+      `ECPay notify ${label} activation sees no transaction write proof`,
+    );
+    check(
+      confirmedActivation?.dataBoundary?.allowlistedActivationSummaryOnly === true,
+      `ECPay notify ${label} activation keeps allowlisted summary only`,
+    );
+    check(
+      confirmedActivation?.audit?.fakeUsageLogAllowed === false,
+      `ECPay notify ${label} activation forbids fake AiUsageLog`,
+    );
     check(notification?.activation?.allowed === false, `ECPay notify ${label} does not activate plan`);
     check(notification?.dataBoundary?.providerCredentialsReturned === false, `ECPay notify ${label} returns no credentials`);
     check(notification?.dataBoundary?.providerRawPayloadStored === false, `ECPay notify ${label} stores no raw provider payload`);
@@ -432,6 +510,7 @@ async function verifyQueryBoundary() {
   const query = disabled.body?.query;
   const ledger = query?.ledger;
   const transactionPersistence = query?.transactionPersistence;
+  const confirmedActivation = query?.confirmedActivation;
   check(disabled.status === 503, "ECPay query returns disabled 503", `status=${disabled.status}`);
   check(disabled.body?.error === "BILLING_ECPAY_QUERY_DISABLED", "ECPay query declares disabled error");
   check(query?.version === "asai.billing.ecpay.query.v1", "ECPay query is versioned");
@@ -520,6 +599,51 @@ async function verifyQueryBoundary() {
   check(
     transactionPersistence?.audit?.aiUsageLogRequired === false,
     "ECPay query persistence requires no AiUsageLog for no-provider proof",
+  );
+  check(
+    confirmedActivation?.version === "asai.billing.confirmed_activation.v1",
+    "ECPay query includes confirmed activation contract",
+  );
+  check(confirmedActivation?.source === "ecpay_query", "ECPay query activation contract records query source");
+  check(
+    confirmedActivation?.confirmedTransactionPreconditions?.requiresConfirmedLedger === true,
+    "ECPay query activation requires confirmed ledger",
+  );
+  check(
+    confirmedActivation?.confirmedTransactionPreconditions?.requiresPaymentTransactionPersistence === true,
+    "ECPay query activation requires PaymentTransaction persistence",
+  );
+  check(
+    confirmedActivation?.confirmedTransactionPreconditions?.requiresServerQueryConfirmationForQuery === true,
+    "ECPay query activation requires server query confirmation",
+  );
+  check(
+    confirmedActivation?.blockedClientSignals?.browserPaymentResultTrusted === false,
+    "ECPay query activation rejects browser payment result",
+  );
+  check(
+    confirmedActivation?.blockedClientSignals?.localStoragePlanTrusted === false,
+    "ECPay query activation rejects local storage plan signal",
+  );
+  check(
+    confirmedActivation?.activationPlan?.planActivated === false,
+    "ECPay query activation does not activate plan",
+  );
+  check(
+    confirmedActivation?.activationPlan?.organizationPlanUpdated === false,
+    "ECPay query activation blocks organization plan update",
+  );
+  check(
+    confirmedActivation?.dependencies?.activationRequiresPaymentTransactionWrite === true,
+    "ECPay query activation requires live transaction write before enablement",
+  );
+  check(
+    confirmedActivation?.dataBoundary?.rawPaymentDataStored === false,
+    "ECPay query activation stores no raw payment data",
+  );
+  check(
+    confirmedActivation?.audit?.fakeUsageLogAllowed === false,
+    "ECPay query activation forbids fake AiUsageLog",
   );
   check(query?.activation?.allowed === false, "ECPay query does not activate plan");
   check(query?.dataBoundary?.providerRawPayloadStored === false, "ECPay query stores no raw provider payload");

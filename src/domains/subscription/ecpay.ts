@@ -13,6 +13,10 @@ import {
   buildPaymentTransactionPersistenceContract,
   type BillingPaymentTransactionPersistenceContractDto,
 } from "./payment-transaction-persistence";
+import {
+  buildConfirmedActivationContract,
+  type BillingConfirmedActivationContractDto,
+} from "./confirmed-activation";
 
 export const BILLING_ECPAY_NOTIFY_CONTRACT_VERSION = "asai.billing.ecpay.notify.v1";
 export const BILLING_ECPAY_QUERY_CONTRACT_VERSION = "asai.billing.ecpay.query.v1";
@@ -81,6 +85,7 @@ export type DisabledEcpayNotifyDto = {
   };
   ledger: BillingLedgerIdempotencyContractDto;
   transactionPersistence: BillingPaymentTransactionPersistenceContractDto;
+  confirmedActivation: BillingConfirmedActivationContractDto;
   activation: ActivationBoundaryDto;
   dataBoundary: DataBoundaryDto;
   requiredProof: Array<
@@ -111,6 +116,7 @@ export type DisabledEcpayQueryDto = {
   ledger: BillingLedgerIdempotencyContractDto;
   serverQueryBoundary: EcpayServerQueryBoundaryDto;
   transactionPersistence: BillingPaymentTransactionPersistenceContractDto;
+  confirmedActivation: BillingConfirmedActivationContractDto;
   activation: ActivationBoundaryDto;
   dataBoundary: DataBoundaryDto;
   requiredProof: Array<
@@ -167,6 +173,13 @@ export function buildDisabledEcpayNotifyDto(
 ): DisabledEcpayNotifyDto {
   const checkMacValidation = buildGuardedEcpayCheckMacValidation(input, checkMacHashInfo);
   const ledger = buildEcpayNotifyLedgerIdempotencyContract(input);
+  const transactionPersistence = buildPaymentTransactionPersistenceContract({
+    source: "ecpay_notify",
+    merchantTradeNo: input.MerchantTradeNo,
+    providerTradeNoAccepted: Boolean(input.TradeNo),
+    statusWhenVerified: ledger.ledgerTarget.statusWhenVerified,
+    ledger,
+  });
 
   return {
     version: BILLING_ECPAY_NOTIFY_CONTRACT_VERSION,
@@ -195,12 +208,13 @@ export function buildDisabledEcpayNotifyDto(
       orderUpdated: false,
     },
     ledger,
-    transactionPersistence: buildPaymentTransactionPersistenceContract({
+    transactionPersistence,
+    confirmedActivation: buildConfirmedActivationContract({
       source: "ecpay_notify",
       merchantTradeNo: input.MerchantTradeNo,
-      providerTradeNoAccepted: Boolean(input.TradeNo),
       statusWhenVerified: ledger.ledgerTarget.statusWhenVerified,
       ledger,
+      transactionPersistence,
     }),
     activation: {
       allowed: false,
@@ -219,6 +233,13 @@ export function buildDisabledEcpayNotifyDto(
 
 export function buildDisabledEcpayQueryDto(input: EcpayQueryInput, now = new Date()): DisabledEcpayQueryDto {
   const ledger = buildEcpayQueryLedgerIdempotencyContract(input);
+  const transactionPersistence = buildPaymentTransactionPersistenceContract({
+    source: "ecpay_query",
+    merchantTradeNo: input.merchantTradeNo,
+    providerTradeNoAccepted: ledger.lookup.providerTradeNoAccepted,
+    statusWhenVerified: ledger.ledgerTarget.statusWhenVerified,
+    ledger,
+  });
 
   return {
     version: BILLING_ECPAY_QUERY_CONTRACT_VERSION,
@@ -242,12 +263,13 @@ export function buildDisabledEcpayQueryDto(input: EcpayQueryInput, now = new Dat
     },
     ledger,
     serverQueryBoundary: buildEcpayServerQueryBoundaryDto(input, ledger),
-    transactionPersistence: buildPaymentTransactionPersistenceContract({
+    transactionPersistence,
+    confirmedActivation: buildConfirmedActivationContract({
       source: "ecpay_query",
       merchantTradeNo: input.merchantTradeNo,
-      providerTradeNoAccepted: ledger.lookup.providerTradeNoAccepted,
       statusWhenVerified: ledger.ledgerTarget.statusWhenVerified,
       ledger,
+      transactionPersistence,
     }),
     activation: {
       allowed: false,

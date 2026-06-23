@@ -33,7 +33,7 @@ assertFileContains("src/domains/subscription/ecpay.ts", [
   "const ledger = buildEcpayNotifyLedgerIdempotencyContract(input)",
   "const ledger = buildEcpayQueryLedgerIdempotencyContract(input)",
   "serverQueryBoundary: buildEcpayServerQueryBoundaryDto(input, ledger)",
-  "transactionPersistence: buildPaymentTransactionPersistenceContract",
+  "const transactionPersistence = buildPaymentTransactionPersistenceContract",
   "statusWhenVerified: ledger.ledgerTarget.statusWhenVerified",
   "ledgerWriteAttempted: false",
   "transactionCreated: false",
