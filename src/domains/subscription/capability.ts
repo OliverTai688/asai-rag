@@ -64,6 +64,24 @@ export type BillingSubscriptionCapabilityDto = {
       | "idempotency"
     >;
   };
+  planChangeStatus: {
+    status: "disabled";
+    mode: "guarded_disabled";
+    provider: "ECPAY";
+    endpoint: "/api/billing/plan-change";
+    planUpdateAllowed: false;
+    providerAttempted: false;
+    orderCreated: false;
+    transactionCreated: false;
+    planUpdated: false;
+    requiredProof: Array<
+      | "server_signed_payload"
+      | "checkmac_validation"
+      | "query_confirmation"
+      | "idempotency"
+      | "manual_review_failure_refund_void"
+    >;
+  };
   activation: {
     planActivationSource: "confirmed_transaction_or_query_only";
     redirectOnlyActivationAllowed: false;
@@ -157,6 +175,24 @@ export function buildBillingSubscriptionCapabilityDto(
         "notify_callback_verification",
         "query_confirmation",
         "idempotency",
+      ],
+    },
+    planChangeStatus: {
+      status: "disabled",
+      mode: "guarded_disabled",
+      provider: "ECPAY",
+      endpoint: "/api/billing/plan-change",
+      planUpdateAllowed: false,
+      providerAttempted: false,
+      orderCreated: false,
+      transactionCreated: false,
+      planUpdated: false,
+      requiredProof: [
+        "server_signed_payload",
+        "checkmac_validation",
+        "query_confirmation",
+        "idempotency",
+        "manual_review_failure_refund_void",
       ],
     },
     activation: {

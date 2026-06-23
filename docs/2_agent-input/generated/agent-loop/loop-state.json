@@ -84,11 +84,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 1,
+    "normalLoopsSinceLastWholeProductReview": 2,
     "lastWholeProductReviewAt": "2026-06-23T02:33:04Z",
     "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-23_lv3-whole-product-gap-review-subscription-ui-consumption.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "Next normal loop should remain source-backed and avoid docs-only proof. BFF-403b subscription UI consumption is now implemented; the next highest billing/release blocker is BFF-402c/BFF-403c payment idempotency + plan-change persistence boundary. Prefer a narrow source/proof slice that defines the server-owned idempotency/activation contract without enabling real ECPay provider calls or redirect-only activation, then add a targeted QA command for no-provider/no-payment/private-sentinel/no-fake-AiUsageLog posture. If that is blocked by schema/product choice, produce the smallest L4 blocker analysis and switch to a source-backed LV3 core-flow slice instead of only collecting evidence.",
+    "nextRecommendedImplementationSlice": "Next normal loop should remain source-backed and avoid docs-only proof. BFF-402c/BFF-403c plan-change activation boundary is now implemented; the next highest billing/release blocker is BFF-402d transaction ledger idempotency persistence contract. Prefer a narrow source/proof slice that defines server-owned ledger upsert/idempotency behavior for confirmed ECPay notification/query without enabling provider calls, redirect-only activation, refund/void, or organization plan mutation. If DB runtime proof is unavailable, provide a static/domain contract plus a self-runnable API/DB QA command rather than falling back to docs-only evidence.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {
@@ -156,5 +156,5 @@
     "lv3ImmersiveLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-immersive-loop.md",
     "lv3WholeProductGapReviewLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md"
   },
-  "updatedAt": "2026-06-23T02:53:05Z"
+  "updatedAt": "2026-06-23T03:13:04Z"
 }
