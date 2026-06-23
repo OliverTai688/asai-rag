@@ -24,6 +24,28 @@ export interface VisitRelationshipConfirmationStateRecord {
   safeNoteSummary?: string;
 }
 
+export type VisitRelationshipConfirmationPersistenceOptionId =
+  | "visit-plan-json-subdocument"
+  | "dedicated-relationship-confirmation-state-table";
+
+export type VisitRelationshipConfirmationPersistenceDecisionStatus =
+  | "product_schema_decision_required";
+
+export interface VisitRelationshipConfirmationStatePersistenceOption {
+  id: VisitRelationshipConfirmationPersistenceOptionId;
+  label: string;
+  status: "candidate_requires_product_decision";
+  persistenceTarget: string;
+  migrationRequired: true;
+  migrationNote: string;
+  rollbackNote: string;
+  bestWhen: string;
+  tradeoffs: string[];
+  minimumAllowedFields: readonly VisitRelationshipConfirmationStateAllowedField[];
+  forbiddenFields: readonly string[];
+  proofCommand: "pnpm visit:relationship-confirmation-state-boundary-dry-run";
+}
+
 export interface VisitRelationshipConfirmationStateBoundary {
   agentId: "asai.visit.preparation_package";
   sourceActionId: "relationship-confirmation-card-state-boundary";
@@ -42,9 +64,12 @@ export interface VisitRelationshipConfirmationStateBoundary {
   storageDecision: {
     currentPersistence: "local-only-ui-state";
     proposedPersistence: "visit-relationship-confirmation-state";
+    decisionStatus: VisitRelationshipConfirmationPersistenceDecisionStatus;
     requiresProductDecision: true;
-    minimumAllowedFields: Array<keyof VisitRelationshipConfirmationStateRecord>;
-    forbiddenFields: string[];
+    selectedOption: null;
+    minimumAllowedFields: readonly VisitRelationshipConfirmationStateAllowedField[];
+    forbiddenFields: readonly string[];
+    candidateOptions: readonly VisitRelationshipConfirmationStatePersistenceOption[];
     reason: string;
   };
   proof: {
@@ -67,15 +92,18 @@ interface VisitRelationshipConfirmationStateBoundaryInput {
   now?: string;
 }
 
-const MINIMUM_ALLOWED_FIELDS: Array<keyof VisitRelationshipConfirmationStateRecord> = [
+export const VISIT_RELATIONSHIP_CONFIRMATION_STATE_ALLOWED_FIELDS = [
   "cardId",
   "state",
   "updatedAt",
   "sourceReferenceIds",
   "safeNoteSummary",
-];
+] as const satisfies readonly (keyof VisitRelationshipConfirmationStateRecord)[];
 
-const FORBIDDEN_FIELDS = [
+export type VisitRelationshipConfirmationStateAllowedField =
+  (typeof VISIT_RELATIONSHIP_CONFIRMATION_STATE_ALLOWED_FIELDS)[number];
+
+export const VISIT_RELATIONSHIP_CONFIRMATION_STATE_FORBIDDEN_FIELDS = [
   "personName",
   "relation",
   "evidenceDetail",
@@ -86,7 +114,53 @@ const FORBIDDEN_FIELDS = [
   "email",
   "phone",
   "policyNumber",
-];
+] as const;
+
+export const VISIT_RELATIONSHIP_CONFIRMATION_STATE_PERSISTENCE_OPTIONS: readonly VisitRelationshipConfirmationStatePersistenceOption[] =
+  [
+    {
+      id: "visit-plan-json-subdocument",
+      label: "VisitPlan-owned JSON subdocument",
+      status: "candidate_requires_product_decision",
+      persistenceTarget: "VisitPlan.relationshipConfirmationState",
+      migrationRequired: true,
+      migrationNote:
+        "Add an additive nullable VisitPlan JSON subdocument owned by the visit-plan repository; write only the allowlisted card state envelope and backfill existing rows as null.",
+      rollbackNote:
+        "Ship a code rollback that stops reading the subdocument, then remove the nullable JSON field in a later migration; no CRM facts or provider payload rows are created.",
+      bestWhen:
+        "The state only needs to reload with one preparation package and does not need cross-plan querying or per-card audit history.",
+      tradeoffs: [
+        "Simpler owner scope because the state lives with VisitPlan.",
+        "Less queryable and can increase VisitPlan row churn.",
+        "Rollback must coordinate VisitPlan read/write code before field removal.",
+      ],
+      minimumAllowedFields: VISIT_RELATIONSHIP_CONFIRMATION_STATE_ALLOWED_FIELDS,
+      forbiddenFields: VISIT_RELATIONSHIP_CONFIRMATION_STATE_FORBIDDEN_FIELDS,
+      proofCommand: "pnpm visit:relationship-confirmation-state-boundary-dry-run",
+    },
+    {
+      id: "dedicated-relationship-confirmation-state-table",
+      label: "Dedicated RelationshipConfirmationState table",
+      status: "candidate_requires_product_decision",
+      persistenceTarget: "RelationshipConfirmationState",
+      migrationRequired: true,
+      migrationNote:
+        "Add a dedicated table scoped by organizationId and visitPlanId with unique visitPlanId+cardId rows; sourceReferenceIds stays structured JSON and safeNoteSummary stays redacted.",
+      rollbackNote:
+        "Disable the BFF read/write path, verify no runtime dependency remains, then drop the additive table; no VisitPlan content, CRM facts, or provider payload rows are mutated.",
+      bestWhen:
+        "The product needs per-card write isolation, auditability, or future querying across preparation packages.",
+      tradeoffs: [
+        "Cleaner persistence boundary and easier audit history.",
+        "Requires a new repository, owner-scoped joins, migration, and rollback proof.",
+        "Must enforce no direct confirmed CRM fact write from card state.",
+      ],
+      minimumAllowedFields: VISIT_RELATIONSHIP_CONFIRMATION_STATE_ALLOWED_FIELDS,
+      forbiddenFields: VISIT_RELATIONSHIP_CONFIRMATION_STATE_FORBIDDEN_FIELDS,
+      proofCommand: "pnpm visit:relationship-confirmation-state-boundary-dry-run",
+    },
+  ];
 
 const CONTACT_EMAIL_PATTERN = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi;
 const TAIWAN_MOBILE_PATTERN = /09\d{2}[-\s]?\d{3}[-\s]?\d{3}/g;
@@ -144,11 +218,14 @@ export function buildVisitRelationshipConfirmationStateBoundary(
     storageDecision: {
       currentPersistence: "local-only-ui-state",
       proposedPersistence: "visit-relationship-confirmation-state",
+      decisionStatus: "product_schema_decision_required",
       requiresProductDecision: true,
-      minimumAllowedFields: MINIMUM_ALLOWED_FIELDS,
-      forbiddenFields: FORBIDDEN_FIELDS,
+      selectedOption: null,
+      minimumAllowedFields: VISIT_RELATIONSHIP_CONFIRMATION_STATE_ALLOWED_FIELDS,
+      forbiddenFields: VISIT_RELATIONSHIP_CONFIRMATION_STATE_FORBIDDEN_FIELDS,
+      candidateOptions: VISIT_RELATIONSHIP_CONFIRMATION_STATE_PERSISTENCE_OPTIONS,
       reason:
-        "VisitPlan has no dedicated relationship confirmation state store. This boundary validates the server-owned envelope only; DB persistence needs an explicit product/schema decision.",
+        "VisitPlan has no dedicated relationship confirmation state store. This boundary validates the server-owned envelope only; DB persistence needs an explicit product/schema decision between the listed candidate options.",
     },
     proof: {
       ownerScopedVisitPlanRequired: true,

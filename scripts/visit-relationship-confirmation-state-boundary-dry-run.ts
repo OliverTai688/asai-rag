@@ -87,6 +87,13 @@ if (boundary.summary.confirmedCount !== 1) failures.push("confirmed state count 
 if (boundary.summary.askInInterviewCount !== 1) failures.push("ask-in-interview state count mismatch");
 if (!boundary.storageDecision.requiresProductDecision) failures.push("persistence decision should stay explicit");
 if (boundary.storageDecision.currentPersistence !== "local-only-ui-state") failures.push("current persistence mismatch");
+if (boundary.storageDecision.decisionStatus !== "product_schema_decision_required") {
+  failures.push("persistence decision status should require product/schema decision");
+}
+if (boundary.storageDecision.selectedOption !== null) failures.push("persistence option must not be pre-selected");
+if (boundary.storageDecision.candidateOptions.length !== 2) {
+  failures.push("persistence decision should expose exactly two candidate options");
+}
 if (boundary.proof.providerCallAttempted) failures.push("provider call should be false");
 if (boundary.proof.aiUsageLogWritten) failures.push("ai usage log should be false for no-provider proof");
 if (boundary.proof.writesConfirmedCrmFact) failures.push("confirmed CRM fact write should be false");
@@ -96,6 +103,48 @@ if (serialized.includes(contactEmailSentinel) || serialized.includes(contactPhon
 }
 if (!serialized.includes("[redacted-email]") || !serialized.includes("[redacted-phone]")) {
   failures.push("safe note summary redaction evidence missing");
+}
+
+const expectedAllowedFields = ["cardId", "state", "updatedAt", "sourceReferenceIds", "safeNoteSummary"];
+const expectedForbiddenFields = [
+  "personName",
+  "relation",
+  "evidenceDetail",
+  "confirmationPrompt",
+  "rawPrivateTranscript",
+  "rawProviderPayload",
+  "confirmedCrmFact",
+  "email",
+  "phone",
+  "policyNumber",
+];
+const optionIds = boundary.storageDecision.candidateOptions.map((option) => option.id).sort();
+if (optionIds.join("|") !== "dedicated-relationship-confirmation-state-table|visit-plan-json-subdocument") {
+  failures.push(`unexpected persistence option ids: ${optionIds.join(", ")}`);
+}
+for (const option of boundary.storageDecision.candidateOptions) {
+  if (option.status !== "candidate_requires_product_decision") {
+    failures.push(`option ${option.id} should remain decision-gated`);
+  }
+  if (!option.migrationRequired) failures.push(`option ${option.id} should require migration proof`);
+  if (!option.migrationNote || !option.rollbackNote) {
+    failures.push(`option ${option.id} is missing migration/rollback notes`);
+  }
+  if (option.proofCommand !== "pnpm visit:relationship-confirmation-state-boundary-dry-run") {
+    failures.push(`option ${option.id} has unexpected proof command`);
+  }
+  if (!sameStringSet(option.minimumAllowedFields, expectedAllowedFields)) {
+    failures.push(`option ${option.id} allowlist drifted`);
+  }
+  if (!sameStringSet(option.forbiddenFields, expectedForbiddenFields)) {
+    failures.push(`option ${option.id} forbidden fields drifted`);
+  }
+}
+if (!sameStringSet(boundary.storageDecision.minimumAllowedFields, expectedAllowedFields)) {
+  failures.push("storage decision allowlist drifted");
+}
+if (!sameStringSet(boundary.storageDecision.forbiddenFields, expectedForbiddenFields)) {
+  failures.push("storage decision forbidden fields drifted");
 }
 
 for (const record of boundary.records) {
@@ -137,7 +186,9 @@ console.log(
       askInInterviewCount: boundary.summary.askInInterviewCount,
       droppedRecordCount: boundary.summary.droppedRecordCount,
       currentPersistence: boundary.storageDecision.currentPersistence,
+      decisionStatus: boundary.storageDecision.decisionStatus,
       requiresProductDecision: boundary.storageDecision.requiresProductDecision,
+      candidateOptions: boundary.storageDecision.candidateOptions.map((option) => option.id),
       providerCallAttempted: boundary.proof.providerCallAttempted,
       writesConfirmedCrmFact: boundary.proof.writesConfirmedCrmFact,
       persistedToDatabase: boundary.proof.persistedToDatabase,
@@ -146,3 +197,7 @@ console.log(
     2,
   ),
 );
+
+function sameStringSet(left: readonly string[], right: readonly string[]) {
+  return [...left].sort().join("|") === [...right].sort().join("|");
+}

@@ -84,11 +84,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 2,
+    "normalLoopsSinceLastWholeProductReview": 3,
     "lastWholeProductReviewAt": "2026-06-23T06:36:47Z",
     "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-23_lv3-whole-product-gap-review-amm-notes-compat.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "LV3-REL-DECISION-001 relationship confirmation state persistence unblock. Relationship confirmation cards are currently transient by design; if operator chooses VisitPlan-owned JSON subdocument or dedicated RelationshipConfirmationState table, implement one small persistence slice with allowlisted cardId/state/updatedAt/sourceReferenceIds/safeNoteSummary only. If no schema/product decision is available, do a source-backed contract fallback comparing both options with migration/rollback notes and self-runnable proof, not docs-only evidence.",
+    "nextRecommendedImplementationSlice": "LV3-REL-PERSIST-001 if operator chooses VisitPlan-owned JSON subdocument or dedicated RelationshipConfirmationState table, implement one small owner-scoped persistence slice with allowlisted cardId/state/updatedAt/sourceReferenceIds/safeNoteSummary only and migration/rollback/API/browser proof. If no product/schema decision is available, pivot to another source-backed core bridge such as AI interview or AI meeting quick notes -> relationship graph / preparation writeback cards; do not repeat relationship persistence docs-only evidence.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {
@@ -156,5 +156,5 @@
     "lv3ImmersiveLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-immersive-loop.md",
     "lv3WholeProductGapReviewLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md"
   },
-  "updatedAt": "2026-06-23T07:17:47Z"
+  "updatedAt": "2026-06-23T07:38:47Z"
 }
