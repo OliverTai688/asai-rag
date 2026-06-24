@@ -1,6 +1,7 @@
 import type { MeetingWritebackCandidate } from "../src/domains/interview/meeting-writeback-boundary";
 import {
   buildVisitMeetingRelationshipSignalDeck,
+  meetingWritebackCandidateReviewContextToRelationshipSignals,
   meetingWritebackCandidateToRelationshipSignal,
 } from "../src/domains/visit/meeting-relationship-signal";
 
@@ -24,6 +25,44 @@ const writebackCandidate: MeetingWritebackCandidate = {
   requiresReason: false,
   crmWritebackCandidate: false,
   writesConfirmedCrmFact: false,
+  reviewContext: [
+    {
+      source: "theater_route_b_feedback_profile",
+      target: "MEETING_WRITEBACK_PREVIEW_CONTEXT",
+      contextCardId: "ctx-spouse-decision",
+      status: "inference",
+      targetLabel: "配偶",
+      fieldLabel: "決策角色",
+      label: "配偶決策旁證",
+      detail: `Route B 回饋指出配偶可能參與保單決策，${emailSentinel}，${phoneSentinel}`,
+      followUpQuestion: "下一次拜訪先確認配偶是否共同參與保障配置決策。",
+      requiresAdvisorConfirmation: true,
+      persistedSummaryRequired: true,
+      writesRelationshipGraph: false,
+      writesVisitPlan: false,
+      writesClientProfile: false,
+      writesPolicy: false,
+      writesConfirmedCrmFact: false,
+    },
+    {
+      source: "theater_route_b_feedback_profile",
+      target: "MEETING_WRITEBACK_PREVIEW_CONTEXT",
+      contextCardId: "ctx-beneficiary-unknown",
+      status: "unknown",
+      targetLabel: "家庭受益人",
+      fieldLabel: "未知安排",
+      label: "受益人待確認",
+      detail: `${policySentinel} 相關受益人安排仍不明；raw provider payload should not leak`,
+      followUpQuestion: "請確認受益人排序與小孩教育金是否需要一併調整。",
+      requiresAdvisorConfirmation: true,
+      persistedSummaryRequired: true,
+      writesRelationshipGraph: false,
+      writesVisitPlan: false,
+      writesClientProfile: false,
+      writesPolicy: false,
+      writesConfirmedCrmFact: false,
+    },
+  ],
 };
 
 const deck = buildVisitMeetingRelationshipSignalDeck({
@@ -39,6 +78,7 @@ const deck = buildVisitMeetingRelationshipSignalDeck({
       sourceReferenceIds: ["visit-meeting-quick-note.turn-1", emailSentinel],
     },
     meetingWritebackCandidateToRelationshipSignal(writebackCandidate),
+    ...meetingWritebackCandidateReviewContextToRelationshipSignals(writebackCandidate),
     {
       id: "open-question-income",
       sourceType: "MEETING_OPEN_QUESTION",
@@ -64,10 +104,10 @@ if (deck.sourceActionId !== "meeting-notes-relationship-confirmation-signal") {
   failures.push("unexpected source action id");
 }
 if (deck.visitPlanId !== "visit_plan_meeting_relationship_signal") failures.push("visit plan id mismatch");
-if (deck.summary.cardCount !== 4) failures.push(`expected 4 cards, got ${deck.summary.cardCount}`);
+if (deck.summary.cardCount !== 6) failures.push(`expected 6 cards, got ${deck.summary.cardCount}`);
 if (deck.summary.confirmedCount !== 1) failures.push("confirmed count mismatch");
-if (deck.summary.inferenceCount !== 1) failures.push("inference count mismatch");
-if (deck.summary.unknownCount !== 2) failures.push("unknown count mismatch");
+if (deck.summary.inferenceCount !== 2) failures.push("inference count mismatch");
+if (deck.summary.unknownCount !== 3) failures.push("unknown count mismatch");
 if (deck.summary.highPriorityCount === 0) failures.push("expected at least one high-priority card");
 if (deck.summary.meetingSourceCount === 0) failures.push("source references should be counted");
 if (deck.writebackBoundary.currentPersistence !== "deterministic-preview-only") {
@@ -78,6 +118,9 @@ if (deck.writebackBoundary.writesVisitPlan) failures.push("must not write visit 
 if (!deck.writebackBoundary.requiresAdvisorConfirmation) failures.push("advisor confirmation should be required");
 if (!deck.writebackBoundary.acceptedSourceTypes.includes("MEETING_QUICK_NOTE")) {
   failures.push("quick note source should be accepted");
+}
+if (!deck.writebackBoundary.acceptedSourceTypes.includes("MEETING_WRITEBACK_REVIEW_CONTEXT")) {
+  failures.push("meeting writeback review context source should be accepted");
 }
 if (deck.proof.providerCallAttempted) failures.push("provider call should be false");
 if (deck.proof.aiUsageLogWritten) failures.push("ai usage log should be false for no-provider proof");
@@ -101,6 +144,12 @@ if (!deck.cards.some((card) => card.sourceReferenceIds.includes("meeting-turn.tu
 }
 if (!deck.cards.some((card) => card.sourceReferenceIds.includes("meeting-memory.memory-spouse-1"))) {
   failures.push("meeting writeback memory source reference missing");
+}
+if (!deck.cards.some((card) => card.sourceType === "MEETING_WRITEBACK_REVIEW_CONTEXT")) {
+  failures.push("meeting writeback review context cards missing");
+}
+if (!deck.cards.some((card) => card.sourceReferenceIds.includes("meeting-writeback-review-context.ctx-spouse-decision"))) {
+  failures.push("meeting writeback review context source reference missing");
 }
 if (!deck.cards.some((card) => card.recommendedAction === "ASK_IN_NEXT_VISIT")) {
   failures.push("unknown meeting signals should become next-visit questions");

@@ -1,5 +1,8 @@
 import type { MeetingDataClass } from "../interview/meeting";
-import type { MeetingWritebackCandidate } from "../interview/meeting-writeback-boundary";
+import type {
+  MeetingWritebackCandidate,
+  MeetingWritebackCandidateReviewContext,
+} from "../interview/meeting-writeback-boundary";
 import type { VisitQuestionEvidenceStatus } from "./types";
 
 export type VisitMeetingRelationshipSignalSourceType =
@@ -7,7 +10,8 @@ export type VisitMeetingRelationshipSignalSourceType =
   | "MEETING_SUMMARY_DECISION"
   | "MEETING_ACTION_ITEM"
   | "MEETING_OPEN_QUESTION"
-  | "MEETING_WRITEBACK_CANDIDATE";
+  | "MEETING_WRITEBACK_CANDIDATE"
+  | "MEETING_WRITEBACK_REVIEW_CONTEXT";
 
 export type VisitMeetingRelationshipSignalAction =
   | "CREATE_CONFIRMATION_CARD"
@@ -95,6 +99,7 @@ export const VISIT_MEETING_RELATIONSHIP_SIGNAL_SOURCE_TYPES = [
   "MEETING_ACTION_ITEM",
   "MEETING_OPEN_QUESTION",
   "MEETING_WRITEBACK_CANDIDATE",
+  "MEETING_WRITEBACK_REVIEW_CONTEXT",
 ] as const satisfies readonly VisitMeetingRelationshipSignalSourceType[];
 
 export const VISIT_MEETING_RELATIONSHIP_SIGNAL_ALLOWED_FIELDS = [
@@ -142,6 +147,7 @@ const SOURCE_LABELS: Record<VisitMeetingRelationshipSignalSourceType, string> = 
   MEETING_ACTION_ITEM: "會議待辦",
   MEETING_OPEN_QUESTION: "會議未解問題",
   MEETING_WRITEBACK_CANDIDATE: "會議寫回候選",
+  MEETING_WRITEBACK_REVIEW_CONTEXT: "會議寫回旁證",
 };
 
 const STATUS_SCORE: Record<VisitQuestionEvidenceStatus, number> = {
@@ -214,6 +220,37 @@ export function meetingWritebackCandidateToRelationshipSignal(
     dataClass: toMeetingDataClass(candidate.kind),
     sourceReferenceIds: [
       `meeting-writeback.${candidate.sourceType}.${candidate.sourceItemId}`,
+      ...candidate.citationTurnIds.map((turnId) => `meeting-turn.${turnId}`),
+      ...candidate.supportingMemoryIds.map((memoryId) => `meeting-memory.${memoryId}`),
+    ],
+  };
+}
+
+export function meetingWritebackCandidateReviewContextToRelationshipSignals(
+  candidate: MeetingWritebackCandidate,
+): VisitMeetingRelationshipSignalInput[] {
+  return (candidate.reviewContext ?? []).map((context) =>
+    meetingWritebackReviewContextToRelationshipSignal(candidate, context),
+  );
+}
+
+function meetingWritebackReviewContextToRelationshipSignal(
+  candidate: MeetingWritebackCandidate,
+  context: MeetingWritebackCandidateReviewContext,
+): VisitMeetingRelationshipSignalInput {
+  return {
+    id: `${candidate.id}.${context.contextCardId}`,
+    sourceType: "MEETING_WRITEBACK_REVIEW_CONTEXT",
+    text: [
+      `${context.label}：${context.detail}`,
+      `${context.targetLabel} / ${context.fieldLabel}`,
+      `補問：${context.followUpQuestion}`,
+    ].join("。"),
+    dataClass: context.status,
+    sourceReferenceIds: [
+      `meeting-writeback.${candidate.sourceType}.${candidate.sourceItemId}`,
+      `meeting-writeback-review-context.${context.contextCardId}`,
+      `feedback-advisor.${context.source}.${context.target}`,
       ...candidate.citationTurnIds.map((turnId) => `meeting-turn.${turnId}`),
       ...candidate.supportingMemoryIds.map((memoryId) => `meeting-memory.${memoryId}`),
     ],
@@ -313,6 +350,10 @@ function titleFor(
   }
 
   if (status === "inference") {
+    if (sourceType === "MEETING_WRITEBACK_REVIEW_CONTEXT") {
+      return "寫回旁證中的關係推論";
+    }
+
     return "會議推論出的關係訊號";
   }
 

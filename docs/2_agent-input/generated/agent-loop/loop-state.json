@@ -84,11 +84,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 2,
+    "normalLoopsSinceLastWholeProductReview": 3,
     "lastWholeProductReviewAt": "2026-06-24T15:12:51Z",
     "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-24_lv3-whole-product-gap-review-after-feedback-writeback.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "If DB/DNS is available, rerun DEMO_QA_BASE_URL=http://127.0.0.1:<free-port> pnpm lv3:cross-flow-no-provider-qa to close the DB-backed live evidence left by LV3-CROSS-002. If the Supabase host still resolves ENOTFOUND/P1001, do not spend another loop only re-running live proof; choose the next non-DB source-backed slice: make the AI Meeting writeback candidate review context drive a visit/preparation-package source-only evidence panel or server-side contract proof, preserving summary-required/advisor-confirmation/no-provider/no relationship graph/VisitPlan/client profile/policy/confirmed CRM fact writes. If the operator approves formal RelationshipEdge schema/migration or answers relationship confirmation A/B/C first, prioritize that approved decision instead.",
+    "nextRecommendedImplementationSlice": "If DB/DNS is available, rerun DEMO_QA_BASE_URL=http://127.0.0.1:<free-port> pnpm lv3:cross-flow-no-provider-qa to close the DB-backed live evidence left by LV3-CROSS-002. If the Supabase host still resolves ENOTFOUND/P1001, do not spend another loop only re-running live proof; choose the next non-DB source-backed slice: adopt the new meetingWritebackCandidateReviewContextToRelationshipSignals contract in a visible visit/preparation source-only evidence panel or BFF-safe preview, preserving summary-required/advisor-confirmation/no-provider/no relationship graph/VisitPlan/client profile/policy/confirmed CRM fact writes. If the operator approves formal RelationshipEdge schema/migration or answers relationship confirmation A/B/C first, prioritize that approved decision instead.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {
@@ -156,5 +156,5 @@
     "lv3ImmersiveLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-immersive-loop.md",
     "lv3WholeProductGapReviewLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md"
   },
-  "updatedAt": "2026-06-24T16:50:00Z"
+  "updatedAt": "2026-06-24T17:12:00Z"
 }

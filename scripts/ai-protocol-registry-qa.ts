@@ -1213,6 +1213,10 @@ function assertVisitMeetingRelationshipSignal(manifests: AgentProtocolManifest[]
     "visit manifest input DTOs include MeetingWritebackCandidate",
   );
   push(
+    manifest.schemas.inputDtoRefs.includes("MeetingWritebackCandidateReviewContext"),
+    "visit manifest input DTOs include MeetingWritebackCandidateReviewContext",
+  );
+  push(
     manifest.schemas.outputDtoRefs.includes("VisitMeetingRelationshipSignalDeck"),
     "visit manifest output DTOs include VisitMeetingRelationshipSignalDeck",
   );
@@ -1237,6 +1241,14 @@ function assertVisitMeetingRelationshipSignal(manifests: AgentProtocolManifest[]
       "VisitMeetingRelationshipSignalDeck.writebackBoundary.currentPersistence=deterministic-preview-only",
     ),
     "visit manifest evidence includes deterministic preview boundary",
+  );
+  push(
+    manifest.schemas.evidenceDtoRefs.includes("VisitMeetingRelationshipSignalInput.sourceType=MEETING_WRITEBACK_REVIEW_CONTEXT"),
+    "visit manifest evidence includes meeting writeback review context source type",
+  );
+  push(
+    manifest.schemas.evidenceDtoRefs.includes("MeetingWritebackCandidateReviewContext.writesRelationshipGraph=false"),
+    "visit manifest evidence includes meeting writeback review context no graph write",
   );
   push(
     manifest.schemas.evidenceDtoRefs.includes("VisitMeetingRelationshipSignalDeck.proof.writesConfirmedCrmFact=false"),
@@ -1285,10 +1297,21 @@ function assertVisitMeetingRelationshipSignal(manifests: AgentProtocolManifest[]
   const requiredEvidenceRefs = [
     "buildVisitMeetingRelationshipSignalDeck",
     "meetingWritebackCandidateToRelationshipSignal",
+    "meetingWritebackCandidateReviewContextToRelationshipSignals",
     "getVisitMeetingRelationshipSignalDeckForMember",
     "VISIT_MEETING_RELATIONSHIP_SIGNAL_ALLOWED_FIELDS",
+    "MEETING_WRITEBACK_REVIEW_CONTEXT",
     "meeting-notes-relationship-confirmation-signal",
     "VisitMeetingRelationshipSignalDeck.writebackBoundary.currentPersistence=deterministic-preview-only",
+    "VisitMeetingRelationshipSignalInput.sourceType=MEETING_WRITEBACK_REVIEW_CONTEXT",
+    "MeetingWritebackCandidate.reviewContext=MeetingWritebackCandidateReviewContext[]",
+    "MeetingWritebackCandidateReviewContext.requiresAdvisorConfirmation=true",
+    "MeetingWritebackCandidateReviewContext.persistedSummaryRequired=true",
+    "MeetingWritebackCandidateReviewContext.writesRelationshipGraph=false",
+    "MeetingWritebackCandidateReviewContext.writesVisitPlan=false",
+    "MeetingWritebackCandidateReviewContext.writesClientProfile=false",
+    "MeetingWritebackCandidateReviewContext.writesPolicy=false",
+    "MeetingWritebackCandidateReviewContext.writesConfirmedCrmFact=false",
     "VisitMeetingRelationshipSignalDeck.writebackBoundary.writesRelationshipGraph=false",
     "VisitMeetingRelationshipSignalDeck.writebackBoundary.writesVisitPlan=false",
     "VisitMeetingRelationshipSignalDeck.proof.persistedToDatabase=false",
