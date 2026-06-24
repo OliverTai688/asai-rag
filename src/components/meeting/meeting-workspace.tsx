@@ -28,6 +28,7 @@ import {
   type MeetingSummaryItem,
 } from "@/domains/interview/meeting";
 import type { VisitRouteBRedLineContext } from "@/domains/visit/route-b-red-line-context";
+import type { VisitRouteBStateProposalContext } from "@/domains/visit/route-b-state-proposal-context";
 
 type TurnSource = "MANUAL_NOTE" | "VOICE_FINAL_TRANSCRIPT";
 type BootstrapState = "loading" | "ready" | "error";
@@ -46,6 +47,9 @@ interface MeetingWorkspaceProps {
   routeBRedLineContext?: MeetingRouteBRedLineContextDto | null;
   routeBRedLineContextError?: string | null;
   routeBRedLineContextLoading?: boolean;
+  routeBStateProposalContext?: MeetingRouteBStateProposalContextDto | null;
+  routeBStateProposalContextError?: string | null;
+  routeBStateProposalContextLoading?: boolean;
   backHref: string;
   backLabel?: string;
 }
@@ -63,6 +67,23 @@ export interface MeetingRouteBRedLineContextDto {
     aiUsageLogWritten: false;
     writesConfirmedCrmFact: false;
     triggersExternalNotification: false;
+  };
+}
+
+export interface MeetingRouteBStateProposalContextDto {
+  status: "READY" | "NO_ROUTE_B_SESSION" | "NO_FEEDBACK_REVIEW" | "NO_STATE_PROPOSALS";
+  routeBStateProposalContext?: VisitRouteBStateProposalContext;
+  summary: VisitRouteBStateProposalContext["summary"];
+  proof: {
+    ownerScopedVisitPlan: true;
+    ownerScopedTheaterSessionLookup: true;
+    browserSuppliedTheaterSessionId: false;
+    browserSuppliedPersonId: false;
+    providerCallAttempted: false;
+    aiUsageLogWritten: false;
+    writesConfirmedCrmFact: false;
+    writesRelationshipGraph: false;
+    writesVisitPlan: false;
   };
 }
 
@@ -305,12 +326,31 @@ function buildRouteBRedLineNoteDraft(context?: MeetingRouteBRedLineContextDto | 
   ].join("\n");
 }
 
-function mergeInitialNoteDraft(noteDraft: string | null, routeBNoteDraft: string | null): string | null {
-  if (!noteDraft && !routeBNoteDraft) return null;
-  if (!noteDraft) return routeBNoteDraft;
-  if (!routeBNoteDraft) return noteDraft;
+function buildRouteBStateProposalNoteDraft(context?: MeetingRouteBStateProposalContextDto | null): string | null {
+  const routeBContext = context?.status === "READY" ? context.routeBStateProposalContext : undefined;
+  if (!routeBContext?.items.length) return null;
 
-  return `${noteDraft}\n\n${routeBNoteDraft}`;
+  const prioritizedItems = routeBContext.items
+    .filter((item) => item.status === "unknown" || item.cardType === "evidence_needed")
+    .slice(0, 3);
+  const items = prioritizedItems.length ? prioritizedItems : routeBContext.items.slice(0, 3);
+  const lines = items.map((item) => {
+    const question = item.followUpQuestion ? `；補問：${item.followUpQuestion}` : "";
+    const evidence = item.evidenceNeeded ? `；佐證：${item.evidenceNeeded}` : "";
+    return `- ${item.label}：${item.detail}${question}${evidence}`;
+  });
+
+  return [
+    "劇場狀態回帶（theater state proposal，非已確認關係事實）：",
+    `待確認 ${routeBContext.summary.unknownCount}，推論 ${routeBContext.summary.inferenceCount}，需佐證 ${routeBContext.summary.evidenceNeededCount}。`,
+    ...lines,
+    "請在會議中補問或修正；requiresConfirmation=true，不寫 relationship graph、VisitPlan 或 CRM confirmed fact。",
+  ].join("\n");
+}
+
+function mergeInitialNoteDraft(noteDraft: string | null, ...contextDrafts: Array<string | null>): string | null {
+  const parts = [noteDraft, ...contextDrafts].filter((part): part is string => Boolean(part?.trim()));
+  return parts.length ? parts.join("\n\n") : null;
 }
 
 export function MeetingWorkspace({
@@ -322,6 +362,9 @@ export function MeetingWorkspace({
   routeBRedLineContext = null,
   routeBRedLineContextError = null,
   routeBRedLineContextLoading = false,
+  routeBStateProposalContext = null,
+  routeBStateProposalContextError = null,
+  routeBStateProposalContextLoading = false,
   backHref,
   backLabel,
 }: MeetingWorkspaceProps) {
@@ -335,9 +378,13 @@ export function MeetingWorkspace({
     () => buildRouteBRedLineNoteDraft(routeBRedLineContext),
     [routeBRedLineContext],
   );
+  const routeBStateProposalNoteDraft = useMemo(
+    () => buildRouteBStateProposalNoteDraft(routeBStateProposalContext),
+    [routeBStateProposalContext],
+  );
   const mergedInitialNoteDraft = useMemo(
-    () => mergeInitialNoteDraft(normalizedInitialNoteDraft, routeBNoteDraft),
-    [normalizedInitialNoteDraft, routeBNoteDraft],
+    () => mergeInitialNoteDraft(normalizedInitialNoteDraft, routeBNoteDraft, routeBStateProposalNoteDraft),
+    [normalizedInitialNoteDraft, routeBNoteDraft, routeBStateProposalNoteDraft],
   );
   const [bootstrapState, setBootstrapState] = useState<BootstrapState>("loading");
   const [requestState, setRequestState] = useState<RequestState>("idle");
@@ -826,6 +873,12 @@ export function MeetingWorkspace({
             isLoading={routeBRedLineContextLoading}
           />
 
+          <RouteBStateProposalContextPanel
+            context={routeBStateProposalContext}
+            error={routeBStateProposalContextError}
+            isLoading={routeBStateProposalContextLoading}
+          />
+
           <section data-testid="meeting-summary-panel" className="rounded-lg border border-hairline bg-card p-4">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
@@ -969,6 +1022,99 @@ function RouteBRedLineContextPanel({
           icon={<ShieldCheck className="size-5" aria-hidden="true" />}
           title="尚無可回帶紅線"
           description="目前沒有 owner-scoped Route B feedback review 或 action context；會議筆記仍可照常建立。"
+        />
+      )}
+    </section>
+  );
+}
+
+function RouteBStateProposalContextPanel({
+  context,
+  error,
+  isLoading,
+}: {
+  context?: MeetingRouteBStateProposalContextDto | null;
+  error?: string | null;
+  isLoading: boolean;
+}) {
+  if (!isLoading && !error && !context) return null;
+
+  const routeBContext = context?.status === "READY" ? context.routeBStateProposalContext : undefined;
+  const items = routeBContext?.items ?? [];
+  const highlightedItems = items
+    .filter((item) => item.status === "unknown" || item.cardType === "evidence_needed")
+    .slice(0, 3);
+  const visibleItems = highlightedItems.length ? highlightedItems : items.slice(0, 3);
+
+  return (
+    <section
+      data-testid="meeting-route-b-state-proposal-context"
+      data-route-b-state-proposal-context
+      className="rounded-lg border border-hairline bg-card p-4"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-sm font-semibold text-ink">劇場狀態回帶</p>
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">
+            theater state proposal 只作會議補問脈絡；不顯示劇場 session、人物或 source packet raw ID。
+          </p>
+        </div>
+        <Badge variant={context?.status === "READY" ? "warning" : "outline"}>
+          {isLoading ? "LOADING" : context?.status ?? "NONE"}
+        </Badge>
+      </div>
+
+      {isLoading ? (
+        <div className="mt-4 rounded-lg border border-hairline bg-paper p-3 text-sm text-muted-foreground">
+          <Loader2 className="mr-2 inline size-4 animate-spin" aria-hidden="true" />
+          正在讀取 owner-scoped 劇場狀態提案...
+        </div>
+      ) : error ? (
+        <div className="mt-4 flex gap-2 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+          <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+          <p>{error}</p>
+        </div>
+      ) : routeBContext ? (
+        <div className="mt-4 space-y-3">
+          <div className="grid grid-cols-3 gap-2 text-sm">
+            <RailMetric label="待確認" value={routeBContext.summary.unknownCount} />
+            <RailMetric label="推論" value={routeBContext.summary.inferenceCount} />
+            <RailMetric label="需佐證" value={routeBContext.summary.evidenceNeededCount} />
+          </div>
+          <div className="space-y-2">
+            {visibleItems.map((item) => (
+              <article key={item.id} className="rounded-lg border border-hairline bg-paper p-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge variant={item.status === "unknown" ? "warning" : "outline"}>
+                    {item.status === "unknown" ? "待確認" : "推論"}
+                  </Badge>
+                  <Badge variant="outline">{item.cardType === "evidence_needed" ? "需佐證" : "下一題"}</Badge>
+                  <Badge variant="success">requiresConfirmation=true</Badge>
+                </div>
+                <p className="mt-2 text-sm font-medium leading-6 text-ink">{item.label}</p>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">{item.detail}</p>
+                {item.followUpQuestion || item.evidenceNeeded ? (
+                  <div className="mt-2 rounded-md border border-hairline bg-card px-2 py-1.5 text-xs leading-5 text-muted-foreground">
+                    {item.followUpQuestion ? <p>補問：{item.followUpQuestion}</p> : null}
+                    {item.evidenceNeeded ? <p>佐證：{item.evidenceNeeded}</p> : null}
+                  </div>
+                ) : null}
+              </article>
+            ))}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Badge variant="secondary">provider: none</Badge>
+            <Badge variant="secondary">relationship graph: none</Badge>
+            <Badge variant="secondary">VisitPlan write: none</Badge>
+            <Badge variant="secondary">CRM fact: no direct write</Badge>
+          </div>
+        </div>
+      ) : (
+        <EmptyState
+          className="mt-4"
+          icon={<ShieldCheck className="size-5" aria-hidden="true" />}
+          title="尚無可回帶狀態提案"
+          description="目前沒有 owner-scoped Route B state proposal；會議筆記仍可照常建立。"
         />
       )}
     </section>

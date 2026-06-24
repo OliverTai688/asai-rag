@@ -19,6 +19,7 @@ import { toast } from "sonner";
 import {
   MeetingWorkspace,
   type MeetingRouteBRedLineContextDto,
+  type MeetingRouteBStateProposalContextDto,
 } from "@/components/meeting/meeting-workspace";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -95,6 +96,12 @@ interface MeetingQuickNoteResult {
 }
 
 type VisitRouteBRedLineContextResponse = MeetingRouteBRedLineContextDto & {
+  visitPlanId: string;
+  clientId: string;
+  sourcePacketId: string;
+};
+
+type VisitRouteBStateProposalContextResponse = MeetingRouteBStateProposalContextDto & {
   visitPlanId: string;
   clientId: string;
   sourcePacketId: string;
@@ -208,6 +215,12 @@ function isVisitRouteBRedLineContextResponse(
   return value !== null && typeof value === "object" && "status" in value && "summary" in value && "proof" in value;
 }
 
+function isVisitRouteBStateProposalContextResponse(
+  value: VisitRouteBStateProposalContextResponse | { error?: string } | null,
+): value is VisitRouteBStateProposalContextResponse {
+  return value !== null && typeof value === "object" && "status" in value && "summary" in value && "proof" in value;
+}
+
 export default function PostVisitNotesPage() {
   const params = useParams();
   const router = useRouter();
@@ -312,6 +325,9 @@ function PostVisitNotesWorkspace({
   const [routeBRedLineContext, setRouteBRedLineContext] = useState<MeetingRouteBRedLineContextDto | null>(null);
   const [routeBRedLineContextError, setRouteBRedLineContextError] = useState<string | null>(null);
   const [isRouteBRedLineContextLoading, setIsRouteBRedLineContextLoading] = useState(false);
+  const [routeBStateProposalContext, setRouteBStateProposalContext] = useState<MeetingRouteBStateProposalContextDto | null>(null);
+  const [routeBStateProposalContextError, setRouteBStateProposalContextError] = useState<string | null>(null);
+  const [isRouteBStateProposalContextLoading, setIsRouteBStateProposalContextLoading] = useState(false);
   const checkedMaterials = plan.materials.filter((material) => material.checked);
   const noteLines = notes
     .split("\n")
@@ -322,6 +338,7 @@ function PostVisitNotesWorkspace({
     noteLines.find((line) => line.includes("下一步") || line.includes("跟進") || line.includes("追蹤")) ??
     "下一步尚未明確";
   const shouldLoadRouteBRedLineContext = !isQuickstart && !plan.id.startsWith("plan-");
+  const shouldLoadRouteBStateProposalContext = shouldLoadRouteBRedLineContext;
 
   useEffect(() => {
     if (!shouldLoadRouteBRedLineContext) return;
@@ -369,6 +386,58 @@ function PostVisitNotesWorkspace({
       cancelled = true;
     };
   }, [plan.id, shouldLoadRouteBRedLineContext]);
+
+  useEffect(() => {
+    if (!shouldLoadRouteBStateProposalContext) return;
+
+    let cancelled = false;
+
+    async function loadRouteBStateProposalContext() {
+      setIsRouteBStateProposalContextLoading(true);
+      setRouteBStateProposalContextError(null);
+
+      try {
+        const response = await fetch(`/api/visits/${encodeURIComponent(plan.id)}/route-b-state-proposal-context`, {
+          method: "GET",
+          cache: "no-store",
+        });
+        const body = (await response.json().catch(() => null)) as VisitRouteBStateProposalContextResponse | { error?: string } | null;
+
+        if (!response.ok || !isVisitRouteBStateProposalContextResponse(body)) {
+          const message =
+            body && "error" in body && body.error
+              ? body.error
+              : `ROUTE_B_STATE_PROPOSAL_CONTEXT_FAILED_${response.status}`;
+          throw new Error(message);
+        }
+
+        if (cancelled) return;
+
+        setRouteBStateProposalContext({
+          status: body.status,
+          routeBStateProposalContext: body.routeBStateProposalContext,
+          summary: body.summary,
+          proof: body.proof,
+        });
+      } catch (error) {
+        if (cancelled) return;
+        setRouteBStateProposalContext(null);
+        setRouteBStateProposalContextError(
+          error instanceof Error ? error.message : "ROUTE_B_STATE_PROPOSAL_CONTEXT_FAILED",
+        );
+      } finally {
+        if (!cancelled) {
+          setIsRouteBStateProposalContextLoading(false);
+        }
+      }
+    }
+
+    void loadRouteBStateProposalContext();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [plan.id, shouldLoadRouteBStateProposalContext]);
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -790,6 +859,11 @@ function PostVisitNotesWorkspace({
           routeBRedLineContext={shouldLoadRouteBRedLineContext ? routeBRedLineContext : null}
           routeBRedLineContextError={shouldLoadRouteBRedLineContext ? routeBRedLineContextError : null}
           routeBRedLineContextLoading={shouldLoadRouteBRedLineContext && isRouteBRedLineContextLoading}
+          routeBStateProposalContext={shouldLoadRouteBStateProposalContext ? routeBStateProposalContext : null}
+          routeBStateProposalContextError={shouldLoadRouteBStateProposalContext ? routeBStateProposalContextError : null}
+          routeBStateProposalContextLoading={
+            shouldLoadRouteBStateProposalContext && isRouteBStateProposalContextLoading
+          }
           backHref={`/pre-visit/${plan.id}/notes${isQuickstart ? "?demo=quickstart" : ""}`}
           backLabel="回拜訪後筆記"
         />

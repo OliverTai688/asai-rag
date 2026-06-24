@@ -533,6 +533,7 @@ function runQa() {
   }
 
   assertMeetingRouteBRedLineContextConsumption(manifests);
+  assertMeetingRouteBStateProposalContextConsumption(manifests);
   assertMeetingNotesHubQuarantine(manifests);
   assertMeetingQuickNoteWritebackBridge(manifests);
   assertVisitMeetingRelationshipSignal(manifests);
@@ -717,6 +718,59 @@ function assertMeetingRouteBRedLineContextConsumption(manifests: AgentProtocolMa
 
   for (const evidenceRef of requiredEvidenceRefs) {
     push(adoption.evidenceRefs.includes(evidenceRef), `meeting Route B red-line evidence includes ${evidenceRef}`);
+  }
+}
+
+function assertMeetingRouteBStateProposalContextConsumption(manifests: AgentProtocolManifest[]) {
+  const manifest = manifests.find((item) => item.identity.agentId === "asai.meeting.prototype");
+  push(Boolean(manifest), "meeting manifest exists for Route B state proposal context consumption");
+
+  if (!manifest?.proof.sourceAdoption) {
+    return;
+  }
+
+  push(
+    manifest.capabilities.some((capability) => capability.id === "meeting-route-b-state-proposal-context-consumption"),
+    "meeting manifest declares Route B state proposal context consumption capability",
+  );
+  push(
+    manifest.interfaces.actions.some((action) => action.id === "consume-route-b-state-proposal-context-in-meeting-notes"),
+    "meeting manifest declares Route B state proposal context action boundary",
+  );
+  push(
+    manifest.interfaces.endpoints.some((endpoint) => endpoint.id === "visit-route-b-state-proposal-context"),
+    "meeting manifest references visit state proposal context endpoint",
+  );
+  push(
+    manifest.proof.commands.includes("pnpm meeting:route-b-state-proposal-context-qa"),
+    "meeting proof commands include Route B state proposal context QA",
+  );
+
+  const adoption = manifest.proof.sourceAdoption;
+  const requiredOwnerRefs = [
+    "src/app/(dashboard)/pre-visit/[planId]/notes/page.tsx",
+    "src/components/meeting/meeting-workspace.tsx",
+    "src/app/api/visits/[id]/route-b-state-proposal-context/route.ts",
+    "src/lib/visits/route-b-state-proposal-context-repository.ts",
+    "scripts/meeting-route-b-state-proposal-context-qa.mjs",
+  ];
+  const requiredEvidenceRefs = [
+    "meeting-route-b-state-proposal-context-consumption",
+    "meeting-route-b-state-proposal-context",
+    "buildRouteBStateProposalNoteDraft",
+    "MeetingRouteBStateProposalContextDto",
+    "VisitRouteBStateProposalContextBffDto.proof.browserSuppliedTheaterSessionId=false",
+    "VisitRouteBStateProposalContextBffDto.proof.browserSuppliedPersonId=false",
+    "VisitRouteBStateProposalContextBffDto.proof.writesRelationshipGraph=false",
+    "VisitRouteBStateProposalContextBffDto.proof.writesVisitPlan=false",
+  ];
+
+  for (const ownerRef of requiredOwnerRefs) {
+    push(adoption.ownerRefs.includes(ownerRef), `meeting Route B state proposal owner includes ${ownerRef}`);
+  }
+
+  for (const evidenceRef of requiredEvidenceRefs) {
+    push(adoption.evidenceRefs.includes(evidenceRef), `meeting Route B state proposal evidence includes ${evidenceRef}`);
   }
 }
 

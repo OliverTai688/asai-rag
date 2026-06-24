@@ -241,6 +241,8 @@ REL-004g evidence note（2026-06-24）：Route B feedback contract/provider prom
 
 ITA-003o evidence note（2026-06-24）：新增 `VisitRouteBStateProposalContext`、`GET /api/visits/[id]/route-b-state-proposal-context` 與 `/pre-visit/[planId]`「劇場狀態回帶」panel。Repository 從 current-member owner-scoped VisitPlan 重建 `routeBSourcePacketId`，再用 organization/owner/client/Route B source packet 讀同源 session 的 persisted `sceneState.statePatches` 與 turn `statePatches`；UI 不要求或顯示 raw theater session/person id。輸出只含 advisor follow-up / evidence-needed / next-question cards，固定 `requiresConfirmation=true`、`writesRelationshipGraph=false`、`writesVisitPlan=false`、`writesConfirmedCrmFact=false`，不呼叫 provider、不寫 fake `AiUsageLog`。Proof：`pnpm visit:route-b-state-proposal-context-qa`、`pnpm ai:protocol-registry-qa`、`pnpm ai:bff-audit`、`pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
 
+ITA/AMM-003p evidence note（2026-06-24）：新增 `/pre-visit/[planId]/notes` -> `MeetingWorkspace` state proposal consumer。Notes page 從 `GET /api/visits/[id]/route-b-state-proposal-context` 載入 context，僅傳 `status`、`summary`、`routeBStateProposalContext` items 與 proof；MeetingWorkspace 新增 `meeting-route-b-state-proposal-context` panel，將 requiresConfirmation=true 的 follow-up / evidence-needed / next-question reminders 併入 manual-note draft，並顯示 no-provider、no relationship graph write、no VisitPlan write、no direct CRM fact write。此 consumer 不採用 untracked `/notes` local prototype，不傳或顯示 `sourcePacketId`、raw theater session id 或 raw person id。Proof：`pnpm meeting:route-b-state-proposal-context-qa`、`pnpm visit:route-b-state-proposal-context-qa`、`pnpm ai:protocol-registry-qa`、`pnpm ai:bff-audit`、`pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+
 ---
 
 ## 6. Feedback / Compliance Acceptance
