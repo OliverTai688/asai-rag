@@ -5,7 +5,7 @@
 - 研究依據：`docs/07_research-and-design/RES-024_relationship-network-graph-creation-gap-research-v1.0.md`
 - 建立日期：2026-06-20
 
-本框架定義 REL-001..REL-005 的驗收條目。每張 batch 卡完成前須通過對應段落，並保存 proof（API response、DB 查詢、Browser 截圖、command output）。2026-06-23 fifth-loop review 新增 REL-004a，作為正式 edge table migration 前的不動 schema contract / dry-run bridge。
+本框架定義 REL-001..REL-005 的驗收條目。每張 batch 卡完成前須通過對應段落，並保存 proof（API response、DB 查詢、Browser 截圖、command output）。2026-06-23 fifth-loop review 新增 REL-004a，作為正式 edge table migration 前的不動 schema contract / dry-run bridge；2026-06-24 fifth-loop review 新增 REL-004e，作為正式 edge table 前的 Route B session source-grounding/readback bridge。
 
 ---
 
@@ -70,6 +70,13 @@ REL-004c evidence（2026-06-23）：`pnpm visit:theater-handoff-dry-run` pass，
 - [x] `pnpm visit:theater-handoff-dry-run` 仍通過，證明 handoff 端 no-provider/no-DB/no-write/no-draft-payload boundary 未退化。
 
 REL-004d evidence（2026-06-23）：`pnpm visit:edge-shadow-theater-build-qa` pass，劇場建立頁來源審查具 `data-edge-shadow-readiness` panel、關係邊候選計數與 formal-schema/no-write boundary；`pnpm visit:theater-handoff-dry-run` pass，仍無 provider/DB/writeback。
+
+### D0.8. Shadow Route B session source grounding（REL-004e，不動 schema）
+
+- [ ] Route B session create/snapshot/readback path 帶入 BFF-safe `relationshipEdgeShadow` source-grounding summary；只含 candidate count、type/status counts、warning code、formal schema/no-write boundary。
+- [ ] Session payload / UI 不含 `draftEdges`、draft id、source/target node id、source references、metadata、policy number、raw provider/private fields。
+- [ ] `/theater/[sessionId]` 顯示 compact edge readiness / source-grounding panel，並明確標示 formal `RelationshipEdge` schema 尚未核可，劇場不可寫回 relationship graph、VisitPlan 或 confirmed CRM fact。
+- [ ] `pnpm theater:relationship-edge-shadow-session-source-qa` 或等價 proof 通過，且輸出 `providerCallAttempted=false`、`databaseWriteAttempted=false`、`relationshipGraphWriteAttempted=false`、`clientFacingDraftEdgesReturned=false`、`formalSchemaApproved=false`。
 
 ### D1. Edge model 持久化（REL-004，動 schema）
 
