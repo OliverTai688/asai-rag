@@ -81,8 +81,8 @@ function runSourceContractAudit() {
   );
   assertIncludes(
     meetingWorkspace,
-    "mergeInitialNoteDraft(normalizedInitialNoteDraft, routeBNoteDraft, routeBStateProposalNoteDraft)",
-    "workspace preserves existing notes while appending red-line and state proposal reminders",
+    "mergeInitialNoteDraft(\n        normalizedInitialNoteDraft,\n        routeBNoteDraft,\n        routeBStateProposalNoteDraft,\n        routeBFeedbackAdvisorNoteDraft,",
+    "workspace preserves existing notes while appending red-line, state proposal, and feedback advisor reminders",
   );
   assertIncludes(
     meetingWorkspace,
