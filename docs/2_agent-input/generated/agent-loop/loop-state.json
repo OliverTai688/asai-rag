@@ -84,11 +84,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 0,
+    "normalLoopsSinceLastWholeProductReview": 1,
     "lastWholeProductReviewAt": "2026-06-24T15:12:51Z",
     "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-24_lv3-whole-product-gap-review-after-feedback-writeback.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "Run LV3-CROSS-002 post-REL-006h cross-flow proof pack refresh: update or extend pnpm lv3:cross-flow-no-provider-qa (or a neighboring deterministic wrapper) so the clean advisor flow covers client/relationship graph family profile editing, preparation/theater handoff, Route B session/runtime/feedback grounding, visit/AI Meeting advisor context, and AI Meeting writeback preview bridge without provider calls, fake AiUsageLog, schema changes, or confirmed CRM fact writes. This fifth-loop review also fixed a state-proposal cross-flow proof expectation drift; if the operator supplies formal RelationshipEdge schema/migration approval or relationship confirmation persistence A/B/C first, prioritize that approved decision instead.",
+    "nextRecommendedImplementationSlice": "If DB/DNS is available, rerun DEMO_QA_BASE_URL=http://127.0.0.1:<free-port> pnpm lv3:cross-flow-no-provider-qa to close the DB-backed live evidence left by LV3-CROSS-002. If the Supabase host still resolves ENOTFOUND/P1001, do not spend another loop only re-running live proof; choose the next non-DB source-backed slice: make the AI Meeting writeback preview candidate-review boundary consume the Route B feedback advisor context, preserving summary-required/advisor-confirmation/no-provider/no confirmed CRM fact guards. If the operator approves formal RelationshipEdge schema/migration or answers relationship confirmation A/B/C first, prioritize that approved decision instead.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {
@@ -156,5 +156,5 @@
     "lv3ImmersiveLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-immersive-loop.md",
     "lv3WholeProductGapReviewLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md"
   },
-  "updatedAt": "2026-06-24T15:12:51Z"
+  "updatedAt": "2026-06-24T15:41:21Z"
 }

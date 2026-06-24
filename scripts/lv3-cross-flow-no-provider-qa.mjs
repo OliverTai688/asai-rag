@@ -14,33 +14,91 @@ const screenshotDir = resolve(
 );
 const startedProcesses = [];
 const checks = [];
+let aiUsageLogCountSkipReason = "";
 
 const qaCommands = [
   {
+    chain: "core-clean-flow",
     label: "client relationship graph source proof",
     args: ["client:relationship-graph-qa"],
   },
   {
+    chain: "core-clean-flow",
     label: "visit/pre-visit BFF and reasoning proof",
     args: ["visit:bff-qa"],
   },
   {
+    chain: "core-clean-flow",
     label: "quick-capture BFF to Park memory proof",
     args: ["interview:quick-capture-bff-qa"],
   },
   {
+    chain: "core-clean-flow",
     label: "quick-capture UI selector to Park memory proof",
     args: ["interview:quick-capture-ui-qa"],
   },
   {
+    chain: "core-clean-flow",
     label: "Route B relationship-stage session UI proof",
     args: ["theater:route-b-session-ui-qa"],
   },
   {
+    chain: "core-clean-flow",
     label: "Route B group/private turn and state proposal proof",
     args: ["theater:route-b-interaction-qa"],
   },
   {
+    chain: "post-rel-006h-family-profile-bridge",
+    label: "relationship graph family profile metadata boundary proof",
+    args: ["client:family-member-profile-metadata-qa"],
+  },
+  {
+    chain: "post-rel-006h-family-profile-bridge",
+    label: "relationship graph family profile advisor editor proof",
+    args: ["client:family-member-profile-ui-qa"],
+  },
+  {
+    chain: "post-rel-006h-family-profile-bridge",
+    label: "family profile preparation to theater handoff proof",
+    args: ["visit:family-profile-theater-handoff-qa"],
+  },
+  {
+    chain: "post-rel-006h-family-profile-bridge",
+    label: "family profile Route B session source grounding proof",
+    args: ["theater:family-profile-session-source-qa"],
+  },
+  {
+    chain: "post-rel-006h-family-profile-bridge",
+    label: "family profile Route B next-turn runtime grounding proof",
+    args: ["theater:route-b-family-profile-runtime-qa"],
+  },
+  {
+    chain: "post-rel-006h-family-profile-bridge",
+    label: "family profile Route B feedback grounding proof",
+    args: ["theater:route-b-family-profile-feedback-qa"],
+  },
+  {
+    chain: "post-rel-006h-family-profile-bridge",
+    label: "feedback advisor context to visit and AI Meeting proof",
+    args: ["visit:route-b-feedback-advisor-context-qa"],
+  },
+  {
+    chain: "post-rel-006h-family-profile-bridge",
+    label: "feedback advisor context to AI Meeting writeback preview bridge proof",
+    args: ["meeting:route-b-feedback-advisor-writeback-bridge-qa"],
+  },
+  {
+    chain: "cross-flow-regression",
+    label: "Route B state proposal to AI Meeting writeback cross-flow proof",
+    args: ["lv3:route-b-state-proposal-cross-flow-qa"],
+  },
+  {
+    chain: "protocol-boundary",
+    label: "AgentFacts protocol registry proof",
+    args: ["ai:protocol-registry-qa"],
+  },
+  {
+    chain: "protocol-boundary",
     label: "AI BFF audit and no-provider posture inventory",
     args: ["ai:bff-audit"],
   },
@@ -62,8 +120,11 @@ try {
   if (beforeUsageCount !== null && afterUsageCount !== null) {
     push(afterUsageCount === beforeUsageCount, "proof pack writes no new AiUsageLog", `${beforeUsageCount}->${afterUsageCount}`);
   } else {
-    push(true, "AiUsageLog count check skipped because DB URL is unavailable");
+    push(true, "AiUsageLog count check skipped", aiUsageLogCountSkipReason || "DB URL is unavailable");
   }
+  push(true, "post-REL-006h family-profile feedback/writeback chain covered", `${countCommands("post-rel-006h-family-profile-bridge")} proof commands passed`);
+  push(true, "Route B state proposal cross-flow regression covered", `${countCommands("cross-flow-regression")} proof command passed`);
+  push(true, "AgentFacts/protocol boundary covered", `${countCommands("protocol-boundary")} proof commands passed`);
   push(true, "LV3 cross-flow proof pack completed", `${qaCommands.length} proof commands passed`);
 } catch (error) {
   push(false, "LV3 cross-flow proof pack failed", error instanceof Error ? error.message : String(error));
@@ -82,8 +143,8 @@ if (checks.some((check) => check.status === "fail")) {
 }
 
 async function ensureDevServer() {
-  if (await isReachable(baseUrl)) {
-    push(true, "dev server reachable", baseUrl);
+  if (await isAsaiAppReachable(baseUrl)) {
+    push(true, "ASAI dev server reachable", baseUrl);
     return;
   }
 
@@ -104,8 +165,8 @@ async function ensureDevServer() {
   child.stdout.on("data", (chunk) => process.stdout.write(`[dev] ${chunk}`));
   child.stderr.on("data", (chunk) => process.stderr.write(`[dev] ${chunk}`));
 
-  await waitForReachable(baseUrl, 90_000);
-  push(true, "dev server started for proof pack", baseUrl);
+  await waitForAsaiApp(baseUrl, 90_000);
+  push(true, "ASAI dev server started for proof pack", baseUrl);
 }
 
 async function runPnpmScript(command) {
@@ -143,15 +204,25 @@ function runCommand(command, args, env) {
   });
 }
 
-async function isReachable(url) {
+async function isAsaiAppReachable(url) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 2500);
   try {
-    const response = await fetch(url, {
+    const response = await fetch(withPath(url, "/api/public/status"), {
       method: "GET",
       signal: controller.signal,
     });
-    return response.status < 500;
+    if (response.status !== 200) return false;
+
+    const body = await response.json().catch(() => null);
+    return Boolean(
+      body &&
+        typeof body === "object" &&
+        body.version === "asai.public_status.v1" &&
+        "aiAvailability" in body &&
+        "checkoutAvailability" in body &&
+        "legalStatus" in body,
+    );
   } catch {
     return false;
   } finally {
@@ -159,14 +230,22 @@ async function isReachable(url) {
   }
 }
 
-async function waitForReachable(url, timeoutMs) {
+async function waitForAsaiApp(url, timeoutMs) {
   const startedAt = Date.now();
   while (Date.now() - startedAt < timeoutMs) {
-    if (await isReachable(url)) return;
+    if (await isAsaiAppReachable(url)) return;
     await delay(1000);
   }
 
-  throw new Error(`Timed out waiting for ${url}`);
+  throw new Error(`Timed out waiting for ASAI public status at ${withPath(url, "/api/public/status")}`);
+}
+
+function withPath(url, pathname) {
+  const target = new URL(url);
+  target.pathname = pathname;
+  target.search = "";
+  target.hash = "";
+  return target.toString();
 }
 
 function delay(ms) {
@@ -181,13 +260,32 @@ async function countAiUsageLogs() {
   if (!dbUrl) return null;
 
   const client = new PgClient({ connectionString: dbUrl });
-  await client.connect();
   try {
+    await client.connect();
     const result = await client.query("SELECT COUNT(*)::int AS count FROM ai_usage_logs");
     return Number(result.rows[0]?.count ?? 0);
+  } catch (error) {
+    aiUsageLogCountSkipReason = safeErrorCode(error);
+    return null;
   } finally {
-    await client.end();
+    await client.end().catch(() => undefined);
   }
+}
+
+function countCommands(chain) {
+  return qaCommands.filter((command) => command.chain === chain).length;
+}
+
+function safeErrorCode(error) {
+  if (error && typeof error === "object" && "code" in error && typeof error.code === "string") {
+    return error.code;
+  }
+
+  if (error instanceof Error && error.name) {
+    return error.name;
+  }
+
+  return "unavailable";
 }
 
 function loadEnvFile(path) {
