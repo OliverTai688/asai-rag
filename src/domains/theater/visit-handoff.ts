@@ -1,4 +1,5 @@
 import type { Client, FamilyMember, Policy } from "../client/types";
+import type { FamilyMemberProfileFactStatus, FamilyMemberProfileField } from "../client/family-member-profile";
 import type { RelationshipEdgeShadowBffSummary } from "../client/relationship-edge-shadow";
 import {
   buildRelationshipEdgeShadowBackfill,
@@ -68,6 +69,23 @@ export interface VisitTheaterRelationshipEdgeShadowHandoffSummary extends Relati
   rawPrivateTranscriptIncluded: false;
 }
 
+export interface VisitTheaterFamilyProfileHandoffSummary {
+  memberCount: number;
+  profiledMemberCount: number;
+  fieldCount: number;
+  knownFieldCount: number;
+  sourceReferenceCount: number;
+  byFactStatus: Record<FamilyMemberProfileFactStatus, number>;
+  providerCallAttempted: false;
+  aiUsageLogWritten: false;
+  persistedToDatabase: false;
+  writesRelationshipGraph: false;
+  writesVisitPlan: false;
+  writesConfirmedCrmFact: false;
+  storesRawProviderPayload: false;
+  rawPrivateTranscriptIncluded: false;
+}
+
 export interface VisitTheaterSensitivityApproval {
   riskAccepted: boolean;
   reason?: string;
@@ -105,6 +123,7 @@ export interface VisitTheaterHandoff {
       relationshipConfirmationCards: number;
       meetingRelationshipSignals: number;
       relationshipEdgeShadowCandidates: number;
+      familyProfileFields: number;
     };
     evidenceSummary: {
       questionEvidenceByStatus: Record<VisitQuestionEvidenceStatus, number>;
@@ -112,6 +131,7 @@ export interface VisitTheaterHandoff {
       relationshipConfirmation: VisitTheaterRelationshipConfirmationHandoffSummary;
       meetingRelationshipSignals: VisitTheaterMeetingRelationshipSignalHandoffSummary;
       relationshipEdgeShadow: VisitTheaterRelationshipEdgeShadowHandoffSummary;
+      familyProfiles: VisitTheaterFamilyProfileHandoffSummary;
       theaterMaterialCounts: {
         facts: number;
         inferences: number;
@@ -128,6 +148,7 @@ export function buildVisitTheaterHandoff(input: VisitTheaterHandoffInput): Visit
   const relationshipConfirmationDeck = buildVisitRelationshipConfirmationDeck(input.client, now);
   const meetingRelationshipSignalDeck = input.meetingRelationshipSignalDeck ?? null;
   const relationshipEdgeShadow = buildVisitTheaterRelationshipEdgeShadowSummary(input.client, now);
+  const familyProfiles = summarizeFamilyProfiles(input.client);
   const knownMaterials = buildVisitTheaterKnownMaterials(
     input,
     relationshipConfirmationDeck,
@@ -184,6 +205,7 @@ export function buildVisitTheaterHandoff(input: VisitTheaterHandoffInput): Visit
         relationshipConfirmationCards: relationshipConfirmationDeck.summary.cardCount,
         meetingRelationshipSignals: meetingRelationshipSignalDeck?.summary.cardCount ?? 0,
         relationshipEdgeShadowCandidates: relationshipEdgeShadow.draftEdgeCount,
+        familyProfileFields: familyProfiles.fieldCount,
       },
       evidenceSummary: {
         questionEvidenceByStatus: countQuestionEvidenceByStatus(input.visitPlan.spinQuestions),
@@ -191,6 +213,7 @@ export function buildVisitTheaterHandoff(input: VisitTheaterHandoffInput): Visit
         relationshipConfirmation: summarizeRelationshipConfirmationDeck(relationshipConfirmationDeck),
         meetingRelationshipSignals: summarizeMeetingRelationshipSignalDeck(meetingRelationshipSignalDeck),
         relationshipEdgeShadow,
+        familyProfiles,
         theaterMaterialCounts: countTheaterMaterialsByPrefix(knownMaterials),
       },
     },
@@ -221,6 +244,7 @@ export function buildVisitTheaterKnownMaterials(
     ...buildRelationshipConfirmationMaterials(relationshipConfirmationDeck),
     ...buildMeetingRelationshipSignalMaterials(meetingRelationshipSignalDeck),
     ...buildRelationshipEdgeShadowMaterials(relationshipEdgeShadow),
+    ...buildFamilyProfileMaterials(client),
     ...visitPlan.objections.map((objection) => buildObjectionMaterial(objection)),
     ...visitPlan.materials.map((visitMaterial) => buildVisitMaterialEvidence(visitMaterial)),
   ];
@@ -348,6 +372,35 @@ function buildRelationshipEdgeShadowMaterials(summary: VisitTheaterRelationshipE
   ];
 }
 
+function buildFamilyProfileMaterials(client: Client): string[] {
+  return client.family.flatMap((member) =>
+    familyProfileFieldEntries(member).map(({ field, key, label }) =>
+      material(
+        prefixForFamilyProfileFactStatus(field.factStatus),
+        [
+          "family_profile_field=true",
+          fieldPart("field", key),
+          fieldPart("label", label),
+          fieldPart("person", member.name),
+          fieldPart("relation", member.relation),
+          fieldPart("value", field.value),
+          fieldPart("status", field.factStatus),
+          `relationship=人物脈絡：${member.name}（${member.relation}）${label}：${field.value}`,
+          field.sourceReferenceIds.length > 0 ? fieldPart("source_refs", field.sourceReferenceIds.slice(0, 3).join(",")) : "",
+          field.rationale ? fieldPart("rationale", field.rationale) : "",
+          "advisor_confirmation_required=true",
+          "writes_relationship_graph=false",
+          "writes_visit_plan=false",
+          "writes_confirmed_crm_fact=false",
+          "persisted_to_database=false",
+        ]
+          .filter(Boolean)
+          .join("；"),
+      ),
+    ),
+  );
+}
+
 function buildClientMaterials(client: Client): string[] {
   const materials: string[] = [];
   if (client.occupation) materials.push(material("FACT", `${client.name} 的職業是 ${client.occupation}`));
@@ -433,6 +486,9 @@ function buildWarnings(
   if (relationshipEdgeShadow.warningCodes.length > 0) {
     warnings.push("RelationshipEdge shadow summary 含待確認 warning；正式 edge table migration 前仍需人工審查。");
   }
+  if (summarizeFamilyProfiles(input.client).fieldCount > 0) {
+    warnings.push("Family profile metadata 已帶入劇場建場來源審查；只作 stage grounding，不寫回關係圖、VisitPlan 或 CRM 事實。");
+  }
   return warnings;
 }
 
@@ -458,6 +514,9 @@ function buildMissingItems(
   }
   if (relationshipEdgeShadow.warningCodes.length > 0) {
     missing.push("RelationshipEdge shadow summary 仍有待確認 warning");
+  }
+  if (summarizeFamilyProfiles(input.client).byFactStatus.UNKNOWN > 0) {
+    missing.push("Family profile metadata 仍有 UNKNOWN 人物欄位待現場確認");
   }
   return unique(missing);
 }
@@ -509,6 +568,10 @@ function prefixForEvidence(status: VisitQuestionEvidenceStatus): "FACT" | "INFER
   if (status === "confirmed") return "FACT";
   if (status === "inference") return "INFERENCE";
   return "UNKNOWN";
+}
+
+function prefixForFamilyProfileFactStatus(status: FamilyMemberProfileFactStatus): "FACT" | "INFERENCE" | "UNKNOWN" {
+  return status;
 }
 
 function inferCharacterRole(relation: string): "DECISION_MAKER" | "INFLUENCER" {
@@ -606,6 +669,51 @@ function summarizeMeetingRelationshipSignalDeck(
   };
 }
 
+function summarizeFamilyProfiles(client: Client): VisitTheaterFamilyProfileHandoffSummary {
+  const byFactStatus: Record<FamilyMemberProfileFactStatus, number> = {
+    FACT: 0,
+    INFERENCE: 0,
+    UNKNOWN: 0,
+  };
+  let fieldCount = 0;
+  let knownFieldCount = 0;
+  let profiledMemberCount = 0;
+  const sourceReferenceIds = new Set<string>();
+
+  for (const member of client.family) {
+    const entries = familyProfileFieldEntries(member);
+    if (entries.length > 0) profiledMemberCount += 1;
+
+    for (const { field } of entries) {
+      fieldCount += 1;
+      byFactStatus[field.factStatus] += 1;
+      if (field.factStatus !== "UNKNOWN") knownFieldCount += 1;
+      for (const sourceReferenceId of field.sourceReferenceIds) sourceReferenceIds.add(sourceReferenceId);
+    }
+
+    for (const sourceReference of member.profile?.sourceReferences ?? []) {
+      sourceReferenceIds.add(sourceReference.id);
+    }
+  }
+
+  return {
+    memberCount: client.family.length,
+    profiledMemberCount,
+    fieldCount,
+    knownFieldCount,
+    sourceReferenceCount: sourceReferenceIds.size,
+    byFactStatus,
+    providerCallAttempted: false,
+    aiUsageLogWritten: false,
+    persistedToDatabase: false,
+    writesRelationshipGraph: false,
+    writesVisitPlan: false,
+    writesConfirmedCrmFact: false,
+    storesRawProviderPayload: false,
+    rawPrivateTranscriptIncluded: false,
+  };
+}
+
 function countTheaterMaterialsByPrefix(materials: string[]): VisitTheaterHandoff["sourceSummary"]["evidenceSummary"]["theaterMaterialCounts"] {
   return materials.reduce(
     (counts, item) => {
@@ -620,6 +728,31 @@ function countTheaterMaterialsByPrefix(materials: string[]): VisitTheaterHandoff
 
 function material(prefix: "FACT" | "INFERENCE" | "UNKNOWN", body: string): string {
   return `${prefix}: ${sanitizeMaterialText(body)}`;
+}
+
+function fieldPart(key: string, value: string): string {
+  return `${key}=${sanitizeMaterialText(value).replace(/[;；\n]+/g, " ").trim()}`;
+}
+
+function familyProfileFieldEntries(member: FamilyMember): Array<{
+  key: "jobTitle" | "annualIncomeOrDependency" | "personStatus" | "decisionRole" | "relationshipContext";
+  label: string;
+  field: FamilyMemberProfileField;
+}> {
+  const profile = member.profile;
+  if (!profile) return [];
+
+  return [
+    { key: "jobTitle", label: "職位/職業", field: profile.jobTitle },
+    { key: "annualIncomeOrDependency", label: "年收入/財務依賴", field: profile.annualIncomeOrDependency },
+    { key: "personStatus", label: "人物狀態", field: profile.personStatus },
+    { key: "decisionRole", label: "決策角色", field: profile.decisionRole },
+    { key: "relationshipContext", label: "關係脈絡", field: profile.relationshipContext },
+  ].filter((entry): entry is {
+    key: "jobTitle" | "annualIncomeOrDependency" | "personStatus" | "decisionRole" | "relationshipContext";
+    label: string;
+    field: FamilyMemberProfileField;
+  } => Boolean(entry.field?.value));
 }
 
 function sanitizeMaterialText(value: string): string {

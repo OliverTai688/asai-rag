@@ -13,7 +13,58 @@ const demoClient: Client = {
   occupation: "科技業主管",
   annualIncome: 2200000,
   family: [
-    { id: "spouse", relation: "配偶", name: "張麗華" },
+    {
+      id: "spouse",
+      relation: "配偶",
+      name: "張麗華",
+      profile: {
+        schemaVersion: "2026-06-24.family-member-profile.v1",
+        jobTitle: {
+          value: "科技公司財務長",
+          factStatus: "FACT",
+          sourceReferenceIds: ["advisor-note-spouse-profile"],
+          rationale: "顧問面談確認。",
+        },
+        annualIncomeOrDependency: {
+          value: "家庭共同預算守門人，收入待確認",
+          factStatus: "UNKNOWN",
+          sourceReferenceIds: ["advisor-note-spouse-profile"],
+          rationale: "僅知決策影響，實際收入待補。",
+        },
+        personStatus: {
+          value: "會共同評估教育金預算",
+          factStatus: "INFERENCE",
+          sourceReferenceIds: ["meeting-session-safe-summary"],
+          rationale: "會議摘要提到共同決定。",
+        },
+        decisionRole: {
+          value: "共同決策者",
+          factStatus: "FACT",
+          sourceReferenceIds: ["advisor-note-spouse-profile"],
+        },
+        relationshipContext: {
+          value: "對保費支出敏感，需要先看到現金流影響",
+          factStatus: "INFERENCE",
+          sourceReferenceIds: ["advisor-note-spouse-profile"],
+        },
+        sourceReferences: [
+          {
+            id: "advisor-note-spouse-profile",
+            type: "advisor_note",
+            label: "顧問補充",
+            summary: "張麗華會參與教育金與保費預算討論。",
+            factStatus: "FACT",
+          },
+          {
+            id: "meeting-session-safe-summary",
+            type: "ai_signal",
+            label: "會議安全摘要",
+            summary: "會議摘要指出配偶會共同決定教育金預算。",
+            factStatus: "INFERENCE",
+          },
+        ],
+      },
+    },
     { id: "child", relation: "子", name: "王小明", age: 12 },
     { id: "mother", relation: "母", name: "王媽媽", age: 68 },
     { id: "advisor", relation: "合作夥伴", name: "會計師林先生" },
@@ -144,6 +195,7 @@ const evidenceSummary = handoff.sourceSummary.evidenceSummary;
 const relationshipConfirmation = evidenceSummary.relationshipConfirmation;
 const meetingRelationshipSignals = evidenceSummary.meetingRelationshipSignals;
 const relationshipEdgeShadow = evidenceSummary.relationshipEdgeShadow;
+const familyProfiles = evidenceSummary.familyProfiles;
 
 if (handoff.status !== "READY") failures.push("normal handoff did not become READY");
 if (handoff.packet.readiness !== "READY") failures.push("packet readiness is not READY");
@@ -197,6 +249,22 @@ if (handoff.sourceSummary.sourceCounts.meetingRelationshipSignals < 1) {
 if (handoff.sourceSummary.sourceCounts.relationshipEdgeShadowCandidates < 1) {
   failures.push("relationship edge shadow candidate count missing");
 }
+if (handoff.sourceSummary.sourceCounts.familyProfileFields < 1) {
+  failures.push("family profile field source count missing");
+}
+if (familyProfiles.profiledMemberCount < 1 || familyProfiles.fieldCount < 1) {
+  failures.push("family profile summary missing");
+}
+if (familyProfiles.knownFieldCount < 1 || familyProfiles.sourceReferenceCount < 1) {
+  failures.push("family profile known/source-reference summary missing");
+}
+if (
+  familyProfiles.byFactStatus.FACT < 1 ||
+  familyProfiles.byFactStatus.INFERENCE < 1 ||
+  familyProfiles.byFactStatus.UNKNOWN < 1
+) {
+  failures.push("family profile fact/inference/unknown boundary missing");
+}
 if (relationshipConfirmation.cardCount < 1) failures.push("relationship confirmation card summary missing");
 if (relationshipConfirmation.highPriorityCount < 1) failures.push("relationship confirmation high-priority summary missing");
 if (relationshipConfirmation.byStatus.inference + relationshipConfirmation.byStatus.unknown < 1) {
@@ -232,11 +300,31 @@ if (!handoff.knownMaterials.some((item) => item.includes("writes_relationship_gr
 if (!handoff.knownMaterials.some((item) => item.includes("relationship_edge_shadow_summary=true"))) {
   failures.push("relationship edge shadow summary did not enter theater knownMaterials");
 }
+if (!handoff.knownMaterials.some((item) => item.includes("family_profile_field=true"))) {
+  failures.push("family profile fields did not enter theater knownMaterials");
+}
 if (!handoff.knownMaterials.some((item) => item.includes("client_facing_draft_edges_returned=false"))) {
   failures.push("relationship edge shadow draft-edge payload boundary missing");
 }
 if (!handoff.knownMaterials.some((item) => item.includes("formal_schema_approved=false"))) {
   failures.push("relationship edge shadow formal schema approval boundary missing");
+}
+if (!handoff.knownMaterials.some((item) => item.includes("writes_visit_plan=false"))) {
+  failures.push("family profile VisitPlan write boundary missing");
+}
+if (!handoff.knownMaterials.some((item) => item.includes("writes_confirmed_crm_fact=false"))) {
+  failures.push("family profile confirmed-CRM-fact write boundary missing");
+}
+if (!handoff.packet.confirmedFacts.some((fact) => fact.includes("科技公司財務長"))) {
+  failures.push("family profile fact did not reach theater confirmed facts");
+}
+if (
+  !handoff.packet.inferredPersona.some((value) => value.includes("保費支出敏感") || value.includes("共同評估教育金"))
+) {
+  failures.push("family profile inference did not reach theater inferred persona");
+}
+if (!handoff.packet.unknowns.some((unknown) => unknown.includes("家庭共同預算守門人"))) {
+  failures.push("family profile unknown did not stay unknown in theater packet");
 }
 if (handoff.packet.confirmedFacts.some((fact) => fact.includes("relationship_confirmation_card="))) {
   failures.push("relationship confirmation card leaked into confirmed theater facts");
@@ -274,6 +362,9 @@ if (!handoff.warnings.includes("RelationshipEdge shadow summary 已帶入劇場�
 if (!handoff.warnings.includes("RelationshipEdge shadow summary 含待確認 warning；正式 edge table migration 前仍需人工審查。")) {
   failures.push("relationship edge shadow warning boundary missing");
 }
+if (!handoff.warnings.includes("Family profile metadata 已帶入劇場建場來源審查；只作 stage grounding，不寫回關係圖、VisitPlan 或 CRM 事實。")) {
+  failures.push("family profile stage-only warning missing");
+}
 if (!handoff.missing.includes("會議關係訊號仍有未知關係脈絡待下一次拜訪確認")) {
   failures.push("unknown meeting relationship signal gap was not surfaced in missing list");
 }
@@ -282,6 +373,9 @@ if (!handoff.missing.includes("正式 RelationshipEdge schema 尚未核可；劇
 }
 if (!handoff.missing.includes("RelationshipEdge shadow summary 仍有待確認 warning")) {
   failures.push("relationship edge shadow warning missing item not surfaced");
+}
+if (!handoff.missing.includes("Family profile metadata 仍有 UNKNOWN 人物欄位待現場確認")) {
+  failures.push("family profile unknown missing item not surfaced");
 }
 if (!handoff.missing.includes("準備包仍有待確認推論依據")) {
   failures.push("unknown reasoning gap was not surfaced in missing list");
@@ -301,9 +395,21 @@ if (
   serialized.includes("sourceNodeId") ||
   serialized.includes("targetNodeId") ||
   serialized.includes("sourceReferenceIds") ||
-  serialized.includes("metadata")
+  serialized.includes('"metadata":')
 ) {
   failures.push("relationship edge shadow leaked server-only draft edge payload into handoff output");
+}
+if (
+  familyProfiles.providerCallAttempted ||
+  familyProfiles.aiUsageLogWritten ||
+  familyProfiles.persistedToDatabase ||
+  familyProfiles.writesRelationshipGraph ||
+  familyProfiles.writesVisitPlan ||
+  familyProfiles.writesConfirmedCrmFact ||
+  familyProfiles.storesRawProviderPayload ||
+  familyProfiles.rawPrivateTranscriptIncluded
+) {
+  failures.push("family profile handoff crossed provider, persistence, graph, VisitPlan, CRM, raw-payload, or transcript boundary");
 }
 if (meetingRelationshipSignals.cardCount < 1) failures.push("meeting relationship signal summary missing");
 if (meetingRelationshipSignals.highPriorityCount < 1) failures.push("meeting relationship signal high-priority summary missing");
@@ -379,6 +485,7 @@ console.log(
       relationshipConfirmation,
       meetingRelationshipSignals,
       relationshipEdgeShadow,
+      familyProfiles,
       theaterMaterialCounts: evidenceSummary.theaterMaterialCounts,
       blockedHighSensitivityStatus: highSensitivityHandoff.status,
       approvedHighSensitivityStatus: approvedHighSensitivityHandoff.status,

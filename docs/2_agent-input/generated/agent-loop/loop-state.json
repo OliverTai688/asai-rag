@@ -84,11 +84,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 1,
+    "normalLoopsSinceLastWholeProductReview": 2,
     "lastWholeProductReviewAt": "2026-06-24T05:24:38Z",
     "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-24_lv3-whole-product-gap-review-state-proposal-cross-flow.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "REL-006 completed the no-schema FamilyMember.metadata.profile boundary and relationship graph source review consumption. If operator approves additive RelationshipEdge schema/migration, resume formal REL-004. If product answers relationship confirmation persistence A/B/C, implement that selected path. Otherwise next normal loop should connect the new family profile fields into preparation/theater handoff review or add a small advisor UI editor for profile metadata, preserving no provider/fake AiUsageLog/no RelationshipEdge/VisitPlan/confirmed CRM fact writes unless separately approved.",
+    "nextRecommendedImplementationSlice": "REL-006b completed no-schema FamilyMember.metadata.profile -> preparation/theater handoff source review, including theater build source panel and no-write/no-provider proof. If operator approves additive RelationshipEdge schema/migration, resume formal REL-004. If product answers relationship confirmation persistence A/B/C, implement that selected path. Otherwise next normal loop should either add a small advisor UI editor for profile metadata or carry the safe profile grounding into Route B session/source grounding, preserving no provider/fake AiUsageLog/no RelationshipEdge/VisitPlan/confirmed CRM fact writes unless separately approved.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {
@@ -156,5 +156,5 @@
     "lv3ImmersiveLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-immersive-loop.md",
     "lv3WholeProductGapReviewLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md"
   },
-  "updatedAt": "2026-06-24T05:44:41Z"
+  "updatedAt": "2026-06-24T06:05:09Z"
 }

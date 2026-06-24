@@ -58,6 +58,17 @@ type HandoffReview = VisitTheaterHandoffResponse;
 type ClientBuildReview = TheaterClientBuildResponse;
 type MeetingSignalStageStatus = "confirmed" | "inference" | "unknown";
 type MeetingSignalStageCard = TheaterRouteBMeetingSignalGroundingInput;
+type FamilyProfileStageStatus = "FACT" | "INFERENCE" | "UNKNOWN";
+type FamilyProfileStageField = {
+  id: string;
+  field: string;
+  label: string;
+  person: string;
+  relation: string;
+  value: string;
+  status: FamilyProfileStageStatus;
+  sourceRefs: string[];
+};
 type RelationshipEdgeShadowStageSummary = {
   candidateEdges: number;
   sourceMembers: number;
@@ -77,10 +88,16 @@ const CLASS_PREFIX: Record<DataClass, string> = { fact: "FACT", inference: "INFE
 const CLASS_LABEL: Record<DataClass, string> = { fact: "確認事實", inference: "推論", unknown: "待確認" };
 const MEETING_SIGNAL_MATERIAL_PREFIX = "meeting_relationship_signal_card=";
 const RELATIONSHIP_EDGE_SHADOW_MATERIAL_PREFIX = "relationship_edge_shadow_summary=true";
+const FAMILY_PROFILE_MATERIAL_PREFIX = "family_profile_field=true";
 const MEETING_SIGNAL_STATUS_LABEL: Record<MeetingSignalStageStatus, string> = {
   confirmed: "FACT 確認事實",
   inference: "INFERENCE 推論",
   unknown: "UNKNOWN 待確認",
+};
+const FAMILY_PROFILE_STATUS_LABEL: Record<FamilyProfileStageStatus, string> = {
+  FACT: "FACT 確認事實",
+  INFERENCE: "INFERENCE 推論",
+  UNKNOWN: "UNKNOWN 待確認",
 };
 
 const CATEGORY_FIELD: Record<MaterialCategory, string | null> = {
@@ -210,6 +227,35 @@ function getRelationshipEdgeShadowSummary(materials: string[]): RelationshipEdge
   };
 }
 
+function getFamilyProfileStageFields(materials: string[]): FamilyProfileStageField[] {
+  return materials.map(parseFamilyProfileMaterial).filter((field): field is FamilyProfileStageField => Boolean(field));
+}
+
+function parseFamilyProfileMaterial(material: string): FamilyProfileStageField | null {
+  const body = material.replace(/^(FACT|INFERENCE|UNKNOWN):\s*/, "");
+  if (!body.includes(FAMILY_PROFILE_MATERIAL_PREFIX)) return null;
+
+  const fields = body
+    .split("；")
+    .map((field) => field.trim())
+    .filter(Boolean);
+  const field = getMaterialField(fields, "field");
+  const person = getMaterialField(fields, "person");
+  const value = getMaterialField(fields, "value");
+  if (!field || !person || !value) return null;
+
+  return {
+    id: `${person}-${field}`,
+    field,
+    label: getMaterialField(fields, "label") || field,
+    person,
+    relation: getMaterialField(fields, "relation") || "關係待補",
+    value,
+    status: normalizeFamilyProfileStatus(getMaterialField(fields, "status")),
+    sourceRefs: parseMaterialList(getMaterialField(fields, "source_refs")),
+  };
+}
+
 function parseMaterialCount(value: string) {
   const parsed = Number(value);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
@@ -234,6 +280,11 @@ function formatMaterialList(items: string[], fallback: string) {
 function normalizeMeetingSignalStatus(status: string): MeetingSignalStageStatus {
   if (status === "confirmed" || status === "inference" || status === "unknown") return status;
   return "unknown";
+}
+
+function normalizeFamilyProfileStatus(status: string): FamilyProfileStageStatus {
+  if (status === "FACT" || status === "INFERENCE" || status === "UNKNOWN") return status;
+  return "UNKNOWN";
 }
 
 function getMeetingSignalActionLabel(action: string) {
@@ -1048,6 +1099,7 @@ function VisitSourceReviewPanel({
   const meetingSignalCards = getMeetingSignalStageCards(review.handoff.knownMaterials);
   const meetingSignalNarratorPreviews = getMeetingSignalNarratorPreviews(packet.narratorQuestions);
   const relationshipEdgeShadow = getRelationshipEdgeShadowSummary(review.handoff.knownMaterials);
+  const familyProfileFields = getFamilyProfileStageFields(review.handoff.knownMaterials);
 
   return (
     <section className="rounded-xl border border-hairline bg-card p-4">
@@ -1063,11 +1115,12 @@ function VisitSourceReviewPanel({
             已從 {review.client.name} 的準備包整理角色、關係、提問依據與待確認項；推論與未知會停留在建構包，不會寫回 CRM 事實。
           </p>
         </div>
-        <div className="grid grid-cols-2 gap-2 text-center sm:min-w-[30rem] md:grid-cols-5">
+        <div className="grid grid-cols-2 gap-2 text-center sm:min-w-[34rem] md:grid-cols-6">
           <SourceCountPill label="目標" value={sourceCounts.objectives} />
           <SourceCountPill label="提問" value={sourceCounts.spinQuestions} />
           <SourceCountPill label="依據" value={sourceCounts.questionEvidence} />
           <SourceCountPill label="會議" value={sourceCounts.meetingRelationshipSignals ?? 0} />
+          <SourceCountPill label="人物欄位" value={sourceCounts.familyProfileFields ?? familyProfileFields.length} />
           <SourceCountPill
             label="邊候選"
             value={sourceCounts.relationshipEdgeShadowCandidates ?? relationshipEdgeShadow?.candidateEdges ?? 0}
@@ -1124,6 +1177,8 @@ function VisitSourceReviewPanel({
         <MeetingSignalStageReview cards={meetingSignalCards} narratorQuestions={meetingSignalNarratorPreviews} />
       ) : null}
 
+      {familyProfileFields.length ? <FamilyProfileStageReview fields={familyProfileFields} /> : null}
+
       {relationshipEdgeShadow ? <RelationshipEdgeShadowReadiness summary={relationshipEdgeShadow} /> : null}
 
       {review.handoff.warnings.length ? (
@@ -1133,6 +1188,55 @@ function VisitSourceReviewPanel({
         </div>
       ) : null}
     </section>
+  );
+}
+
+function FamilyProfileStageReview({ fields }: { fields: FamilyProfileStageField[] }) {
+  const knownFields = fields.filter((field) => field.status !== "UNKNOWN").length;
+  const unknownFields = fields.length - knownFields;
+
+  return (
+    <div className="mt-4 rounded-lg border border-hairline bg-paper p-3" data-family-profile-stage-review="true">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-ink">人物 profile grounding</p>
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">
+            關係圖人物的職位、財務依賴、狀態與關係脈絡會以 fact / inference / unknown 進入建場包。
+          </p>
+        </div>
+        <Badge variant="outline" className="w-fit tabular-nums">
+          {knownFields} 已知 / {unknownFields} 待確認
+        </Badge>
+      </div>
+
+      <div className="mt-3 grid gap-2 md:grid-cols-2">
+        {fields.slice(0, 4).map((field) => (
+          <article key={field.id} className="min-w-0 rounded-md border border-hairline bg-card px-3 py-2">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <Badge variant="outline" className="text-[10px]">
+                {FAMILY_PROFILE_STATUS_LABEL[field.status]}
+              </Badge>
+              <span className="rounded-full border border-hairline bg-paper px-2 py-0.5 text-[10px] text-muted-foreground">
+                {field.relation}
+              </span>
+            </div>
+            <p className="mt-2 line-clamp-2 text-sm font-semibold leading-5 text-ink">
+              {field.person}・{field.label}
+            </p>
+            <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">{field.value}</p>
+            {field.sourceRefs.length ? (
+              <p className="mt-2 line-clamp-1 text-[10px] text-muted-foreground">
+                來源：{field.sourceRefs.slice(0, 2).join("、")}
+              </p>
+            ) : null}
+          </article>
+        ))}
+      </div>
+
+      <p className="mt-3 text-[11px] leading-5 text-muted-foreground">
+        Stage-only：只讀 allowlisted metadata.profile；不寫回關係圖、VisitPlan、CRM 事實或 DB，不顯示 raw metadata。
+      </p>
+    </div>
   );
 }
 
@@ -1491,6 +1595,7 @@ type VisitTheaterHandoffResponse = {
         relationshipConfirmationCards: number;
         meetingRelationshipSignals: number;
         relationshipEdgeShadowCandidates: number;
+        familyProfileFields: number;
       };
     };
     packet: TheaterBuildPacket;

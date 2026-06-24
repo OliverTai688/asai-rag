@@ -118,6 +118,16 @@ REL-004g evidence（2026-06-24）：Route B feedback contract、feedback provide
 
 REL-006 evidence（2026-06-24）：`pnpm client:family-member-profile-metadata-qa` pass，證明 profile allowlist/private sentinel guard、current-member/client ownership source boundary、DTO 不暴露 raw metadata、relationship graph 消費 profile 且缺值保留 UNKNOWN，以及 no-schema/no-provider/no fake `AiUsageLog`/no VisitPlan/no confirmed CRM fact/no RelationshipEdge table。未新增 UI control，因此最後一項 UI-only browser proof 不適用且保留待未來 UI 編輯 profile 時驗收。
 
+### D2.5. Family profile theater handoff source review（REL-006b，不動 schema）
+
+- [x] `buildVisitTheaterHandoff()` summary 回傳 `sourceCounts.familyProfileFields` 與 `evidenceSummary.familyProfiles`，並統計 FACT/INFERENCE/UNKNOWN、source refs、no-provider/no-write proof flags。
+- [x] Theater `knownMaterials` 以 `family_profile_field=true` 帶入 allowlisted profile 欄位；FACT 進 confirmed facts、INFERENCE 進 inferred persona、UNKNOWN 保持待確認。
+- [x] Handoff payload / UI 不含 raw metadata、email、phone、policy number、raw provider payload、raw private transcript、server-only raw IDs；只呈現 stage-grounding fields 與 source refs。
+- [x] `/theater/build?visitPlanId=...` source review 顯示 `data-family-profile-stage-review` panel，並明確標示 stage-only、不寫 relationship graph、VisitPlan、CRM fact 或 DB。
+- [x] `pnpm visit:family-profile-theater-handoff-qa` 與 `pnpm visit:theater-handoff-dry-run` 通過，且輸出 `providerCallAttempted=false`、`aiUsageLogWritten=false`、`persistedToDatabase=false`、`writesRelationshipGraph=false`、`writesVisitPlan=false`、`writesConfirmedCrmFact=false`。
+
+REL-006b evidence（2026-06-24）：`pnpm visit:theater-handoff-dry-run` pass，demo spouse profile 的 FACT/INFERENCE/UNKNOWN 皆進入 theater packet 並維持分層；`pnpm visit:family-profile-theater-handoff-qa` pass，確認 theater build source review 有人物 profile grounding panel 與 no-write/raw-sentinel boundary；`pnpm visit:edge-shadow-theater-build-qa` pass，確認既有 edge-shadow source review 未退化。
+
 ## E. 佈局/互動/可及性（REL-005）
 
 - [ ] 配偶同 rank、手足排序、社會邊不破壞世代階層。
