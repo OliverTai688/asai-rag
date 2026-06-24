@@ -71,6 +71,9 @@ type RouteBProviderCandidateStatus = "idle" | "generating" | "ready" | "error";
 type RouteBMeetingSignalGrounding = NonNullable<
   NonNullable<RouteBSessionSnapshot["scene"]["sourceGrounding"]>["meetingRelationshipSignals"]
 >;
+type RouteBRelationshipEdgeShadowGrounding = NonNullable<
+  NonNullable<RouteBSessionSnapshot["scene"]["sourceGrounding"]>["relationshipEdgeShadow"]
+>;
 type RouteBMeetingSignalRuntimeGrounding =
   TheaterRouteBNextTurnDraft["inputSummary"]["meetingRelationshipSignalGrounding"];
 type RouteBRedLineActionPersistenceStatus = "idle" | "loading" | "saving" | "ready" | "error";
@@ -507,6 +510,7 @@ function RouteBSessionStage({
   const narratorQuestions = routeBRecords(snapshot.scene.narratorQuestions);
   const visibilityRules = routeBRecords(snapshot.scene.visibilityRules);
   const meetingSignalGrounding = snapshot.scene.sourceGrounding?.meetingRelationshipSignals ?? null;
+  const relationshipEdgeShadowGrounding = snapshot.scene.sourceGrounding?.relationshipEdgeShadow ?? null;
   const directorTurns = snapshot.turns.filter((turn) => turn.visibilityScope === "DIRECTOR_ONLY");
   const groupTurns = snapshot.turns.filter((turn) => turn.visibilityScope === "GROUP" || !turn.visibilityScope);
   const provider = snapshot.session.provider;
@@ -829,14 +833,16 @@ function RouteBSessionStage({
             <p className="mt-1 text-sm text-muted-foreground">
               {snapshot.characters.length} 位角色・{relationships.length} 條關係・{snapshot.scene.statePatchCount} 個狀態更新
               {meetingSignalGrounding ? `・${meetingSignalGrounding.cardCount} 個會議訊號` : ""}
+              {relationshipEdgeShadowGrounding ? `・${relationshipEdgeShadowGrounding.candidateEdgeCount} 條 edge readiness` : ""}
             </p>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-2 text-center sm:min-w-[26rem] sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-2 text-center sm:min-w-[30rem] sm:grid-cols-5">
           <RouteBMetric label="角色" value={snapshot.characters.length} />
           <RouteBMetric label="旁白補問" value={narratorQuestions.length} />
           <RouteBMetric label="會議訊號" value={meetingSignalGrounding?.cardCount ?? 0} />
+          <RouteBMetric label="Edge ready" value={relationshipEdgeShadowGrounding?.candidateEdgeCount ?? 0} />
           <RouteBMetric label="私聊外洩" value={snapshot.visibilityProof.thirdPartyVisibleForDirectMessage ? "需查" : "0"} />
         </div>
       </header>
@@ -971,6 +977,9 @@ function RouteBSessionStage({
 
         <aside className="space-y-3">
           {meetingSignalGrounding ? <RouteBMeetingSignalGroundingPanel grounding={meetingSignalGrounding} /> : null}
+          {relationshipEdgeShadowGrounding ? (
+            <RouteBRelationshipEdgeShadowGroundingPanel grounding={relationshipEdgeShadowGrounding} />
+          ) : null}
 
           <RouteBFeedbackReviewPanel
             error={feedbackReviewError}
@@ -1104,6 +1113,62 @@ function RouteBMeetingSignalGroundingPanel({ grounding }: { grounding: RouteBMee
       </CardContent>
     </Card>
   );
+}
+
+function RouteBRelationshipEdgeShadowGroundingPanel({ grounding }: { grounding: RouteBRelationshipEdgeShadowGrounding }) {
+  const edgeTypeText = routeBCountMapText(grounding.edgeTypeCounts, "none");
+  const statusText = routeBCountMapText(grounding.factStatusCounts, "none");
+
+  return (
+    <Card className="border-hairline shadow-none" data-route-b-edge-shadow-source-grounding="true">
+      <CardContent className="space-y-4 p-5">
+        <div className="flex items-start gap-3">
+          <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+          <div className="min-w-0">
+            <h2 className="text-sm font-semibold text-ink">關係邊 readiness</h2>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+              {grounding.sourceMemberCount} 位成員・{grounding.candidateEdgeCount} 條 edge shadow・{grounding.unsupportedRelationCount} 個 unsupported
+            </p>
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-hairline bg-paper px-3 py-2 text-xs leading-5 text-muted-foreground">
+          <p>
+            <span className="font-semibold text-ink">Edge types：</span>
+            {edgeTypeText}
+          </p>
+          <p className="mt-1">
+            <span className="font-semibold text-ink">Fact status：</span>
+            {statusText}
+          </p>
+          <p className="mt-1">
+            <span className="font-semibold text-ink">Warnings：</span>
+            {grounding.warningCodes.length ? grounding.warningCodes.join("、") : "none"}
+          </p>
+        </div>
+
+        <div className="grid gap-2 text-[11px] text-muted-foreground">
+          <ContextLine label="Owner graph scope" value={String(grounding.boundary.ownerScopedRelationshipGraphRequired)} />
+          <ContextLine label="Browser session id" value={String(grounding.boundary.browserSuppliedSessionId)} />
+          <ContextLine label="Provider call" value={String(grounding.boundary.providerCallAttempted)} />
+          <ContextLine label="DB write" value={String(grounding.boundary.databaseWriteAttempted)} />
+          <ContextLine label="Draft edges returned" value={String(grounding.boundary.clientFacingDraftEdgesReturned)} />
+          <ContextLine label="Formal schema approved" value={String(grounding.boundary.formalSchemaApproved)} />
+          <ContextLine label="Relationship graph write" value={String(grounding.boundary.writesRelationshipGraph)} />
+          <ContextLine label="VisitPlan write" value={String(grounding.boundary.writesVisitPlan)} />
+          <ContextLine label="CRM fact write" value={String(grounding.boundary.writesConfirmedCrmFact)} />
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function routeBCountMapText(counts: Record<string, number>, fallback: string): string {
+  const entries = Object.entries(counts)
+    .filter(([, value]) => value > 0)
+    .slice(0, 6);
+
+  return entries.length ? entries.map(([key, value]) => `${key}=${value}`).join("、") : fallback;
 }
 
 function RouteBSevereRedLineWarningPanel({

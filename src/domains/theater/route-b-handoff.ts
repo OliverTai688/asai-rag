@@ -69,8 +69,49 @@ export interface TheaterRouteBMeetingSignalGroundingSummary {
   };
 }
 
+export interface TheaterRouteBRelationshipEdgeShadowGroundingInput {
+  candidateEdges: number;
+  sourceMembers: number;
+  edgeTypes: string[];
+  factStatus: string[];
+  warningCodes: string[];
+  unsupportedRelationCount: number;
+  clientFacingDraftEdgesReturned: boolean;
+  formalSchemaApproved: boolean;
+  writesRelationshipGraph: boolean;
+  writesVisitPlan: boolean;
+  writesConfirmedCrmFact: boolean;
+  persistedToDatabase: boolean;
+}
+
+export interface TheaterRouteBRelationshipEdgeShadowGroundingSummary {
+  sourceMemberCount: number;
+  candidateEdgeCount: number;
+  edgeTypeCounts: Record<string, number>;
+  factStatusCounts: Record<string, number>;
+  warningCodes: string[];
+  unsupportedRelationCount: number;
+  boundary: {
+    ownerScopedRelationshipGraphRequired: true;
+    browserSuppliedSessionId: false;
+    providerCallAttempted: false;
+    aiUsageLogWritten: false;
+    storesRawProviderPayload: false;
+    rawPrivateTranscriptIncluded: false;
+    schemaChanged: false;
+    databaseWriteAttempted: false;
+    clientFacingDraftEdgesReturned: boolean;
+    formalSchemaApproved: boolean;
+    persistedToDatabase: boolean;
+    writesRelationshipGraph: boolean;
+    writesVisitPlan: boolean;
+    writesConfirmedCrmFact: boolean;
+  };
+}
+
 export interface TheaterRouteBSourceGrounding {
   meetingRelationshipSignals?: TheaterRouteBMeetingSignalGroundingSummary;
+  relationshipEdgeShadow?: TheaterRouteBRelationshipEdgeShadowGroundingSummary;
 }
 
 export interface TheaterRouteBMaterial {
@@ -210,6 +251,7 @@ export interface BuildTheaterRouteBHandoffOptions {
   routeBEnabled?: boolean;
   now?: string;
   meetingRelationshipSignals?: TheaterRouteBMeetingSignalGroundingSummary | null;
+  relationshipEdgeShadow?: TheaterRouteBRelationshipEdgeShadowGroundingSummary | null;
 }
 
 export interface BuildTheaterRouteBDirectorInputOptions {
@@ -270,6 +312,37 @@ export function buildTheaterRouteBMeetingSignalGroundingSummary(
   };
 }
 
+export function buildTheaterRouteBRelationshipEdgeShadowGroundingSummary(
+  input?: TheaterRouteBRelationshipEdgeShadowGroundingInput | null,
+): TheaterRouteBRelationshipEdgeShadowGroundingSummary | undefined {
+  if (!input || input.candidateEdges <= 0) return undefined;
+
+  return {
+    sourceMemberCount: sanitizeCount(input.sourceMembers),
+    candidateEdgeCount: sanitizeCount(input.candidateEdges),
+    edgeTypeCounts: countMaterialPairs(input.edgeTypes),
+    factStatusCounts: countMaterialPairs(input.factStatus),
+    warningCodes: unique(input.warningCodes).slice(0, 8).map(sanitizeRouteBText),
+    unsupportedRelationCount: sanitizeCount(input.unsupportedRelationCount),
+    boundary: {
+      ownerScopedRelationshipGraphRequired: true,
+      browserSuppliedSessionId: false,
+      providerCallAttempted: false,
+      aiUsageLogWritten: false,
+      storesRawProviderPayload: false,
+      rawPrivateTranscriptIncluded: false,
+      schemaChanged: false,
+      databaseWriteAttempted: false,
+      clientFacingDraftEdgesReturned: input.clientFacingDraftEdgesReturned,
+      formalSchemaApproved: input.formalSchemaApproved,
+      persistedToDatabase: input.persistedToDatabase,
+      writesRelationshipGraph: input.writesRelationshipGraph,
+      writesVisitPlan: input.writesVisitPlan,
+      writesConfirmedCrmFact: input.writesConfirmedCrmFact,
+    },
+  };
+}
+
 export function buildTheaterRouteBHandoff(
   packet: TheaterBuildPacket,
   options: BuildTheaterRouteBHandoffOptions = {},
@@ -297,7 +370,7 @@ export function buildTheaterRouteBHandoff(
     narratorQuestions: buildNarratorMaterials(packet),
     visibilityRules: buildVisibilityRules(),
     statePatches: buildInitialStatePatches(packet, characters),
-    sourceGrounding: buildRouteBSourceGrounding(options.meetingRelationshipSignals),
+    sourceGrounding: buildRouteBSourceGrounding(options.meetingRelationshipSignals, options.relationshipEdgeShadow),
   };
 
   return {
@@ -327,11 +400,17 @@ export function buildTheaterRouteBHandoff(
 
 function buildRouteBSourceGrounding(
   meetingRelationshipSignals?: TheaterRouteBMeetingSignalGroundingSummary | null,
+  relationshipEdgeShadow?: TheaterRouteBRelationshipEdgeShadowGroundingSummary | null,
 ): TheaterRouteBSourceGrounding | undefined {
-  if (!meetingRelationshipSignals) return undefined;
+  if (!meetingRelationshipSignals && !relationshipEdgeShadow) return undefined;
 
   return {
-    meetingRelationshipSignals: sanitizeMeetingSignalGroundingSummary(meetingRelationshipSignals),
+    ...(meetingRelationshipSignals
+      ? { meetingRelationshipSignals: sanitizeMeetingSignalGroundingSummary(meetingRelationshipSignals) }
+      : {}),
+    ...(relationshipEdgeShadow
+      ? { relationshipEdgeShadow: sanitizeRelationshipEdgeShadowGroundingSummary(relationshipEdgeShadow) }
+      : {}),
   };
 }
 
@@ -614,6 +693,35 @@ function sanitizeMeetingSignalGroundingSummary(
   };
 }
 
+function sanitizeRelationshipEdgeShadowGroundingSummary(
+  summary: TheaterRouteBRelationshipEdgeShadowGroundingSummary,
+): TheaterRouteBRelationshipEdgeShadowGroundingSummary {
+  return {
+    sourceMemberCount: sanitizeCount(summary.sourceMemberCount),
+    candidateEdgeCount: sanitizeCount(summary.candidateEdgeCount),
+    edgeTypeCounts: sanitizeCountMap(summary.edgeTypeCounts),
+    factStatusCounts: sanitizeCountMap(summary.factStatusCounts),
+    warningCodes: unique(summary.warningCodes).slice(0, 8).map(sanitizeRouteBText),
+    unsupportedRelationCount: sanitizeCount(summary.unsupportedRelationCount),
+    boundary: {
+      ownerScopedRelationshipGraphRequired: true,
+      browserSuppliedSessionId: false,
+      providerCallAttempted: false,
+      aiUsageLogWritten: false,
+      storesRawProviderPayload: false,
+      rawPrivateTranscriptIncluded: false,
+      schemaChanged: false,
+      databaseWriteAttempted: false,
+      clientFacingDraftEdgesReturned: Boolean(summary.boundary.clientFacingDraftEdgesReturned),
+      formalSchemaApproved: Boolean(summary.boundary.formalSchemaApproved),
+      persistedToDatabase: Boolean(summary.boundary.persistedToDatabase),
+      writesRelationshipGraph: Boolean(summary.boundary.writesRelationshipGraph),
+      writesVisitPlan: Boolean(summary.boundary.writesVisitPlan),
+      writesConfirmedCrmFact: Boolean(summary.boundary.writesConfirmedCrmFact),
+    },
+  };
+}
+
 function sanitizeMeetingSignalGroundingCard(
   card: TheaterRouteBMeetingSignalGroundingInput,
   index: number,
@@ -661,6 +769,35 @@ function sanitizeRouteBText(value: string): string {
     .replace(/09\d{2}[-\s]?\d{3}[-\s]?\d{3}/g, HIDDEN_TEXT)
     .replace(/\b(rawPayload|providerPayload|authorization|cookie|secret|token|otp)\b/gi, HIDDEN_TEXT)
     .trim();
+}
+
+function sanitizeCount(value: number): number {
+  if (!Number.isFinite(value) || value <= 0) return 0;
+  return Math.min(999, Math.trunc(value));
+}
+
+function sanitizeCountMap(counts: Record<string, number>): Record<string, number> {
+  return Object.fromEntries(
+    Object.entries(counts)
+      .map(([key, value]) => [sanitizeRouteBText(key), sanitizeCount(value)] as const)
+      .filter(([key, value]) => Boolean(key) && value > 0)
+      .slice(0, 12),
+  );
+}
+
+function countMaterialPairs(items: string[]): Record<string, number> {
+  const counts: Record<string, number> = {};
+
+  for (const item of items) {
+    const [rawKey, rawValue] = item.split("=");
+    const key = sanitizeRouteBText(rawKey ?? "");
+    const parsedValue = Number(rawValue);
+    const value = Number.isFinite(parsedValue) && parsedValue > 0 ? parsedValue : 1;
+    if (!key) continue;
+    counts[key] = (counts[key] ?? 0) + sanitizeCount(value);
+  }
+
+  return counts;
 }
 
 function stableHash(value: string): string {

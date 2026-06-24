@@ -73,10 +73,12 @@ REL-004d evidence（2026-06-23）：`pnpm visit:edge-shadow-theater-build-qa` pa
 
 ### D0.8. Shadow Route B session source grounding（REL-004e，不動 schema）
 
-- [ ] Route B session create/snapshot/readback path 帶入 BFF-safe `relationshipEdgeShadow` source-grounding summary；只含 candidate count、type/status counts、warning code、formal schema/no-write boundary。
-- [ ] Session payload / UI 不含 `draftEdges`、draft id、source/target node id、source references、metadata、policy number、raw provider/private fields。
-- [ ] `/theater/[sessionId]` 顯示 compact edge readiness / source-grounding panel，並明確標示 formal `RelationshipEdge` schema 尚未核可，劇場不可寫回 relationship graph、VisitPlan 或 confirmed CRM fact。
-- [ ] `pnpm theater:relationship-edge-shadow-session-source-qa` 或等價 proof 通過，且輸出 `providerCallAttempted=false`、`databaseWriteAttempted=false`、`relationshipGraphWriteAttempted=false`、`clientFacingDraftEdgesReturned=false`、`formalSchemaApproved=false`。
+- [x] Route B session create/snapshot/readback path 帶入 BFF-safe `relationshipEdgeShadow` source-grounding summary；只含 candidate count、type/status counts、warning code、formal schema/no-write boundary。
+- [x] Session payload / UI 不含 `draftEdges`、draft id、source/target node id、source references、metadata、policy number、raw provider/private fields。
+- [x] `/theater/[sessionId]` 顯示 compact edge readiness / source-grounding panel，並明確標示 formal `RelationshipEdge` schema 尚未核可，劇場不可寫回 relationship graph、VisitPlan 或 confirmed CRM fact。
+- [x] `pnpm theater:relationship-edge-shadow-session-source-qa` 或等價 proof 通過，且輸出 `providerCallAttempted=false`、`databaseWriteAttempted=false`、`relationshipGraphWriteAttempted=false`、`clientFacingDraftEdgesReturned=false`、`formalSchemaApproved=false`。
+
+REL-004e evidence（2026-06-24）：`pnpm theater:relationship-edge-shadow-session-source-qa` pass，確認 Route B handoff contract、session create/readback、`data-route-b-edge-shadow-source-grounding` UI hook、AgentFacts manifest 與 no-provider/no-DB/no-write/no-draft-payload boundary；`pnpm visit:theater-handoff-dry-run` 仍維持 handoff least-disclosure summary。
 
 ### D1. Edge model 持久化（REL-004，動 schema）
 

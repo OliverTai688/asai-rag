@@ -38,6 +38,7 @@ import type { TheaterBuildCharacterSeed, TheaterBuildPacket } from "@/domains/in
 import {
   buildTheaterRouteBHandoff,
   buildTheaterRouteBMeetingSignalGroundingSummary,
+  buildTheaterRouteBRelationshipEdgeShadowGroundingSummary,
   type TheaterRouteBMeetingSignalGroundingInput,
 } from "@/domains/theater/route-b-handoff";
 import type { RouteBSessionSnapshot } from "@/domains/theater/route-b-session";
@@ -702,9 +703,15 @@ export default function TheaterBuildPage() {
             getMeetingSignalNarratorPreviews(packet.narratorQuestions),
           )
         : undefined;
+      const relationshipEdgeShadowGrounding = handoffReview
+        ? buildTheaterRouteBRelationshipEdgeShadowGroundingSummary(
+            getRelationshipEdgeShadowSummary(handoffReview.handoff.knownMaterials),
+          )
+        : undefined;
       const handoff = buildTheaterRouteBHandoff(packet, {
         routeBEnabled: true,
         meetingRelationshipSignals: meetingSignalGrounding,
+        relationshipEdgeShadow: relationshipEdgeShadowGrounding,
       });
       const response = await fetch("/api/theater/route-b/sessions", {
         method: "POST",
