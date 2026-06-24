@@ -5,11 +5,13 @@ import {
   ROUTE_B_SEVERE_RED_LINES,
   type TheaterRouteBFeedbackPerspectiveId,
 } from "../src/domains/theater/route-b-feedback";
-import type {
-  TheaterRouteBHandoffPacket,
-  TheaterRouteBMaterial,
-  TheaterRouteBRelationshipEdgeShadowGroundingSummary,
-  TheaterRouteBTurnRef,
+import {
+  buildTheaterRouteBFamilyProfileGroundingSummary,
+  type TheaterRouteBFamilyProfileGroundingSummary,
+  type TheaterRouteBHandoffPacket,
+  type TheaterRouteBMaterial,
+  type TheaterRouteBRelationshipEdgeShadowGroundingSummary,
+  type TheaterRouteBTurnRef,
 } from "../src/domains/theater/route-b-handoff";
 
 const checks: Array<{ label: string; detail?: string }> = [];
@@ -98,6 +100,7 @@ const handoff: TheaterRouteBHandoffPacket = {
       },
     ],
     sourceGrounding: {
+      familyProfiles: familyProfileGrounding(),
       relationshipEdgeShadow: relationshipEdgeShadowGrounding(),
     },
   },
@@ -223,6 +226,37 @@ check(
     allPerspectiveContract.relationshipEdgeShadowGrounding.boundary.writesRelationshipGraph === false,
   "feedback contract keeps edge shadow no-draft/no-write boundary",
 );
+check(
+  allPerspectiveContract.familyProfileGrounding.usedInFeedbackReview,
+  "feedback contract carries family profile grounding from handoff",
+);
+check(
+  allPerspectiveContract.familyProfileGrounding.profiledMemberCount === 3,
+  "feedback contract carries safe family profile member count",
+);
+check(
+  allPerspectiveContract.familyProfileGrounding.fieldCount === 4,
+  "feedback contract carries safe family profile field count",
+);
+check(
+  allPerspectiveContract.familyProfileGrounding.factStatusCounts.INFERENCE === 1 &&
+    allPerspectiveContract.familyProfileGrounding.unknownPrompts.length === 1,
+  "feedback contract preserves family profile status split and unknown prompts",
+);
+check(
+  allPerspectiveContract.familyProfileGrounding.boundary.rawMetadataIncluded === false &&
+    allPerspectiveContract.familyProfileGrounding.boundary.sourceReferenceIdsIncluded === false &&
+    allPerspectiveContract.familyProfileGrounding.boundary.writesRelationshipGraph === false &&
+    allPerspectiveContract.familyProfileGrounding.boundary.writesVisitPlan === false &&
+    allPerspectiveContract.familyProfileGrounding.boundary.writesClientProfile === false &&
+    allPerspectiveContract.familyProfileGrounding.boundary.writesPolicy === false &&
+    allPerspectiveContract.familyProfileGrounding.boundary.writesConfirmedCrmFact === false,
+  "feedback contract keeps family profile least-disclosure/no-write boundary",
+);
+check(
+  !Object.prototype.hasOwnProperty.call(allPerspectiveContract.familyProfileGrounding.fields[0] ?? {}, "stageFieldId"),
+  "feedback contract does not expose raw family profile field ids",
+);
 
 const subsetIds: TheaterRouteBFeedbackPerspectiveId[] = ["CLIENT_EYES", "COMPLIANCE_CONSCIENCE"];
 const subsetContract = buildTheaterRouteBFeedbackContract({ handoff, history, selectedPerspectiveIds: subsetIds });
@@ -259,6 +293,13 @@ console.log(
       edgeShadowCandidateCount: allPerspectiveContract.relationshipEdgeShadowGrounding.candidateEdgeCount,
       edgeShadowRawDraftEdgesIncluded: allPerspectiveContract.relationshipEdgeShadowGrounding.boundary.rawDraftEdgesIncluded,
       edgeShadowWritesRelationshipGraph: allPerspectiveContract.relationshipEdgeShadowGrounding.boundary.writesRelationshipGraph,
+      familyProfileMemberCount: allPerspectiveContract.familyProfileGrounding.profiledMemberCount,
+      familyProfileFieldCount: allPerspectiveContract.familyProfileGrounding.fieldCount,
+      familyProfileUnknownPromptCount: allPerspectiveContract.familyProfileGrounding.unknownPrompts.length,
+      familyProfileRawMetadataIncluded: allPerspectiveContract.familyProfileGrounding.boundary.rawMetadataIncluded,
+      familyProfileSourceReferenceIdsIncluded:
+        allPerspectiveContract.familyProfileGrounding.boundary.sourceReferenceIdsIncluded,
+      familyProfileWritesClientProfile: allPerspectiveContract.familyProfileGrounding.boundary.writesClientProfile,
       subsetPerspectiveIds: subsetContract.selectedPerspectives.map((perspective) => perspective.id),
     },
     null,
@@ -279,6 +320,50 @@ function material(
     use,
     sourceRefs: [{ id: `${id}_source`, label: "QA fixture", factStatus }],
   };
+}
+
+function familyProfileGrounding(): TheaterRouteBFamilyProfileGroundingSummary {
+  const summary = buildTheaterRouteBFamilyProfileGroundingSummary([
+    {
+      field: "occupation",
+      label: "職位",
+      person: "林先生",
+      relation: "本人",
+      value: "科技公司營運長",
+      status: "FACT",
+      sourceRefs: ["person_focus"],
+    },
+    {
+      field: "financial_dependency",
+      label: "財務依賴",
+      person: "林太太",
+      relation: "配偶",
+      value: "共同討論家庭保障預算",
+      status: "FACT",
+      sourceRefs: ["person_spouse"],
+    },
+    {
+      field: "decision_role",
+      label: "決策角色",
+      person: "合夥人",
+      relation: "事業夥伴",
+      value: "可能影響公司責任風險討論",
+      status: "INFERENCE",
+      sourceRefs: ["person_partner"],
+    },
+    {
+      field: "current_status",
+      label: "目前狀態",
+      person: "林太太",
+      relation: "配偶",
+      value: "尚未確認是否會參與本次拜訪",
+      status: "UNKNOWN",
+      sourceRefs: ["person_spouse_unknown"],
+    },
+  ]);
+
+  assert.ok(summary, "Expected family profile grounding fixture.");
+  return summary;
 }
 
 function relationshipEdgeShadowGrounding(): TheaterRouteBRelationshipEdgeShadowGroundingSummary {

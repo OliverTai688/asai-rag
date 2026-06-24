@@ -42,6 +42,18 @@ check(pageSource.includes("data-route-b-feedback-edge-shadow-grounding"), "UI ex
 check(pageSource.includes("scene.sourceGrounding.relationshipEdgeShadow"), "UI labels feedback edge-shadow source");
 check(pageSource.includes("edgeShadowGrounding.boundary.rawDraftEdgesIncluded"), "UI exposes edge-shadow raw draft boundary");
 check(pageSource.includes("edgeShadowGrounding.boundary.writesRelationshipGraph"), "UI exposes edge-shadow graph-write boundary");
+check(pageSource.includes("review?.familyProfileGrounding"), "UI reads feedback review family-profile grounding");
+check(pageSource.includes("data-route-b-feedback-family-profile-grounding"), "UI exposes feedback family-profile grounding data hook");
+check(pageSource.includes("scene.sourceGrounding.familyProfiles"), "UI labels feedback family-profile source");
+check(pageSource.includes("familyProfileGrounding.boundary.rawMetadataIncluded"), "UI exposes family-profile raw metadata boundary");
+check(pageSource.includes("familyProfileGrounding.boundary.sourceReferenceIdsIncluded"), "UI exposes family-profile source refs boundary");
+check(pageSource.includes("familyProfileGrounding.boundary.providerCallAttempted"), "UI exposes family-profile provider boundary");
+check(pageSource.includes("familyProfileGrounding.boundary.databaseWriteAttempted"), "UI exposes family-profile DB write boundary");
+check(pageSource.includes("familyProfileGrounding.boundary.writesRelationshipGraph"), "UI exposes family-profile graph write boundary");
+check(pageSource.includes("familyProfileGrounding.boundary.writesVisitPlan"), "UI exposes family-profile VisitPlan write boundary");
+check(pageSource.includes("familyProfileGrounding.boundary.writesClientProfile"), "UI exposes family-profile client profile write boundary");
+check(pageSource.includes("familyProfileGrounding.boundary.writesPolicy"), "UI exposes family-profile policy write boundary");
+check(pageSource.includes("familyProfileGrounding.boundary.writesConfirmedCrmFact"), "UI exposes family-profile CRM fact write boundary");
 check(pageSource.includes("finding.actionContext"), "UI renders per-red-line action context");
 
 check(routeSource.includes("requireCurrentMember"), "feedback-review route requires current member");
@@ -70,6 +82,9 @@ check(manifestSource.includes("route-b-red-line-action-feedback-consumption"), "
 check(manifestSource.includes("TheaterRouteBFeedbackReview.redLineActionState"), "AgentFacts manifest declares feedback action-state DTO boundary");
 check(manifestSource.includes("TheaterRouteBFeedbackReview.relationshipEdgeShadowGrounding"), "AgentFacts manifest declares feedback edge-shadow DTO boundary");
 check(manifestSource.includes("data-route-b-feedback-edge-shadow-grounding"), "AgentFacts manifest declares feedback edge-shadow UI hook");
+check(manifestSource.includes("route-b-feedback-family-profile-grounding"), "AgentFacts manifest registers feedback family-profile capability");
+check(manifestSource.includes("TheaterRouteBFeedbackReview.familyProfileGrounding"), "AgentFacts manifest declares feedback family-profile DTO boundary");
+check(manifestSource.includes("data-route-b-feedback-family-profile-grounding"), "AgentFacts manifest declares feedback family-profile UI hook");
 check(manifestSource.includes("TheaterRouteBFeedbackReview"), "AgentFacts manifest declares feedback review DTO");
 check(manifestSource.includes("pnpm theater:route-b-feedback-review-qa"), "AgentFacts manifest includes feedback-review proof command");
 

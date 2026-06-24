@@ -2,9 +2,11 @@ import type {
   RouteBRedLineRule,
   RouteBRedLineRuleId,
   TheaterRouteBFeedbackContract,
+  TheaterRouteBFeedbackFamilyProfileGrounding,
   TheaterRouteBFeedbackPerspectiveId,
   TheaterRouteBSevereRedLine,
 } from "./route-b-feedback";
+import type { TheaterRouteBFamilyProfileRuntimeGrounding } from "./route-b-next-turn";
 import {
   buildRouteBProviderPromptContext,
   type RouteBProviderPromptContext,
@@ -259,15 +261,50 @@ export function buildTheaterRouteBFeedbackProviderInput(
 
 function buildFeedbackPromptContext(contract: TheaterRouteBFeedbackContract) {
   return buildRouteBProviderPromptContext({
+    familyProfileGrounding: toRuntimeFamilyProfilePromptGrounding(contract.familyProfileGrounding),
     relationshipEdgeShadowGrounding: contract.relationshipEdgeShadowGrounding,
     personaHints: contract.selectedPerspectives.flatMap((perspective) => [perspective.label, perspective.purpose]),
     unknowns: [
       `unknown gaps: ${contract.inputPreview.materialCounts.unknownGaps}`,
       `private lane count: ${contract.inputPreview.historyVisibilitySummary.PRIVATE ?? 0}`,
       `relationship edge shadow candidates: ${contract.relationshipEdgeShadowGrounding.candidateEdgeCount}`,
+      `family profile unknown fields: ${contract.familyProfileGrounding.unknownFieldCount}`,
     ],
     maxItems: 5,
   });
+}
+
+function toRuntimeFamilyProfilePromptGrounding(
+  grounding: TheaterRouteBFeedbackFamilyProfileGrounding,
+): TheaterRouteBFamilyProfileRuntimeGrounding {
+  return {
+    source: grounding.source,
+    usedInNextTurnRuntime: grounding.usedInFeedbackReview,
+    providerPromptUsage: "family-profile-context-only",
+    profiledMemberCount: grounding.profiledMemberCount,
+    fieldCount: grounding.fieldCount,
+    knownFieldCount: grounding.knownFieldCount,
+    unknownFieldCount: grounding.unknownFieldCount,
+    sourceReferenceCount: grounding.sourceReferenceCount,
+    factStatusCounts: grounding.factStatusCounts,
+    fields: grounding.fields,
+    unknownPrompts: grounding.unknownPrompts,
+    boundary: {
+      ownerScopedRelationshipGraphRequired: grounding.boundary.ownerScopedRelationshipGraphRequired,
+      rawMetadataIncluded: grounding.boundary.rawMetadataIncluded,
+      sourceReferenceIdsIncluded: grounding.boundary.sourceReferenceIdsIncluded,
+      rawPrivateTranscriptIncluded: grounding.boundary.rawPrivateTranscriptIncluded,
+      rawProviderPayloadIncluded: grounding.boundary.rawProviderPayloadIncluded,
+      personalContactIncluded: grounding.boundary.personalContactIncluded,
+      policyIdentifierIncluded: grounding.boundary.policyIdentifierIncluded,
+      databaseWriteAttempted: grounding.boundary.databaseWriteAttempted,
+      providerCallAttempted: grounding.boundary.providerCallAttempted,
+      aiUsageLogWritten: grounding.boundary.aiUsageLogWritten,
+      writesRelationshipGraph: grounding.boundary.writesRelationshipGraph,
+      writesVisitPlan: grounding.boundary.writesVisitPlan,
+      writesConfirmedCrmFact: grounding.boundary.writesConfirmedCrmFact,
+    },
+  };
 }
 
 function buildTheaterRouteBFeedbackUsageLogDraft(options: {

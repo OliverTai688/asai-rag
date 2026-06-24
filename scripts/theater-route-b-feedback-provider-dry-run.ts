@@ -9,11 +9,13 @@ import {
   type TheaterRouteBFeedbackUsageLogRecord,
   type TheaterRouteBFeedbackUsageLogger,
 } from "../src/domains/theater/route-b-feedback-provider";
-import type {
-  TheaterRouteBHandoffPacket,
-  TheaterRouteBMaterial,
-  TheaterRouteBRelationshipEdgeShadowGroundingSummary,
-  TheaterRouteBTurnRef,
+import {
+  buildTheaterRouteBFamilyProfileGroundingSummary,
+  type TheaterRouteBFamilyProfileGroundingSummary,
+  type TheaterRouteBHandoffPacket,
+  type TheaterRouteBMaterial,
+  type TheaterRouteBRelationshipEdgeShadowGroundingSummary,
+  type TheaterRouteBTurnRef,
 } from "../src/domains/theater/route-b-handoff";
 
 const checks: Array<{ label: string; detail?: string }> = [];
@@ -71,6 +73,26 @@ check(
     providerInput.promptContext.relationshipEdgeShadowGrounding.boundary.writesRelationshipGraph === false,
   "provider input prompt context keeps edge shadow no-draft/no-write boundary",
 );
+check(
+  providerInput.promptContext.familyProfileGrounding.usedInNextTurnRuntime,
+  "provider input prompt context carries family profile grounding",
+);
+check(
+  providerInput.promptContext.familyProfileGrounding.fieldCount === 4,
+  "provider input prompt context carries family profile field count",
+);
+check(
+  providerInput.promptContext.familyProfileGrounding.boundary.rawMetadataIncluded === false &&
+    providerInput.promptContext.familyProfileGrounding.boundary.sourceReferenceIdsIncluded === false &&
+    providerInput.promptContext.familyProfileGrounding.boundary.writesRelationshipGraph === false &&
+    providerInput.promptContext.familyProfileGrounding.boundary.writesVisitPlan === false &&
+    providerInput.promptContext.familyProfileGrounding.boundary.writesConfirmedCrmFact === false,
+  "provider input prompt context keeps family profile least-disclosure/no-write boundary",
+);
+check(
+  providerInput.promptContext.promptRules.useFamilyProfilesAsRuntimeEvidence,
+  "provider input prompt rules consume family profile evidence",
+);
 check(!providerInput.promptContext.providerBoundary.providerCallAttempted, "prompt context itself does not call provider");
 check(!providerInput.promptContext.providerBoundary.aiUsageLogWritten, "prompt context itself does not fake AiUsageLog");
 check(providerInput.promptContext.providerBoundary.successErrorAiUsageLogRequiredBeforeProviderEnablement, "prompt context keeps success/error AiUsageLog enablement gate");
@@ -90,6 +112,8 @@ const fakeProvider: TheaterRouteBFeedbackProviderAdapter = {
     eventTrail.push("provider.success.generate");
     assert.equal(input.outputRules.totalScoreAllowed, false);
     assert.equal(input.promptContext.redLineCues.length, 18);
+    assert.equal(input.promptContext.familyProfileGrounding.fieldCount, 4);
+    assert.equal(input.promptContext.familyProfileGrounding.boundary.rawMetadataIncluded, false);
     assert.equal(input.redLineReview.allRules.length, 18);
     return {
       model: "gpt-test-route-b-feedback",
@@ -211,6 +235,12 @@ async function main() {
         edgeShadowCandidateCount: providerInput.promptContext.relationshipEdgeShadowGrounding.candidateEdgeCount,
         edgeShadowRawDraftEdgesIncluded: providerInput.promptContext.relationshipEdgeShadowGrounding.boundary.rawDraftEdgesIncluded,
         edgeShadowWritesRelationshipGraph: providerInput.promptContext.relationshipEdgeShadowGrounding.boundary.writesRelationshipGraph,
+        familyProfileFieldCount: providerInput.promptContext.familyProfileGrounding.fieldCount,
+        familyProfileUnknownPromptCount: providerInput.promptContext.familyProfileGrounding.unknownPrompts.length,
+        familyProfileRawMetadataIncluded: providerInput.promptContext.familyProfileGrounding.boundary.rawMetadataIncluded,
+        familyProfileSourceReferenceIdsIncluded:
+          providerInput.promptContext.familyProfileGrounding.boundary.sourceReferenceIdsIncluded,
+        familyProfileWritesRelationshipGraph: providerInput.promptContext.familyProfileGrounding.boundary.writesRelationshipGraph,
         redLineReviewAllRuleCount: providerInput.redLineReview.allRules.length,
         redLineFindingsCount: successResult.status === "SUCCESS" ? successResult.feedback.redLineFindings.length : 0,
         eventTrail,
@@ -294,6 +324,7 @@ function buildHandoffFixture(): TheaterRouteBHandoffPacket {
       ],
       statePatches: [],
       sourceGrounding: {
+        familyProfiles: familyProfileGrounding(),
         relationshipEdgeShadow: relationshipEdgeShadowGrounding(),
       },
     },
@@ -321,6 +352,50 @@ function buildHandoffFixture(): TheaterRouteBHandoffPacket {
       migrationBoundary: "feedback provider logging contract proof",
     },
   };
+}
+
+function familyProfileGrounding(): TheaterRouteBFamilyProfileGroundingSummary {
+  const summary = buildTheaterRouteBFamilyProfileGroundingSummary([
+    {
+      field: "occupation",
+      label: "職位",
+      person: "林先生",
+      relation: "本人",
+      value: "科技公司營運長",
+      status: "FACT",
+      sourceRefs: ["person_focus"],
+    },
+    {
+      field: "financial_dependency",
+      label: "財務依賴",
+      person: "林太太",
+      relation: "配偶",
+      value: "共同討論家庭保障預算",
+      status: "FACT",
+      sourceRefs: ["person_spouse"],
+    },
+    {
+      field: "decision_role",
+      label: "決策角色",
+      person: "合夥人",
+      relation: "事業夥伴",
+      value: "可能影響公司責任風險討論",
+      status: "INFERENCE",
+      sourceRefs: ["person_partner"],
+    },
+    {
+      field: "current_status",
+      label: "目前狀態",
+      person: "林太太",
+      relation: "配偶",
+      value: "尚未確認是否會參與本次拜訪",
+      status: "UNKNOWN",
+      sourceRefs: ["person_spouse_unknown"],
+    },
+  ]);
+
+  assert.ok(summary, "Expected family profile grounding fixture.");
+  return summary;
 }
 
 function relationshipEdgeShadowGrounding(): TheaterRouteBRelationshipEdgeShadowGroundingSummary {

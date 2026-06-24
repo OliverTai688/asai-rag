@@ -4,7 +4,11 @@ import {
   isTheaterRouteBFeedbackReview,
 } from "../src/domains/theater/route-b-feedback-review";
 import { buildRouteBRedLineActionPersistenceState } from "../src/domains/theater/route-b-red-line-action-workflow";
-import type { TheaterRouteBRelationshipEdgeShadowGroundingSummary } from "../src/domains/theater/route-b-handoff";
+import {
+  buildTheaterRouteBFamilyProfileGroundingSummary,
+  type TheaterRouteBFamilyProfileGroundingSummary,
+  type TheaterRouteBRelationshipEdgeShadowGroundingSummary,
+} from "../src/domains/theater/route-b-handoff";
 import type { RouteBSessionSnapshot } from "../src/domains/theater/route-b-session";
 
 const checks: string[] = [];
@@ -44,6 +48,7 @@ const snapshot: RouteBSessionSnapshot = {
       },
     ],
     sourceGrounding: {
+      familyProfiles: familyProfileGrounding(),
       relationshipEdgeShadow: relationshipEdgeShadowGrounding(),
     },
     statePatchCount: 1,
@@ -178,7 +183,30 @@ check(
     review.relationshipEdgeShadowGrounding.boundary.writesConfirmedCrmFact === false,
   "feedback review keeps edge shadow no-db/no-graph/no-CRM-write boundary",
 );
+check(review.familyProfileGrounding.usedInFeedbackReview, "feedback review consumes family profile grounding");
+check(review.familyProfileGrounding.profiledMemberCount === 3, "feedback review carries family profile member count");
+check(review.familyProfileGrounding.fieldCount === 4, "feedback review carries family profile field count");
+check(
+  review.familyProfileGrounding.factStatusCounts.FACT === 2 &&
+    review.familyProfileGrounding.factStatusCounts.INFERENCE === 1 &&
+    review.familyProfileGrounding.factStatusCounts.UNKNOWN === 1,
+  "feedback review preserves family profile FACT/INFERENCE/UNKNOWN split",
+);
+check(
+  review.familyProfileGrounding.boundary.rawMetadataIncluded === false &&
+    review.familyProfileGrounding.boundary.sourceReferenceIdsIncluded === false &&
+    review.familyProfileGrounding.boundary.databaseWriteAttempted === false &&
+    review.familyProfileGrounding.boundary.providerCallAttempted === false &&
+    review.familyProfileGrounding.boundary.writesRelationshipGraph === false &&
+    review.familyProfileGrounding.boundary.writesVisitPlan === false &&
+    review.familyProfileGrounding.boundary.writesClientProfile === false &&
+    review.familyProfileGrounding.boundary.writesPolicy === false &&
+    review.familyProfileGrounding.boundary.writesConfirmedCrmFact === false,
+  "feedback review keeps family profile no-provider/no-db/no-write boundary",
+);
 check(review.persistenceEnvelope.requiresAdvisorConfirmation, "feedback review requires advisor confirmation before CRM writeback");
+check(review.persistenceEnvelope.writesClientProfile === false, "feedback review does not write client profile");
+check(review.persistenceEnvelope.writesPolicy === false, "feedback review does not write policy records");
 check(review.persistenceEnvelope.writesConfirmedCrmFact === false, "feedback review does not write confirmed CRM facts");
 check(review.persistenceEnvelope.storesPrivateLaneTurnContent === false, "feedback review does not store private lane turn content");
 check(review.privacyProof.rawPrivateTranscriptReturned === false, "feedback review does not return raw private transcript");
@@ -221,6 +249,26 @@ check(
   ),
   "feedback review cites relationship edge shadow as review evidence",
 );
+check(
+  review.sections.some((section) =>
+    section.evidenceBasis.some((item) => item.source === "family-profile-grounding" && item.label === "FACT" && item.count === 2)
+  ),
+  "feedback review cites family profile FACT evidence",
+);
+check(
+  review.sections.some((section) =>
+    section.evidenceBasis.some(
+      (item) => item.source === "family-profile-grounding" && item.label === "INFERENCE" && item.count === 1,
+    )
+  ),
+  "feedback review cites family profile INFERENCE evidence",
+);
+check(
+  review.sections.some((section) =>
+    section.evidenceBasis.some((item) => item.source === "family-profile-grounding" && item.label === "UNKNOWN" && item.count === 1)
+  ),
+  "feedback review cites family profile UNKNOWN evidence",
+);
 
 const subsetReview = buildTheaterRouteBFeedbackReview({
   snapshot,
@@ -254,6 +302,11 @@ console.log(
       edgeShadowSourceMemberCount: review.relationshipEdgeShadowGrounding.sourceMemberCount,
       edgeShadowRawDraftEdgesIncluded: review.relationshipEdgeShadowGrounding.boundary.rawDraftEdgesIncluded,
       edgeShadowWritesRelationshipGraph: review.relationshipEdgeShadowGrounding.boundary.writesRelationshipGraph,
+      familyProfileMemberCount: review.familyProfileGrounding.profiledMemberCount,
+      familyProfileFieldCount: review.familyProfileGrounding.fieldCount,
+      familyProfileRawMetadataIncluded: review.familyProfileGrounding.boundary.rawMetadataIncluded,
+      familyProfileWritesClientProfile: review.familyProfileGrounding.boundary.writesClientProfile,
+      familyProfileWritesPolicy: review.familyProfileGrounding.boundary.writesPolicy,
       providerCallAttempted: review.providerBoundary.providerCallAttempted,
       aiUsageLogWritten: review.providerBoundary.aiUsageLogWritten,
       writesConfirmedCrmFact: review.persistenceEnvelope.writesConfirmedCrmFact,
@@ -263,6 +316,50 @@ console.log(
     2,
   ),
 );
+
+function familyProfileGrounding(): TheaterRouteBFamilyProfileGroundingSummary {
+  const summary = buildTheaterRouteBFamilyProfileGroundingSummary([
+    {
+      field: "occupation",
+      label: "職位",
+      person: "林先生",
+      relation: "本人",
+      value: "科技公司營運長",
+      status: "FACT",
+      sourceRefs: ["person_focus"],
+    },
+    {
+      field: "financial_dependency",
+      label: "財務依賴",
+      person: "林太太",
+      relation: "配偶",
+      value: "共同討論家庭保障預算",
+      status: "FACT",
+      sourceRefs: ["person_spouse"],
+    },
+    {
+      field: "decision_role",
+      label: "決策角色",
+      person: "合夥人",
+      relation: "事業夥伴",
+      value: "可能影響公司責任風險討論",
+      status: "INFERENCE",
+      sourceRefs: ["person_partner"],
+    },
+    {
+      field: "current_status",
+      label: "目前狀態",
+      person: "林太太",
+      relation: "配偶",
+      value: "尚未確認是否會參與本次拜訪",
+      status: "UNKNOWN",
+      sourceRefs: ["person_spouse_unknown"],
+    },
+  ]);
+
+  assert.ok(summary, "Expected family profile grounding fixture.");
+  return summary;
+}
 
 function relationshipEdgeShadowGrounding(): TheaterRouteBRelationshipEdgeShadowGroundingSummary {
   return {

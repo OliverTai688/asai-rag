@@ -1,10 +1,12 @@
 import {
+  buildFamilyProfileFeedbackGrounding,
   buildRouteBObjectionRedLineLibrarySummary,
   buildRouteBRedLineReviewPlan,
   ROUTE_B_FEEDBACK_PERSPECTIVES,
   type RouteBRedLineDetectionMode,
   type RouteBRedLineRuleId,
   type RouteBRedLineSeverity,
+  type TheaterRouteBFeedbackFamilyProfileGrounding,
   type TheaterRouteBFeedbackPerspectiveId,
 } from "./route-b-feedback";
 import {
@@ -44,6 +46,7 @@ export interface TheaterRouteBFeedbackReviewEvidence {
     | "state-proposals"
     | "narrator-questions"
     | "red-line-actions"
+    | "family-profile-grounding"
     | "relationship-edge-shadow";
   summary: string;
   count: number;
@@ -110,6 +113,7 @@ export interface TheaterRouteBFeedbackReview {
   redLineFindings: TheaterRouteBFeedbackReviewRedLineFinding[];
   redLineActionState: TheaterRouteBFeedbackReviewRedLineActionSummary;
   relationshipEdgeShadowGrounding: TheaterRouteBFeedbackRelationshipEdgeShadowGrounding;
+  familyProfileGrounding: TheaterRouteBFeedbackFamilyProfileGrounding;
   redLineLibrary: ReturnType<typeof buildRouteBObjectionRedLineLibrarySummary>;
   complianceReminder: string;
   outputContract: {
@@ -126,6 +130,8 @@ export interface TheaterRouteBFeedbackReview {
   };
   persistenceEnvelope: {
     requiresAdvisorConfirmation: true;
+    writesClientProfile: false;
+    writesPolicy: false;
     writesConfirmedCrmFact: false;
     storesPrivateLaneTurnContent: false;
     allowedWriteTarget: "THEATER_FEEDBACK_SUMMARY";
@@ -156,7 +162,13 @@ export function buildTheaterRouteBFeedbackReview(
   const redLineActionState = resolveRedLineActionState(options.snapshot);
   const redLineActionSummary = buildRedLineActionSummary(redLineActionState);
   const relationshipEdgeShadowGrounding = buildFeedbackRelationshipEdgeShadowGrounding(options.snapshot);
-  const evidence = buildReviewEvidence(options.snapshot, redLineActionState, relationshipEdgeShadowGrounding);
+  const familyProfileGrounding = buildFamilyProfileFeedbackGrounding(options.snapshot.scene.sourceGrounding?.familyProfiles);
+  const evidence = buildReviewEvidence(
+    options.snapshot,
+    redLineActionState,
+    relationshipEdgeShadowGrounding,
+    familyProfileGrounding,
+  );
   const generatedAt = (options.now ?? new Date()).toISOString();
 
   return {
@@ -180,6 +192,7 @@ export function buildTheaterRouteBFeedbackReview(
     redLineFindings: buildRedLineFindings(options.notApplicableRedLines, redLineActionState),
     redLineActionState: redLineActionSummary,
     relationshipEdgeShadowGrounding,
+    familyProfileGrounding,
     redLineLibrary: buildRouteBObjectionRedLineLibrarySummary(),
     complianceReminder: "此回饋只作演練與合規提醒，不取代正式法遵審核或法律意見；嚴重紅線需由顧問依公司流程升級確認。",
     outputContract: {
@@ -196,6 +209,8 @@ export function buildTheaterRouteBFeedbackReview(
     },
     persistenceEnvelope: {
       requiresAdvisorConfirmation: true,
+      writesClientProfile: false,
+      writesPolicy: false,
       writesConfirmedCrmFact: false,
       storesPrivateLaneTurnContent: false,
       allowedWriteTarget: "THEATER_FEEDBACK_SUMMARY",
@@ -219,6 +234,8 @@ export function isTheaterRouteBFeedbackReview(value: unknown): value is TheaterR
   const redLineActionState = asRecord(record.redLineActionState);
   const relationshipEdgeShadowGrounding = asRecord(record.relationshipEdgeShadowGrounding);
   const relationshipEdgeShadowBoundary = asRecord(relationshipEdgeShadowGrounding.boundary);
+  const familyProfileGrounding = asRecord(record.familyProfileGrounding);
+  const familyProfileBoundary = asRecord(familyProfileGrounding.boundary);
 
   return (
     record.agentId === "asai.theater.route_b" &&
@@ -242,6 +259,20 @@ export function isTheaterRouteBFeedbackReview(value: unknown): value is TheaterR
     relationshipEdgeShadowBoundary.writesRelationshipGraph === false &&
     relationshipEdgeShadowBoundary.writesVisitPlan === false &&
     relationshipEdgeShadowBoundary.writesConfirmedCrmFact === false &&
+    familyProfileGrounding.source === "RouteBSessionSnapshot.scene.sourceGrounding.familyProfiles" &&
+    familyProfileGrounding.providerPromptUsage === "family-profile-feedback-context-only" &&
+    typeof familyProfileGrounding.usedInFeedbackReview === "boolean" &&
+    familyProfileBoundary.rawMetadataIncluded === false &&
+    familyProfileBoundary.sourceReferenceIdsIncluded === false &&
+    familyProfileBoundary.rawPrivateTranscriptIncluded === false &&
+    familyProfileBoundary.rawProviderPayloadIncluded === false &&
+    familyProfileBoundary.databaseWriteAttempted === false &&
+    familyProfileBoundary.providerCallAttempted === false &&
+    familyProfileBoundary.writesRelationshipGraph === false &&
+    familyProfileBoundary.writesVisitPlan === false &&
+    familyProfileBoundary.writesClientProfile === false &&
+    familyProfileBoundary.writesPolicy === false &&
+    familyProfileBoundary.writesConfirmedCrmFact === false &&
     record.redLineLibrary !== undefined &&
     outputContract.qualitativeOnly === true &&
     outputContract.totalScoreAllowed === false &&
@@ -250,6 +281,8 @@ export function isTheaterRouteBFeedbackReview(value: unknown): value is TheaterR
     providerBoundary.aiUsageLogWritten === false &&
     providerBoundary.storesRawProviderPayload === false &&
     persistenceEnvelope.requiresAdvisorConfirmation === true &&
+    persistenceEnvelope.writesClientProfile === false &&
+    persistenceEnvelope.writesPolicy === false &&
     persistenceEnvelope.writesConfirmedCrmFact === false &&
     privacyProof.directPrivateDialogReturned === false &&
     privacyProof.rawProviderPayloadReturned === false
@@ -305,7 +338,7 @@ function buildReviewSection({
         perspectiveId,
         label,
         observation: "未知項與旁白補問是下一輪最值得追的材料；不要把沉默或迴避直接解讀成已確認需求。",
-        evidenceBasis: pickEvidence(evidence, ["narrator-questions", "characters", "relationship-edge-shadow"]),
+        evidenceBasis: pickEvidence(evidence, ["narrator-questions", "characters", "family-profile-grounding", "relationship-edge-shadow"]),
         advisorMove: "挑一個未知缺口轉成旁白問題，再請焦點客戶確認是不是本次拜訪要處理的核心。",
         riskOrUnknown: "目前仍有未知或推論素材，任何結論都應標成待確認。",
       };
@@ -325,6 +358,7 @@ function buildReviewSection({
         observation: "決策橋接應把本輪練習轉成下一次拜訪可確認的事實、推論與未知清單，而不是總分或排名。",
         evidenceBasis: pickEvidence(evidence, [
           "relationships",
+          "family-profile-grounding",
           "relationship-edge-shadow",
           "state-proposals",
           "narrator-questions",
@@ -339,6 +373,7 @@ function buildReviewEvidence(
   snapshot: RouteBSessionSnapshot,
   redLineActionState: RouteBRedLineActionPersistenceState,
   relationshipEdgeShadowGrounding: TheaterRouteBFeedbackRelationshipEdgeShadowGrounding,
+  familyProfileGrounding: TheaterRouteBFeedbackFamilyProfileGrounding,
 ): TheaterRouteBFeedbackReviewEvidence[] {
   const characterKnownFacts = snapshot.characters.reduce((total, character) => total + routeBRecords(character.knownFacts).length, 0);
   const characterInferences = snapshot.characters.reduce((total, character) => total + routeBRecords(character.personaHints).length, 0);
@@ -376,6 +411,24 @@ function buildReviewEvidence(
       source: "relationship-edge-shadow",
       summary: "RelationshipEdge shadow readiness 候選數；正式 schema 未核可且不寫回關係圖",
       count: relationshipEdgeShadowGrounding.candidateEdgeCount,
+    },
+    {
+      label: "FACT",
+      source: "family-profile-grounding",
+      summary: "家族人物 profile 已確認欄位數；只作劇場回饋脈絡",
+      count: familyProfileGrounding.factStatusCounts.FACT,
+    },
+    {
+      label: "INFERENCE",
+      source: "family-profile-grounding",
+      summary: "家族人物 profile 推論欄位數；不可轉成 confirmed CRM fact",
+      count: familyProfileGrounding.factStatusCounts.INFERENCE,
+    },
+    {
+      label: "UNKNOWN",
+      source: "family-profile-grounding",
+      summary: "家族人物 profile 待確認欄位數",
+      count: familyProfileGrounding.unknownFieldCount,
     },
     {
       label: "STAGE_STATE",

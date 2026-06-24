@@ -112,6 +112,7 @@
     "theater:route-b-next-turn-provider-route-qa": "node scripts/theater-route-b-next-turn-provider-route-qa.mjs",
     "theater:route-b-next-turn-append-dry-run": "node scripts/theater-route-b-next-turn-append-dry-run.mjs",
     "theater:route-b-family-profile-runtime-qa": "node scripts/theater-route-b-family-profile-runtime-qa.mjs",
+    "theater:route-b-family-profile-feedback-qa": "node scripts/theater-route-b-family-profile-feedback-qa.mjs",
     "theater:route-b-objection-red-line-library-dry-run": "node scripts/theater-route-b-objection-red-line-library-dry-run.mjs",
     "theater:route-b-provider-prompt-context-dry-run": "node scripts/theater-route-b-provider-prompt-context-dry-run.mjs",
     "theater:route-b-severe-red-line-preview-dry-run": "node scripts/theater-route-b-severe-red-line-preview-dry-run.mjs",

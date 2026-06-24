@@ -162,11 +162,13 @@ REL-006e evidence（2026-06-24）：新增 `TheaterRouteBFamilyProfileRuntimeGro
 
 ### D2.9. Family profile feedback review/provider grounding（REL-006f，不動 schema）
 
-- [ ] `buildTheaterRouteBFeedbackContract()` 從 Route B session source grounding 產出 safe `familyProfileGrounding`；不得回 raw metadata、source reference ids、email、phone、policy number、raw private transcript 或 raw provider payload。
-- [ ] `buildTheaterRouteBFeedbackProviderInput()` / feedback prompt context 消費 family profile grounding 作為 session-end evidence；不得把 profile inference/unknown 當 confirmed CRM fact。
-- [ ] `buildTheaterRouteBFeedbackReview()` 寫入 feedback-specific family profile evidence，所有 evidence 只含 safe field summaries/counts/statuses/boundaries；不得寫 relationship graph、VisitPlan、client profile、policy 或 confirmed CRM fact。
-- [ ] `/theater/[sessionId]` feedback review panel 顯示 `data-route-b-feedback-family-profile-grounding` safe panel，並標示 raw metadata / provider / DB / graph / VisitPlan / confirmed CRM fact write 皆為 false。
-- [ ] `pnpm theater:route-b-feedback-dry-run`、`pnpm theater:route-b-feedback-provider-dry-run`、`pnpm theater:route-b-feedback-review-qa`、`pnpm theater:family-profile-session-source-qa`、`pnpm ai:protocol-registry-qa` 通過，且 provider-disabled path 不寫 fake `AiUsageLog`；live provider path 若使用 context，success/error 仍須寫 THEATER `AiUsageLog`。
+- [x] `buildTheaterRouteBFeedbackContract()` 從 Route B session source grounding 產出 safe `familyProfileGrounding`；不得回 raw metadata、source reference ids、email、phone、policy number、raw private transcript 或 raw provider payload。
+- [x] `buildTheaterRouteBFeedbackProviderInput()` / feedback prompt context 消費 family profile grounding 作為 session-end evidence；不得把 profile inference/unknown 當 confirmed CRM fact。
+- [x] `buildTheaterRouteBFeedbackReview()` 寫入 feedback-specific family profile evidence，所有 evidence 只含 safe field summaries/counts/statuses/boundaries；不得寫 relationship graph、VisitPlan、client profile、policy 或 confirmed CRM fact。
+- [x] `/theater/[sessionId]` feedback review panel 顯示 `data-route-b-feedback-family-profile-grounding` safe panel，並標示 raw metadata / provider / DB / graph / VisitPlan / confirmed CRM fact write 皆為 false。
+- [x] `pnpm theater:route-b-feedback-dry-run`、`pnpm theater:route-b-feedback-provider-dry-run`、`pnpm theater:route-b-feedback-review-qa`、`pnpm theater:family-profile-session-source-qa`、`pnpm ai:protocol-registry-qa` 通過，且 provider-disabled path 不寫 fake `AiUsageLog`；live provider path 若使用 context，success/error 仍須寫 THEATER `AiUsageLog`。
+
+REL-006f evidence（2026-06-24）：新增 feedback-specific `familyProfileGrounding`，由 `buildTheaterRouteBFeedbackContract()`、`buildTheaterRouteBFeedbackProviderInput()` 與 `buildTheaterRouteBFeedbackReview()` 消費 persisted `sourceGrounding.familyProfiles`，並在 UI 提供 `data-route-b-feedback-family-profile-grounding` safe panel。`pnpm theater:route-b-family-profile-feedback-qa` 串跑 contract/provider/review/UI/source proof，證明 raw metadata/source reference ids/private transcript/provider payload 皆不輸出，provider/DB/relationship graph/VisitPlan/client profile/policy/confirmed CRM fact write 皆為 false，且 live provider success/error path 仍先寫 THEATER `AiUsageLog`。
 
 ## E. 佈局/互動/可及性（REL-005）
 

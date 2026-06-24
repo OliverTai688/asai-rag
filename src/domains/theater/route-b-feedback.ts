@@ -1,4 +1,5 @@
 import type {
+  TheaterRouteBFamilyProfileGroundingSummary,
   TheaterRouteBHandoffPacket,
   TheaterRouteBMaterial,
   TheaterRouteBPersonaHint,
@@ -7,7 +8,9 @@ import type {
   TheaterRouteBVisibilityScope,
 } from "./route-b-handoff";
 import {
+  buildFamilyProfileRuntimeGrounding,
   buildRelationshipEdgeShadowRuntimeGrounding,
+  type TheaterRouteBFamilyProfileRuntimeGrounding,
   type TheaterRouteBRelationshipEdgeShadowRuntimeGrounding,
 } from "./route-b-next-turn";
 import {
@@ -76,12 +79,25 @@ export interface TheaterRouteBFeedbackOutputSectionContract {
   requiredFields: Array<"observation" | "evidenceBasis" | "advisorMove" | "riskOrUnknown">;
 }
 
+export type TheaterRouteBFeedbackFamilyProfileGrounding = Omit<
+  TheaterRouteBFamilyProfileRuntimeGrounding,
+  "usedInNextTurnRuntime" | "providerPromptUsage" | "boundary"
+> & {
+  usedInFeedbackReview: boolean;
+  providerPromptUsage: "family-profile-feedback-context-only";
+  boundary: TheaterRouteBFamilyProfileRuntimeGrounding["boundary"] & {
+    writesClientProfile: false;
+    writesPolicy: false;
+  };
+};
+
 export interface TheaterRouteBFeedbackContract {
   agentId: "asai.theater.route_b";
   registryReadiness: "internal-only";
   selectedPerspectives: TheaterRouteBFeedbackPerspective[];
   inputPreview: TheaterRouteBFeedbackInputPreview;
   relationshipEdgeShadowGrounding: TheaterRouteBRelationshipEdgeShadowRuntimeGrounding;
+  familyProfileGrounding: TheaterRouteBFeedbackFamilyProfileGrounding;
   outputContract: {
     qualitativeOnly: true;
     totalScoreAllowed: false;
@@ -163,6 +179,7 @@ export function buildTheaterRouteBFeedbackContract(
     relationshipEdgeShadowGrounding: buildRelationshipEdgeShadowRuntimeGrounding(
       options.handoff.scene.sourceGrounding?.relationshipEdgeShadow,
     ),
+    familyProfileGrounding: buildFamilyProfileFeedbackGrounding(options.handoff.scene.sourceGrounding?.familyProfiles),
     outputContract: {
       qualitativeOnly: true,
       totalScoreAllowed: false,
@@ -193,6 +210,31 @@ export function buildTheaterRouteBFeedbackContract(
       requiresAdvisorConfirmation: true,
       writesConfirmedCrmFact: false,
       storesPrivateLaneTurnContent: false,
+    },
+  };
+}
+
+export function buildFamilyProfileFeedbackGrounding(
+  source: TheaterRouteBFamilyProfileGroundingSummary | undefined,
+): TheaterRouteBFeedbackFamilyProfileGrounding {
+  const runtimeGrounding = buildFamilyProfileRuntimeGrounding(source);
+
+  return {
+    source: runtimeGrounding.source,
+    usedInFeedbackReview: runtimeGrounding.usedInNextTurnRuntime,
+    providerPromptUsage: "family-profile-feedback-context-only",
+    profiledMemberCount: runtimeGrounding.profiledMemberCount,
+    fieldCount: runtimeGrounding.fieldCount,
+    knownFieldCount: runtimeGrounding.knownFieldCount,
+    unknownFieldCount: runtimeGrounding.unknownFieldCount,
+    sourceReferenceCount: runtimeGrounding.sourceReferenceCount,
+    factStatusCounts: runtimeGrounding.factStatusCounts,
+    fields: runtimeGrounding.fields,
+    unknownPrompts: runtimeGrounding.unknownPrompts,
+    boundary: {
+      ...runtimeGrounding.boundary,
+      writesClientProfile: false,
+      writesPolicy: false,
     },
   };
 }

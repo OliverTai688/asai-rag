@@ -1780,6 +1780,7 @@ function RouteBFeedbackReviewPanel({
   const redLineEscalate = review?.redLineActionState.escalateCount ?? 0;
   const redLineEvidenceNeeded = review?.redLineActionState.evidenceNeededCount ?? 0;
   const edgeShadowGrounding = review?.relationshipEdgeShadowGrounding;
+  const familyProfileGrounding = review?.familyProfileGrounding;
 
   return (
     <Card className="border-hairline shadow-none">
@@ -1849,6 +1850,10 @@ function RouteBFeedbackReviewPanel({
                 label="Edge shadow source"
                 value={edgeShadowGrounding?.usedInFeedbackReview ? "scene.sourceGrounding.relationshipEdgeShadow" : "none"}
               />
+              <ContextLine
+                label="Family profile source"
+                value={familyProfileGrounding?.usedInFeedbackReview ? "scene.sourceGrounding.familyProfiles" : "none"}
+              />
             </div>
 
             <div className="grid grid-cols-2 gap-2">
@@ -1885,6 +1890,52 @@ function RouteBFeedbackReviewPanel({
                   <ContextLine label="Raw draft edges" value={String(edgeShadowGrounding.boundary.rawDraftEdgesIncluded)} />
                   <ContextLine label="Graph write" value={String(edgeShadowGrounding.boundary.writesRelationshipGraph)} />
                   <ContextLine label="DB write" value={String(edgeShadowGrounding.boundary.databaseWriteAttempted)} />
+                </div>
+              </div>
+            ) : null}
+
+            {familyProfileGrounding ? (
+              <div
+                className="rounded-lg border border-hairline bg-paper px-3 py-3"
+                data-route-b-feedback-family-profile-grounding="true"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-semibold text-ink">人物資料回顧脈絡</p>
+                    <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                      回顧可引用人物 profile 欄位作為劇場脈絡；推論與未知仍只作問題依據，不寫回人物檔、保單或 CRM 事實。
+                    </p>
+                  </div>
+                  <Badge variant="outline" className="rounded-full">
+                    {familyProfileGrounding.fieldCount} fields
+                  </Badge>
+                </div>
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <RouteBMiniCount label="人物" value={familyProfileGrounding.profiledMemberCount} />
+                  <RouteBMiniCount label="欄位" value={familyProfileGrounding.fieldCount} />
+                  <RouteBMiniCount label="已知" value={familyProfileGrounding.knownFieldCount} />
+                  <RouteBMiniCount label="未知" value={familyProfileGrounding.unknownFieldCount} />
+                </div>
+                <div className="mt-3 space-y-2">
+                  {familyProfileGrounding.fields.slice(0, 3).map((field) => (
+                    <p
+                      key={`${field.memberLabel}-${field.fieldLabel}`}
+                      className="rounded-md border border-hairline bg-background px-3 py-2 text-xs leading-5 text-muted-foreground"
+                    >
+                      {field.memberLabel} / {field.fieldLabel}: {field.valueSummary}
+                    </p>
+                  ))}
+                </div>
+                <div className="mt-2 grid gap-1 text-xs leading-5 text-muted-foreground">
+                  <ContextLine label="Raw metadata" value={String(familyProfileGrounding.boundary.rawMetadataIncluded)} />
+                  <ContextLine label="Source refs" value={String(familyProfileGrounding.boundary.sourceReferenceIdsIncluded)} />
+                  <ContextLine label="Provider call" value={String(familyProfileGrounding.boundary.providerCallAttempted)} />
+                  <ContextLine label="DB write" value={String(familyProfileGrounding.boundary.databaseWriteAttempted)} />
+                  <ContextLine label="Graph write" value={String(familyProfileGrounding.boundary.writesRelationshipGraph)} />
+                  <ContextLine label="VisitPlan write" value={String(familyProfileGrounding.boundary.writesVisitPlan)} />
+                  <ContextLine label="Client profile write" value={String(familyProfileGrounding.boundary.writesClientProfile)} />
+                  <ContextLine label="Policy write" value={String(familyProfileGrounding.boundary.writesPolicy)} />
+                  <ContextLine label="CRM fact write" value={String(familyProfileGrounding.boundary.writesConfirmedCrmFact)} />
                 </div>
               </div>
             ) : null}
