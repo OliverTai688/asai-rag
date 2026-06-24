@@ -84,11 +84,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 0,
+    "normalLoopsSinceLastWholeProductReview": 1,
     "lastWholeProductReviewAt": "2026-06-24T17:42:08Z",
     "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-25_lv3-whole-product-gap-review-after-meeting-review-context-bff.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "Run normal L2 proof-pack slice LV3-CROSS-003: update the deterministic no-provider LV3 proof pack, or an adjacent wrapper command, so it includes the completed AI Meeting feedback advisor reviewContext -> meeting writeback candidate review -> visit meeting relationship signal BFF -> preparation UI/theater handoff/session source-grounding chain. Keep the command no-provider/no-DB-write/no external registry, keep live DB-backed proof as a separate rerun when Supabase DNS is restored, and do not touch RelationshipEdge schema or relationship confirmation persistence unless operator approval/A-B-C decision arrives.",
+    "nextRecommendedImplementationSlice": "LV3-CROSS-003 is completed as a filtered deterministic proof-pack mode. Next normal loop should first check whether Supabase DNS/DB is restored and, if yes, rerun the full live DB-backed command `DEMO_QA_BASE_URL=http://127.0.0.1:<free-port> pnpm lv3:cross-flow-no-provider-qa`. If DB remains unavailable and no RelationshipEdge schema approval or relationship confirmation A/B/C decision has arrived, select the next non-DB source-backed LV3 bridge/proof slice rather than repeating the live DB proof.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {
@@ -156,5 +156,5 @@
     "lv3ImmersiveLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-immersive-loop.md",
     "lv3WholeProductGapReviewLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md"
   },
-  "updatedAt": "2026-06-24T17:42:08Z"
+  "updatedAt": "2026-06-24T18:04:30Z"
 }

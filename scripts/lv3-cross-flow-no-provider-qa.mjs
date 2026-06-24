@@ -12,6 +12,9 @@ const dbUrl = process.env.DIRECT_URL ?? process.env.DATABASE_URL;
 const screenshotDir = resolve(
   process.env.DEMO_QA_SCREENSHOT_DIR ?? "docs/06_audits-and-reports/screenshots/lv3-cross-flow-no-provider",
 );
+const coverageFilter = process.env.LV3_CROSS_FLOW_COVERAGE?.trim() || "";
+const MEETING_REVIEW_CONTEXT_COVERAGE = "meeting-review-context-chain";
+const MEETING_REVIEW_CONTEXT_EXPECTED_COMMANDS = 7;
 const startedProcesses = [];
 const checks = [];
 let aiUsageLogCountSkipReason = "";
@@ -86,6 +89,36 @@ const qaCommands = [
     chain: "post-rel-006h-family-profile-bridge",
     label: "feedback advisor context to AI Meeting writeback preview bridge proof",
     args: ["meeting:route-b-feedback-advisor-writeback-bridge-qa"],
+    coverage: [MEETING_REVIEW_CONTEXT_COVERAGE],
+    requiresDevServer: false,
+  },
+  {
+    chain: "meeting-review-context-cross-flow",
+    label: "meeting reviewContext relationship signal contract proof",
+    args: ["visit:meeting-relationship-signal-dry-run"],
+    coverage: [MEETING_REVIEW_CONTEXT_COVERAGE],
+    requiresDevServer: false,
+  },
+  {
+    chain: "meeting-review-context-cross-flow",
+    label: "meeting reviewContext relationship signal BFF/UI proof",
+    args: ["visit:meeting-relationship-signal-bff-ui-qa"],
+    coverage: [MEETING_REVIEW_CONTEXT_COVERAGE],
+    requiresDevServer: false,
+  },
+  {
+    chain: "meeting-review-context-cross-flow",
+    label: "meeting reviewContext preparation to theater handoff proof",
+    args: ["visit:meeting-signal-theater-handoff-qa"],
+    coverage: [MEETING_REVIEW_CONTEXT_COVERAGE],
+    requiresDevServer: false,
+  },
+  {
+    chain: "meeting-review-context-cross-flow",
+    label: "meeting reviewContext Route B session source grounding proof",
+    args: ["theater:meeting-signal-session-source-qa"],
+    coverage: [MEETING_REVIEW_CONTEXT_COVERAGE],
+    requiresDevServer: false,
   },
   {
     chain: "cross-flow-regression",
@@ -96,23 +129,38 @@ const qaCommands = [
     chain: "protocol-boundary",
     label: "AgentFacts protocol registry proof",
     args: ["ai:protocol-registry-qa"],
+    coverage: [MEETING_REVIEW_CONTEXT_COVERAGE],
+    requiresDevServer: false,
   },
   {
     chain: "protocol-boundary",
     label: "AI BFF audit and no-provider posture inventory",
     args: ["ai:bff-audit"],
+    coverage: [MEETING_REVIEW_CONTEXT_COVERAGE],
+    requiresDevServer: false,
   },
 ];
+
+const selectedQaCommands = selectQaCommands();
 
 mkdirSync(screenshotDir, { recursive: true });
 
 installShutdownHandlers();
 
 try {
-  await ensureDevServer();
+  if (coverageFilter) {
+    push(true, "LV3 cross-flow coverage filter applied", `${coverageFilter}: ${selectedQaCommands.length}/${qaCommands.length} proof commands selected`);
+  }
+
+  if (selectedQaCommands.some((command) => command.requiresDevServer !== false)) {
+    await ensureDevServer();
+  } else {
+    push(true, "ASAI dev server skipped for selected coverage", coverageFilter || "all selected commands marked serverless");
+  }
+
   const beforeUsageCount = await countAiUsageLogs();
 
-  for (const command of qaCommands) {
+  for (const command of selectedQaCommands) {
     await runPnpmScript(command);
   }
 
@@ -122,10 +170,19 @@ try {
   } else {
     push(true, "AiUsageLog count check skipped", aiUsageLogCountSkipReason || "DB URL is unavailable");
   }
-  push(true, "post-REL-006h family-profile feedback/writeback chain covered", `${countCommands("post-rel-006h-family-profile-bridge")} proof commands passed`);
-  push(true, "Route B state proposal cross-flow regression covered", `${countCommands("cross-flow-regression")} proof command passed`);
-  push(true, "AgentFacts/protocol boundary covered", `${countCommands("protocol-boundary")} proof commands passed`);
-  push(true, "LV3 cross-flow proof pack completed", `${qaCommands.length} proof commands passed`);
+  pushChainSummary(
+    "post-rel-006h-family-profile-bridge",
+    "post-REL-006h family-profile feedback/writeback chain covered",
+  );
+  push(
+    countCoverage(MEETING_REVIEW_CONTEXT_COVERAGE) === MEETING_REVIEW_CONTEXT_EXPECTED_COMMANDS,
+    "meeting reviewContext cross-flow chain covered",
+    `${countCoverage(MEETING_REVIEW_CONTEXT_COVERAGE)}/${MEETING_REVIEW_CONTEXT_EXPECTED_COMMANDS} proof commands passed`,
+  );
+  pushChainSummary("meeting-review-context-cross-flow", "meeting reviewContext visit/theater source chain covered");
+  pushChainSummary("cross-flow-regression", "Route B state proposal cross-flow regression covered");
+  pushChainSummary("protocol-boundary", "AgentFacts/protocol boundary covered");
+  push(true, "LV3 cross-flow proof pack completed", `${selectedQaCommands.length}/${qaCommands.length} proof commands passed`);
 } catch (error) {
   push(false, "LV3 cross-flow proof pack failed", error instanceof Error ? error.message : String(error));
   process.exitCode = 1;
@@ -273,7 +330,41 @@ async function countAiUsageLogs() {
 }
 
 function countCommands(chain) {
-  return qaCommands.filter((command) => command.chain === chain).length;
+  return selectedQaCommands.filter((command) => command.chain === chain).length;
+}
+
+function countCoverage(coverage) {
+  return selectedQaCommands.filter((command) => command.coverage?.includes(coverage)).length;
+}
+
+function pushChainSummary(chain, label) {
+  const selectedCount = countCommands(chain);
+  const totalCount = qaCommands.filter((command) => command.chain === chain).length;
+  if (coverageFilter && selectedCount === 0) {
+    push(true, `${label.replace(/ covered$/, "")} skipped by coverage filter`, coverageFilter);
+    return;
+  }
+
+  const summaryLabel =
+    coverageFilter && selectedCount < totalCount
+      ? `${label.replace(/ covered$/, "")} selected proof subset covered`
+      : label;
+  const detail = coverageFilter
+    ? `${selectedCount}/${totalCount} selected proof command${selectedCount === 1 ? "" : "s"} passed`
+    : `${selectedCount} proof command${selectedCount === 1 ? "" : "s"} passed`;
+
+  push(true, summaryLabel, detail);
+}
+
+function selectQaCommands() {
+  if (!coverageFilter) return qaCommands;
+
+  const selectedCommands = qaCommands.filter((command) => command.coverage?.includes(coverageFilter));
+  if (selectedCommands.length === 0) {
+    throw new Error(`No LV3 cross-flow proof commands matched coverage filter: ${coverageFilter}`);
+  }
+
+  return selectedCommands;
 }
 
 function safeErrorCode(error) {
