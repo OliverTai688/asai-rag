@@ -599,7 +599,7 @@ function buildMeetingSignalRuntimeGrounding(
   };
 }
 
-function buildRelationshipEdgeShadowRuntimeGrounding(
+export function buildRelationshipEdgeShadowRuntimeGrounding(
   source: TheaterRouteBRelationshipEdgeShadowGroundingSummary | undefined,
 ): TheaterRouteBRelationshipEdgeShadowRuntimeGrounding {
   const edgeTypeCounts = source ? sanitizeCountRecord(source.edgeTypeCounts, 8) : {};

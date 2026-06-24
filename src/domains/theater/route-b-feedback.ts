@@ -7,6 +7,10 @@ import type {
   TheaterRouteBVisibilityScope,
 } from "./route-b-handoff";
 import {
+  buildRelationshipEdgeShadowRuntimeGrounding,
+  type TheaterRouteBRelationshipEdgeShadowRuntimeGrounding,
+} from "./route-b-next-turn";
+import {
   buildRouteBObjectionRedLineLibrarySummary,
   ROUTE_B_SEVERE_RED_LINES,
   type TheaterRouteBSevereRedLine,
@@ -77,6 +81,7 @@ export interface TheaterRouteBFeedbackContract {
   registryReadiness: "internal-only";
   selectedPerspectives: TheaterRouteBFeedbackPerspective[];
   inputPreview: TheaterRouteBFeedbackInputPreview;
+  relationshipEdgeShadowGrounding: TheaterRouteBRelationshipEdgeShadowRuntimeGrounding;
   outputContract: {
     qualitativeOnly: true;
     totalScoreAllowed: false;
@@ -155,6 +160,9 @@ export function buildTheaterRouteBFeedbackContract(
     registryReadiness: "internal-only",
     selectedPerspectives,
     inputPreview: buildFeedbackInputPreview(options.handoff, options.history ?? []),
+    relationshipEdgeShadowGrounding: buildRelationshipEdgeShadowRuntimeGrounding(
+      options.handoff.scene.sourceGrounding?.relationshipEdgeShadow,
+    ),
     outputContract: {
       qualitativeOnly: true,
       totalScoreAllowed: false,

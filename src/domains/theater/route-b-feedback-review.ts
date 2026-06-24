@@ -13,11 +13,27 @@ import {
   type RouteBRedLineActionReasonCode,
   type RouteBRedLineActionState,
 } from "./route-b-red-line-action-workflow";
+import {
+  buildRelationshipEdgeShadowRuntimeGrounding,
+  type TheaterRouteBRelationshipEdgeShadowRuntimeGrounding,
+} from "./route-b-next-turn";
 import type { RouteBSessionSnapshot } from "./route-b-session";
 
 export type TheaterRouteBFeedbackReviewStatus = "DETERMINISTIC_NO_PROVIDER";
-export type TheaterRouteBFeedbackEvidenceLabel = "FACT" | "INFERENCE" | "UNKNOWN" | "STAGE_STATE" | "ACTION_STATE";
+export type TheaterRouteBFeedbackEvidenceLabel =
+  | "FACT"
+  | "INFERENCE"
+  | "UNKNOWN"
+  | "STAGE_STATE"
+  | "ACTION_STATE"
+  | "EDGE_SHADOW";
 export type TheaterRouteBFeedbackRedLineStatus = "NEEDS_REVIEW" | "NOT_APPLICABLE";
+export type TheaterRouteBFeedbackRelationshipEdgeShadowGrounding = Omit<
+  TheaterRouteBRelationshipEdgeShadowRuntimeGrounding,
+  "usedInNextTurnRuntime"
+> & {
+  usedInFeedbackReview: boolean;
+};
 
 export interface TheaterRouteBFeedbackReviewEvidence {
   label: TheaterRouteBFeedbackEvidenceLabel;
@@ -27,7 +43,8 @@ export interface TheaterRouteBFeedbackReviewEvidence {
     | "turns"
     | "state-proposals"
     | "narrator-questions"
-    | "red-line-actions";
+    | "red-line-actions"
+    | "relationship-edge-shadow";
   summary: string;
   count: number;
 }
@@ -92,6 +109,7 @@ export interface TheaterRouteBFeedbackReview {
   sections: TheaterRouteBFeedbackReviewSection[];
   redLineFindings: TheaterRouteBFeedbackReviewRedLineFinding[];
   redLineActionState: TheaterRouteBFeedbackReviewRedLineActionSummary;
+  relationshipEdgeShadowGrounding: TheaterRouteBFeedbackRelationshipEdgeShadowGrounding;
   redLineLibrary: ReturnType<typeof buildRouteBObjectionRedLineLibrarySummary>;
   complianceReminder: string;
   outputContract: {
@@ -137,7 +155,8 @@ export function buildTheaterRouteBFeedbackReview(
   const selectedPerspectives = selectReviewPerspectives(options.selectedPerspectiveIds);
   const redLineActionState = resolveRedLineActionState(options.snapshot);
   const redLineActionSummary = buildRedLineActionSummary(redLineActionState);
-  const evidence = buildReviewEvidence(options.snapshot, redLineActionState);
+  const relationshipEdgeShadowGrounding = buildFeedbackRelationshipEdgeShadowGrounding(options.snapshot);
+  const evidence = buildReviewEvidence(options.snapshot, redLineActionState, relationshipEdgeShadowGrounding);
   const generatedAt = (options.now ?? new Date()).toISOString();
 
   return {
@@ -160,6 +179,7 @@ export function buildTheaterRouteBFeedbackReview(
     ),
     redLineFindings: buildRedLineFindings(options.notApplicableRedLines, redLineActionState),
     redLineActionState: redLineActionSummary,
+    relationshipEdgeShadowGrounding,
     redLineLibrary: buildRouteBObjectionRedLineLibrarySummary(),
     complianceReminder: "此回饋只作演練與合規提醒，不取代正式法遵審核或法律意見；嚴重紅線需由顧問依公司流程升級確認。",
     outputContract: {
@@ -197,6 +217,8 @@ export function isTheaterRouteBFeedbackReview(value: unknown): value is TheaterR
   const persistenceEnvelope = asRecord(record.persistenceEnvelope);
   const privacyProof = asRecord(record.privacyProof);
   const redLineActionState = asRecord(record.redLineActionState);
+  const relationshipEdgeShadowGrounding = asRecord(record.relationshipEdgeShadowGrounding);
+  const relationshipEdgeShadowBoundary = asRecord(relationshipEdgeShadowGrounding.boundary);
 
   return (
     record.agentId === "asai.theater.route_b" &&
@@ -211,6 +233,15 @@ export function isTheaterRouteBFeedbackReview(value: unknown): value is TheaterR
     redLineActionState.noProviderCall === true &&
     redLineActionState.writesConfirmedCrmFact === false &&
     redLineActionState.triggersExternalNotification === false &&
+    relationshipEdgeShadowGrounding.source === "RouteBSessionSnapshot.scene.sourceGrounding.relationshipEdgeShadow" &&
+    relationshipEdgeShadowGrounding.providerPromptUsage === "relationship-readiness-context-only" &&
+    relationshipEdgeShadowBoundary.rawDraftEdgesIncluded === false &&
+    relationshipEdgeShadowBoundary.clientFacingDraftEdgesReturned === false &&
+    relationshipEdgeShadowBoundary.formalSchemaApproved === false &&
+    relationshipEdgeShadowBoundary.databaseWriteAttempted === false &&
+    relationshipEdgeShadowBoundary.writesRelationshipGraph === false &&
+    relationshipEdgeShadowBoundary.writesVisitPlan === false &&
+    relationshipEdgeShadowBoundary.writesConfirmedCrmFact === false &&
     record.redLineLibrary !== undefined &&
     outputContract.qualitativeOnly === true &&
     outputContract.totalScoreAllowed === false &&
@@ -265,7 +296,7 @@ function buildReviewSection({
         perspectiveId,
         label,
         observation: "從客戶視角，私聊與群聊邊界要清楚；被點名角色應知道自己為何被問，而不是只被要求配合演出。",
-        evidenceBasis: pickEvidence(evidence, ["turns", "relationships"]),
+        evidenceBasis: pickEvidence(evidence, ["turns", "relationships", "relationship-edge-shadow"]),
         advisorMove: "對每次私聊補一句情境說明，避免角色感覺被突然拉出群聊。",
         riskOrUnknown: "若私聊內容需要回到群聊，必須由顧問明確確認可引用範圍。",
       };
@@ -274,7 +305,7 @@ function buildReviewSection({
         perspectiveId,
         label,
         observation: "未知項與旁白補問是下一輪最值得追的材料；不要把沉默或迴避直接解讀成已確認需求。",
-        evidenceBasis: pickEvidence(evidence, ["narrator-questions", "characters"]),
+        evidenceBasis: pickEvidence(evidence, ["narrator-questions", "characters", "relationship-edge-shadow"]),
         advisorMove: "挑一個未知缺口轉成旁白問題，再請焦點客戶確認是不是本次拜訪要處理的核心。",
         riskOrUnknown: "目前仍有未知或推論素材，任何結論都應標成待確認。",
       };
@@ -292,7 +323,12 @@ function buildReviewSection({
         perspectiveId,
         label,
         observation: "決策橋接應把本輪練習轉成下一次拜訪可確認的事實、推論與未知清單，而不是總分或排名。",
-        evidenceBasis: pickEvidence(evidence, ["relationships", "state-proposals", "narrator-questions"]),
+        evidenceBasis: pickEvidence(evidence, [
+          "relationships",
+          "relationship-edge-shadow",
+          "state-proposals",
+          "narrator-questions",
+        ]),
         advisorMove: "收尾時列出一個已確認、一個待確認、一個下一步問題，交給拜訪準備包或下次劇場。",
         riskOrUnknown: "不要把回饋文字直接寫成 CRM 事實；需要 advisor confirmation/writeback card。",
       };
@@ -302,6 +338,7 @@ function buildReviewSection({
 function buildReviewEvidence(
   snapshot: RouteBSessionSnapshot,
   redLineActionState: RouteBRedLineActionPersistenceState,
+  relationshipEdgeShadowGrounding: TheaterRouteBFeedbackRelationshipEdgeShadowGrounding,
 ): TheaterRouteBFeedbackReviewEvidence[] {
   const characterKnownFacts = snapshot.characters.reduce((total, character) => total + routeBRecords(character.knownFacts).length, 0);
   const characterInferences = snapshot.characters.reduce((total, character) => total + routeBRecords(character.personaHints).length, 0);
@@ -335,6 +372,12 @@ function buildReviewEvidence(
       count: relationships.length,
     },
     {
+      label: "EDGE_SHADOW",
+      source: "relationship-edge-shadow",
+      summary: "RelationshipEdge shadow readiness 候選數；正式 schema 未核可且不寫回關係圖",
+      count: relationshipEdgeShadowGrounding.candidateEdgeCount,
+    },
+    {
       label: "STAGE_STATE",
       source: "turns",
       summary: "舞台回合數，不回傳 raw 對話內容",
@@ -359,6 +402,19 @@ function buildReviewEvidence(
       count: redLineActionState.records.length,
     },
   ];
+}
+
+function buildFeedbackRelationshipEdgeShadowGrounding(
+  snapshot: RouteBSessionSnapshot,
+): TheaterRouteBFeedbackRelationshipEdgeShadowGrounding {
+  const { usedInNextTurnRuntime, ...grounding } = buildRelationshipEdgeShadowRuntimeGrounding(
+    snapshot.scene.sourceGrounding?.relationshipEdgeShadow,
+  );
+
+  return {
+    ...grounding,
+    usedInFeedbackReview: usedInNextTurnRuntime,
+  };
 }
 
 function pickEvidence(

@@ -211,6 +211,20 @@ ITA-003n evidence note（2026-06-22）：新增 owner-scoped `POST /api/theater/
 
 REL-004f evidence note（2026-06-24）：Route B next-turn draft/provider prompt context 已消費 `relationshipEdgeShadowGrounding`，UI next-turn preview 新增 `data-route-b-next-turn-edge-shadow-runtime-grounding` safe panel；proof 維持 no-provider/no fake usage/no schema/no DB write/no confirmed CRM fact。正式 `RelationshipEdge` table、external registry publication、live provider cost proof 仍未完成。
 
+### 5.12 Route B relationship-edge-shadow feedback review/provider acceptance
+
+`REL-004g` 若把 persisted RelationshipEdge shadow source grounding 接進 feedback contract / feedback provider prompt context / feedback review evidence，完成前必須額外滿足：
+
+- [x] `buildTheaterRouteBFeedbackContract()` 必須從 Route B handoff / session source grounding 產出 least-disclosure grounding summary，至少包含 source member count、candidate edge count、edge type/status counts、warning codes、unsupported relation count 與 formal-schema/no-write boundary；不得回 draft edge ids、source/target node ids、sourceReferenceIds、raw private transcript 或 raw provider payload。
+- [x] `buildTheaterRouteBFeedbackProviderInput()` 或 feedback provider prompt context 必須消費上述 grounding summary 作為 session-end feedback evidence，並保持 `registryReadiness=internal-only`、`storesRawProviderPayload=false`、`rawPrivateTranscriptAllowed=false`、`directPrivateDialogAllowed=false`。
+- [x] Provider-disabled feedback path 不得呼叫 provider、不得寫 fake `AiUsageLog`；live provider path 若使用該 context，success/error 仍必須先寫 THEATER `AiUsageLog` 並只回 safe feedback candidate。
+- [x] `buildTheaterRouteBFeedbackReview()` 必須把 grounding 寫入 review evidence，且所有 `EDGE_SHADOW` evidence 僅使用 counts/warnings/boundaries，不得寫 relationship graph、VisitPlan 或 confirmed CRM fact。
+- [x] `/theater/[sessionId]` 的 feedback review panel 必須能顯示 relationship-edge-shadow grounding 的摘要或 guard flag，但不得要求顧問輸入 raw session/person/edge id。
+- [x] AgentFacts-style manifest 必須新增 feedback review/provider context evidence refs / proof command，且不得宣稱 external-ready、external-registered 或正式 NANDA publication。
+- [x] 需跑 `pnpm theater:route-b-feedback-dry-run`、`pnpm theater:route-b-feedback-provider-dry-run`、`pnpm theater:route-b-feedback-review-qa`、`pnpm theater:relationship-edge-shadow-session-source-qa`、`pnpm ai:protocol-registry-qa`、`pnpm ai:bff-audit`、`pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+
+REL-004g evidence note（2026-06-24）：Route B feedback contract/provider prompt context/review evidence 已消費 `relationshipEdgeShadowGrounding`，UI feedback review panel 新增 `data-route-b-feedback-edge-shadow-grounding` safe panel；proof 維持 no-provider/no fake usage/no schema/no DB write/no relationship graph/VisitPlan/confirmed CRM fact。正式 `RelationshipEdge` table、external registry publication、live provider cost proof 仍未完成。
+
 ---
 
 ## 6. Feedback / Compliance Acceptance

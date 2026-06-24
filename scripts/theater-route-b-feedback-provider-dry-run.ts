@@ -12,6 +12,7 @@ import {
 import type {
   TheaterRouteBHandoffPacket,
   TheaterRouteBMaterial,
+  TheaterRouteBRelationshipEdgeShadowGroundingSummary,
   TheaterRouteBTurnRef,
 } from "../src/domains/theater/route-b-handoff";
 
@@ -56,6 +57,20 @@ check(providerInput.promptContext.promptRules.immediateSevereRedLineIds.length =
 check(providerInput.promptContext.promptRules.postReviewRedLineIds.length === 13, "provider input prompt context keeps thirteen post-review red lines");
 check(providerInput.promptContext.promptRules.doNotTreatObjectionsAsConfirmedCrmFacts, "provider input prompt context prevents confirmed CRM fact writes");
 check(providerInput.promptContext.promptRules.doNotProvideLegalAdvice, "provider input prompt context forbids legal advice posture");
+check(
+  providerInput.promptContext.relationshipEdgeShadowGrounding.usedInNextTurnRuntime,
+  "provider input prompt context carries relationship edge shadow grounding",
+);
+check(
+  providerInput.promptContext.relationshipEdgeShadowGrounding.candidateEdgeCount === 3,
+  "provider input prompt context carries edge shadow candidate count",
+);
+check(
+  providerInput.promptContext.relationshipEdgeShadowGrounding.boundary.rawDraftEdgesIncluded === false &&
+    providerInput.promptContext.relationshipEdgeShadowGrounding.boundary.clientFacingDraftEdgesReturned === false &&
+    providerInput.promptContext.relationshipEdgeShadowGrounding.boundary.writesRelationshipGraph === false,
+  "provider input prompt context keeps edge shadow no-draft/no-write boundary",
+);
 check(!providerInput.promptContext.providerBoundary.providerCallAttempted, "prompt context itself does not call provider");
 check(!providerInput.promptContext.providerBoundary.aiUsageLogWritten, "prompt context itself does not fake AiUsageLog");
 check(providerInput.promptContext.providerBoundary.successErrorAiUsageLogRequiredBeforeProviderEnablement, "prompt context keeps success/error AiUsageLog enablement gate");
@@ -193,6 +208,9 @@ async function main() {
         promptContextObjectionCount: providerInput.promptContext.librarySummary.objectionPromptCount,
         promptContextRedLineCount: providerInput.promptContext.librarySummary.redLineRuleCount,
         promptContextSelectedObjections: providerInput.promptContext.selectedObjections.map((cue) => cue.id),
+        edgeShadowCandidateCount: providerInput.promptContext.relationshipEdgeShadowGrounding.candidateEdgeCount,
+        edgeShadowRawDraftEdgesIncluded: providerInput.promptContext.relationshipEdgeShadowGrounding.boundary.rawDraftEdgesIncluded,
+        edgeShadowWritesRelationshipGraph: providerInput.promptContext.relationshipEdgeShadowGrounding.boundary.writesRelationshipGraph,
         redLineReviewAllRuleCount: providerInput.redLineReview.allRules.length,
         redLineFindingsCount: successResult.status === "SUCCESS" ? successResult.feedback.redLineFindings.length : 0,
         eventTrail,
@@ -275,6 +293,9 @@ function buildHandoffFixture(): TheaterRouteBHandoffPacket {
         },
       ],
       statePatches: [],
+      sourceGrounding: {
+        relationshipEdgeShadow: relationshipEdgeShadowGrounding(),
+      },
     },
     aiUsagePlan: {
       noProviderDuringHandoffBuild: true,
@@ -298,6 +319,41 @@ function buildHandoffFixture(): TheaterRouteBHandoffPacket {
       legacyTensionStrategy: "statePatches only",
       legacyScoreStrategy: "qualitative feedback only",
       migrationBoundary: "feedback provider logging contract proof",
+    },
+  };
+}
+
+function relationshipEdgeShadowGrounding(): TheaterRouteBRelationshipEdgeShadowGroundingSummary {
+  return {
+    sourceMemberCount: 4,
+    candidateEdgeCount: 3,
+    edgeTypeCounts: {
+      SPOUSE: 1,
+      INFLUENCE: 1,
+      UNKNOWN_RELATION: 1,
+    },
+    factStatusCounts: {
+      FACT: 1,
+      INFERENCE: 1,
+      UNKNOWN: 1,
+    },
+    warningCodes: ["RELATIONSHIP_EDGE_SCHEMA_NOT_APPROVED"],
+    unsupportedRelationCount: 1,
+    boundary: {
+      ownerScopedRelationshipGraphRequired: true,
+      browserSuppliedSessionId: false,
+      providerCallAttempted: false,
+      aiUsageLogWritten: false,
+      storesRawProviderPayload: false,
+      rawPrivateTranscriptIncluded: false,
+      schemaChanged: false,
+      databaseWriteAttempted: false,
+      clientFacingDraftEdgesReturned: false,
+      formalSchemaApproved: false,
+      persistedToDatabase: false,
+      writesRelationshipGraph: false,
+      writesVisitPlan: false,
+      writesConfirmedCrmFact: false,
     },
   };
 }

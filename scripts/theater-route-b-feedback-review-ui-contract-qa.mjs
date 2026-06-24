@@ -37,6 +37,11 @@ check(pageSource.includes("review.outputContract.totalScoreAllowed"), "UI expose
 check(pageSource.includes("review.redLineFindings"), "UI renders red-line findings");
 check(pageSource.includes("review.redLineActionState"), "UI renders consumed red-line action summary");
 check(pageSource.includes("sceneState.redLineActionState"), "UI labels feedback review action-state source");
+check(pageSource.includes("review?.relationshipEdgeShadowGrounding"), "UI reads feedback review edge-shadow grounding");
+check(pageSource.includes("data-route-b-feedback-edge-shadow-grounding"), "UI exposes feedback edge-shadow grounding data hook");
+check(pageSource.includes("scene.sourceGrounding.relationshipEdgeShadow"), "UI labels feedback edge-shadow source");
+check(pageSource.includes("edgeShadowGrounding.boundary.rawDraftEdgesIncluded"), "UI exposes edge-shadow raw draft boundary");
+check(pageSource.includes("edgeShadowGrounding.boundary.writesRelationshipGraph"), "UI exposes edge-shadow graph-write boundary");
 check(pageSource.includes("finding.actionContext"), "UI renders per-red-line action context");
 
 check(routeSource.includes("requireCurrentMember"), "feedback-review route requires current member");
@@ -63,6 +68,8 @@ check(manifestSource.includes("route-b-feedback-review"), "AgentFacts manifest r
 check(manifestSource.includes("route-b-feedback-persistence"), "AgentFacts manifest registers feedback persistence action");
 check(manifestSource.includes("route-b-red-line-action-feedback-consumption"), "AgentFacts manifest registers feedback consumption capability");
 check(manifestSource.includes("TheaterRouteBFeedbackReview.redLineActionState"), "AgentFacts manifest declares feedback action-state DTO boundary");
+check(manifestSource.includes("TheaterRouteBFeedbackReview.relationshipEdgeShadowGrounding"), "AgentFacts manifest declares feedback edge-shadow DTO boundary");
+check(manifestSource.includes("data-route-b-feedback-edge-shadow-grounding"), "AgentFacts manifest declares feedback edge-shadow UI hook");
 check(manifestSource.includes("TheaterRouteBFeedbackReview"), "AgentFacts manifest declares feedback review DTO");
 check(manifestSource.includes("pnpm theater:route-b-feedback-review-qa"), "AgentFacts manifest includes feedback-review proof command");
 

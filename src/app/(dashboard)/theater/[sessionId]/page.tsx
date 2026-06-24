@@ -1701,6 +1701,7 @@ function RouteBFeedbackReviewPanel({
   const redLineNotApplicable = review?.redLineFindings.filter((finding) => finding.status === "NOT_APPLICABLE").length ?? 0;
   const redLineEscalate = review?.redLineActionState.escalateCount ?? 0;
   const redLineEvidenceNeeded = review?.redLineActionState.evidenceNeededCount ?? 0;
+  const edgeShadowGrounding = review?.relationshipEdgeShadowGrounding;
 
   return (
     <Card className="border-hairline shadow-none">
@@ -1766,6 +1767,10 @@ function RouteBFeedbackReviewPanel({
                 label="Red-line action source"
                 value={review.redLineActionState.consumedByFeedbackReview ? "sceneState.redLineActionState" : "none"}
               />
+              <ContextLine
+                label="Edge shadow source"
+                value={edgeShadowGrounding?.usedInFeedbackReview ? "scene.sourceGrounding.relationshipEdgeShadow" : "none"}
+              />
             </div>
 
             <div className="grid grid-cols-2 gap-2">
@@ -1774,6 +1779,37 @@ function RouteBFeedbackReviewPanel({
               <RouteBMiniCount label="升級審閱" value={redLineEscalate} />
               <RouteBMiniCount label="需要佐證" value={redLineEvidenceNeeded} />
             </div>
+
+            {edgeShadowGrounding ? (
+              <div
+                className="rounded-lg border border-hairline bg-paper px-3 py-3"
+                data-route-b-feedback-edge-shadow-grounding="true"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-semibold text-ink">關係邊候選回顧</p>
+                    <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                      回顧可引用 edge readiness 作為劇場脈絡，但不讀草稿邊、不改 schema、不寫回關係圖或 CRM 事實。
+                    </p>
+                  </div>
+                  <Badge variant="outline" className="rounded-full">
+                    {edgeShadowGrounding.candidateEdgeCount} edges
+                  </Badge>
+                </div>
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <RouteBMiniCount label="來源人物" value={edgeShadowGrounding.sourceMemberCount} />
+                  <RouteBMiniCount label="候選邊" value={edgeShadowGrounding.candidateEdgeCount} />
+                  <RouteBMiniCount label="未支援關係" value={edgeShadowGrounding.unsupportedRelationCount} />
+                  <RouteBMiniCount label="warning" value={edgeShadowGrounding.warningCodes.length} />
+                </div>
+                <div className="mt-2 grid gap-1 text-xs leading-5 text-muted-foreground">
+                  <ContextLine label="Formal schema" value={String(edgeShadowGrounding.boundary.formalSchemaApproved)} />
+                  <ContextLine label="Raw draft edges" value={String(edgeShadowGrounding.boundary.rawDraftEdgesIncluded)} />
+                  <ContextLine label="Graph write" value={String(edgeShadowGrounding.boundary.writesRelationshipGraph)} />
+                  <ContextLine label="DB write" value={String(edgeShadowGrounding.boundary.databaseWriteAttempted)} />
+                </div>
+              </div>
+            ) : null}
 
             <div className="space-y-2">
               {review.sections.map((section, index) => (

@@ -4,6 +4,7 @@ import {
   isTheaterRouteBFeedbackReview,
 } from "../src/domains/theater/route-b-feedback-review";
 import { buildRouteBRedLineActionPersistenceState } from "../src/domains/theater/route-b-red-line-action-workflow";
+import type { TheaterRouteBRelationshipEdgeShadowGroundingSummary } from "../src/domains/theater/route-b-handoff";
 import type { RouteBSessionSnapshot } from "../src/domains/theater/route-b-session";
 
 const checks: string[] = [];
@@ -42,6 +43,9 @@ const snapshot: RouteBSessionSnapshot = {
         factStatus: "UNKNOWN",
       },
     ],
+    sourceGrounding: {
+      relationshipEdgeShadow: relationshipEdgeShadowGrounding(),
+    },
     statePatchCount: 1,
     visibilityRules: [
       {
@@ -159,6 +163,21 @@ check(review.redLineActionState.notApplicableCount === 1, "feedback review actio
 check(review.redLineActionState.noProviderCall, "feedback review action summary proves no provider call");
 check(review.redLineActionState.triggersExternalNotification === false, "feedback review action summary does not trigger notifications");
 check(review.redLineActionState.writesConfirmedCrmFact === false, "feedback review action summary does not write CRM facts");
+check(review.relationshipEdgeShadowGrounding.usedInFeedbackReview, "feedback review consumes relationship edge shadow grounding");
+check(review.relationshipEdgeShadowGrounding.candidateEdgeCount === 3, "feedback review carries edge shadow candidate count");
+check(review.relationshipEdgeShadowGrounding.sourceMemberCount === 4, "feedback review carries edge shadow source member count");
+check(
+  review.relationshipEdgeShadowGrounding.boundary.rawDraftEdgesIncluded === false &&
+    review.relationshipEdgeShadowGrounding.boundary.clientFacingDraftEdgesReturned === false &&
+    review.relationshipEdgeShadowGrounding.boundary.formalSchemaApproved === false,
+  "feedback review keeps edge shadow no-draft/formal-schema-blocked boundary",
+);
+check(
+  review.relationshipEdgeShadowGrounding.boundary.databaseWriteAttempted === false &&
+    review.relationshipEdgeShadowGrounding.boundary.writesRelationshipGraph === false &&
+    review.relationshipEdgeShadowGrounding.boundary.writesConfirmedCrmFact === false,
+  "feedback review keeps edge shadow no-db/no-graph/no-CRM-write boundary",
+);
 check(review.persistenceEnvelope.requiresAdvisorConfirmation, "feedback review requires advisor confirmation before CRM writeback");
 check(review.persistenceEnvelope.writesConfirmedCrmFact === false, "feedback review does not write confirmed CRM facts");
 check(review.persistenceEnvelope.storesPrivateLaneTurnContent === false, "feedback review does not store private lane turn content");
@@ -196,6 +215,12 @@ check(
   ),
   "compliance perspective cites red-line action state evidence",
 );
+check(
+  review.sections.some((section) =>
+    section.evidenceBasis.some((item) => item.source === "relationship-edge-shadow" && item.label === "EDGE_SHADOW" && item.count === 3)
+  ),
+  "feedback review cites relationship edge shadow as review evidence",
+);
 
 const subsetReview = buildTheaterRouteBFeedbackReview({
   snapshot,
@@ -225,6 +250,10 @@ console.log(
       redLineEscalateCount: review.redLineActionState.escalateCount,
       redLineEvidenceNeededCount: review.redLineActionState.evidenceNeededCount,
       redLineNotApplicableCount: review.redLineActionState.notApplicableCount,
+      edgeShadowCandidateCount: review.relationshipEdgeShadowGrounding.candidateEdgeCount,
+      edgeShadowSourceMemberCount: review.relationshipEdgeShadowGrounding.sourceMemberCount,
+      edgeShadowRawDraftEdgesIncluded: review.relationshipEdgeShadowGrounding.boundary.rawDraftEdgesIncluded,
+      edgeShadowWritesRelationshipGraph: review.relationshipEdgeShadowGrounding.boundary.writesRelationshipGraph,
       providerCallAttempted: review.providerBoundary.providerCallAttempted,
       aiUsageLogWritten: review.providerBoundary.aiUsageLogWritten,
       writesConfirmedCrmFact: review.persistenceEnvelope.writesConfirmedCrmFact,
@@ -234,6 +263,41 @@ console.log(
     2,
   ),
 );
+
+function relationshipEdgeShadowGrounding(): TheaterRouteBRelationshipEdgeShadowGroundingSummary {
+  return {
+    sourceMemberCount: 4,
+    candidateEdgeCount: 3,
+    edgeTypeCounts: {
+      SPOUSE: 1,
+      INFLUENCE: 1,
+      UNKNOWN_RELATION: 1,
+    },
+    factStatusCounts: {
+      FACT: 1,
+      INFERENCE: 1,
+      UNKNOWN: 1,
+    },
+    warningCodes: ["RELATIONSHIP_EDGE_SCHEMA_NOT_APPROVED"],
+    unsupportedRelationCount: 1,
+    boundary: {
+      ownerScopedRelationshipGraphRequired: true,
+      browserSuppliedSessionId: false,
+      providerCallAttempted: false,
+      aiUsageLogWritten: false,
+      storesRawProviderPayload: false,
+      rawPrivateTranscriptIncluded: false,
+      schemaChanged: false,
+      databaseWriteAttempted: false,
+      clientFacingDraftEdgesReturned: false,
+      formalSchemaApproved: false,
+      persistedToDatabase: false,
+      writesRelationshipGraph: false,
+      writesVisitPlan: false,
+      writesConfirmedCrmFact: false,
+    },
+  };
+}
 
 function check(condition: boolean, label: string) {
   assert.equal(condition, true, label);

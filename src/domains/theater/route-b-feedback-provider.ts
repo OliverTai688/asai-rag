@@ -259,10 +259,12 @@ export function buildTheaterRouteBFeedbackProviderInput(
 
 function buildFeedbackPromptContext(contract: TheaterRouteBFeedbackContract) {
   return buildRouteBProviderPromptContext({
+    relationshipEdgeShadowGrounding: contract.relationshipEdgeShadowGrounding,
     personaHints: contract.selectedPerspectives.flatMap((perspective) => [perspective.label, perspective.purpose]),
     unknowns: [
       `unknown gaps: ${contract.inputPreview.materialCounts.unknownGaps}`,
       `private lane count: ${contract.inputPreview.historyVisibilitySummary.PRIVATE ?? 0}`,
+      `relationship edge shadow candidates: ${contract.relationshipEdgeShadowGrounding.candidateEdgeCount}`,
     ],
     maxItems: 5,
   });

@@ -8,6 +8,7 @@ import {
 import type {
   TheaterRouteBHandoffPacket,
   TheaterRouteBMaterial,
+  TheaterRouteBRelationshipEdgeShadowGroundingSummary,
   TheaterRouteBTurnRef,
 } from "../src/domains/theater/route-b-handoff";
 
@@ -96,6 +97,9 @@ const handoff: TheaterRouteBHandoffPacket = {
         allowedWriteTargets: ["SCENE_PRIVATE_STATE", "RELATIONSHIP_STATE"],
       },
     ],
+    sourceGrounding: {
+      relationshipEdgeShadow: relationshipEdgeShadowGrounding(),
+    },
   },
   aiUsagePlan: {
     noProviderDuringHandoffBuild: true,
@@ -206,6 +210,19 @@ check(
     allPerspectiveContract.inputPreview.historyVisibilitySummary.DIRECTOR_ONLY === 1,
   "feedback input preview summarizes visibility instead of exposing turn text",
 );
+check(
+  allPerspectiveContract.relationshipEdgeShadowGrounding.usedInNextTurnRuntime,
+  "feedback contract carries relationship edge shadow grounding from handoff",
+);
+check(
+  allPerspectiveContract.relationshipEdgeShadowGrounding.candidateEdgeCount === 3,
+  "feedback contract carries edge shadow candidate count",
+);
+check(
+  allPerspectiveContract.relationshipEdgeShadowGrounding.boundary.rawDraftEdgesIncluded === false &&
+    allPerspectiveContract.relationshipEdgeShadowGrounding.boundary.writesRelationshipGraph === false,
+  "feedback contract keeps edge shadow no-draft/no-write boundary",
+);
 
 const subsetIds: TheaterRouteBFeedbackPerspectiveId[] = ["CLIENT_EYES", "COMPLIANCE_CONSCIENCE"];
 const subsetContract = buildTheaterRouteBFeedbackContract({ handoff, history, selectedPerspectiveIds: subsetIds });
@@ -239,6 +256,9 @@ console.log(
       providerCallAttempted: allPerspectiveContract.providerBoundary.providerCallAttempted,
       aiUsageLogWritten: allPerspectiveContract.providerBoundary.aiUsageLogWritten,
       writesConfirmedCrmFact: allPerspectiveContract.persistenceEnvelope.writesConfirmedCrmFact,
+      edgeShadowCandidateCount: allPerspectiveContract.relationshipEdgeShadowGrounding.candidateEdgeCount,
+      edgeShadowRawDraftEdgesIncluded: allPerspectiveContract.relationshipEdgeShadowGrounding.boundary.rawDraftEdgesIncluded,
+      edgeShadowWritesRelationshipGraph: allPerspectiveContract.relationshipEdgeShadowGrounding.boundary.writesRelationshipGraph,
       subsetPerspectiveIds: subsetContract.selectedPerspectives.map((perspective) => perspective.id),
     },
     null,
@@ -258,6 +278,41 @@ function material(
     factStatus,
     use,
     sourceRefs: [{ id: `${id}_source`, label: "QA fixture", factStatus }],
+  };
+}
+
+function relationshipEdgeShadowGrounding(): TheaterRouteBRelationshipEdgeShadowGroundingSummary {
+  return {
+    sourceMemberCount: 4,
+    candidateEdgeCount: 3,
+    edgeTypeCounts: {
+      SPOUSE: 1,
+      INFLUENCE: 1,
+      UNKNOWN_RELATION: 1,
+    },
+    factStatusCounts: {
+      FACT: 1,
+      INFERENCE: 1,
+      UNKNOWN: 1,
+    },
+    warningCodes: ["RELATIONSHIP_EDGE_SCHEMA_NOT_APPROVED"],
+    unsupportedRelationCount: 1,
+    boundary: {
+      ownerScopedRelationshipGraphRequired: true,
+      browserSuppliedSessionId: false,
+      providerCallAttempted: false,
+      aiUsageLogWritten: false,
+      storesRawProviderPayload: false,
+      rawPrivateTranscriptIncluded: false,
+      schemaChanged: false,
+      databaseWriteAttempted: false,
+      clientFacingDraftEdgesReturned: false,
+      formalSchemaApproved: false,
+      persistedToDatabase: false,
+      writesRelationshipGraph: false,
+      writesVisitPlan: false,
+      writesConfirmedCrmFact: false,
+    },
   };
 }
 
