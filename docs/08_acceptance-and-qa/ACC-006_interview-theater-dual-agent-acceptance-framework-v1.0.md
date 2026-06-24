@@ -231,13 +231,15 @@ REL-004g evidence note（2026-06-24）：Route B feedback contract/provider prom
 
 `ITA-003o` 若把 Route B persisted state proposals 接到 visit preparation 或 AI meeting notes advisor context，完成前必須額外滿足：
 
-- [ ] Consumer 必須從 owner-scoped `RouteBSessionSnapshot.scene.statePatches`、persisted turn `statePatches` 或等價 server-owned DTO 讀取資料；不得信任 browser raw org/client/session/person id。
-- [ ] Output 只能是 advisor-context follow-up / evidence-needed / next-question cards，保留 `fact` / `inference` / `unknown` 或等價標籤，並顯示 `requiresConfirmation=true`、`writesConfirmedCrmFact=false`。
-- [ ] 不得寫 relationship graph、VisitPlan、client profile、policy 或 confirmed CRM fact；若未來要寫入，需另開 schema/product decision 與 confirmation boundary。
-- [ ] 不得呼叫 OpenAI/Anthropic；proof 必須明確顯示 no-provider、no fake `AiUsageLog`、no raw private transcript、no raw provider payload、no contact/policy/payment sentinel。
-- [ ] 若接 `/pre-visit/[planId]` 或 `/pre-visit/[planId]/notes`，UI 不得要求顧問輸入 raw theater session id/person id，且要清楚標示來源為 theater state proposal 而非 confirmed relationship fact。
-- [ ] AgentFacts-style manifest 必須新增 internal-only downstream-context capability/action/DTO/evidence refs，且不得宣稱 external registry ready、public discovery、cross-org access 或 signed publication。
-- [ ] 需新增可重跑 proof command（建議 `pnpm visit:route-b-state-proposal-context-qa` 或等價命名），並跑 `pnpm ai:protocol-registry-qa`、`pnpm ai:bff-audit`、`pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。若只剩 dev-server screenshot，可交由 operator 自行重跑，不得讓純截圖搜集取代 source/API/UI work。
+- [x] Consumer 必須從 owner-scoped `RouteBSessionSnapshot.scene.statePatches`、persisted turn `statePatches` 或等價 server-owned DTO 讀取資料；不得信任 browser raw org/client/session/person id。
+- [x] Output 只能是 advisor-context follow-up / evidence-needed / next-question cards，保留 `fact` / `inference` / `unknown` 或等價標籤，並顯示 `requiresConfirmation=true`、`writesConfirmedCrmFact=false`。
+- [x] 不得寫 relationship graph、VisitPlan、client profile、policy 或 confirmed CRM fact；若未來要寫入，需另開 schema/product decision 與 confirmation boundary。
+- [x] 不得呼叫 OpenAI/Anthropic；proof 必須明確顯示 no-provider、no fake `AiUsageLog`、no raw private transcript、no raw provider payload、no contact/policy/payment sentinel。
+- [x] 若接 `/pre-visit/[planId]` 或 `/pre-visit/[planId]/notes`，UI 不得要求顧問輸入 raw theater session id/person id，且要清楚標示來源為 theater state proposal 而非 confirmed relationship fact。
+- [x] AgentFacts-style manifest 必須新增 internal-only downstream-context capability/action/DTO/evidence refs，且不得宣稱 external registry ready、public discovery、cross-org access 或 signed publication。
+- [x] 需新增可重跑 proof command（建議 `pnpm visit:route-b-state-proposal-context-qa` 或等價命名），並跑 `pnpm ai:protocol-registry-qa`、`pnpm ai:bff-audit`、`pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。若只剩 dev-server screenshot，可交由 operator 自行重跑，不得讓純截圖搜集取代 source/API/UI work。
+
+ITA-003o evidence note（2026-06-24）：新增 `VisitRouteBStateProposalContext`、`GET /api/visits/[id]/route-b-state-proposal-context` 與 `/pre-visit/[planId]`「劇場狀態回帶」panel。Repository 從 current-member owner-scoped VisitPlan 重建 `routeBSourcePacketId`，再用 organization/owner/client/Route B source packet 讀同源 session 的 persisted `sceneState.statePatches` 與 turn `statePatches`；UI 不要求或顯示 raw theater session/person id。輸出只含 advisor follow-up / evidence-needed / next-question cards，固定 `requiresConfirmation=true`、`writesRelationshipGraph=false`、`writesVisitPlan=false`、`writesConfirmedCrmFact=false`，不呼叫 provider、不寫 fake `AiUsageLog`。Proof：`pnpm visit:route-b-state-proposal-context-qa`、`pnpm ai:protocol-registry-qa`、`pnpm ai:bff-audit`、`pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
 
 ---
 

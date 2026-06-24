@@ -56,6 +56,11 @@ import type {
   VisitRouteBRedLineContextItem,
 } from "@/domains/visit/route-b-red-line-context";
 import type {
+  VisitRouteBStateProposalContext,
+  VisitRouteBStateProposalContextItem,
+  VisitRouteBStateProposalContextStatus,
+} from "@/domains/visit/route-b-state-proposal-context";
+import type {
   VisitMeetingRelationshipSignalAction,
   VisitMeetingRelationshipSignalCard,
   VisitMeetingRelationshipSignalDeck,
@@ -162,6 +167,31 @@ type VisitRouteBRedLineContextResponse = {
     aiUsageLogWritten: false;
     writesConfirmedCrmFact: false;
     triggersExternalNotification: false;
+  };
+};
+
+type VisitRouteBStateProposalContextResponse = {
+  status: VisitRouteBStateProposalContextStatus;
+  visitPlanId: string;
+  clientId: string;
+  sourcePacketId: string;
+  routeBStateProposalContext?: VisitRouteBStateProposalContext;
+  source: {
+    matchedBy: "routeBSourcePacketId";
+    sourceActionId: "route-b-state-proposal-persistence";
+    stateProposalUpdatedAt?: string;
+  };
+  summary: VisitRouteBStateProposalContext["summary"];
+  proof: {
+    ownerScopedVisitPlan: true;
+    ownerScopedTheaterSessionLookup: true;
+    browserSuppliedTheaterSessionId: false;
+    browserSuppliedPersonId: false;
+    providerCallAttempted: false;
+    aiUsageLogWritten: false;
+    writesRelationshipGraph: false;
+    writesVisitPlan: false;
+    writesConfirmedCrmFact: false;
   };
 };
 
@@ -305,6 +335,10 @@ function VisitPlanDetailContent() {
   const [routeBContext, setRouteBContext] = useState<VisitRouteBRedLineContextResponse | null>(null);
   const [routeBContextError, setRouteBContextError] = useState<string | null>(null);
   const [isLoadingRouteBContext, setIsLoadingRouteBContext] = useState(false);
+  const [routeBStateProposalContext, setRouteBStateProposalContext] =
+    useState<VisitRouteBStateProposalContextResponse | null>(null);
+  const [routeBStateProposalContextError, setRouteBStateProposalContextError] = useState<string | null>(null);
+  const [isLoadingRouteBStateProposalContext, setIsLoadingRouteBStateProposalContext] = useState(false);
   const [meetingRelationshipSignals, setMeetingRelationshipSignals] =
     useState<VisitMeetingRelationshipSignalResponse | null>(null);
   const [meetingRelationshipSignalError, setMeetingRelationshipSignalError] = useState<string | null>(null);
@@ -320,6 +354,11 @@ function VisitPlanDetailContent() {
     !isQuickstart && routeBContext?.visitPlanId === planId ? routeBContext : null;
   const activeRouteBContextError = !isQuickstart && planId ? routeBContextError : null;
   const activeRouteBContextLoading = !isQuickstart && Boolean(planId) && isLoadingRouteBContext;
+  const activeRouteBStateProposalContext =
+    !isQuickstart && routeBStateProposalContext?.visitPlanId === planId ? routeBStateProposalContext : null;
+  const activeRouteBStateProposalContextError = !isQuickstart && planId ? routeBStateProposalContextError : null;
+  const activeRouteBStateProposalContextLoading =
+    !isQuickstart && Boolean(planId) && isLoadingRouteBStateProposalContext;
   const activeMeetingRelationshipSignals =
     !isQuickstart && meetingRelationshipSignals?.visitPlanId === planId ? meetingRelationshipSignals : null;
   const meetingRelationshipSignalDeck = activeMeetingRelationshipSignals?.deck ?? null;
@@ -389,6 +428,49 @@ function VisitPlanDetailContent() {
     }
 
     void loadPlan();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isQuickstart, planId]);
+
+  useEffect(() => {
+    if (isQuickstart || !planId) return;
+
+    let cancelled = false;
+    const targetPlanId = planId;
+
+    async function loadRouteBStateProposalContext() {
+      try {
+        setIsLoadingRouteBStateProposalContext(true);
+        setRouteBStateProposalContextError(null);
+        const response = await fetch(`/api/visits/${encodeURIComponent(targetPlanId)}/route-b-state-proposal-context`, {
+          cache: "no-store",
+        });
+
+        if (!response.ok) {
+          throw new Error(`VISIT_ROUTE_B_STATE_PROPOSAL_CONTEXT_LOAD_FAILED_${response.status}`);
+        }
+
+        const payload = (await response.json()) as VisitRouteBStateProposalContextResponse;
+        if (!cancelled) {
+          setRouteBStateProposalContext(payload);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setRouteBStateProposalContext(null);
+          setRouteBStateProposalContextError(
+            error instanceof Error ? error.message : "VISIT_ROUTE_B_STATE_PROPOSAL_CONTEXT_LOAD_FAILED",
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoadingRouteBStateProposalContext(false);
+        }
+      }
+    }
+
+    void loadRouteBStateProposalContext();
 
     return () => {
       cancelled = true;
@@ -871,6 +953,11 @@ function VisitPlanDetailContent() {
         </div>
 
         <aside className="space-y-4">
+          <RouteBStateProposalContextPanel
+            context={activeRouteBStateProposalContext}
+            error={activeRouteBStateProposalContextError}
+            isLoading={activeRouteBStateProposalContextLoading}
+          />
           <RouteBRedLineContextPanel
             context={activeRouteBContext}
             error={activeRouteBContextError}
@@ -1256,6 +1343,92 @@ function RouteBRedLineContextRow({ item }: { item: VisitRouteBRedLineContextItem
       </div>
       <p className="mt-2 text-xs font-semibold leading-5 text-ink">{item.label}</p>
       <p className="mt-1 line-clamp-3 text-xs leading-5 text-muted-foreground">{item.detail}</p>
+    </div>
+  );
+}
+
+function RouteBStateProposalContextPanel({
+  context,
+  error,
+  isLoading,
+}: {
+  context: VisitRouteBStateProposalContextResponse | null;
+  error: string | null;
+  isLoading: boolean;
+}) {
+  if (!isLoading && !context && !error) return null;
+
+  const items = context?.routeBStateProposalContext?.items ?? [];
+  const hasContext = context?.status === "READY";
+  const badgeLabel = isLoading ? "檢查中" : error ? "暫不可用" : getRouteBStateProposalStatusLabel(context?.status);
+  const summary = context?.summary ?? {
+    itemCount: 0,
+    unknownCount: 0,
+    inferenceCount: 0,
+    evidenceNeededCount: 0,
+    nextQuestionCount: 0,
+    sceneProposalCount: 0,
+    turnProposalCount: 0,
+    privateScopeCount: 0,
+    narratorQueueCount: 0,
+    relationshipStateCount: 0,
+  };
+
+  return (
+    <section data-route-b-state-proposal-context className="rounded-lg border border-hairline bg-card p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="flex items-center gap-2 text-sm font-semibold text-ink">
+            <PanelRightOpen className="h-4 w-4" />
+            劇場狀態回帶
+          </div>
+          <p className="mt-2 text-xs leading-5 text-muted-foreground">
+            {isLoading ? "正在檢查此準備包對應的 Route B state proposal。" : error ? "劇場狀態暫時無法載入；不影響目前準備包使用。" : getRouteBStateProposalStatusCopy(context?.status)}
+          </p>
+        </div>
+        <Badge variant={hasContext ? "default" : "outline"} className="rounded-md">
+          {badgeLabel}
+        </Badge>
+      </div>
+
+      {hasContext ? (
+        <>
+          <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+            <MiniStat label="待確認" value={String(summary.unknownCount)} />
+            <MiniStat label="推論" value={String(summary.inferenceCount)} />
+            <MiniStat label="追問" value={String(summary.nextQuestionCount)} />
+          </div>
+          <div className="mt-4 grid gap-2">
+            {items.slice(0, 3).map((item) => (
+              <RouteBStateProposalContextRow key={item.id} item={item} />
+            ))}
+          </div>
+        </>
+      ) : null}
+
+      <p className="mt-4 border-t border-hairline pt-3 text-xs leading-5 text-muted-foreground">
+        來源為 theater state proposal，requiresConfirmation=true；不需輸入 session/person id，不寫 relationship graph、VisitPlan 或 confirmed CRM fact。
+      </p>
+    </section>
+  );
+}
+
+function RouteBStateProposalContextRow({ item }: { item: VisitRouteBStateProposalContextItem }) {
+  return (
+    <div className="rounded-lg border border-hairline bg-background p-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge variant={item.evidenceNeeded ? "secondary" : "outline"} className="rounded-md">
+          {getRouteBStateProposalCardTypeLabel(item.cardType)}
+        </Badge>
+        <Badge variant="outline" className="rounded-md">
+          {getEvidenceStatusLabel(item.status)}
+        </Badge>
+      </div>
+      <p className="mt-2 text-xs font-semibold leading-5 text-ink">{item.label}</p>
+      <p className="mt-1 line-clamp-3 text-xs leading-5 text-muted-foreground">{item.detail}</p>
+      <p className="mt-2 border-l border-hairline pl-3 text-xs leading-5 text-muted-foreground">
+        下一題：{item.followUpQuestion}
+      </p>
     </div>
   );
 }
@@ -1810,6 +1983,27 @@ function getRouteBActionStateLabel(state: VisitRouteBRedLineContextItem["actionS
   if (state === "EVIDENCE_NEEDED") return "需要佐證";
   if (state === "NOT_APPLICABLE") return "不適用";
   return "觀察中";
+}
+
+function getRouteBStateProposalStatusLabel(status: VisitRouteBStateProposalContextStatus | undefined) {
+  if (status === "READY") return "已回帶";
+  if (status === "NO_STATE_PROPOSALS") return "無提案";
+  return "尚未建場";
+}
+
+function getRouteBStateProposalStatusCopy(status: VisitRouteBStateProposalContextStatus | undefined) {
+  if (status === "READY") {
+    return "已載入同一準備包建立的劇場狀態提案，僅作追問與佐證提示。";
+  }
+  if (status === "NO_STATE_PROPOSALS") {
+    return "已找到同一準備包的 Route B 劇場，但目前沒有可回帶的 state proposal。";
+  }
+  return "建立劇場並產生私聊、群聊或旁白狀態提案後，待確認脈絡會自動回帶到這裡。";
+}
+
+function getRouteBStateProposalCardTypeLabel(type: VisitRouteBStateProposalContextItem["cardType"]) {
+  if (type === "evidence_needed") return "待補佐證";
+  return "下一題";
 }
 
 function getMeetingSignalStatusLabel(status: VisitMeetingRelationshipSignalStatus | undefined) {

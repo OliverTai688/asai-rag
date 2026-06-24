@@ -53,6 +53,8 @@ const EVIDENCE_SOURCE_VALUES = [
   "policy",
   "ai_tag",
   "visit_purpose",
+  "theater_route_b_red_line",
+  "theater_route_b_state_proposal",
   "unknown",
 ] as const;
 const EVIDENCE_STATUS_VALUES = ["confirmed", "inference", "unknown"] as const;
