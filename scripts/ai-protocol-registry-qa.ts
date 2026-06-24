@@ -62,6 +62,7 @@ const sourceAdoptionRequirements: Record<string, { ownerRefs: string[]; evidence
       "src/lib/visits/route-b-state-proposal-context-repository.ts",
       "src/lib/visits/meeting-relationship-signal-repository.ts",
       "scripts/visit-meeting-signal-theater-handoff-qa.mjs",
+      "scripts/lv3-route-b-state-proposal-cross-flow-qa.mjs",
     ],
     evidenceRefs: [
       "buildProviderSafeClientSnapshot",
@@ -111,6 +112,7 @@ const sourceAdoptionRequirements: Record<string, { ownerRefs: string[]; evidence
       "VisitRouteBStateProposalContextBffDto.proof.browserSuppliedTheaterSessionId=false",
       "VisitQuestionEvidence.source=theater_route_b_state_proposal",
       "updateVisitPlanForMember",
+      "LV3RouteBStateProposalCrossFlow.proofCommand=pnpm lv3:route-b-state-proposal-cross-flow-qa",
     ],
     commands: [
       "pnpm ai:bff-audit",
@@ -126,6 +128,7 @@ const sourceAdoptionRequirements: Record<string, { ownerRefs: string[]; evidence
       "pnpm visit:route-b-red-line-context-dry-run",
       "pnpm visit:route-b-red-line-context-bff-qa",
       "pnpm visit:route-b-state-proposal-context-qa",
+      "pnpm lv3:route-b-state-proposal-cross-flow-qa",
     ],
   },
   "asai.report.generation": {
@@ -280,6 +283,7 @@ const sourceAdoptionRequirements: Record<string, { ownerRefs: string[]; evidence
       "src/lib/theater/route-b-session-repository.ts",
       "scripts/theater-meeting-signal-session-source-qa.mjs",
       "scripts/theater-relationship-edge-shadow-session-source-qa.mjs",
+      "scripts/lv3-route-b-state-proposal-cross-flow-qa.mjs",
     ],
     evidenceRefs: [
       "RouteBRuntimeInputPreview",
@@ -455,6 +459,7 @@ const sourceAdoptionRequirements: Record<string, { ownerRefs: string[]; evidence
       "TheaterRouteBFeedbackReview.redLineLibrary.redLineRuleCount=18",
       "providerCallAttempted=false",
       "writesConfirmedCrmFact=false",
+      "LV3RouteBStateProposalCrossFlow.proofCommand=pnpm lv3:route-b-state-proposal-cross-flow-qa",
     ],
     commands: [
       "pnpm ai:bff-audit",
@@ -479,6 +484,7 @@ const sourceAdoptionRequirements: Record<string, { ownerRefs: string[]; evidence
       "pnpm theater:route-b-feedback-review-qa",
       "pnpm theater:route-b-compliance-review-intake-qa",
       "pnpm theater:route-b-compliance-review-queue-qa",
+      "pnpm lv3:route-b-state-proposal-cross-flow-qa",
     ],
   },
   "asai.rag.private_beta": {
@@ -535,6 +541,7 @@ function runQa() {
   assertMeetingRouteBRedLineContextConsumption(manifests);
   assertMeetingRouteBStateProposalContextConsumption(manifests);
   assertMeetingRouteBStateProposalWritebackBridge(manifests);
+  assertRouteBStateProposalCrossFlowProof(manifests);
   assertMeetingNotesHubQuarantine(manifests);
   assertMeetingQuickNoteWritebackBridge(manifests);
   assertVisitMeetingRelationshipSignal(manifests);
@@ -832,6 +839,35 @@ function assertMeetingRouteBStateProposalWritebackBridge(manifests: AgentProtoco
 
   for (const evidenceRef of requiredEvidenceRefs) {
     push(adoption.evidenceRefs.includes(evidenceRef), `meeting Route B state proposal writeback evidence includes ${evidenceRef}`);
+  }
+}
+
+function assertRouteBStateProposalCrossFlowProof(manifests: AgentProtocolManifest[]) {
+  const requiredAgentIds = ["asai.theater.route_b", "asai.visit.preparation_package", "asai.meeting.prototype"];
+  const proofCommand = "pnpm lv3:route-b-state-proposal-cross-flow-qa";
+  const ownerRef = "scripts/lv3-route-b-state-proposal-cross-flow-qa.mjs";
+  const evidenceRef = "LV3RouteBStateProposalCrossFlow.proofCommand=pnpm lv3:route-b-state-proposal-cross-flow-qa";
+
+  for (const agentId of requiredAgentIds) {
+    const manifest = manifests.find((item) => item.identity.agentId === agentId);
+    push(Boolean(manifest), `${agentId} manifest exists for Route B state proposal cross-flow proof`);
+
+    if (!manifest?.proof.sourceAdoption) {
+      continue;
+    }
+
+    push(
+      manifest.proof.commands.includes(proofCommand),
+      `${agentId} proof commands include Route B state proposal cross-flow QA`,
+    );
+    push(
+      manifest.proof.sourceAdoption.ownerRefs.includes(ownerRef),
+      `${agentId} source owner includes Route B state proposal cross-flow QA script`,
+    );
+    push(
+      manifest.proof.sourceAdoption.evidenceRefs.includes(evidenceRef),
+      `${agentId} evidence refs include Route B state proposal cross-flow proof command`,
+    );
   }
 }
 

@@ -67,6 +67,7 @@
     "visit:theater-gate-qa": "node scripts/visit-theater-gate-qa.mjs",
     "visit:bff-qa": "node scripts/visit-bff-qa.mjs",
     "lv3:cross-flow-no-provider-qa": "node scripts/lv3-cross-flow-no-provider-qa.mjs",
+    "lv3:route-b-state-proposal-cross-flow-qa": "node scripts/lv3-route-b-state-proposal-cross-flow-qa.mjs",
     "spin:source-truth-qa": "node scripts/spin-source-truth-qa.mjs",
     "bff:inventory-qa": "node scripts/full-site-bff-inventory-qa.mjs",
     "bff:foundation-qa": "node scripts/bff-foundation-qa.mjs",
