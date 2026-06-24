@@ -84,11 +84,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 1,
+    "normalLoopsSinceLastWholeProductReview": 2,
     "lastWholeProductReviewAt": "2026-06-24T19:23:40Z",
     "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-25_lv3-whole-product-gap-review-after-client-route-b-next-turn-context.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "LV3-TDF-004g completed. `pnpm theater:client-route-b-session-source-review-dry-run`, `pnpm theater:client-route-b-next-turn-context-dry-run`, `pnpm ai:protocol-registry-qa`, and `pnpm ai:bff-audit` pass; BFF audit still reports Supabase DB DNS `ENOTFOUND` as warn. Next normal loop should first re-check DB DNS. If DB is restored, prioritize full live DB-backed `DEMO_QA_BASE_URL=http://127.0.0.1:<free-port> pnpm lv3:cross-flow-no-provider-qa`. If DB remains unavailable and no RelationshipEdge / relationship confirmation decision arrives, select source-backed `LV3-TDF-004h client-built session source review -> advisor-visible/session consumption proof`, connecting the new no-provider review payload to the Route B stage/source review surface or deterministic session consumption boundary without provider calls, DB writes, source-grounding persistence claims, or confirmed CRM fact writes.",
+    "nextRecommendedImplementationSlice": "LV3-TDF-004h completed. `pnpm theater:client-route-b-session-source-consumption-dry-run`, `pnpm theater:client-route-b-session-source-review-dry-run`, `pnpm ai:protocol-registry-qa`, `pnpm ai:bff-audit`, and `pnpm exec tsc --noEmit --pretty false` pass; BFF audit still reports Supabase DB DNS `ENOTFOUND` as warn. Next normal loop should first re-check DB DNS. If DB is restored, prioritize full live DB-backed `DEMO_QA_BASE_URL=http://127.0.0.1:<free-port> pnpm lv3:cross-flow-no-provider-qa`. If DB remains unavailable and no RelationshipEdge / relationship confirmation decision arrives, select source-backed `LV3-TDF-004i client-built source consumption -> deterministic Route B stage adapter/browser fixture proof`, connecting the advisor-visible consumption contract to an actual stage adapter or self-runnable browser fixture without provider calls, DB writes, source-grounding persistence claims, or confirmed CRM fact writes.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {
@@ -156,5 +156,5 @@
     "lv3ImmersiveLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-immersive-loop.md",
     "lv3WholeProductGapReviewLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md"
   },
-  "updatedAt": "2026-06-24T19:56:00Z"
+  "updatedAt": "2026-06-24T20:10:00Z"
 }

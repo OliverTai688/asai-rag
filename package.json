@@ -109,6 +109,7 @@
     "theater:client-build-route-b-handoff-dry-run": "node scripts/theater-client-build-route-b-handoff-dry-run.mjs",
     "theater:client-route-b-next-turn-context-dry-run": "node scripts/theater-client-route-b-next-turn-context-dry-run.mjs",
     "theater:client-route-b-session-source-review-dry-run": "node scripts/theater-client-route-b-session-source-review-dry-run.mjs",
+    "theater:client-route-b-session-source-consumption-dry-run": "node scripts/theater-client-route-b-session-source-consumption-dry-run.mjs",
     "theater:client-build-qa": "node scripts/theater-client-build-qa.mjs",
     "theater:direct-field-qa": "node scripts/theater-direct-field-qa.mjs",
     "theater:route-b-handoff-dry-run": "node scripts/theater-route-b-handoff-dry-run.mjs",
