@@ -7,6 +7,7 @@ import type {
 } from "@/generated/prisma/client";
 import type { Client, ClientComplianceChecklist, FamilyMember, Policy } from "@/domains/client/types";
 import { DEFAULT_CLIENT_COMPLIANCE } from "@/domains/client/types";
+import { extractFamilyMemberProfile } from "@/domains/client/family-member-profile";
 
 export type ClientRecord = DbClient & {
   complianceChecklist: DbComplianceChecklist | null;
@@ -72,6 +73,7 @@ function toFamilyDto(record: DbFamilyMember): FamilyMember {
     phone: record.phone ?? undefined,
     linkedClientId: record.linkedClientId ?? undefined,
     parentMemberId: record.parentMemberId ?? undefined,
+    profile: extractFamilyMemberProfile(record.metadata),
   };
 }
 

@@ -1,4 +1,5 @@
 import { RELATION_GENERATION, type Client, type FamilyMember } from "./types";
+import type { FamilyMemberProfile, FamilyMemberProfileField } from "./family-member-profile";
 
 export type RelationshipGraphFactStatus = "FACT" | "INFERENCE" | "UNKNOWN";
 
@@ -12,6 +13,7 @@ export type RelationshipGraphEdgeType =
 export type RelationshipGraphSourceType =
   | "client_profile"
   | "relationship_graph"
+  | "advisor_note"
   | "policy_summary"
   | "compliance_checklist"
   | "ai_signal";
@@ -192,6 +194,7 @@ function buildSourceReferences(client: Client): RelationshipGraphSourceReference
       factStatus: "FACT",
       summary: `${member.relation} ${member.name}${member.age !== undefined ? `，${member.age} 歲` : ""}。`,
     });
+    references.push(...buildFamilyProfileSourceReferences(member, index));
   });
 
   if (client.existingPolicies.length > 0) {
@@ -264,11 +267,56 @@ function buildFamilyNode(client: Client, member: FamilyMember, index: number): R
   const role = inferFamilyRole(member);
   const parentLabel = getParentLabel(client, member);
   const sourceId = familySourceId(index);
+  const profile = member.profile;
+  const jobTitle = profileField(
+    profile,
+    "jobTitle",
+    "職位/職業",
+    sourceId,
+    index,
+    field("職位/職業", "待確認", "UNKNOWN", [sourceId], "關係圖目前只有姓名、關係與年齡等基本欄位。"),
+  );
+  const annualIncome = profileField(
+    profile,
+    "annualIncomeOrDependency",
+    "年收入/財務依賴",
+    sourceId,
+    index,
+    field("年收入/財務依賴", "待確認", "UNKNOWN", [sourceId], "家庭責任與保費決策仍需訪談確認。"),
+  );
+  const status = profileField(
+    profile,
+    "personStatus",
+    "人物狀態",
+    sourceId,
+    index,
+    profileField(
+      profile,
+      "decisionRole",
+      "人物狀態",
+      sourceId,
+      index,
+      field("人物狀態", "待確認", "UNKNOWN", [sourceId], "需確認是否為共同決策者、受扶養人或單純脈絡人物。"),
+    ),
+  );
+  const relationshipContext = profileField(
+    profile,
+    "relationshipContext",
+    "關係脈絡",
+    sourceId,
+    index,
+    field(
+      "關係脈絡",
+      `${member.relation}，連結至 ${parentLabel}${member.age !== undefined ? `，年齡 ${member.age} 歲` : ""}。`,
+      "FACT",
+      [sourceId],
+    ),
+  );
   const unknowns = [
-    `${member.name} 的職位/職業待確認。`,
-    `${member.name} 的年收入或財務依賴關係待確認。`,
-    `${member.name} 在保額、保費或受益安排中的狀態待確認。`,
-  ];
+    jobTitle.factStatus === "UNKNOWN" ? `${member.name} 的職位/職業待確認。` : "",
+    annualIncome.factStatus === "UNKNOWN" ? `${member.name} 的年收入或財務依賴關係待確認。` : "",
+    status.factStatus === "UNKNOWN" ? `${member.name} 在保額、保費或受益安排中的狀態待確認。` : "",
+  ].filter(Boolean);
 
   return {
     nodeKey: familyNodeKey(index),
@@ -280,19 +328,77 @@ function buildFamilyNode(client: Client, member: FamilyMember, index: number): R
     roleFactStatus: "INFERENCE",
     roleRationale: buildRoleRationale(member, role),
     fields: {
-      jobTitle: field("職位/職業", "待確認", "UNKNOWN", [sourceId], "關係圖目前只有姓名、關係與年齡等基本欄位。"),
-      annualIncome: field("年收入", "待確認", "UNKNOWN", [sourceId], "家庭責任與保費決策仍需訪談確認。"),
-      status: field("人物狀態", "待確認", "UNKNOWN", [sourceId], "需確認是否為共同決策者、受扶養人或單純脈絡人物。"),
-      relationshipContext: field(
-        "關係脈絡",
-        `${member.relation}，連結至 ${parentLabel}${member.age !== undefined ? `，年齡 ${member.age} 歲` : ""}。`,
-        "FACT",
-        [sourceId],
-      ),
+      jobTitle,
+      annualIncome,
+      status,
+      relationshipContext,
     },
     unknowns,
     sourceReferenceIds: [sourceId],
   };
+}
+
+function buildFamilyProfileSourceReferences(
+  member: FamilyMember,
+  index: number,
+): RelationshipGraphSourceReference[] {
+  const profile = member.profile;
+  if (!profile) return [];
+
+  return profile.sourceReferences.map((reference) => ({
+    id: familyProfileSourceId(index, reference.id),
+    type: mapFamilyProfileSourceType(reference.type),
+    label: reference.label,
+    factStatus: reference.factStatus,
+    summary: `${member.name}：${reference.summary}`,
+  }));
+}
+
+function profileField(
+  profile: FamilyMemberProfile | undefined,
+  key: keyof Pick<
+    FamilyMemberProfile,
+    "jobTitle" | "annualIncomeOrDependency" | "personStatus" | "decisionRole" | "relationshipContext"
+  >,
+  label: string,
+  sourceId: string,
+  familyIndex: number,
+  fallback: RelationshipGraphField,
+): RelationshipGraphField {
+  const profileValue = profile?.[key] as FamilyMemberProfileField | undefined;
+  if (!profileValue?.value) return fallback;
+
+  return field(
+    label,
+    profileValue.value,
+    profileValue.factStatus,
+    profileSourceReferenceIds(profile, profileValue, familyIndex, sourceId),
+    profileValue.rationale,
+  );
+}
+
+function profileSourceReferenceIds(
+  profile: FamilyMemberProfile | undefined,
+  profileField: FamilyMemberProfileField,
+  familyIndex: number,
+  fallbackSourceId: string,
+): string[] {
+  const allowedSourceIds = new Set(profile?.sourceReferences.map((reference) => reference.id) ?? []);
+  const mappedSourceIds = profileField.sourceReferenceIds
+    .filter((sourceReferenceId) => allowedSourceIds.has(sourceReferenceId))
+    .map((sourceReferenceId) => familyProfileSourceId(familyIndex, sourceReferenceId));
+
+  return mappedSourceIds.length > 0 ? mappedSourceIds : [fallbackSourceId];
+}
+
+function familyProfileSourceId(index: number, sourceReferenceId: string): string {
+  return `${familySourceId(index)}.profile.${sourceReferenceId}`;
+}
+
+function mapFamilyProfileSourceType(type: FamilyMemberProfile["sourceReferences"][number]["type"]): RelationshipGraphSourceType {
+  if (type === "advisor_note") return "advisor_note";
+  if (type === "ai_signal") return "ai_signal";
+  return "relationship_graph";
 }
 
 function buildRelationshipGraphEdges(client: Client): RelationshipGraphEdge[] {

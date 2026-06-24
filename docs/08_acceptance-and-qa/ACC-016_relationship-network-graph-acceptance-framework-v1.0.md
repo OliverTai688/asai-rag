@@ -109,12 +109,14 @@ REL-004g evidence（2026-06-24）：Route B feedback contract、feedback provide
 
 ### D2. Family/person profile metadata boundary（REL-006，不動 schema）
 
-- [ ] Family member profile metadata 只能走 allowlist：職位/職業、年收入或財務依賴、人物狀態/決策角色、關係脈絡、factStatus、source refs。
-- [ ] Metadata 不得包含 email、phone、raw private transcript、raw provider payload、policy number、secret/token/payment data。
-- [ ] BFF update/read 由 current member + client ownership 推導 scope；manager/foreign client 不得寫入或讀取 private profile details。
-- [ ] Relationship graph source review 對已確認 metadata 顯示 FACT/INFERENCE/UNKNOWN，缺值仍保留待確認，不得把 inference 升格為 confirmed CRM fact。
-- [ ] Proof 必須顯示不改 Prisma schema、不寫 RelationshipEdge table、不寫 VisitPlan、不寫 confirmed CRM fact、不呼叫 provider、不偽造 `AiUsageLog`。
+- [x] Family member profile metadata 只能走 allowlist：職位/職業、年收入或財務依賴、人物狀態/決策角色、關係脈絡、factStatus、source refs。
+- [x] Metadata 不得包含 email、phone、raw private transcript、raw provider payload、policy number、secret/token/payment data。
+- [x] BFF update/read 由 current member + client ownership 推導 scope；manager/foreign client 不得寫入或讀取 private profile details。
+- [x] Relationship graph source review 對已確認 metadata 顯示 FACT/INFERENCE/UNKNOWN，缺值仍保留待確認，不得把 inference 升格為 confirmed CRM fact。
+- [x] Proof 必須顯示不改 Prisma schema、不寫 RelationshipEdge table、不寫 VisitPlan、不寫 confirmed CRM fact、不呼叫 provider、不偽造 `AiUsageLog`。
 - [ ] 若改 UI，desktop/mobile console error 0、無水平 overflow，且關係圖/來源審查不要求 raw ID workflow。
+
+REL-006 evidence（2026-06-24）：`pnpm client:family-member-profile-metadata-qa` pass，證明 profile allowlist/private sentinel guard、current-member/client ownership source boundary、DTO 不暴露 raw metadata、relationship graph 消費 profile 且缺值保留 UNKNOWN，以及 no-schema/no-provider/no fake `AiUsageLog`/no VisitPlan/no confirmed CRM fact/no RelationshipEdge table。未新增 UI control，因此最後一項 UI-only browser proof 不適用且保留待未來 UI 編輯 profile 時驗收。
 
 ## E. 佈局/互動/可及性（REL-005）
 

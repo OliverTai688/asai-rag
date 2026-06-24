@@ -1,3 +1,5 @@
+import type { FamilyMemberProfile } from "./family-member-profile";
+
 export type ClientStatus = "PROSPECT" | "ACTIVE" | "CLOSED";
 
 export type ClientComplianceStatus = "MISSING" | "PARTIAL" | "COMPLETE" | "REVIEW_REQUIRED";
@@ -69,6 +71,7 @@ export interface FamilyMember {
   phone?: string;
   linkedClientId?: string;
   parentMemberId?: string; // 連結至哪個成員（undefined = 直接連結主客戶）
+  profile?: FamilyMemberProfile;
 }
 
 export interface Policy {

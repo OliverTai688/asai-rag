@@ -99,6 +99,7 @@
     "client:relationship-graph-write-qa": "node scripts/client-relationship-graph-write-qa.mjs",
     "client:relationship-edge-shadow-qa": "node scripts/client-relationship-edge-shadow-qa.mjs",
     "client:relationship-edge-shadow-bff-qa": "node scripts/client-relationship-edge-shadow-bff-qa.mjs",
+    "client:family-member-profile-metadata-qa": "node scripts/client-family-member-profile-metadata-qa.mjs",
     "theater:client-build-qa": "node scripts/theater-client-build-qa.mjs",
     "theater:direct-field-qa": "node scripts/theater-direct-field-qa.mjs",
     "theater:route-b-handoff-dry-run": "node scripts/theater-route-b-handoff-dry-run.mjs",

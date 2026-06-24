@@ -1,5 +1,10 @@
 import { z } from "zod";
 import { ClientStatus } from "@/generated/prisma/enums";
+import { Prisma } from "@/generated/prisma/client";
+import {
+  familyMemberProfileInputSchema,
+  mergeFamilyMemberProfileIntoMetadata,
+} from "@/domains/client/family-member-profile";
 import { canReadClientDetail, canWriteClient } from "@/lib/auth/policies";
 import type { AppSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
@@ -24,6 +29,7 @@ export const createFamilyMemberInputSchema = z.object({
   age: z.coerce.number().int().min(0).max(130).optional(),
   phone: z.string().trim().max(40).optional().or(z.literal("")),
   parentMemberId: z.string().trim().optional().or(z.literal("")),
+  profile: familyMemberProfileInputSchema.nullish(),
 });
 
 export const updateFamilyMemberInputSchema = createFamilyMemberInputSchema.partial().refine(
@@ -203,6 +209,9 @@ export async function createFamilyMemberForClient(
       age: input.age ?? null,
       phone: input.phone || null,
       parentMemberId: input.parentMemberId || null,
+      ...(input.profile !== undefined
+        ? { metadata: toNullableInputJson(mergeFamilyMemberProfileIntoMetadata(null, input.profile) ?? null) }
+        : {}),
     },
   });
 
@@ -223,7 +232,7 @@ export async function updateFamilyMemberForClient(
 
   const members = await prisma.familyMember.findMany({
     where: { clientId },
-    select: { id: true, parentMemberId: true },
+    select: { id: true, parentMemberId: true, metadata: true },
   });
   const target = members.find((member) => member.id === memberId);
 
@@ -255,6 +264,13 @@ export async function updateFamilyMemberForClient(
         ...(input.age !== undefined ? { age: input.age ?? null } : {}),
         ...(input.phone !== undefined ? { phone: input.phone || null } : {}),
         ...(nextParentMemberId !== undefined ? { parentMemberId: nextParentMemberId } : {}),
+        ...(input.profile !== undefined
+          ? {
+              metadata: toNullableInputJson(
+                mergeFamilyMemberProfileIntoMetadata(target.metadata, input.profile) ?? null,
+              ),
+            }
+          : {}),
       },
     }),
     prisma.client.update({
@@ -364,4 +380,10 @@ function wouldCreateFamilyCycle(
   }
 
   return false;
+}
+
+function toNullableInputJson(
+  value: Record<string, unknown> | null,
+): Prisma.InputJsonValue | Prisma.NullableJsonNullValueInput {
+  return value === null ? Prisma.JsonNull : (value as Prisma.InputJsonValue);
 }
