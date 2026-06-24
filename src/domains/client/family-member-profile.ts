@@ -52,6 +52,7 @@ const familyMemberProfileSourceReferenceSchema = z
 
 const familyMemberProfileFieldsSchema = z
   .object({
+    schemaVersion: z.literal(FAMILY_MEMBER_PROFILE_SCHEMA_VERSION).optional(),
     jobTitle: familyMemberProfileFieldSchema.optional(),
     annualIncomeOrDependency: familyMemberProfileFieldSchema.optional(),
     personStatus: familyMemberProfileFieldSchema.optional(),
@@ -77,7 +78,7 @@ export const familyMemberProfileInputSchema = familyMemberProfileFieldsSchema.tr
 }));
 
 const familyMemberProfileStoredSchema = familyMemberProfileFieldsSchema
-  .extend({
+  .safeExtend({
     schemaVersion: z.literal(FAMILY_MEMBER_PROFILE_SCHEMA_VERSION),
   })
   .strict()

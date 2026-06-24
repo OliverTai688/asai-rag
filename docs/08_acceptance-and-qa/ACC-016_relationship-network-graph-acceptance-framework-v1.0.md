@@ -5,7 +5,7 @@
 - 研究依據：`docs/07_research-and-design/RES-024_relationship-network-graph-creation-gap-research-v1.0.md`
 - 建立日期：2026-06-20
 
-本框架定義 REL-001..REL-005 的驗收條目。每張 batch 卡完成前須通過對應段落，並保存 proof（API response、DB 查詢、Browser 截圖、command output）。2026-06-23 fifth-loop review 新增 REL-004a，作為正式 edge table migration 前的不動 schema contract / dry-run bridge；2026-06-24 fifth-loop review 新增 REL-004e/REL-004f/REL-004g，作為正式 edge table 前的 Route B session source-grounding/readback、next-turn/runtime grounding、feedback review/provider grounding bridge。
+本框架定義 REL-001..REL-005 的驗收條目。每張 batch 卡完成前須通過對應段落，並保存 proof（API response、DB 查詢、Browser 截圖、command output）。2026-06-23 fifth-loop review 新增 REL-004a，作為正式 edge table migration 前的不動 schema contract / dry-run bridge；2026-06-24 fifth-loop review 新增 REL-004e/REL-004f/REL-004g，作為正式 edge table 前的 Route B session source-grounding/readback、next-turn/runtime grounding、feedback review/provider grounding bridge；REL-006d 補上 advisor 可操作的人物 profile editor UI source proof。
 
 ---
 
@@ -114,9 +114,9 @@ REL-004g evidence（2026-06-24）：Route B feedback contract、feedback provide
 - [x] BFF update/read 由 current member + client ownership 推導 scope；manager/foreign client 不得寫入或讀取 private profile details。
 - [x] Relationship graph source review 對已確認 metadata 顯示 FACT/INFERENCE/UNKNOWN，缺值仍保留待確認，不得把 inference 升格為 confirmed CRM fact。
 - [x] Proof 必須顯示不改 Prisma schema、不寫 RelationshipEdge table、不寫 VisitPlan、不寫 confirmed CRM fact、不呼叫 provider、不偽造 `AiUsageLog`。
-- [ ] 若改 UI，desktop/mobile console error 0、無水平 overflow，且關係圖/來源審查不要求 raw ID workflow。
+- [x] 若改 UI，desktop/mobile/source proof 顯示不要求 raw ID workflow、不暴露 raw metadata/source internals，且 UI write 仍走 BFF/service boundary。
 
-REL-006 evidence（2026-06-24）：`pnpm client:family-member-profile-metadata-qa` pass，證明 profile allowlist/private sentinel guard、current-member/client ownership source boundary、DTO 不暴露 raw metadata、relationship graph 消費 profile 且缺值保留 UNKNOWN，以及 no-schema/no-provider/no fake `AiUsageLog`/no VisitPlan/no confirmed CRM fact/no RelationshipEdge table。未新增 UI control，因此最後一項 UI-only browser proof 不適用且保留待未來 UI 編輯 profile 時驗收。
+REL-006 evidence（2026-06-24）：`pnpm client:family-member-profile-metadata-qa` pass，證明 profile allowlist/private sentinel guard、current-member/client ownership source boundary、DTO 不暴露 raw metadata、relationship graph 消費 profile 且缺值保留 UNKNOWN，以及 no-schema/no-provider/no fake `AiUsageLog`/no VisitPlan/no confirmed CRM fact/no RelationshipEdge table。REL-006d 已補上 UI editor source proof。
 
 ### D2.5. Family profile theater handoff source review（REL-006b，不動 schema）
 
@@ -137,6 +137,18 @@ REL-006b evidence（2026-06-24）：`pnpm visit:theater-handoff-dry-run` pass，
 - [x] `pnpm theater:family-profile-session-source-qa`、`pnpm theater:route-b-schema-dry-run`、`pnpm ai:protocol-registry-qa` 通過，且輸出/檢查 `providerCallAttempted=false`、`databaseWriteAttempted=false`、`rawMetadataIncluded=false`、`sourceReferenceIdsIncluded=false`、`writesRelationshipGraph=false`、`writesVisitPlan=false`、`writesConfirmedCrmFact=false`。
 
 REL-006c evidence（2026-06-24）：`pnpm theater:family-profile-session-source-qa` pass，確認建場 -> handoff -> Route B session snapshot -> UI panel -> AgentFacts manifest 都有 safe `familyProfiles` source grounding；`pnpm theater:route-b-schema-dry-run` pass，確認 session `sceneState`/metadata 保存 safe family profile summary 且不保存 source reference ids；`pnpm ai:protocol-registry-qa` pass，Route B manifest 仍為 internal-only。
+
+### D2.7. Family profile advisor editor UI（REL-006d，不動 schema）
+
+- [x] `/crm/[clientId]/relationships` 顯示可操作的人物資料編輯 panel，欄位覆蓋職位/職業、年收入或財務依賴、人物狀態、決策角色、關係脈絡。
+- [x] 每欄必須帶 FACT/INFERENCE/UNKNOWN 狀態；可填 rationale，且 profile source reference 為 relationship_graph / 顧問輸入。
+- [x] Save/clear 走既有 `PATCH /api/clients/[id]/family-members/[memberId]` BFF service boundary；UI 不供應 organizationId/ownerId/userId/unitId。
+- [x] UI 不渲染 raw metadata、raw source reference internals、policy number、raw provider payload、raw private transcript。
+- [x] `familyMemberProfileInputSchema` 接受共用 `FAMILY_MEMBER_PROFILE_SCHEMA_VERSION`，避免 typed UI payload 與 strict BFF parse 不一致。
+- [x] `pnpm client:family-member-profile-ui-qa` 通過，且輸出 `providerCallAttempted=false`、`dbConnectionAttempted=false`、`writesRelationshipEdgeTable=false`、`writesVisitPlan=false`、`writesConfirmedCrmFact=false`、`exposesBrowserSuppliedOrgScope=false`。
+- [x] `CLIENT_FAMILY_PROFILE_UI_QA_BASE_URL=http://localhost:3067 pnpm client:family-member-profile-ui-qa --browser` 通過，desktop/mobile 無水平 overflow，UI save 後 API readback profile/source reference 成功；截圖保存於 `docs/06_audits-and-reports/screenshots/modern-ui/relationship-graph/rel-006d-family-profile-editor-desktop.png`、`docs/06_audits-and-reports/screenshots/modern-ui/relationship-graph/rel-006d-family-profile-editor-mobile.png`。
+
+REL-006d evidence（2026-06-24）：`pnpm client:family-member-profile-ui-qa` pass，source/UI contract 確認 advisor editor 只寫 allowlisted `FamilyMember.metadata.profile`、走 BFF service、保留 source review grounding、無 browser-supplied org scope、無 raw metadata/source internals、無 provider/DB/VisitPlan/confirmed CRM fact/RelationshipEdge write；`CLIENT_FAMILY_PROFILE_UI_QA_BASE_URL=http://localhost:3067 pnpm client:family-member-profile-ui-qa --browser` pass，建立 demo/test client/family member、desktop/mobile 開啟 editor、UI 儲存 profile、API readback relationship_graph source reference 成功；並回歸 `client:family-member-profile-metadata-qa`、`visit:family-profile-theater-handoff-qa`、`theater:family-profile-session-source-qa`。
 
 ## E. 佈局/互動/可及性（REL-005）
 

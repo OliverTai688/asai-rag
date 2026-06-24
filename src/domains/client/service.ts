@@ -23,8 +23,11 @@ type ArchiveClientResponse = {
   };
 };
 
-type CreateFamilyMemberInput = Omit<FamilyMember, "id">;
-type UpdateFamilyMemberInput = Partial<Omit<FamilyMember, "id">>;
+type FamilyMemberWriteInput = Omit<FamilyMember, "id" | "profile"> & {
+  profile?: FamilyMember["profile"] | null;
+};
+type CreateFamilyMemberInput = FamilyMemberWriteInput;
+type UpdateFamilyMemberInput = Partial<FamilyMemberWriteInput>;
 type CreatePolicyInput = Omit<Policy, "id">;
 
 async function parseApiError(response: Response): Promise<Error> {
