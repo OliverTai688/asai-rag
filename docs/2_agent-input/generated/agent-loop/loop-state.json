@@ -84,11 +84,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 2,
+    "normalLoopsSinceLastWholeProductReview": 3,
     "lastWholeProductReviewAt": "2026-06-24T05:24:38Z",
     "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-24_lv3-whole-product-gap-review-state-proposal-cross-flow.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "REL-006b completed no-schema FamilyMember.metadata.profile -> preparation/theater handoff source review, including theater build source panel and no-write/no-provider proof. If operator approves additive RelationshipEdge schema/migration, resume formal REL-004. If product answers relationship confirmation persistence A/B/C, implement that selected path. Otherwise next normal loop should either add a small advisor UI editor for profile metadata or carry the safe profile grounding into Route B session/source grounding, preserving no provider/fake AiUsageLog/no RelationshipEdge/VisitPlan/confirmed CRM fact writes unless separately approved.",
+    "nextRecommendedImplementationSlice": "REL-006c completed no-schema FamilyMember.metadata.profile -> Route B session source grounding/readback, including theater build handoff propagation, session sceneState/metadata dry-run proof, stage source panel, and AgentFacts manifest refs. If operator approves additive RelationshipEdge schema/migration, resume formal REL-004. If product answers relationship confirmation persistence A/B/C, implement that selected path. Otherwise next normal loop should either add a small advisor UI editor for profile metadata or carry family profile grounding into Route B next-turn/provider prompt or feedback review context, preserving no provider/fake AiUsageLog/no RelationshipEdge/VisitPlan/confirmed CRM fact writes unless separately approved.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {
@@ -156,5 +156,5 @@
     "lv3ImmersiveLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-immersive-loop.md",
     "lv3WholeProductGapReviewLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md"
   },
-  "updatedAt": "2026-06-24T06:05:09Z"
+  "updatedAt": "2026-06-24T08:35:34Z"
 }

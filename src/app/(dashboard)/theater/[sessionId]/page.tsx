@@ -74,6 +74,9 @@ type RouteBMeetingSignalGrounding = NonNullable<
 type RouteBRelationshipEdgeShadowGrounding = NonNullable<
   NonNullable<RouteBSessionSnapshot["scene"]["sourceGrounding"]>["relationshipEdgeShadow"]
 >;
+type RouteBFamilyProfileGrounding = NonNullable<
+  NonNullable<RouteBSessionSnapshot["scene"]["sourceGrounding"]>["familyProfiles"]
+>;
 type RouteBMeetingSignalRuntimeGrounding =
   TheaterRouteBNextTurnDraft["inputSummary"]["meetingRelationshipSignalGrounding"];
 type RouteBRelationshipEdgeShadowRuntimeGrounding =
@@ -513,6 +516,7 @@ function RouteBSessionStage({
   const visibilityRules = routeBRecords(snapshot.scene.visibilityRules);
   const meetingSignalGrounding = snapshot.scene.sourceGrounding?.meetingRelationshipSignals ?? null;
   const relationshipEdgeShadowGrounding = snapshot.scene.sourceGrounding?.relationshipEdgeShadow ?? null;
+  const familyProfileGrounding = snapshot.scene.sourceGrounding?.familyProfiles ?? null;
   const directorTurns = snapshot.turns.filter((turn) => turn.visibilityScope === "DIRECTOR_ONLY");
   const groupTurns = snapshot.turns.filter((turn) => turn.visibilityScope === "GROUP" || !turn.visibilityScope);
   const provider = snapshot.session.provider;
@@ -835,15 +839,17 @@ function RouteBSessionStage({
             <p className="mt-1 text-sm text-muted-foreground">
               {snapshot.characters.length} 位角色・{relationships.length} 條關係・{snapshot.scene.statePatchCount} 個狀態更新
               {meetingSignalGrounding ? `・${meetingSignalGrounding.cardCount} 個會議訊號` : ""}
+              {familyProfileGrounding ? `・${familyProfileGrounding.fieldCount} 個人物欄位` : ""}
               {relationshipEdgeShadowGrounding ? `・${relationshipEdgeShadowGrounding.candidateEdgeCount} 條 edge readiness` : ""}
             </p>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-2 text-center sm:min-w-[30rem] sm:grid-cols-5">
+        <div className="grid grid-cols-2 gap-2 text-center sm:min-w-[36rem] sm:grid-cols-6">
           <RouteBMetric label="角色" value={snapshot.characters.length} />
           <RouteBMetric label="旁白補問" value={narratorQuestions.length} />
           <RouteBMetric label="會議訊號" value={meetingSignalGrounding?.cardCount ?? 0} />
+          <RouteBMetric label="人物欄位" value={familyProfileGrounding?.fieldCount ?? 0} />
           <RouteBMetric label="Edge ready" value={relationshipEdgeShadowGrounding?.candidateEdgeCount ?? 0} />
           <RouteBMetric label="私聊外洩" value={snapshot.visibilityProof.thirdPartyVisibleForDirectMessage ? "需查" : "0"} />
         </div>
@@ -979,6 +985,7 @@ function RouteBSessionStage({
 
         <aside className="space-y-3">
           {meetingSignalGrounding ? <RouteBMeetingSignalGroundingPanel grounding={meetingSignalGrounding} /> : null}
+          {familyProfileGrounding ? <RouteBFamilyProfileGroundingPanel grounding={familyProfileGrounding} /> : null}
           {relationshipEdgeShadowGrounding ? (
             <RouteBRelationshipEdgeShadowGroundingPanel grounding={relationshipEdgeShadowGrounding} />
           ) : null}
@@ -1117,6 +1124,69 @@ function RouteBMeetingSignalGroundingPanel({ grounding }: { grounding: RouteBMee
   );
 }
 
+function RouteBFamilyProfileGroundingPanel({ grounding }: { grounding: RouteBFamilyProfileGrounding }) {
+  const statusText = routeBCountMapText(grounding.byFactStatus, "none");
+
+  return (
+    <Card className="border-hairline shadow-none" data-route-b-family-profile-source-grounding="true">
+      <CardContent className="space-y-4 p-5">
+        <div className="flex items-start gap-3">
+          <UserRound className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+          <div className="min-w-0">
+            <h2 className="text-sm font-semibold text-ink">人物 profile 來源</h2>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+              {grounding.memberCount} 位人物・{grounding.fieldCount} 個欄位・{grounding.unknownFieldCount} 個待確認
+            </p>
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-hairline bg-paper px-3 py-2 text-xs leading-5 text-muted-foreground">
+          <p>
+            <span className="font-semibold text-ink">Fact status：</span>
+            {statusText}
+          </p>
+          <p className="mt-1">
+            <span className="font-semibold text-ink">Source refs：</span>
+            {grounding.sourceReferenceCount} 個安全計數，未輸出 reference id
+          </p>
+        </div>
+
+        <div className="space-y-2">
+          {grounding.fields.slice(0, 4).map((field) => (
+            <div key={field.stageFieldId} className="rounded-lg border border-hairline bg-paper px-3 py-2">
+              <div className="flex flex-wrap items-center gap-1.5">
+                <Badge variant="outline" className="text-[10px]">
+                  {routeBFamilyProfileStatusLabel(field.factStatus)}
+                </Badge>
+                <span className="rounded-full border border-hairline bg-background px-2 py-0.5 text-[10px] text-muted-foreground">
+                  {field.relation || "關係待補"}
+                </span>
+              </div>
+              <p className="mt-2 line-clamp-2 text-sm font-medium leading-5 text-ink">
+                {field.person}・{field.label || field.field}
+              </p>
+              <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">{field.value}</p>
+            </div>
+          ))}
+        </div>
+
+        <div className="grid gap-2 text-[11px] text-muted-foreground">
+          <ContextLine label="Owner graph scope" value={String(grounding.boundary.ownerScopedRelationshipGraphRequired)} />
+          <ContextLine label="Browser session id" value={String(grounding.boundary.browserSuppliedSessionId)} />
+          <ContextLine label="Browser person id" value={String(grounding.boundary.browserSuppliedPersonId)} />
+          <ContextLine label="Provider call" value={String(grounding.boundary.providerCallAttempted)} />
+          <ContextLine label="Raw metadata" value={String(grounding.boundary.rawMetadataIncluded)} />
+          <ContextLine label="Source reference ids" value={String(grounding.boundary.sourceReferenceIdsIncluded)} />
+          <ContextLine label="DB write" value={String(grounding.boundary.databaseWriteAttempted)} />
+          <ContextLine label="Relationship graph write" value={String(grounding.boundary.writesRelationshipGraph)} />
+          <ContextLine label="VisitPlan write" value={String(grounding.boundary.writesVisitPlan)} />
+          <ContextLine label="CRM fact write" value={String(grounding.boundary.writesConfirmedCrmFact)} />
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 function RouteBRelationshipEdgeShadowGroundingPanel({ grounding }: { grounding: RouteBRelationshipEdgeShadowGrounding }) {
   const edgeTypeText = routeBCountMapText(grounding.edgeTypeCounts, "none");
   const statusText = routeBCountMapText(grounding.factStatusCounts, "none");
@@ -1171,6 +1241,12 @@ function routeBCountMapText(counts: Record<string, number>, fallback: string): s
     .slice(0, 6);
 
   return entries.length ? entries.map(([key, value]) => `${key}=${value}`).join("、") : fallback;
+}
+
+function routeBFamilyProfileStatusLabel(status: string): string {
+  if (status === "FACT") return "FACT 確認事實";
+  if (status === "INFERENCE") return "INFERENCE 推論";
+  return "UNKNOWN 待確認";
 }
 
 function RouteBSevereRedLineWarningPanel({

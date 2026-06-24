@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import type { TheaterBuildPacket } from "../src/domains/interview/types";
 import {
   buildTheaterRouteBHandoff,
+  buildTheaterRouteBFamilyProfileGroundingSummary,
   buildTheaterRouteBMeetingSignalGroundingSummary,
 } from "../src/domains/theater/route-b-handoff";
 import {
@@ -102,10 +103,41 @@ const meetingSignalGrounding = buildTheaterRouteBMeetingSignalGroundingSummary(
   ["請確認林太太是否會一起參與家庭保障討論。"],
 );
 
+const familyProfileGrounding = buildTheaterRouteBFamilyProfileGroundingSummary([
+  {
+    field: "occupation",
+    label: "職位",
+    person: "林太太",
+    relation: "配偶",
+    value: "家族公司財務長",
+    status: "FACT",
+    sourceRefs: ["profile_source_occupation"],
+  },
+  {
+    field: "decisionContext",
+    label: "關係脈絡",
+    person: "林太太",
+    relation: "配偶",
+    value: "可能會共同檢視保費現金流",
+    status: "INFERENCE",
+    sourceRefs: ["profile_source_context", "profile_source_cashflow"],
+  },
+  {
+    field: "annualIncome",
+    label: "年薪",
+    person: "林太太",
+    relation: "配偶",
+    value: "待確認",
+    status: "UNKNOWN",
+    sourceRefs: [],
+  },
+]);
+
 const handoff = buildTheaterRouteBHandoff(packet, {
   routeBEnabled: true,
   now: "2026-06-20T00:00:00.000Z",
   meetingRelationshipSignals: meetingSignalGrounding,
+  familyProfiles: familyProfileGrounding,
 });
 
 const draft = buildRouteBSessionDraft(
@@ -139,6 +171,9 @@ const persistedGrounding = persistedSceneState.sourceGrounding as Record<string,
 const persistedMeetingGrounding = persistedGrounding.meetingRelationshipSignals as Record<string, unknown>;
 const persistedMeetingBoundary = persistedMeetingGrounding.boundary as Record<string, unknown>;
 const persistedMeetingCards = persistedMeetingGrounding.cards as Array<Record<string, unknown>>;
+const persistedFamilyProfiles = persistedGrounding.familyProfiles as Record<string, unknown>;
+const persistedFamilyProfileBoundary = persistedFamilyProfiles.boundary as Record<string, unknown>;
+const persistedFamilyProfileFields = persistedFamilyProfiles.fields as Array<Record<string, unknown>>;
 check(persistedMeetingGrounding.cardCount === 1, "session sceneState stores one safe meeting signal grounding card");
 check(persistedMeetingGrounding.narratorQuestionCount === 1, "session sceneState stores meeting signal narrator question count");
 check(persistedMeetingCards[0]?.stageCardId === "route_b_meeting_signal_1", "meeting signal grounding does not persist raw meeting/person ids");
@@ -146,7 +181,23 @@ check(persistedMeetingBoundary.providerCallAttempted === false, "meeting signal 
 check(persistedMeetingBoundary.writesRelationshipGraph === false, "meeting signal grounding writes no relationship graph");
 check(persistedMeetingBoundary.writesVisitPlan === false, "meeting signal grounding writes no VisitPlan");
 check(persistedMeetingBoundary.writesConfirmedCrmFact === false, "meeting signal grounding writes no confirmed CRM fact");
+check(persistedFamilyProfiles.fieldCount === 3, "session sceneState stores safe family profile grounding fields");
+check(persistedFamilyProfiles.memberCount === 1, "family profile grounding stores member count only");
+check(persistedFamilyProfiles.sourceReferenceCount === 3, "family profile grounding stores source reference count only");
+check(persistedFamilyProfileFields[0]?.stageFieldId === "route_b_family_profile_1", "family profile grounding uses stage field ids");
+check(
+  !JSON.stringify(persistedFamilyProfiles).includes("profile_source_occupation"),
+  "family profile grounding does not persist source reference ids",
+);
+check(persistedFamilyProfileBoundary.providerCallAttempted === false, "family profile grounding keeps provider call false");
+check(persistedFamilyProfileBoundary.rawMetadataIncluded === false, "family profile grounding excludes raw metadata");
+check(persistedFamilyProfileBoundary.sourceReferenceIdsIncluded === false, "family profile grounding excludes source reference ids");
+check(persistedFamilyProfileBoundary.databaseWriteAttempted === false, "family profile grounding writes no profile DB updates");
+check(persistedFamilyProfileBoundary.writesRelationshipGraph === false, "family profile grounding writes no relationship graph");
+check(persistedFamilyProfileBoundary.writesVisitPlan === false, "family profile grounding writes no VisitPlan");
+check(persistedFamilyProfileBoundary.writesConfirmedCrmFact === false, "family profile grounding writes no confirmed CRM fact");
 check(Boolean((persistedMetadata.sourceGrounding as Record<string, unknown>)?.meetingRelationshipSignals), "session metadata carries source grounding preview");
+check(Boolean((persistedMetadata.sourceGrounding as Record<string, unknown>)?.familyProfiles), "session metadata carries family profile grounding preview");
 check(draft.sessionData.personaType === TheaterPersonaType.CONSERVATIVE, "legacy personaType remains compatibility-only");
 check(draft.sessionData.tension === 0, "legacy tension is neutralized for Route B draft");
 check(draft.charactersData.length === 3, "character payloads are created for focus and NPCs");

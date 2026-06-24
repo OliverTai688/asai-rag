@@ -37,8 +37,10 @@ import { buildTheaterFieldBuildContext } from "@/domains/interview/theater-build
 import type { TheaterBuildCharacterSeed, TheaterBuildPacket } from "@/domains/interview/types";
 import {
   buildTheaterRouteBHandoff,
+  buildTheaterRouteBFamilyProfileGroundingSummary,
   buildTheaterRouteBMeetingSignalGroundingSummary,
   buildTheaterRouteBRelationshipEdgeShadowGroundingSummary,
+  type TheaterRouteBFamilyProfileGroundingInput,
   type TheaterRouteBMeetingSignalGroundingInput,
 } from "@/domains/theater/route-b-handoff";
 import type { RouteBSessionSnapshot } from "@/domains/theater/route-b-session";
@@ -59,15 +61,8 @@ type ClientBuildReview = TheaterClientBuildResponse;
 type MeetingSignalStageStatus = "confirmed" | "inference" | "unknown";
 type MeetingSignalStageCard = TheaterRouteBMeetingSignalGroundingInput;
 type FamilyProfileStageStatus = "FACT" | "INFERENCE" | "UNKNOWN";
-type FamilyProfileStageField = {
+type FamilyProfileStageField = TheaterRouteBFamilyProfileGroundingInput & {
   id: string;
-  field: string;
-  label: string;
-  person: string;
-  relation: string;
-  value: string;
-  status: FamilyProfileStageStatus;
-  sourceRefs: string[];
 };
 type RelationshipEdgeShadowStageSummary = {
   candidateEdges: number;
@@ -759,10 +754,16 @@ export default function TheaterBuildPage() {
             getRelationshipEdgeShadowSummary(handoffReview.handoff.knownMaterials),
           )
         : undefined;
+      const familyProfileGrounding = handoffReview
+        ? buildTheaterRouteBFamilyProfileGroundingSummary(
+            getFamilyProfileStageFields(handoffReview.handoff.knownMaterials),
+          )
+        : undefined;
       const handoff = buildTheaterRouteBHandoff(packet, {
         routeBEnabled: true,
         meetingRelationshipSignals: meetingSignalGrounding,
         relationshipEdgeShadow: relationshipEdgeShadowGrounding,
+        familyProfiles: familyProfileGrounding,
       });
       const response = await fetch("/api/theater/route-b/sessions", {
         method: "POST",

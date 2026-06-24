@@ -123,6 +123,7 @@
     "theater:route-b-schema-dry-run": "node scripts/theater-route-b-schema-dry-run.mjs",
     "theater:meeting-signal-session-source-qa": "node scripts/theater-meeting-signal-session-source-qa.mjs",
     "theater:relationship-edge-shadow-session-source-qa": "node scripts/theater-relationship-edge-shadow-session-source-qa.mjs",
+    "theater:family-profile-session-source-qa": "node scripts/theater-family-profile-session-source-qa.mjs",
     "theater:route-b-runtime-qa": "node scripts/theater-route-b-runtime-qa.mjs",
     "theater:route-b-persistence-qa": "node scripts/theater-route-b-persistence-qa.mjs",
     "theater:route-b-session-ui-qa": "node scripts/theater-route-b-session-ui-qa.mjs",

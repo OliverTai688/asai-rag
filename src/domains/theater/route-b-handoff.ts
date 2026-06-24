@@ -109,9 +109,58 @@ export interface TheaterRouteBRelationshipEdgeShadowGroundingSummary {
   };
 }
 
+export type TheaterRouteBFamilyProfileGroundingStatus = "FACT" | "INFERENCE" | "UNKNOWN";
+
+export interface TheaterRouteBFamilyProfileGroundingInput {
+  field: string;
+  label: string;
+  person: string;
+  relation: string;
+  value: string;
+  status: TheaterRouteBFamilyProfileGroundingStatus;
+  sourceRefs: string[];
+}
+
+export interface TheaterRouteBFamilyProfileGroundingField {
+  stageFieldId: string;
+  field: string;
+  label: string;
+  person: string;
+  relation: string;
+  value: string;
+  factStatus: TheaterRouteBFamilyProfileGroundingStatus;
+  sourceReferenceCount: number;
+}
+
+export interface TheaterRouteBFamilyProfileGroundingSummary {
+  memberCount: number;
+  fieldCount: number;
+  knownFieldCount: number;
+  unknownFieldCount: number;
+  sourceReferenceCount: number;
+  byFactStatus: Record<TheaterRouteBFamilyProfileGroundingStatus, number>;
+  fields: TheaterRouteBFamilyProfileGroundingField[];
+  boundary: {
+    ownerScopedRelationshipGraphRequired: true;
+    browserSuppliedSessionId: false;
+    browserSuppliedPersonId: false;
+    providerCallAttempted: false;
+    aiUsageLogWritten: false;
+    storesRawProviderPayload: false;
+    rawPrivateTranscriptIncluded: false;
+    rawMetadataIncluded: false;
+    sourceReferenceIdsIncluded: false;
+    databaseWriteAttempted: false;
+    writesRelationshipGraph: false;
+    writesVisitPlan: false;
+    writesConfirmedCrmFact: false;
+  };
+}
+
 export interface TheaterRouteBSourceGrounding {
   meetingRelationshipSignals?: TheaterRouteBMeetingSignalGroundingSummary;
   relationshipEdgeShadow?: TheaterRouteBRelationshipEdgeShadowGroundingSummary;
+  familyProfiles?: TheaterRouteBFamilyProfileGroundingSummary;
 }
 
 export interface TheaterRouteBMaterial {
@@ -252,6 +301,7 @@ export interface BuildTheaterRouteBHandoffOptions {
   now?: string;
   meetingRelationshipSignals?: TheaterRouteBMeetingSignalGroundingSummary | null;
   relationshipEdgeShadow?: TheaterRouteBRelationshipEdgeShadowGroundingSummary | null;
+  familyProfiles?: TheaterRouteBFamilyProfileGroundingSummary | null;
 }
 
 export interface BuildTheaterRouteBDirectorInputOptions {
@@ -343,6 +393,28 @@ export function buildTheaterRouteBRelationshipEdgeShadowGroundingSummary(
   };
 }
 
+export function buildTheaterRouteBFamilyProfileGroundingSummary(
+  fields: TheaterRouteBFamilyProfileGroundingInput[],
+): TheaterRouteBFamilyProfileGroundingSummary | undefined {
+  const safeFields = fields
+    .slice(0, 12)
+    .map((field, index) => sanitizeFamilyProfileGroundingField(field, index))
+    .filter((field) => field.person && field.value && field.field);
+
+  if (!safeFields.length) return undefined;
+
+  return {
+    memberCount: unique(safeFields.map((field) => field.person)).length,
+    fieldCount: safeFields.length,
+    knownFieldCount: safeFields.filter((field) => field.factStatus !== "UNKNOWN").length,
+    unknownFieldCount: safeFields.filter((field) => field.factStatus === "UNKNOWN").length,
+    sourceReferenceCount: safeFields.reduce((total, field) => total + field.sourceReferenceCount, 0),
+    byFactStatus: countFamilyProfileFactStatus(safeFields),
+    fields: safeFields,
+    boundary: buildFamilyProfileGroundingBoundary(),
+  };
+}
+
 export function buildTheaterRouteBHandoff(
   packet: TheaterBuildPacket,
   options: BuildTheaterRouteBHandoffOptions = {},
@@ -370,7 +442,11 @@ export function buildTheaterRouteBHandoff(
     narratorQuestions: buildNarratorMaterials(packet),
     visibilityRules: buildVisibilityRules(),
     statePatches: buildInitialStatePatches(packet, characters),
-    sourceGrounding: buildRouteBSourceGrounding(options.meetingRelationshipSignals, options.relationshipEdgeShadow),
+    sourceGrounding: buildRouteBSourceGrounding(
+      options.meetingRelationshipSignals,
+      options.relationshipEdgeShadow,
+      options.familyProfiles,
+    ),
   };
 
   return {
@@ -401,8 +477,9 @@ export function buildTheaterRouteBHandoff(
 function buildRouteBSourceGrounding(
   meetingRelationshipSignals?: TheaterRouteBMeetingSignalGroundingSummary | null,
   relationshipEdgeShadow?: TheaterRouteBRelationshipEdgeShadowGroundingSummary | null,
+  familyProfiles?: TheaterRouteBFamilyProfileGroundingSummary | null,
 ): TheaterRouteBSourceGrounding | undefined {
-  if (!meetingRelationshipSignals && !relationshipEdgeShadow) return undefined;
+  if (!meetingRelationshipSignals && !relationshipEdgeShadow && !familyProfiles) return undefined;
 
   return {
     ...(meetingRelationshipSignals
@@ -411,6 +488,7 @@ function buildRouteBSourceGrounding(
     ...(relationshipEdgeShadow
       ? { relationshipEdgeShadow: sanitizeRelationshipEdgeShadowGroundingSummary(relationshipEdgeShadow) }
       : {}),
+    ...(familyProfiles ? { familyProfiles: sanitizeFamilyProfileGroundingSummary(familyProfiles) } : {}),
   };
 }
 
@@ -722,6 +800,81 @@ function sanitizeRelationshipEdgeShadowGroundingSummary(
   };
 }
 
+function sanitizeFamilyProfileGroundingSummary(
+  summary: TheaterRouteBFamilyProfileGroundingSummary,
+): TheaterRouteBFamilyProfileGroundingSummary {
+  const safeFields = summary.fields
+    .slice(0, 12)
+    .map((field, index) => ({
+      stageFieldId: `route_b_family_profile_${index + 1}`,
+      field: sanitizeRouteBText(field.field),
+      label: sanitizeRouteBText(field.label),
+      person: sanitizeRouteBText(field.person),
+      relation: sanitizeRouteBText(field.relation),
+      value: sanitizeRouteBText(field.value),
+      factStatus: normalizeFamilyProfileGroundingStatus(field.factStatus),
+      sourceReferenceCount: sanitizeCount(field.sourceReferenceCount),
+    }))
+    .filter((field) => field.person && field.value && field.field);
+
+  return {
+    memberCount: unique(safeFields.map((field) => field.person)).length,
+    fieldCount: safeFields.length,
+    knownFieldCount: safeFields.filter((field) => field.factStatus !== "UNKNOWN").length,
+    unknownFieldCount: safeFields.filter((field) => field.factStatus === "UNKNOWN").length,
+    sourceReferenceCount: safeFields.reduce((total, field) => total + field.sourceReferenceCount, 0),
+    byFactStatus: countFamilyProfileFactStatus(safeFields),
+    fields: safeFields,
+    boundary: buildFamilyProfileGroundingBoundary(),
+  };
+}
+
+function sanitizeFamilyProfileGroundingField(
+  field: TheaterRouteBFamilyProfileGroundingInput,
+  index: number,
+): TheaterRouteBFamilyProfileGroundingField {
+  return {
+    stageFieldId: `route_b_family_profile_${index + 1}`,
+    field: sanitizeRouteBText(field.field),
+    label: sanitizeRouteBText(field.label),
+    person: sanitizeRouteBText(field.person),
+    relation: sanitizeRouteBText(field.relation || "關係待補"),
+    value: sanitizeRouteBText(field.value),
+    factStatus: normalizeFamilyProfileGroundingStatus(field.status),
+    sourceReferenceCount: sanitizeCount(field.sourceRefs.length),
+  };
+}
+
+function buildFamilyProfileGroundingBoundary(): TheaterRouteBFamilyProfileGroundingSummary["boundary"] {
+  return {
+    ownerScopedRelationshipGraphRequired: true,
+    browserSuppliedSessionId: false,
+    browserSuppliedPersonId: false,
+    providerCallAttempted: false,
+    aiUsageLogWritten: false,
+    storesRawProviderPayload: false,
+    rawPrivateTranscriptIncluded: false,
+    rawMetadataIncluded: false,
+    sourceReferenceIdsIncluded: false,
+    databaseWriteAttempted: false,
+    writesRelationshipGraph: false,
+    writesVisitPlan: false,
+    writesConfirmedCrmFact: false,
+  };
+}
+
+function countFamilyProfileFactStatus(
+  fields: TheaterRouteBFamilyProfileGroundingField[],
+): Record<TheaterRouteBFamilyProfileGroundingStatus, number> {
+  return fields.reduce<Record<TheaterRouteBFamilyProfileGroundingStatus, number>>(
+    (counts, field) => ({
+      ...counts,
+      [field.factStatus]: counts[field.factStatus] + 1,
+    }),
+    { FACT: 0, INFERENCE: 0, UNKNOWN: 0 },
+  );
+}
+
 function sanitizeMeetingSignalGroundingCard(
   card: TheaterRouteBMeetingSignalGroundingInput,
   index: number,
@@ -745,6 +898,16 @@ function normalizeMeetingSignalStatus(status: TheaterRouteBMeetingSignalGroundin
   }
 
   return "unknown";
+}
+
+function normalizeFamilyProfileGroundingStatus(
+  status: TheaterRouteBFamilyProfileGroundingStatus,
+): TheaterRouteBFamilyProfileGroundingStatus {
+  if (status === "FACT" || status === "INFERENCE" || status === "UNKNOWN") {
+    return status;
+  }
+
+  return "UNKNOWN";
 }
 
 function sourceRefsForPacket(packet: TheaterBuildPacket, factStatus: TheaterRouteBFactStatus): TheaterRouteBSourceRef[] {

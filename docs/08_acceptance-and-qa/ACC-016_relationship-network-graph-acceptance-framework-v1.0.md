@@ -128,6 +128,16 @@ REL-006 evidence（2026-06-24）：`pnpm client:family-member-profile-metadata-q
 
 REL-006b evidence（2026-06-24）：`pnpm visit:theater-handoff-dry-run` pass，demo spouse profile 的 FACT/INFERENCE/UNKNOWN 皆進入 theater packet 並維持分層；`pnpm visit:family-profile-theater-handoff-qa` pass，確認 theater build source review 有人物 profile grounding panel 與 no-write/raw-sentinel boundary；`pnpm visit:edge-shadow-theater-build-qa` pass，確認既有 edge-shadow source review 未退化。
 
+### D2.6. Family profile Route B session source grounding/readback（REL-006c，不動 schema）
+
+- [x] `buildTheaterRouteBHandoff()` 支援 `sourceGrounding.familyProfiles`，只含 allowlisted profile field/person/relation/value/status/source count 與 no-raw/no-write proof boundary。
+- [x] `/theater/build` 建立 Route B session 時，從 `family_profile_field=true` stage fields 建立 `TheaterRouteBFamilyProfileGroundingSummary`；不得信任 browser-supplied org/person/session scope。
+- [x] Route B session `sceneState` / metadata / BFF snapshot readback 保留 `scene.sourceGrounding.familyProfiles`，但不含 raw metadata、source reference ids、policy number、email/phone、raw provider payload 或 raw private transcript。
+- [x] `/theater/[sessionId]` 顯示 `data-route-b-family-profile-source-grounding` panel，包含 field count、member count、fact status counts、source reference count 與 no-write boundary。
+- [x] `pnpm theater:family-profile-session-source-qa`、`pnpm theater:route-b-schema-dry-run`、`pnpm ai:protocol-registry-qa` 通過，且輸出/檢查 `providerCallAttempted=false`、`databaseWriteAttempted=false`、`rawMetadataIncluded=false`、`sourceReferenceIdsIncluded=false`、`writesRelationshipGraph=false`、`writesVisitPlan=false`、`writesConfirmedCrmFact=false`。
+
+REL-006c evidence（2026-06-24）：`pnpm theater:family-profile-session-source-qa` pass，確認建場 -> handoff -> Route B session snapshot -> UI panel -> AgentFacts manifest 都有 safe `familyProfiles` source grounding；`pnpm theater:route-b-schema-dry-run` pass，確認 session `sceneState`/metadata 保存 safe family profile summary 且不保存 source reference ids；`pnpm ai:protocol-registry-qa` pass，Route B manifest 仍為 internal-only。
+
 ## E. 佈局/互動/可及性（REL-005）
 
 - [ ] 配偶同 rank、手足排序、社會邊不破壞世代階層。
