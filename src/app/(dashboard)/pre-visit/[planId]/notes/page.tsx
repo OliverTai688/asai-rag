@@ -18,6 +18,7 @@ import { toast } from "sonner";
 
 import {
   MeetingWorkspace,
+  type MeetingRouteBFeedbackAdvisorContextDto,
   type MeetingRouteBRedLineContextDto,
   type MeetingRouteBStateProposalContextDto,
 } from "@/components/meeting/meeting-workspace";
@@ -102,6 +103,12 @@ type VisitRouteBRedLineContextResponse = MeetingRouteBRedLineContextDto & {
 };
 
 type VisitRouteBStateProposalContextResponse = MeetingRouteBStateProposalContextDto & {
+  visitPlanId: string;
+  clientId: string;
+  sourcePacketId: string;
+};
+
+type VisitRouteBFeedbackAdvisorContextResponse = MeetingRouteBFeedbackAdvisorContextDto & {
   visitPlanId: string;
   clientId: string;
   sourcePacketId: string;
@@ -221,6 +228,12 @@ function isVisitRouteBStateProposalContextResponse(
   return value !== null && typeof value === "object" && "status" in value && "summary" in value && "proof" in value;
 }
 
+function isVisitRouteBFeedbackAdvisorContextResponse(
+  value: VisitRouteBFeedbackAdvisorContextResponse | { error?: string } | null,
+): value is VisitRouteBFeedbackAdvisorContextResponse {
+  return value !== null && typeof value === "object" && "status" in value && "summary" in value && "proof" in value;
+}
+
 export default function PostVisitNotesPage() {
   const params = useParams();
   const router = useRouter();
@@ -328,6 +341,10 @@ function PostVisitNotesWorkspace({
   const [routeBStateProposalContext, setRouteBStateProposalContext] = useState<MeetingRouteBStateProposalContextDto | null>(null);
   const [routeBStateProposalContextError, setRouteBStateProposalContextError] = useState<string | null>(null);
   const [isRouteBStateProposalContextLoading, setIsRouteBStateProposalContextLoading] = useState(false);
+  const [routeBFeedbackAdvisorContext, setRouteBFeedbackAdvisorContext] =
+    useState<MeetingRouteBFeedbackAdvisorContextDto | null>(null);
+  const [routeBFeedbackAdvisorContextError, setRouteBFeedbackAdvisorContextError] = useState<string | null>(null);
+  const [isRouteBFeedbackAdvisorContextLoading, setIsRouteBFeedbackAdvisorContextLoading] = useState(false);
   const checkedMaterials = plan.materials.filter((material) => material.checked);
   const noteLines = notes
     .split("\n")
@@ -339,6 +356,7 @@ function PostVisitNotesWorkspace({
     "下一步尚未明確";
   const shouldLoadRouteBRedLineContext = !isQuickstart && !plan.id.startsWith("plan-");
   const shouldLoadRouteBStateProposalContext = shouldLoadRouteBRedLineContext;
+  const shouldLoadRouteBFeedbackAdvisorContext = shouldLoadRouteBRedLineContext;
 
   useEffect(() => {
     if (!shouldLoadRouteBRedLineContext) return;
@@ -386,6 +404,61 @@ function PostVisitNotesWorkspace({
       cancelled = true;
     };
   }, [plan.id, shouldLoadRouteBRedLineContext]);
+
+  useEffect(() => {
+    if (!shouldLoadRouteBFeedbackAdvisorContext) return;
+
+    let cancelled = false;
+
+    async function loadRouteBFeedbackAdvisorContext() {
+      setIsRouteBFeedbackAdvisorContextLoading(true);
+      setRouteBFeedbackAdvisorContextError(null);
+
+      try {
+        const response = await fetch(`/api/visits/${encodeURIComponent(plan.id)}/route-b-feedback-advisor-context`, {
+          method: "GET",
+          cache: "no-store",
+        });
+        const body = (await response.json().catch(() => null)) as
+          | VisitRouteBFeedbackAdvisorContextResponse
+          | { error?: string }
+          | null;
+
+        if (!response.ok || !isVisitRouteBFeedbackAdvisorContextResponse(body)) {
+          const message =
+            body && "error" in body && body.error
+              ? body.error
+              : `ROUTE_B_FEEDBACK_ADVISOR_CONTEXT_FAILED_${response.status}`;
+          throw new Error(message);
+        }
+
+        if (cancelled) return;
+
+        setRouteBFeedbackAdvisorContext({
+          status: body.status,
+          routeBFeedbackAdvisorContext: body.routeBFeedbackAdvisorContext,
+          summary: body.summary,
+          proof: body.proof,
+        });
+      } catch (error) {
+        if (cancelled) return;
+        setRouteBFeedbackAdvisorContext(null);
+        setRouteBFeedbackAdvisorContextError(
+          error instanceof Error ? error.message : "ROUTE_B_FEEDBACK_ADVISOR_CONTEXT_FAILED",
+        );
+      } finally {
+        if (!cancelled) {
+          setIsRouteBFeedbackAdvisorContextLoading(false);
+        }
+      }
+    }
+
+    void loadRouteBFeedbackAdvisorContext();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [plan.id, shouldLoadRouteBFeedbackAdvisorContext]);
 
   useEffect(() => {
     if (!shouldLoadRouteBStateProposalContext) return;
@@ -859,6 +932,15 @@ function PostVisitNotesWorkspace({
           routeBRedLineContext={shouldLoadRouteBRedLineContext ? routeBRedLineContext : null}
           routeBRedLineContextError={shouldLoadRouteBRedLineContext ? routeBRedLineContextError : null}
           routeBRedLineContextLoading={shouldLoadRouteBRedLineContext && isRouteBRedLineContextLoading}
+          routeBFeedbackAdvisorContext={
+            shouldLoadRouteBFeedbackAdvisorContext ? routeBFeedbackAdvisorContext : null
+          }
+          routeBFeedbackAdvisorContextError={
+            shouldLoadRouteBFeedbackAdvisorContext ? routeBFeedbackAdvisorContextError : null
+          }
+          routeBFeedbackAdvisorContextLoading={
+            shouldLoadRouteBFeedbackAdvisorContext && isRouteBFeedbackAdvisorContextLoading
+          }
           routeBStateProposalContext={shouldLoadRouteBStateProposalContext ? routeBStateProposalContext : null}
           routeBStateProposalContextError={shouldLoadRouteBStateProposalContext ? routeBStateProposalContextError : null}
           routeBStateProposalContextLoading={

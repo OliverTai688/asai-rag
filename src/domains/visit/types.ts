@@ -28,6 +28,7 @@ export type VisitQuestionEvidenceSource =
   | "visit_purpose"
   | "theater_route_b_red_line"
   | "theater_route_b_state_proposal"
+  | "theater_route_b_feedback_profile"
   | "unknown";
 
 export type VisitQuestionEvidenceStatus = "confirmed" | "inference" | "unknown";

@@ -18,6 +18,7 @@ export type AiEvidenceSummaryItem = {
     | "visit_purpose"
     | "theater_route_b_red_line"
     | "theater_route_b_state_proposal"
+    | "theater_route_b_feedback_profile"
     | "compliance"
     | "generated_recommendation"
     | "unknown";

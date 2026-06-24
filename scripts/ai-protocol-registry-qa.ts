@@ -47,6 +47,7 @@ const sourceAdoptionRequirements: Record<string, { ownerRefs: string[]; evidence
       "src/app/api/visits/[id]/relationship-confirmation-state/route.ts",
       "src/app/api/visits/[id]/route-b-red-line-context/route.ts",
       "src/app/api/visits/[id]/route-b-state-proposal-context/route.ts",
+      "src/app/api/visits/[id]/route-b-feedback-advisor-context/route.ts",
       "src/app/api/visits/[id]/meeting-relationship-signals/route.ts",
       "src/app/api/visits/[id]/theater-handoff/route.ts",
       "src/domains/visit/ai-evidence-dto.ts",
@@ -55,13 +56,16 @@ const sourceAdoptionRequirements: Record<string, { ownerRefs: string[]; evidence
       "src/domains/visit/meeting-relationship-signal.ts",
       "src/domains/visit/route-b-red-line-context.ts",
       "src/domains/visit/route-b-state-proposal-context.ts",
+      "src/domains/visit/route-b-feedback-advisor-context.ts",
       "src/domains/theater/visit-handoff.ts",
       "src/app/(dashboard)/theater/build/page.tsx",
       "src/lib/visits/visit-plan-repository.ts",
       "src/lib/visits/route-b-red-line-context-repository.ts",
       "src/lib/visits/route-b-state-proposal-context-repository.ts",
+      "src/lib/visits/route-b-feedback-advisor-context-repository.ts",
       "src/lib/visits/meeting-relationship-signal-repository.ts",
       "scripts/visit-meeting-signal-theater-handoff-qa.mjs",
+      "scripts/visit-route-b-feedback-advisor-context-qa.mjs",
       "scripts/lv3-route-b-state-proposal-cross-flow-qa.mjs",
     ],
     evidenceRefs: [
@@ -111,6 +115,14 @@ const sourceAdoptionRequirements: Record<string, { ownerRefs: string[]; evidence
       "getVisitRouteBStateProposalContextForMember",
       "VisitRouteBStateProposalContextBffDto.proof.browserSuppliedTheaterSessionId=false",
       "VisitQuestionEvidence.source=theater_route_b_state_proposal",
+      "buildVisitRouteBFeedbackAdvisorContextFromFeedbackReview",
+      "getVisitRouteBFeedbackAdvisorContextForMember",
+      "VisitRouteBFeedbackAdvisorContext.outputContract.writesRelationshipGraph=false",
+      "VisitRouteBFeedbackAdvisorContext.outputContract.writesVisitPlan=false",
+      "VisitRouteBFeedbackAdvisorContext.outputContract.writesClientProfile=false",
+      "VisitRouteBFeedbackAdvisorContext.outputContract.writesPolicy=false",
+      "VisitRouteBFeedbackAdvisorContext.outputContract.writesConfirmedCrmFact=false",
+      "VisitQuestionEvidence.source=theater_route_b_feedback_profile",
       "updateVisitPlanForMember",
       "LV3RouteBStateProposalCrossFlow.proofCommand=pnpm lv3:route-b-state-proposal-cross-flow-qa",
     ],
@@ -128,6 +140,7 @@ const sourceAdoptionRequirements: Record<string, { ownerRefs: string[]; evidence
       "pnpm visit:route-b-red-line-context-dry-run",
       "pnpm visit:route-b-red-line-context-bff-qa",
       "pnpm visit:route-b-state-proposal-context-qa",
+      "pnpm visit:route-b-feedback-advisor-context-qa",
       "pnpm lv3:route-b-state-proposal-cross-flow-qa",
     ],
   },
@@ -588,6 +601,7 @@ function runQa() {
 
   assertMeetingRouteBRedLineContextConsumption(manifests);
   assertMeetingRouteBStateProposalContextConsumption(manifests);
+  assertMeetingRouteBFeedbackAdvisorContextConsumption(manifests);
   assertMeetingRouteBStateProposalWritebackBridge(manifests);
   assertRouteBStateProposalCrossFlowProof(manifests);
   assertMeetingNotesHubQuarantine(manifests);
@@ -827,6 +841,61 @@ function assertMeetingRouteBStateProposalContextConsumption(manifests: AgentProt
 
   for (const evidenceRef of requiredEvidenceRefs) {
     push(adoption.evidenceRefs.includes(evidenceRef), `meeting Route B state proposal evidence includes ${evidenceRef}`);
+  }
+}
+
+function assertMeetingRouteBFeedbackAdvisorContextConsumption(manifests: AgentProtocolManifest[]) {
+  const manifest = manifests.find((item) => item.identity.agentId === "asai.meeting.prototype");
+  push(Boolean(manifest), "meeting manifest exists for Route B feedback advisor context consumption");
+
+  if (!manifest?.proof.sourceAdoption) {
+    return;
+  }
+
+  push(
+    manifest.capabilities.some((capability) => capability.id === "meeting-route-b-feedback-advisor-context-consumption"),
+    "meeting manifest declares Route B feedback advisor context consumption capability",
+  );
+  push(
+    manifest.interfaces.actions.some((action) => action.id === "consume-route-b-feedback-advisor-context-in-meeting-notes"),
+    "meeting manifest declares Route B feedback advisor context action boundary",
+  );
+  push(
+    manifest.interfaces.endpoints.some((endpoint) => endpoint.id === "visit-route-b-feedback-advisor-context"),
+    "meeting manifest references visit feedback advisor context endpoint",
+  );
+  push(
+    manifest.proof.commands.includes("pnpm visit:route-b-feedback-advisor-context-qa"),
+    "meeting proof commands include Route B feedback advisor context QA",
+  );
+
+  const adoption = manifest.proof.sourceAdoption;
+  const requiredOwnerRefs = [
+    "src/app/(dashboard)/pre-visit/[planId]/notes/page.tsx",
+    "src/components/meeting/meeting-workspace.tsx",
+    "src/app/api/visits/[id]/route-b-feedback-advisor-context/route.ts",
+    "src/lib/visits/route-b-feedback-advisor-context-repository.ts",
+    "scripts/visit-route-b-feedback-advisor-context-qa.mjs",
+  ];
+  const requiredEvidenceRefs = [
+    "meeting-route-b-feedback-advisor-context-consumption",
+    "meeting-route-b-feedback-advisor-context",
+    "buildRouteBFeedbackAdvisorNoteDraft",
+    "MeetingRouteBFeedbackAdvisorContextDto",
+    "VisitRouteBFeedbackAdvisorContextBffDto.proof.browserSuppliedTheaterSessionId=false",
+    "VisitRouteBFeedbackAdvisorContextBffDto.proof.browserSuppliedPersonId=false",
+    "VisitRouteBFeedbackAdvisorContextBffDto.proof.writesRelationshipGraph=false",
+    "VisitRouteBFeedbackAdvisorContextBffDto.proof.writesVisitPlan=false",
+    "VisitRouteBFeedbackAdvisorContextBffDto.proof.writesClientProfile=false",
+    "VisitRouteBFeedbackAdvisorContextBffDto.proof.writesPolicy=false",
+  ];
+
+  for (const ownerRef of requiredOwnerRefs) {
+    push(adoption.ownerRefs.includes(ownerRef), `meeting Route B feedback advisor owner includes ${ownerRef}`);
+  }
+
+  for (const evidenceRef of requiredEvidenceRefs) {
+    push(adoption.evidenceRefs.includes(evidenceRef), `meeting Route B feedback advisor evidence includes ${evidenceRef}`);
   }
 }
 

@@ -9,11 +9,16 @@ import {
   selectVisitRouteBRedLineQuestionEvidence,
   type VisitRouteBRedLineContext,
 } from "./route-b-red-line-context";
+import {
+  selectVisitRouteBFeedbackAdvisorQuestionEvidence,
+  type VisitRouteBFeedbackAdvisorContext,
+} from "./route-b-feedback-advisor-context";
 
 interface VisitQuestionReasoningContext {
   client: Client;
   purpose: VisitPurpose;
   routeBRedLineContext?: VisitRouteBRedLineContext;
+  routeBFeedbackAdvisorContext?: VisitRouteBFeedbackAdvisorContext;
 }
 
 const PURPOSE_COPY: Record<VisitPurpose, string> = {
@@ -58,6 +63,10 @@ function buildSummary(type: SpinQuestion["type"], context: VisitQuestionReasonin
     type !== "S" && hasRouteBRedLineAdvisorContext(context)
       ? " 同步帶入劇場紅線 action context，但只作待佐證提醒，不覆寫客戶事實。"
       : "";
+  const routeBFeedbackReminder =
+    type !== "S" && hasRouteBFeedbackAdvisorContext(context)
+      ? " 同步帶入劇場回饋的人物脈絡，但只作顧問追問與確認，不寫回客戶資料。"
+      : "";
 
   if (type === "S") {
     return familyCount > 0
@@ -69,17 +78,17 @@ function buildSummary(type: SpinQuestion["type"], context: VisitQuestionReasonin
     const base = policyCount > 0
       ? "既有保單只能代表過去配置，需要確認現在是否仍有缺口。"
       : "缺少保單資訊時，先把保障空白與客戶擔心的風險問清楚。";
-    return `${base}${routeBReminder}`;
+    return `${base}${routeBReminder}${routeBFeedbackReminder}`;
   }
 
   if (type === "I") {
     const base = familyCount > 0
       ? "把家庭成員與收入責任連到風險後果，協助客戶看見不處理的影響。"
       : "把尚未確認的責任關係轉成後果問題，避免把推論當成事實。";
-    return `${base}${routeBReminder}`;
+    return `${base}${routeBReminder}${routeBFeedbackReminder}`;
   }
 
-  return `最後把客戶已承認的缺口轉成可執行下一步，而不是直接推銷商品。${routeBReminder}`;
+  return `最後把客戶已承認的缺口轉成可執行下一步，而不是直接推銷商品。${routeBReminder}${routeBFeedbackReminder}`;
 }
 
 function selectEvidenceForQuestion(
@@ -96,30 +105,33 @@ function selectEvidenceForQuestion(
   }
 
   if (type === "P") {
-    return mergeRouteBRedLineEvidence(
+    return mergeRouteBAdvisorEvidence(
       [buildPolicyEvidence(context.client), buildAiTagEvidence(context.client), ...sharedEvidence],
       context,
     );
   }
 
   if (type === "I") {
-    return mergeRouteBRedLineEvidence(
+    return mergeRouteBAdvisorEvidence(
       [buildRelationshipEvidence(context.client), buildPolicyEvidence(context.client), buildAiTagEvidence(context.client)],
       context,
     );
   }
 
-  return mergeRouteBRedLineEvidence(
+  return mergeRouteBAdvisorEvidence(
     [buildPurposeEvidence(context.purpose), buildPolicyEvidence(context.client), buildUnknownEvidence()],
     context,
   );
 }
 
-function mergeRouteBRedLineEvidence(
+function mergeRouteBAdvisorEvidence(
   baseEvidence: VisitQuestionEvidence[],
   context: VisitQuestionReasoningContext,
 ): VisitQuestionEvidence[] {
-  const routeBEvidence = selectVisitRouteBRedLineQuestionEvidence(context.routeBRedLineContext);
+  const routeBEvidence = [
+    ...selectVisitRouteBRedLineQuestionEvidence(context.routeBRedLineContext, 1),
+    ...selectVisitRouteBFeedbackAdvisorQuestionEvidence(context.routeBFeedbackAdvisorContext, 2),
+  ];
 
   if (routeBEvidence.length === 0) {
     return baseEvidence.slice(0, 3);
@@ -207,11 +219,14 @@ function buildConfirmationPrompt(type: SpinQuestion["type"], context: VisitQuest
   const routeBPrompt = hasRouteBRedLineAdvisorContext(context)
     ? " 若涉及劇場紅線 action context，先補佐證或走升級審閱，不把它寫成正式結論。"
     : "";
+  const routeBFeedbackPrompt = hasRouteBFeedbackAdvisorContext(context)
+    ? " 若使用劇場回饋人物脈絡，請先向客戶確認，不寫回 relationship graph、VisitPlan、client profile 或 confirmed CRM fact。"
+    : "";
 
   if (type === "S") return "先確認這項現況是否仍正確。";
-  if (type === "P") return `問完後標記這是否是真缺口、誤解或待補資料。${routeBPrompt}`;
-  if (type === "I") return `避免替客戶放大恐懼，請確認他是否同意這個後果推論。${routeBPrompt}`;
-  return `只有在客戶認同需求後，才把下一步整理成行動。${routeBPrompt}`;
+  if (type === "P") return `問完後標記這是否是真缺口、誤解或待補資料。${routeBPrompt}${routeBFeedbackPrompt}`;
+  if (type === "I") return `避免替客戶放大恐懼，請確認他是否同意這個後果推論。${routeBPrompt}${routeBFeedbackPrompt}`;
+  return `只有在客戶認同需求後，才把下一步整理成行動。${routeBPrompt}${routeBFeedbackPrompt}`;
 }
 
 function hasRouteBRedLineAdvisorContext(context: VisitQuestionReasoningContext) {
@@ -219,6 +234,10 @@ function hasRouteBRedLineAdvisorContext(context: VisitQuestionReasoningContext) 
     (context.routeBRedLineContext?.summary.evidenceNeededCount ?? 0) > 0 ||
     (context.routeBRedLineContext?.summary.escalateCount ?? 0) > 0
   );
+}
+
+function hasRouteBFeedbackAdvisorContext(context: VisitQuestionReasoningContext) {
+  return (context.routeBFeedbackAdvisorContext?.summary.itemCount ?? 0) > 0;
 }
 
 function formatCurrency(value: number) {

@@ -5,7 +5,7 @@
 - 研究依據：`docs/07_research-and-design/RES-024_relationship-network-graph-creation-gap-research-v1.0.md`
 - 建立日期：2026-06-20
 
-本框架定義 REL-001..REL-005 的驗收條目。每張 batch 卡完成前須通過對應段落，並保存 proof（API response、DB 查詢、Browser 截圖、command output）。2026-06-23 fifth-loop review 新增 REL-004a，作為正式 edge table migration 前的不動 schema contract / dry-run bridge；2026-06-24 fifth-loop review 新增 REL-004e/REL-004f/REL-004g，作為正式 edge table 前的 Route B session source-grounding/readback、next-turn/runtime grounding、feedback review/provider grounding bridge；REL-006d 補上 advisor 可操作的人物 profile editor UI source proof；2026-06-24 family profile runtime calibration 新增 REL-006e/REL-006f，用同一套 no-schema/least-disclosure 邊界把 `sourceGrounding.familyProfiles` 推進 Route B next-turn/provider 與 feedback review/provider。
+本框架定義 REL-001..REL-005 的驗收條目。每張 batch 卡完成前須通過對應段落，並保存 proof（API response、DB 查詢、Browser 截圖、command output）。2026-06-23 fifth-loop review 新增 REL-004a，作為正式 edge table migration 前的不動 schema contract / dry-run bridge；2026-06-24 fifth-loop review 新增 REL-004e/REL-004f/REL-004g，作為正式 edge table 前的 Route B session source-grounding/readback、next-turn/runtime grounding、feedback review/provider grounding bridge；REL-006d 補上 advisor 可操作的人物 profile editor UI source proof；2026-06-24 family profile runtime calibration 新增 REL-006e/REL-006f，用同一套 no-schema/least-disclosure 邊界把 `sourceGrounding.familyProfiles` 推進 Route B next-turn/provider 與 feedback review/provider；REL-006g 再把 feedback family profile evidence 轉成準備包 / AI Meeting notes advisor context consumption。
 
 ---
 
@@ -169,6 +169,16 @@ REL-006e evidence（2026-06-24）：新增 `TheaterRouteBFamilyProfileRuntimeGro
 - [x] `pnpm theater:route-b-feedback-dry-run`、`pnpm theater:route-b-feedback-provider-dry-run`、`pnpm theater:route-b-feedback-review-qa`、`pnpm theater:family-profile-session-source-qa`、`pnpm ai:protocol-registry-qa` 通過，且 provider-disabled path 不寫 fake `AiUsageLog`；live provider path 若使用 context，success/error 仍須寫 THEATER `AiUsageLog`。
 
 REL-006f evidence（2026-06-24）：新增 feedback-specific `familyProfileGrounding`，由 `buildTheaterRouteBFeedbackContract()`、`buildTheaterRouteBFeedbackProviderInput()` 與 `buildTheaterRouteBFeedbackReview()` 消費 persisted `sourceGrounding.familyProfiles`，並在 UI 提供 `data-route-b-feedback-family-profile-grounding` safe panel。`pnpm theater:route-b-family-profile-feedback-qa` 串跑 contract/provider/review/UI/source proof，證明 raw metadata/source reference ids/private transcript/provider payload 皆不輸出，provider/DB/relationship graph/VisitPlan/client profile/policy/confirmed CRM fact write 皆為 false，且 live provider success/error path 仍先寫 THEATER `AiUsageLog`。
+
+### D2.10. Feedback family profile advisor context consumption（REL-006g，不動 schema）
+
+- [x] `buildVisitRouteBFeedbackAdvisorContextFromFeedbackReview()` 從 Route B feedback review 的 family profile grounding 產出 visit-safe advisor context；只含人物/欄位/status/安全摘要/待問問題與 proof flags，不含 raw metadata、source reference ids、theater session id、person id、email、phone、policy number、raw private transcript 或 raw provider payload。
+- [x] `/api/visits/[id]/route-b-feedback-advisor-context` 由 current member + visit plan ownership + server-derived source packet 查找 matching Route B session feedback review；browser 不供應 theaterSessionId、personId、organizationId 或 owner scope。
+- [x] `buildVisitReasoningTrace()` 只把 context 加進 P/I/N 問題 evidence，source 為 `theater_route_b_feedback_profile`；S 階段不前置放大劇場回饋，inference/unknown 不升格為 confirmed CRM fact。
+- [x] `/pre-visit/[planId]`、`/pre-visit/[planId]/notes` 與 AI Meeting workspace 顯示 safe advisor context panel / note draft affordance，並標示 provider/DB/relationship graph/VisitPlan/client profile/policy/confirmed CRM fact write 皆為 false。
+- [x] `pnpm visit:route-b-feedback-advisor-context-dry-run`、`pnpm visit:route-b-feedback-advisor-context-qa`、`pnpm ai:protocol-registry-qa`、`pnpm ai:bff-audit`、`pnpm theater:route-b-family-profile-feedback-qa` 通過，且 provider-disabled path 不寫 fake `AiUsageLog`。
+
+REL-006g evidence（2026-06-24）：新增 visit-domain `VisitRouteBFeedbackAdvisorContext`、server-owned BFF endpoint、準備包/AI Meeting UI consumption 與 AgentFacts manifest/registry refs。Proof command `pnpm visit:route-b-feedback-advisor-context-qa` 串跑 dry-run 與 source sentinel，確認 P/I/N 問題清單會消費 feedback profile evidence、BFF 不接受 browser-supplied theater/person scope、UI/DTO 不暴露 raw source refs/private/provider payload，且 provider/DB/graph/VisitPlan/client profile/policy/confirmed CRM fact write 皆為 false。
 
 ## E. 佈局/互動/可及性（REL-005）
 

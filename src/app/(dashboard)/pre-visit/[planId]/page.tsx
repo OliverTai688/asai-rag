@@ -52,6 +52,11 @@ import type {
   VisitRelationshipConfirmationStateBoundary,
 } from "@/domains/visit/relationship-confirmation-state";
 import type {
+  VisitRouteBFeedbackAdvisorContext,
+  VisitRouteBFeedbackAdvisorContextItem,
+  VisitRouteBFeedbackAdvisorContextStatus,
+} from "@/domains/visit/route-b-feedback-advisor-context";
+import type {
   VisitRouteBRedLineContext,
   VisitRouteBRedLineContextItem,
 } from "@/domains/visit/route-b-red-line-context";
@@ -191,6 +196,33 @@ type VisitRouteBStateProposalContextResponse = {
     aiUsageLogWritten: false;
     writesRelationshipGraph: false;
     writesVisitPlan: false;
+    writesConfirmedCrmFact: false;
+  };
+};
+
+type VisitRouteBFeedbackAdvisorContextResponse = {
+  status: VisitRouteBFeedbackAdvisorContextStatus;
+  visitPlanId: string;
+  clientId: string;
+  sourcePacketId: string;
+  routeBFeedbackAdvisorContext?: VisitRouteBFeedbackAdvisorContext;
+  source: {
+    matchedBy: "routeBSourcePacketId";
+    sourceActionId: "route-b-feedback-persistence";
+    feedbackReviewUpdatedAt?: string;
+  };
+  summary: VisitRouteBFeedbackAdvisorContext["summary"];
+  proof: {
+    ownerScopedVisitPlan: true;
+    ownerScopedTheaterSessionLookup: true;
+    browserSuppliedTheaterSessionId: false;
+    browserSuppliedPersonId: false;
+    providerCallAttempted: false;
+    aiUsageLogWritten: false;
+    writesRelationshipGraph: false;
+    writesVisitPlan: false;
+    writesClientProfile: false;
+    writesPolicy: false;
     writesConfirmedCrmFact: false;
   };
 };
@@ -339,6 +371,10 @@ function VisitPlanDetailContent() {
     useState<VisitRouteBStateProposalContextResponse | null>(null);
   const [routeBStateProposalContextError, setRouteBStateProposalContextError] = useState<string | null>(null);
   const [isLoadingRouteBStateProposalContext, setIsLoadingRouteBStateProposalContext] = useState(false);
+  const [routeBFeedbackAdvisorContext, setRouteBFeedbackAdvisorContext] =
+    useState<VisitRouteBFeedbackAdvisorContextResponse | null>(null);
+  const [routeBFeedbackAdvisorContextError, setRouteBFeedbackAdvisorContextError] = useState<string | null>(null);
+  const [isLoadingRouteBFeedbackAdvisorContext, setIsLoadingRouteBFeedbackAdvisorContext] = useState(false);
   const [meetingRelationshipSignals, setMeetingRelationshipSignals] =
     useState<VisitMeetingRelationshipSignalResponse | null>(null);
   const [meetingRelationshipSignalError, setMeetingRelationshipSignalError] = useState<string | null>(null);
@@ -359,6 +395,11 @@ function VisitPlanDetailContent() {
   const activeRouteBStateProposalContextError = !isQuickstart && planId ? routeBStateProposalContextError : null;
   const activeRouteBStateProposalContextLoading =
     !isQuickstart && Boolean(planId) && isLoadingRouteBStateProposalContext;
+  const activeRouteBFeedbackAdvisorContext =
+    !isQuickstart && routeBFeedbackAdvisorContext?.visitPlanId === planId ? routeBFeedbackAdvisorContext : null;
+  const activeRouteBFeedbackAdvisorContextError = !isQuickstart && planId ? routeBFeedbackAdvisorContextError : null;
+  const activeRouteBFeedbackAdvisorContextLoading =
+    !isQuickstart && Boolean(planId) && isLoadingRouteBFeedbackAdvisorContext;
   const activeMeetingRelationshipSignals =
     !isQuickstart && meetingRelationshipSignals?.visitPlanId === planId ? meetingRelationshipSignals : null;
   const meetingRelationshipSignalDeck = activeMeetingRelationshipSignals?.deck ?? null;
@@ -428,6 +469,49 @@ function VisitPlanDetailContent() {
     }
 
     void loadPlan();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isQuickstart, planId]);
+
+  useEffect(() => {
+    if (isQuickstart || !planId) return;
+
+    let cancelled = false;
+    const targetPlanId = planId;
+
+    async function loadRouteBFeedbackAdvisorContext() {
+      try {
+        setIsLoadingRouteBFeedbackAdvisorContext(true);
+        setRouteBFeedbackAdvisorContextError(null);
+        const response = await fetch(`/api/visits/${encodeURIComponent(targetPlanId)}/route-b-feedback-advisor-context`, {
+          cache: "no-store",
+        });
+
+        if (!response.ok) {
+          throw new Error(`VISIT_ROUTE_B_FEEDBACK_ADVISOR_CONTEXT_LOAD_FAILED_${response.status}`);
+        }
+
+        const payload = (await response.json()) as VisitRouteBFeedbackAdvisorContextResponse;
+        if (!cancelled) {
+          setRouteBFeedbackAdvisorContext(payload);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setRouteBFeedbackAdvisorContext(null);
+          setRouteBFeedbackAdvisorContextError(
+            error instanceof Error ? error.message : "VISIT_ROUTE_B_FEEDBACK_ADVISOR_CONTEXT_LOAD_FAILED",
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoadingRouteBFeedbackAdvisorContext(false);
+        }
+      }
+    }
+
+    void loadRouteBFeedbackAdvisorContext();
 
     return () => {
       cancelled = true;
@@ -953,6 +1037,11 @@ function VisitPlanDetailContent() {
         </div>
 
         <aside className="space-y-4">
+          <RouteBFeedbackAdvisorContextPanel
+            context={activeRouteBFeedbackAdvisorContext}
+            error={activeRouteBFeedbackAdvisorContextError}
+            isLoading={activeRouteBFeedbackAdvisorContextLoading}
+          />
           <RouteBStateProposalContextPanel
             context={activeRouteBStateProposalContext}
             error={activeRouteBStateProposalContextError}
@@ -1343,6 +1432,92 @@ function RouteBRedLineContextRow({ item }: { item: VisitRouteBRedLineContextItem
       </div>
       <p className="mt-2 text-xs font-semibold leading-5 text-ink">{item.label}</p>
       <p className="mt-1 line-clamp-3 text-xs leading-5 text-muted-foreground">{item.detail}</p>
+    </div>
+  );
+}
+
+function RouteBFeedbackAdvisorContextPanel({
+  context,
+  error,
+  isLoading,
+}: {
+  context: VisitRouteBFeedbackAdvisorContextResponse | null;
+  error: string | null;
+  isLoading: boolean;
+}) {
+  if (!isLoading && !context && !error) return null;
+
+  const items = context?.routeBFeedbackAdvisorContext?.items ?? [];
+  const hasContext = context?.status === "READY";
+  const badgeLabel = isLoading ? "檢查中" : error ? "暫不可用" : getRouteBFeedbackAdvisorStatusLabel(context?.status);
+  const summary = context?.summary ?? {
+    itemCount: 0,
+    confirmedCount: 0,
+    inferenceCount: 0,
+    unknownCount: 0,
+    profiledMemberCount: 0,
+    fieldCount: 0,
+  };
+
+  return (
+    <section data-route-b-feedback-advisor-context className="rounded-lg border border-hairline bg-card p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="flex items-center gap-2 text-sm font-semibold text-ink">
+            <Brain className="h-4 w-4" />
+            劇場回饋人物脈絡
+          </div>
+          <p className="mt-2 text-xs leading-5 text-muted-foreground">
+            {isLoading
+              ? "正在檢查此準備包對應的 Route B feedback family profile。"
+              : error
+                ? "劇場回饋人物脈絡暫時無法載入；不影響目前準備包使用。"
+                : getRouteBFeedbackAdvisorStatusCopy(context?.status)}
+          </p>
+        </div>
+        <Badge variant={hasContext ? "default" : "outline"} className="rounded-md">
+          {badgeLabel}
+        </Badge>
+      </div>
+
+      {hasContext ? (
+        <>
+          <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+            <MiniStat label="已知" value={String(summary.confirmedCount)} />
+            <MiniStat label="推論" value={String(summary.inferenceCount)} />
+            <MiniStat label="待確認" value={String(summary.unknownCount)} />
+          </div>
+          <div className="mt-4 grid gap-2">
+            {items.slice(0, 3).map((item) => (
+              <RouteBFeedbackAdvisorContextRow key={item.id} item={item} />
+            ))}
+          </div>
+        </>
+      ) : null}
+
+      <p className="mt-4 border-t border-hairline pt-3 text-xs leading-5 text-muted-foreground">
+        來源為 Route B feedback review 的 safe family profile grounding；不需輸入 session/person id，不寫 relationship graph、VisitPlan、client profile、policy 或 confirmed CRM fact。
+      </p>
+    </section>
+  );
+}
+
+function RouteBFeedbackAdvisorContextRow({ item }: { item: VisitRouteBFeedbackAdvisorContextItem }) {
+  return (
+    <div className="rounded-lg border border-hairline bg-background p-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge variant={item.status === "unknown" ? "warning" : "outline"} className="rounded-md">
+          {getEvidenceStatusLabel(item.status)}
+        </Badge>
+        <Badge variant="outline" className="rounded-md">
+          requiresConfirmation=true
+        </Badge>
+      </div>
+      <p className="mt-2 text-xs font-semibold leading-5 text-ink">{item.label}</p>
+      <p className="mt-1 line-clamp-3 text-xs leading-5 text-muted-foreground">{item.detail}</p>
+      <p className="mt-2 rounded-md border border-hairline bg-card px-2 py-1.5 text-xs leading-5 text-muted-foreground">
+        補問：{item.followUpQuestion}
+      </p>
     </div>
   );
 }
@@ -1983,6 +2158,34 @@ function getRouteBActionStateLabel(state: VisitRouteBRedLineContextItem["actionS
   if (state === "EVIDENCE_NEEDED") return "需要佐證";
   if (state === "NOT_APPLICABLE") return "不適用";
   return "觀察中";
+}
+
+function getRouteBFeedbackAdvisorStatusLabel(status: VisitRouteBFeedbackAdvisorContextStatus | undefined) {
+  if (status === "READY") return "已帶入";
+  if (status === "NO_ROUTE_B_SESSION") return "尚無劇場";
+  if (status === "NO_FEEDBACK_REVIEW") return "尚無回饋";
+  if (status === "NO_FEEDBACK_PROFILE_CONTEXT") return "尚無人物脈絡";
+  return "未檢查";
+}
+
+function getRouteBFeedbackAdvisorStatusCopy(status: VisitRouteBFeedbackAdvisorContextStatus | undefined) {
+  if (status === "READY") {
+    return "已從 Route B feedback review 帶入人物 profile 的已知、推論與未知，供準備包追問與確認。";
+  }
+
+  if (status === "NO_ROUTE_B_SESSION") {
+    return "這份準備包尚未找到 owner-scoped Route B 劇場 session；可先照常使用準備包。";
+  }
+
+  if (status === "NO_FEEDBACK_REVIEW") {
+    return "找到 Route B 劇場 session，但尚未有 feedback review；完成劇場回饋後會自動回帶。";
+  }
+
+  if (status === "NO_FEEDBACK_PROFILE_CONTEXT") {
+    return "目前 Route B feedback review 沒有可回帶的人物 profile 欄位；不建立推論或寫回。";
+  }
+
+  return "尚未檢查 Route B feedback family profile 脈絡。";
 }
 
 function getRouteBStateProposalStatusLabel(status: VisitRouteBStateProposalContextStatus | undefined) {

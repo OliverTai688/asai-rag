@@ -33,6 +33,7 @@ import {
 } from "@/domains/interview/meeting-route-b-state-proposal-writeback-bridge";
 import type { VisitRouteBRedLineContext } from "@/domains/visit/route-b-red-line-context";
 import type { VisitRouteBStateProposalContext } from "@/domains/visit/route-b-state-proposal-context";
+import type { VisitRouteBFeedbackAdvisorContext } from "@/domains/visit/route-b-feedback-advisor-context";
 
 type TurnSource = "MANUAL_NOTE" | "VOICE_FINAL_TRANSCRIPT";
 type BootstrapState = "loading" | "ready" | "error";
@@ -51,6 +52,9 @@ interface MeetingWorkspaceProps {
   routeBRedLineContext?: MeetingRouteBRedLineContextDto | null;
   routeBRedLineContextError?: string | null;
   routeBRedLineContextLoading?: boolean;
+  routeBFeedbackAdvisorContext?: MeetingRouteBFeedbackAdvisorContextDto | null;
+  routeBFeedbackAdvisorContextError?: string | null;
+  routeBFeedbackAdvisorContextLoading?: boolean;
   routeBStateProposalContext?: MeetingRouteBStateProposalContextDto | null;
   routeBStateProposalContextError?: string | null;
   routeBStateProposalContextLoading?: boolean;
@@ -88,6 +92,25 @@ export interface MeetingRouteBStateProposalContextDto {
     writesConfirmedCrmFact: false;
     writesRelationshipGraph: false;
     writesVisitPlan: false;
+  };
+}
+
+export interface MeetingRouteBFeedbackAdvisorContextDto {
+  status: "READY" | "NO_ROUTE_B_SESSION" | "NO_FEEDBACK_REVIEW" | "NO_FEEDBACK_PROFILE_CONTEXT";
+  routeBFeedbackAdvisorContext?: VisitRouteBFeedbackAdvisorContext;
+  summary: VisitRouteBFeedbackAdvisorContext["summary"];
+  proof: {
+    ownerScopedVisitPlan: true;
+    ownerScopedTheaterSessionLookup: true;
+    browserSuppliedTheaterSessionId: false;
+    browserSuppliedPersonId: false;
+    providerCallAttempted: false;
+    aiUsageLogWritten: false;
+    writesRelationshipGraph: false;
+    writesVisitPlan: false;
+    writesClientProfile: false;
+    writesPolicy: false;
+    writesConfirmedCrmFact: false;
   };
 }
 
@@ -352,6 +375,24 @@ function buildRouteBStateProposalNoteDraft(context?: MeetingRouteBStateProposalC
   ].join("\n");
 }
 
+function buildRouteBFeedbackAdvisorNoteDraft(context?: MeetingRouteBFeedbackAdvisorContextDto | null): string | null {
+  const routeBContext = context?.status === "READY" ? context.routeBFeedbackAdvisorContext : undefined;
+  if (!routeBContext?.items.length) return null;
+
+  const prioritizedItems = routeBContext.items
+    .filter((item) => item.status === "unknown" || item.status === "inference")
+    .slice(0, 3);
+  const items = prioritizedItems.length ? prioritizedItems : routeBContext.items.slice(0, 3);
+  const lines = items.map((item) => `- ${item.label}：${item.detail}；補問：${item.followUpQuestion}`);
+
+  return [
+    "劇場回饋人物脈絡（family profile advisor context，非已確認 CRM 事實）：",
+    `已知 ${routeBContext.summary.confirmedCount}，推論 ${routeBContext.summary.inferenceCount}，待確認 ${routeBContext.summary.unknownCount}。`,
+    ...lines,
+    "請在會議中確認或修正；requiresConfirmation=true，不寫 relationship graph、VisitPlan、client profile、policy 或 confirmed CRM fact。",
+  ].join("\n");
+}
+
 function mergeInitialNoteDraft(noteDraft: string | null, ...contextDrafts: Array<string | null>): string | null {
   const parts = [noteDraft, ...contextDrafts].filter((part): part is string => Boolean(part?.trim()));
   return parts.length ? parts.join("\n\n") : null;
@@ -366,6 +407,9 @@ export function MeetingWorkspace({
   routeBRedLineContext = null,
   routeBRedLineContextError = null,
   routeBRedLineContextLoading = false,
+  routeBFeedbackAdvisorContext = null,
+  routeBFeedbackAdvisorContextError = null,
+  routeBFeedbackAdvisorContextLoading = false,
   routeBStateProposalContext = null,
   routeBStateProposalContextError = null,
   routeBStateProposalContextLoading = false,
@@ -386,9 +430,19 @@ export function MeetingWorkspace({
     () => buildRouteBStateProposalNoteDraft(routeBStateProposalContext),
     [routeBStateProposalContext],
   );
+  const routeBFeedbackAdvisorNoteDraft = useMemo(
+    () => buildRouteBFeedbackAdvisorNoteDraft(routeBFeedbackAdvisorContext),
+    [routeBFeedbackAdvisorContext],
+  );
   const mergedInitialNoteDraft = useMemo(
-    () => mergeInitialNoteDraft(normalizedInitialNoteDraft, routeBNoteDraft, routeBStateProposalNoteDraft),
-    [normalizedInitialNoteDraft, routeBNoteDraft, routeBStateProposalNoteDraft],
+    () =>
+      mergeInitialNoteDraft(
+        normalizedInitialNoteDraft,
+        routeBNoteDraft,
+        routeBStateProposalNoteDraft,
+        routeBFeedbackAdvisorNoteDraft,
+      ),
+    [normalizedInitialNoteDraft, routeBFeedbackAdvisorNoteDraft, routeBNoteDraft, routeBStateProposalNoteDraft],
   );
   const [bootstrapState, setBootstrapState] = useState<BootstrapState>("loading");
   const [requestState, setRequestState] = useState<RequestState>("idle");
@@ -886,6 +940,12 @@ export function MeetingWorkspace({
             isLoading={routeBRedLineContextLoading}
           />
 
+          <RouteBFeedbackAdvisorContextPanel
+            context={routeBFeedbackAdvisorContext}
+            error={routeBFeedbackAdvisorContextError}
+            isLoading={routeBFeedbackAdvisorContextLoading}
+          />
+
           <RouteBStateProposalContextPanel
             context={routeBStateProposalContext}
             error={routeBStateProposalContextError}
@@ -1130,6 +1190,98 @@ function RouteBStateProposalContextPanel({
           icon={<ShieldCheck className="size-5" aria-hidden="true" />}
           title="尚無可回帶狀態提案"
           description="目前沒有 owner-scoped Route B state proposal；會議筆記仍可照常建立。"
+        />
+      )}
+    </section>
+  );
+}
+
+function RouteBFeedbackAdvisorContextPanel({
+  context,
+  error,
+  isLoading,
+}: {
+  context?: MeetingRouteBFeedbackAdvisorContextDto | null;
+  error?: string | null;
+  isLoading: boolean;
+}) {
+  if (!isLoading && !error && !context) return null;
+
+  const routeBContext = context?.status === "READY" ? context.routeBFeedbackAdvisorContext : undefined;
+  const items = routeBContext?.items ?? [];
+  const highlightedItems = items
+    .filter((item) => item.status === "unknown" || item.status === "inference")
+    .slice(0, 3);
+  const visibleItems = highlightedItems.length ? highlightedItems : items.slice(0, 3);
+
+  return (
+    <section
+      data-testid="meeting-route-b-feedback-advisor-context"
+      data-route-b-feedback-advisor-context
+      className="rounded-lg border border-hairline bg-card p-4"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-sm font-semibold text-ink">劇場回饋人物脈絡</p>
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">
+            Route B feedback family profile 只作會議補問脈絡；不顯示劇場 session、人物或 source packet raw ID。
+          </p>
+        </div>
+        <Badge variant={context?.status === "READY" ? "warning" : "outline"}>
+          {isLoading ? "LOADING" : context?.status ?? "NONE"}
+        </Badge>
+      </div>
+
+      {isLoading ? (
+        <div className="mt-4 rounded-lg border border-hairline bg-paper p-3 text-sm text-muted-foreground">
+          <Loader2 className="mr-2 inline size-4 animate-spin" aria-hidden="true" />
+          正在讀取 owner-scoped 劇場回饋人物脈絡...
+        </div>
+      ) : error ? (
+        <div className="mt-4 flex gap-2 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+          <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+          <p>{error}</p>
+        </div>
+      ) : routeBContext ? (
+        <div className="mt-4 space-y-3">
+          <div className="grid grid-cols-3 gap-2 text-sm">
+            <RailMetric label="已知" value={routeBContext.summary.confirmedCount} />
+            <RailMetric label="推論" value={routeBContext.summary.inferenceCount} />
+            <RailMetric label="待確認" value={routeBContext.summary.unknownCount} />
+          </div>
+          <div className="space-y-2">
+            {visibleItems.map((item) => (
+              <article key={item.id} className="rounded-lg border border-hairline bg-paper p-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge variant={item.status === "unknown" ? "warning" : "outline"}>
+                    {MEETING_DATA_CLASS_LABEL[item.status === "confirmed" ? "CONFIRMED" : item.status === "inference" ? "INFERENCE" : "UNKNOWN"]}
+                  </Badge>
+                  <Badge variant="success">requiresConfirmation=true</Badge>
+                </div>
+                <p className="mt-2 text-sm font-medium leading-6 text-ink">{item.label}</p>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">{item.detail}</p>
+                <div className="mt-2 rounded-md border border-hairline bg-card px-2 py-1.5 text-xs leading-5 text-muted-foreground">
+                  <p>補問：{item.followUpQuestion}</p>
+                  <p>advisor confirmation required；這不是 relationship graph、client profile 或 CRM fact 寫入。</p>
+                </div>
+              </article>
+            ))}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Badge variant="secondary">provider: none</Badge>
+            <Badge variant="secondary">relationship graph: none</Badge>
+            <Badge variant="secondary">VisitPlan write: none</Badge>
+            <Badge variant="secondary">client profile: none</Badge>
+            <Badge variant="secondary">policy: none</Badge>
+            <Badge variant="secondary">CRM fact: no direct write</Badge>
+          </div>
+        </div>
+      ) : (
+        <EmptyState
+          className="mt-4"
+          icon={<ShieldCheck className="size-5" aria-hidden="true" />}
+          title="尚無可回帶人物脈絡"
+          description="目前沒有 owner-scoped Route B feedback family profile context；會議筆記仍可照常建立。"
         />
       )}
     </section>

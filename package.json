@@ -42,6 +42,8 @@
     "visit:route-b-red-line-context-dry-run": "node scripts/visit-route-b-red-line-context-dry-run.mjs",
     "visit:route-b-red-line-context-bff-qa": "node scripts/visit-route-b-red-line-context-bff-contract-qa.mjs",
     "visit:route-b-state-proposal-context-qa": "node scripts/visit-route-b-state-proposal-context-qa.mjs",
+    "visit:route-b-feedback-advisor-context-dry-run": "node scripts/visit-route-b-feedback-advisor-context-dry-run.mjs",
+    "visit:route-b-feedback-advisor-context-qa": "node scripts/visit-route-b-feedback-advisor-context-qa.mjs",
     "meeting:contract-dry-run": "node scripts/meeting-contract-dry-run.mjs",
     "meeting:persistence-contract-dry-run": "node scripts/meeting-persistence-contract-dry-run.mjs",
     "meeting:bff-qa": "node scripts/meeting-bff-qa.mjs",

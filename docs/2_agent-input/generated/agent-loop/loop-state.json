@@ -84,11 +84,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 2,
+    "normalLoopsSinceLastWholeProductReview": 3,
     "lastWholeProductReviewAt": "2026-06-24T09:41:04Z",
     "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-24_lv3-whole-product-gap-review-family-profile-runtime.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "REL-006f is complete: sourceGrounding.familyProfiles now reaches Route B feedback contract, feedback provider prompt context, deterministic feedback review evidence, stage UI safe panel, AgentFacts manifest, and no-provider/live-provider-log QA. Next normal loop should rescore remaining LV3 cross-surface gaps; if operator approves formal RelationshipEdge schema/migration or answers relationship confirmation persistence A/B/C, prioritize that unblock. Without new approval, prefer the next no-schema source/proof slice that links at least two core surfaces, such as Route B feedback family-profile evidence -> visit preparation/meeting notes advisor-context consumption or a clean-browser onboarding proof over the full client -> graph -> prep -> theater path.",
+    "nextRecommendedImplementationSlice": "REL-006g is complete: Route B feedback family-profile evidence now reaches visit preparation reasoning and AI Meeting notes advisor-context consumption through a server-owned no-write BFF, manifest refs, and source/dry-run QA. Next normal loop should rescore remaining LV3 cross-surface gaps; if operator approves formal RelationshipEdge schema/migration or answers relationship confirmation persistence A/B/C, prioritize that unblock. Without new approval, prefer a clean-browser onboarding proof over the full client -> graph -> prep -> theater path, or a small meeting/writeback preview slice that consumes the same advisor context without writing confirmed CRM facts.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {
@@ -156,5 +156,5 @@
     "lv3ImmersiveLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-immersive-loop.md",
     "lv3WholeProductGapReviewLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md"
   },
-  "updatedAt": "2026-06-24T12:40:00Z"
+  "updatedAt": "2026-06-24T14:27:51Z"
 }
