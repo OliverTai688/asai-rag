@@ -152,11 +152,13 @@ REL-006d evidence（2026-06-24）：`pnpm client:family-member-profile-ui-qa` pa
 
 ### D2.8. Family profile next-turn/provider runtime grounding（REL-006e，不動 schema）
 
-- [ ] `buildTheaterRouteBNextTurnDraft()` 從 `RouteBSessionSnapshot.scene.sourceGrounding.familyProfiles` 產出 safe runtime grounding；不得回 raw metadata、source reference ids、email、phone、policy number、raw private transcript 或 raw provider payload。
-- [ ] Runtime grounding 只含 profiled member count、field count、FACT/INFERENCE/UNKNOWN counts、safe field summaries、unknown prompt hints 與 no-write/no-confirmed-fact boundary。
-- [ ] `buildRouteBProviderPromptContext()` / next-turn provider input 消費 `familyProfileGrounding` 作為 roleplay evidence，且 prompt rules 明確 `useFamilyProfilesAsRuntimeEvidence=true`；不得把 profile inference/unknown 當 confirmed CRM fact。
-- [ ] `/theater/[sessionId]` next-turn preview 顯示 `data-route-b-next-turn-family-profile-runtime-grounding` safe panel，並標示 raw metadata / source refs / graph write / VisitPlan write / confirmed CRM fact write 皆為 false。
-- [ ] `pnpm theater:route-b-next-turn-dry-run`、`pnpm theater:route-b-provider-prompt-context-dry-run`、`pnpm theater:route-b-next-turn-ui-contract-qa`、`pnpm theater:family-profile-session-source-qa`、`pnpm ai:protocol-registry-qa` 通過，且 provider-disabled path `providerCallAttempted=false`、`aiUsageLogWritten=false`；live provider path 若使用 context，success/error 仍須寫 THEATER `AiUsageLog`。
+- [x] `buildTheaterRouteBNextTurnDraft()` 從 `RouteBSessionSnapshot.scene.sourceGrounding.familyProfiles` 產出 safe runtime grounding；不得回 raw metadata、source reference ids、email、phone、policy number、raw private transcript 或 raw provider payload。
+- [x] Runtime grounding 只含 profiled member count、field count、FACT/INFERENCE/UNKNOWN counts、safe field summaries、unknown prompt hints 與 no-write/no-confirmed-fact boundary。
+- [x] `buildRouteBProviderPromptContext()` / next-turn provider input 消費 `familyProfileGrounding` 作為 roleplay evidence，且 prompt rules 明確 `useFamilyProfilesAsRuntimeEvidence=true`；不得把 profile inference/unknown 當 confirmed CRM fact。
+- [x] `/theater/[sessionId]` next-turn preview 顯示 `data-route-b-next-turn-family-profile-runtime-grounding` safe panel，並標示 raw metadata / source refs / graph write / VisitPlan write / confirmed CRM fact write 皆為 false。
+- [x] `pnpm theater:route-b-next-turn-dry-run`、`pnpm theater:route-b-provider-prompt-context-dry-run`、`pnpm theater:route-b-next-turn-ui-contract-qa`、`pnpm theater:family-profile-session-source-qa`、`pnpm ai:protocol-registry-qa` 通過，且 provider-disabled path `providerCallAttempted=false`、`aiUsageLogWritten=false`；live provider path 若使用 context，success/error 仍須寫 THEATER `AiUsageLog`。
+
+REL-006e evidence（2026-06-24）：新增 `TheaterRouteBFamilyProfileRuntimeGrounding` 與 `familyProfileGrounding` provider prompt context；`pnpm theater:route-b-family-profile-runtime-qa` 串跑 next-turn/provider/UI/source QA，證明 raw metadata/source reference ids/private transcript/provider payload 皆不輸出，relationship graph / VisitPlan / confirmed CRM fact write 皆為 false。`pnpm theater:route-b-next-turn-provider-dry-run` 另證明 live provider path 若消費 context，success/error 仍先寫 THEATER `AiUsageLog` 且只回 safe append candidate。
 
 ### D2.9. Family profile feedback review/provider grounding（REL-006f，不動 schema）
 

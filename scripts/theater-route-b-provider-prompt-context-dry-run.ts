@@ -3,6 +3,7 @@ import {
   type RouteBProviderPromptContext,
 } from "../src/domains/theater/route-b-provider-prompt-context";
 import type {
+  TheaterRouteBFamilyProfileRuntimeGrounding,
   TheaterRouteBMeetingSignalRuntimeGrounding,
   TheaterRouteBRelationshipEdgeShadowRuntimeGrounding,
 } from "../src/domains/theater/route-b-next-turn";
@@ -15,6 +16,7 @@ const context = buildRouteBProviderPromptContext({
   unknowns: ["尚未確認付款者與共同決策者", "不確定是否已有緊急預備金"],
   meetingRelationshipSignalGrounding: meetingSignalRuntimeGrounding(),
   relationshipEdgeShadowGrounding: relationshipEdgeShadowRuntimeGrounding(),
+  familyProfileGrounding: familyProfileRuntimeGrounding(),
   maxItems: 5,
 });
 
@@ -46,6 +48,10 @@ check(
 check(
   context.promptRules.useRelationshipEdgeShadowAsRuntimeEvidence,
   "prompt context uses relationship edge shadow as runtime evidence only",
+);
+check(
+  context.promptRules.useFamilyProfilesAsRuntimeEvidence,
+  "prompt context uses family profiles as runtime evidence only",
 );
 check(context.promptRules.doNotTreatObjectionsAsConfirmedCrmFacts, "objection cues cannot become confirmed CRM facts");
 check(context.promptRules.doNotProvideLegalAdvice, "prompt context forbids legal advice posture");
@@ -104,6 +110,25 @@ check(
   context.relationshipEdgeShadowGrounding.boundary.writesRelationshipGraph === false,
   "prompt context cannot write relationship graph",
 );
+check(
+  context.familyProfileGrounding.usedInNextTurnRuntime,
+  "prompt context carries family profile runtime grounding",
+);
+check(context.familyProfileGrounding.profiledMemberCount === 3, "prompt context carries safe family member count");
+check(context.familyProfileGrounding.fieldCount === 4, "prompt context carries safe family profile field count");
+check(context.familyProfileGrounding.unknownPrompts.length === 1, "prompt context carries safe family profile unknown prompt count");
+check(
+  context.familyProfileGrounding.boundary.rawMetadataIncluded === false,
+  "prompt context excludes raw family profile metadata",
+);
+check(
+  context.familyProfileGrounding.boundary.sourceReferenceIdsIncluded === false,
+  "prompt context excludes family profile source reference ids",
+);
+check(
+  context.familyProfileGrounding.boundary.writesRelationshipGraph === false,
+  "prompt context cannot write relationship graph from family profiles",
+);
 check(context.redLineCues.every((cue) => !cue.legalAdviceIncluded), "red-line cues contain no legal advice");
 check(context.redLineCues.every((cue) => !cue.writesConfirmedCrmFact), "red-line cues cannot write confirmed CRM facts");
 checkNoSentinel(context, "prompt context excludes private/provider sentinel text");
@@ -136,6 +161,13 @@ console.log(
       edgeShadowRuntimeRawDraftEdgesIncluded: context.relationshipEdgeShadowGrounding.boundary.rawDraftEdgesIncluded,
       edgeShadowRuntimeWritesRelationshipGraph:
         context.relationshipEdgeShadowGrounding.boundary.writesRelationshipGraph,
+      familyProfileRuntimeMemberCount: context.familyProfileGrounding.profiledMemberCount,
+      familyProfileRuntimeFieldCount: context.familyProfileGrounding.fieldCount,
+      familyProfileRuntimeUnknownPromptCount: context.familyProfileGrounding.unknownPrompts.length,
+      familyProfileRuntimeSourceReferenceIdsIncluded:
+        context.familyProfileGrounding.boundary.sourceReferenceIdsIncluded,
+      familyProfileRuntimeWritesRelationshipGraph:
+        context.familyProfileGrounding.boundary.writesRelationshipGraph,
     },
     null,
     2,
@@ -217,6 +249,74 @@ function relationshipEdgeShadowRuntimeGrounding(): TheaterRouteBRelationshipEdge
       clientFacingDraftEdgesReturned: false,
       formalSchemaApproved: false,
       schemaChanged: false,
+      databaseWriteAttempted: false,
+      providerCallAttempted: false,
+      aiUsageLogWritten: false,
+      writesRelationshipGraph: false,
+      writesVisitPlan: false,
+      writesConfirmedCrmFact: false,
+    },
+  };
+}
+
+function familyProfileRuntimeGrounding(): TheaterRouteBFamilyProfileRuntimeGrounding {
+  return {
+    source: "RouteBSessionSnapshot.scene.sourceGrounding.familyProfiles",
+    usedInNextTurnRuntime: true,
+    providerPromptUsage: "family-profile-context-only",
+    profiledMemberCount: 3,
+    fieldCount: 4,
+    knownFieldCount: 3,
+    unknownFieldCount: 1,
+    sourceReferenceCount: 4,
+    factStatusCounts: { FACT: 2, INFERENCE: 1, UNKNOWN: 1 },
+    fields: [
+      {
+        fieldLabel: "職位／職業",
+        memberLabel: "林先生",
+        relationLabel: "本人",
+        status: "confirmed",
+        factBoundary: "roleplay-evidence-context-not-confirmed-crm-fact",
+        valueSummary: "科技公司營運長，重視效率與決策速度。",
+        sourceReferenceCount: 1,
+      },
+      {
+        fieldLabel: "決策角色",
+        memberLabel: "林太太",
+        relationLabel: "配偶",
+        status: "inference",
+        factBoundary: "roleplay-evidence-context-not-confirmed-crm-fact",
+        valueSummary: "共同決策者，可能關注月繳現金流。",
+        sourceReferenceCount: 1,
+      },
+      {
+        fieldLabel: "年收入／財務依賴",
+        memberLabel: "林太太",
+        relationLabel: "配偶",
+        status: "unknown",
+        factBoundary: "roleplay-evidence-context-not-confirmed-crm-fact",
+        valueSummary: "待確認是否固定收入或主要依賴家庭共同現金流。",
+        sourceReferenceCount: 1,
+      },
+      {
+        fieldLabel: "關係脈絡",
+        memberLabel: "合夥人",
+        relationLabel: "合夥人",
+        status: "confirmed",
+        factBoundary: "roleplay-evidence-context-not-confirmed-crm-fact",
+        valueSummary: "曾提醒公司責任風險，但不是家庭保障決策者。",
+        sourceReferenceCount: 1,
+      },
+    ],
+    unknownPrompts: ["請確認 林太太 的年收入／財務依賴：待確認是否固定收入或主要依賴家庭共同現金流。"],
+    boundary: {
+      ownerScopedRelationshipGraphRequired: true,
+      rawMetadataIncluded: false,
+      sourceReferenceIdsIncluded: false,
+      rawPrivateTranscriptIncluded: false,
+      rawProviderPayloadIncluded: false,
+      personalContactIncluded: false,
+      policyIdentifierIncluded: false,
       databaseWriteAttempted: false,
       providerCallAttempted: false,
       aiUsageLogWritten: false,

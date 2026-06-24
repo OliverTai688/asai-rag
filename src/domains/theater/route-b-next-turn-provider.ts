@@ -305,6 +305,7 @@ function buildNextTurnPromptContext(draft: TheaterRouteBNextTurnDraft) {
     unknowns: draft.nextTurn.rationale,
     meetingRelationshipSignalGrounding: draft.inputSummary.meetingRelationshipSignalGrounding,
     relationshipEdgeShadowGrounding: draft.inputSummary.relationshipEdgeShadowGrounding,
+    familyProfileGrounding: draft.inputSummary.familyProfileGrounding,
     maxItems: 4,
   });
 }
@@ -378,6 +379,6 @@ function sanitizeGeneratedText(value: string): string {
     .replace(/\s+/g, " ")
     .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "[removed]")
     .replace(/09\d{2}[-\s]?\d{3}[-\s]?\d{3}/g, "[removed]")
-    .replace(/\b(rawPayload|providerPayload|authorization|cookie|secret|token|otp|payment)\b/gi, "[removed]")
+    .replace(/\b(rawPayload|providerPayload|authorization|cookie|secret|token|otp|payment|policyNumber)\b/gi, "[removed]")
     .trim();
 }

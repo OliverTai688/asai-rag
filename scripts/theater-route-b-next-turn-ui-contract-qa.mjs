@@ -36,6 +36,14 @@ check(
     source.includes("formalSchemaApproved"),
   "next-turn preview renders safe relationship edge shadow runtime grounding marker",
 );
+check(
+  source.includes("data-route-b-next-turn-family-profile-runtime-grounding") &&
+    source.includes("familyProfileGrounding") &&
+    source.includes("rawMetadataIncluded") &&
+    source.includes("sourceReferenceIdsIncluded") &&
+    source.includes("writesRelationshipGraph"),
+  "next-turn preview renders safe family profile runtime grounding marker",
+);
 check(source.includes("onAdvisorTurnCommitted={fetchNextTurnDraft}"), "advisor turn write triggers next-turn preview refresh");
 check(source.includes("generatedTextAllowed={String(draft.nextTurn.generatedTextAllowed)}"), "UI exposes generatedTextAllowed guard");
 check(source.includes("draft.providerBoundary.providerCallAttempted"), "UI exposes providerCallAttempted boundary");
@@ -69,6 +77,7 @@ console.log(
       checkedCount: checks.length,
       meetingSignalRuntimeGroundingMarker: true,
       edgeShadowRuntimeGroundingMarker: true,
+      familyProfileRuntimeGroundingMarker: true,
       providerCallAttempted: false,
       aiUsageLogWritten: false,
       generatedTextAllowed: false,

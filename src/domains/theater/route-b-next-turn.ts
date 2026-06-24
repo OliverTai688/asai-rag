@@ -7,6 +7,7 @@ import type {
   TheaterRouteBCharacter,
   TheaterRouteBCharacterRole,
   TheaterRouteBFactStatus,
+  TheaterRouteBFamilyProfileGroundingSummary,
   TheaterRouteBHandoffPacket,
   TheaterRouteBMaterial,
   TheaterRouteBMaterialUse,
@@ -90,6 +91,45 @@ export interface TheaterRouteBRelationshipEdgeShadowRuntimeGrounding {
   };
 }
 
+export interface TheaterRouteBFamilyProfileRuntimeGroundingField {
+  fieldLabel: string;
+  memberLabel: string;
+  relationLabel: string;
+  status: "confirmed" | "inference" | "unknown";
+  factBoundary: "roleplay-evidence-context-not-confirmed-crm-fact";
+  valueSummary: string;
+  sourceReferenceCount: number;
+}
+
+export interface TheaterRouteBFamilyProfileRuntimeGrounding {
+  source: "RouteBSessionSnapshot.scene.sourceGrounding.familyProfiles";
+  usedInNextTurnRuntime: boolean;
+  providerPromptUsage: "family-profile-context-only";
+  profiledMemberCount: number;
+  fieldCount: number;
+  knownFieldCount: number;
+  unknownFieldCount: number;
+  sourceReferenceCount: number;
+  factStatusCounts: Record<"FACT" | "INFERENCE" | "UNKNOWN", number>;
+  fields: TheaterRouteBFamilyProfileRuntimeGroundingField[];
+  unknownPrompts: string[];
+  boundary: {
+    ownerScopedRelationshipGraphRequired: true;
+    rawMetadataIncluded: false;
+    sourceReferenceIdsIncluded: false;
+    rawPrivateTranscriptIncluded: false;
+    rawProviderPayloadIncluded: false;
+    personalContactIncluded: false;
+    policyIdentifierIncluded: false;
+    databaseWriteAttempted: false;
+    providerCallAttempted: false;
+    aiUsageLogWritten: false;
+    writesRelationshipGraph: false;
+    writesVisitPlan: false;
+    writesConfirmedCrmFact: false;
+  };
+}
+
 export interface TheaterRouteBNextTurnDraft {
   agentId: "asai.theater.route_b";
   registryReadiness: "internal-only";
@@ -111,6 +151,7 @@ export interface TheaterRouteBNextTurnDraft {
     narratorQueueCount: number;
     meetingRelationshipSignalGrounding: TheaterRouteBMeetingSignalRuntimeGrounding;
     relationshipEdgeShadowGrounding: TheaterRouteBRelationshipEdgeShadowRuntimeGrounding;
+    familyProfileGrounding: TheaterRouteBFamilyProfileRuntimeGrounding;
     rawPrivateTranscriptIncluded: false;
   };
   nextTurn: {
@@ -255,6 +296,7 @@ function buildBaseDraft(
       relationshipEdgeShadowGrounding: buildRelationshipEdgeShadowRuntimeGrounding(
         handoff.scene.sourceGrounding?.relationshipEdgeShadow,
       ),
+      familyProfileGrounding: buildFamilyProfileRuntimeGrounding(handoff.scene.sourceGrounding?.familyProfiles),
       rawPrivateTranscriptIncluded: false,
     },
     nextTurn: {
@@ -641,6 +683,70 @@ export function buildRelationshipEdgeShadowRuntimeGrounding(
   };
 }
 
+export function buildFamilyProfileRuntimeGrounding(
+  source: TheaterRouteBFamilyProfileGroundingSummary | undefined,
+): TheaterRouteBFamilyProfileRuntimeGrounding {
+  const fields = (source?.fields ?? [])
+    .slice(0, 8)
+    .map((field) => {
+      const fieldLabel = sanitizeRouteBText(field.label || field.field).slice(0, 80);
+      const memberLabel = sanitizeRouteBText(field.person).slice(0, 80);
+      const relationLabel = sanitizeRouteBText(field.relation || "關係待補").slice(0, 80);
+      const valueSummary = sanitizeRouteBText(field.value).slice(0, 180);
+
+      if (!fieldLabel || !memberLabel || !valueSummary) return undefined;
+
+      return {
+        fieldLabel,
+        memberLabel,
+        relationLabel,
+        status: normalizeFamilyProfileRuntimeStatus(field.factStatus),
+        factBoundary: "roleplay-evidence-context-not-confirmed-crm-fact" as const,
+        valueSummary,
+        sourceReferenceCount: normalizeSafeCount(field.sourceReferenceCount),
+      };
+    })
+    .filter(isDefined);
+  const unknownPrompts = fields
+    .filter((field) => field.status === "unknown")
+    .slice(0, 4)
+    .map((field) => `請確認 ${field.memberLabel} 的${field.fieldLabel}：${field.valueSummary}`);
+  const factStatusCounts = {
+    FACT: normalizeSafeCount(source?.byFactStatus.FACT),
+    INFERENCE: normalizeSafeCount(source?.byFactStatus.INFERENCE),
+    UNKNOWN: normalizeSafeCount(source?.byFactStatus.UNKNOWN),
+  };
+
+  return {
+    source: "RouteBSessionSnapshot.scene.sourceGrounding.familyProfiles",
+    usedInNextTurnRuntime: Boolean(source && (fields.length > 0 || normalizeSafeCount(source.memberCount) > 0)),
+    providerPromptUsage: "family-profile-context-only",
+    profiledMemberCount: normalizeSafeCount(source?.memberCount),
+    fieldCount: normalizeSafeCount(source?.fieldCount),
+    knownFieldCount: normalizeSafeCount(source?.knownFieldCount),
+    unknownFieldCount: normalizeSafeCount(source?.unknownFieldCount),
+    sourceReferenceCount: normalizeSafeCount(source?.sourceReferenceCount),
+    factStatusCounts,
+    fields,
+    unknownPrompts,
+    boundary: {
+      ownerScopedRelationshipGraphRequired: true,
+      rawMetadataIncluded: false,
+      sourceReferenceIdsIncluded: false,
+      rawPrivateTranscriptIncluded: false,
+      rawProviderPayloadIncluded: false,
+      personalContactIncluded: false,
+      policyIdentifierIncluded: false,
+      databaseWriteAttempted: false,
+      providerCallAttempted: false,
+      aiUsageLogWritten: false,
+      writesRelationshipGraph: false,
+      writesVisitPlan: false,
+      writesConfirmedCrmFact: false,
+    },
+  };
+}
+
 function sanitizeCountRecord(value: Record<string, number>, limit: number): Record<string, number> {
   return Object.fromEntries(
     Object.entries(value)
@@ -666,6 +772,14 @@ function meetingSignalPriorityLabel(priority: string): string {
   if (priority === "medium") return "medium";
   if (priority === "low") return "low";
   return sanitizeRouteBText(priority).slice(0, 40) || "unspecified";
+}
+
+function normalizeFamilyProfileRuntimeStatus(
+  status: TheaterRouteBFamilyProfileGroundingSummary["fields"][number]["factStatus"],
+): TheaterRouteBFamilyProfileRuntimeGroundingField["status"] {
+  if (status === "FACT") return "confirmed";
+  if (status === "INFERENCE") return "inference";
+  return "unknown";
 }
 
 function normalizeCharacterRole(value: string): TheaterRouteBCharacterRole {
@@ -805,7 +919,7 @@ function sanitizeRouteBText(value: string): string {
     .replace(/\s+/g, " ")
     .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, HIDDEN_TEXT)
     .replace(/09\d{2}[-\s]?\d{3}[-\s]?\d{3}/g, HIDDEN_TEXT)
-    .replace(/\b(rawPayload|providerPayload|authorization|cookie|secret|token|otp|payment)\b/gi, HIDDEN_TEXT)
+    .replace(/\b(rawPayload|providerPayload|authorization|cookie|secret|token|otp|payment|policyNumber)\b/gi, HIDDEN_TEXT)
     .trim();
 }
 

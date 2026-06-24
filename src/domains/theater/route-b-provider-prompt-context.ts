@@ -1,5 +1,6 @@
 import type { TheaterRouteBCharacterRole } from "./route-b-handoff";
 import type {
+  TheaterRouteBFamilyProfileRuntimeGrounding,
   TheaterRouteBMeetingSignalRuntimeGrounding,
   TheaterRouteBRelationshipEdgeShadowRuntimeGrounding,
 } from "./route-b-next-turn";
@@ -40,6 +41,7 @@ export interface RouteBProviderPromptRedLineCue {
 export interface RouteBProviderPromptContextInput extends RouteBObjectionSelectionInput {
   meetingRelationshipSignalGrounding?: TheaterRouteBMeetingSignalRuntimeGrounding;
   relationshipEdgeShadowGrounding?: TheaterRouteBRelationshipEdgeShadowRuntimeGrounding;
+  familyProfileGrounding?: TheaterRouteBFamilyProfileRuntimeGrounding;
 }
 
 export interface RouteBProviderPromptContext {
@@ -49,12 +51,14 @@ export interface RouteBProviderPromptContext {
   librarySummary: ReturnType<typeof buildRouteBObjectionRedLineLibrarySummary>;
   meetingRelationshipSignalGrounding: TheaterRouteBMeetingSignalRuntimeGrounding;
   relationshipEdgeShadowGrounding: TheaterRouteBRelationshipEdgeShadowRuntimeGrounding;
+  familyProfileGrounding: TheaterRouteBFamilyProfileRuntimeGrounding;
   selectedObjections: RouteBProviderPromptObjectionCue[];
   redLineCues: RouteBProviderPromptRedLineCue[];
   promptRules: {
     useAsRoleplayCoachingContext: true;
     useMeetingRelationshipSignalsAsRuntimeEvidence: true;
     useRelationshipEdgeShadowAsRuntimeEvidence: true;
+    useFamilyProfilesAsRuntimeEvidence: true;
     doNotTreatObjectionsAsConfirmedCrmFacts: true;
     doNotProvideLegalAdvice: true;
     immediateSevereRedLineIds: RouteBRedLineRuleId[];
@@ -79,6 +83,7 @@ export function buildRouteBProviderPromptContext(
     input.meetingRelationshipSignalGrounding ?? buildEmptyMeetingRelationshipSignalGrounding();
   const relationshipEdgeShadowGrounding =
     input.relationshipEdgeShadowGrounding ?? buildEmptyRelationshipEdgeShadowGrounding();
+  const familyProfileGrounding = input.familyProfileGrounding ?? buildEmptyFamilyProfileGrounding();
   const selectedObjections = selectRouteBObjectionPrompts(input).map((prompt) => ({
     id: prompt.id,
     label: sanitizePromptText(prompt.label),
@@ -109,12 +114,14 @@ export function buildRouteBProviderPromptContext(
     librarySummary,
     meetingRelationshipSignalGrounding,
     relationshipEdgeShadowGrounding,
+    familyProfileGrounding,
     selectedObjections,
     redLineCues,
     promptRules: {
       useAsRoleplayCoachingContext: true,
       useMeetingRelationshipSignalsAsRuntimeEvidence: true,
       useRelationshipEdgeShadowAsRuntimeEvidence: true,
+      useFamilyProfilesAsRuntimeEvidence: true,
       doNotTreatObjectionsAsConfirmedCrmFacts: true,
       doNotProvideLegalAdvice: true,
       immediateSevereRedLineIds: librarySummary.immediateDetectionIds,
@@ -128,6 +135,37 @@ export function buildRouteBProviderPromptContext(
       storesRawProviderPayload: false,
       rawPrivateTranscriptAllowed: false,
       directPrivateDialogAllowed: false,
+    },
+  };
+}
+
+function buildEmptyFamilyProfileGrounding(): TheaterRouteBFamilyProfileRuntimeGrounding {
+  return {
+    source: "RouteBSessionSnapshot.scene.sourceGrounding.familyProfiles",
+    usedInNextTurnRuntime: false,
+    providerPromptUsage: "family-profile-context-only",
+    profiledMemberCount: 0,
+    fieldCount: 0,
+    knownFieldCount: 0,
+    unknownFieldCount: 0,
+    sourceReferenceCount: 0,
+    factStatusCounts: { FACT: 0, INFERENCE: 0, UNKNOWN: 0 },
+    fields: [],
+    unknownPrompts: [],
+    boundary: {
+      ownerScopedRelationshipGraphRequired: true,
+      rawMetadataIncluded: false,
+      sourceReferenceIdsIncluded: false,
+      rawPrivateTranscriptIncluded: false,
+      rawProviderPayloadIncluded: false,
+      personalContactIncluded: false,
+      policyIdentifierIncluded: false,
+      databaseWriteAttempted: false,
+      providerCallAttempted: false,
+      aiUsageLogWritten: false,
+      writesRelationshipGraph: false,
+      writesVisitPlan: false,
+      writesConfirmedCrmFact: false,
     },
   };
 }

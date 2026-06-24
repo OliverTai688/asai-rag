@@ -6,6 +6,7 @@ import type {
   TheaterRouteBMaterialUse,
 } from "../src/domains/theater/route-b-handoff";
 import {
+  buildTheaterRouteBFamilyProfileGroundingSummary,
   buildTheaterRouteBMeetingSignalGroundingSummary,
   buildTheaterRouteBRelationshipEdgeShadowGroundingSummary,
 } from "../src/domains/theater/route-b-handoff";
@@ -99,6 +100,42 @@ check(
   groupDraft.inputSummary.relationshipEdgeShadowGrounding.boundary.writesRelationshipGraph === false,
   "group draft edge shadow grounding cannot write relationship graph",
 );
+check(
+  groupDraft.inputSummary.familyProfileGrounding.usedInNextTurnRuntime,
+  "group draft carries family profile runtime grounding",
+);
+check(
+  groupDraft.inputSummary.familyProfileGrounding.profiledMemberCount === 3,
+  "group draft family profile grounding exposes safe member count",
+);
+check(
+  groupDraft.inputSummary.familyProfileGrounding.fieldCount === 4,
+  "group draft family profile grounding exposes safe field count",
+);
+check(
+  groupDraft.inputSummary.familyProfileGrounding.factStatusCounts.INFERENCE === 1,
+  "group draft family profile grounding exposes inference count",
+);
+check(
+  groupDraft.inputSummary.familyProfileGrounding.unknownPrompts.length === 1,
+  "group draft family profile grounding exposes unknown prompts",
+);
+check(
+  groupDraft.inputSummary.familyProfileGrounding.boundary.rawMetadataIncluded === false,
+  "group draft family profile grounding excludes raw metadata",
+);
+check(
+  groupDraft.inputSummary.familyProfileGrounding.boundary.sourceReferenceIdsIncluded === false,
+  "group draft family profile grounding excludes source reference ids",
+);
+check(
+  groupDraft.inputSummary.familyProfileGrounding.boundary.writesRelationshipGraph === false,
+  "group draft family profile grounding cannot write relationship graph",
+);
+check(
+  !Object.prototype.hasOwnProperty.call(groupDraft.inputSummary.familyProfileGrounding.fields[0] ?? {}, "stageFieldId"),
+  "group draft family profile grounding drops raw stage field id",
+);
 
 const privateDraft = buildTheaterRouteBNextTurnDraft(
   baseSnapshot([
@@ -167,6 +204,15 @@ console.log(
         groupDraft.inputSummary.relationshipEdgeShadowGrounding.boundary.rawDraftEdgesIncluded,
       edgeShadowRuntimeWritesRelationshipGraph:
         groupDraft.inputSummary.relationshipEdgeShadowGrounding.boundary.writesRelationshipGraph,
+      familyProfileRuntimeMemberCount: groupDraft.inputSummary.familyProfileGrounding.profiledMemberCount,
+      familyProfileRuntimeFieldCount: groupDraft.inputSummary.familyProfileGrounding.fieldCount,
+      familyProfileRuntimeUnknownPromptCount: groupDraft.inputSummary.familyProfileGrounding.unknownPrompts.length,
+      familyProfileRuntimeRawMetadataIncluded:
+        groupDraft.inputSummary.familyProfileGrounding.boundary.rawMetadataIncluded,
+      familyProfileRuntimeSourceReferenceIdsIncluded:
+        groupDraft.inputSummary.familyProfileGrounding.boundary.sourceReferenceIdsIncluded,
+      familyProfileRuntimeWritesRelationshipGraph:
+        groupDraft.inputSummary.familyProfileGrounding.boundary.writesRelationshipGraph,
     },
     null,
     2,
@@ -223,6 +269,7 @@ function baseSnapshot(turns: RouteBSessionSnapshot["turns"]): RouteBSessionSnaps
       sourceGrounding: {
         meetingRelationshipSignals: meetingSignalGrounding(),
         relationshipEdgeShadow: relationshipEdgeShadowGrounding(),
+        familyProfiles: familyProfileGrounding(),
       },
     },
     characters: [
@@ -382,6 +429,53 @@ function relationshipEdgeShadowGrounding() {
 
   if (!summary) {
     throw new Error("Expected relationship edge shadow grounding summary fixture.");
+  }
+
+  return summary;
+}
+
+function familyProfileGrounding() {
+  const summary = buildTheaterRouteBFamilyProfileGroundingSummary([
+    {
+      field: "occupation",
+      label: "職位／職業",
+      person: "林先生",
+      relation: "本人",
+      value: "科技公司營運長，重視效率與決策速度。",
+      status: "FACT",
+      sourceRefs: ["profile_source_focus_job"],
+    },
+    {
+      field: "decisionRole",
+      label: "決策角色",
+      person: "林太太",
+      relation: "配偶",
+      value: "共同決策者，可能關注月繳現金流。",
+      status: "INFERENCE",
+      sourceRefs: ["profile_source_spouse_decision"],
+    },
+    {
+      field: "annualIncome",
+      label: "年收入／財務依賴",
+      person: "林太太",
+      relation: "配偶",
+      value: "待確認是否固定收入或主要依賴家庭共同現金流。",
+      status: "UNKNOWN",
+      sourceRefs: ["profile_source_spouse_income"],
+    },
+    {
+      field: "relationshipContext",
+      label: "關係脈絡",
+      person: "合夥人",
+      relation: "合夥人",
+      value: "曾提醒公司責任風險，但不是家庭保障決策者。",
+      status: "FACT",
+      sourceRefs: ["profile_source_partner_context"],
+    },
+  ]);
+
+  if (!summary) {
+    throw new Error("Expected family profile grounding summary fixture.");
   }
 
   return summary;

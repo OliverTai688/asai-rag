@@ -17,7 +17,10 @@ import type {
   TheaterRouteBMaterial,
   TheaterRouteBMaterialUse,
 } from "../src/domains/theater/route-b-handoff";
-import { buildTheaterRouteBMeetingSignalGroundingSummary } from "../src/domains/theater/route-b-handoff";
+import {
+  buildTheaterRouteBFamilyProfileGroundingSummary,
+  buildTheaterRouteBMeetingSignalGroundingSummary,
+} from "../src/domains/theater/route-b-handoff";
 import type { RouteBSessionSnapshot } from "../src/domains/theater/route-b-session";
 
 const checks: Array<{ label: string; detail?: string }> = [];
@@ -60,6 +63,22 @@ check(
   providerInput.promptContext.meetingRelationshipSignalGrounding.boundary.sourceReferenceIdsIncluded === false,
   "provider input prompt context excludes source reference ids",
 );
+check(
+  providerInput.promptContext.familyProfileGrounding.usedInNextTurnRuntime,
+  "provider input prompt context carries family profile runtime grounding",
+);
+check(
+  providerInput.promptContext.familyProfileGrounding.fieldCount === 4,
+  "provider input prompt context carries family profile field count",
+);
+check(
+  providerInput.promptContext.familyProfileGrounding.boundary.sourceReferenceIdsIncluded === false,
+  "provider input prompt context excludes family profile source reference ids",
+);
+check(
+  providerInput.promptContext.promptRules.useFamilyProfilesAsRuntimeEvidence,
+  "provider input prompt context uses family profiles as runtime evidence",
+);
 check(providerInput.promptContext.selectedObjections.length === 4, "provider input prompt context selects bounded objections");
 check(providerInput.promptContext.redLineCues.length === 18, "provider input prompt context carries all red-line cues");
 check(providerInput.promptContext.promptRules.immediateSevereRedLineIds.length === 5, "provider input prompt context keeps five immediate severe red lines");
@@ -83,8 +102,11 @@ const fakeProvider: TheaterRouteBNextTurnProviderAdapter = {
     assert.equal(input.promptContext.redLineCues.length, 18);
     assert.equal(input.promptContext.promptRules.doNotTreatObjectionsAsConfirmedCrmFacts, true);
     assert.equal(input.promptContext.promptRules.useMeetingRelationshipSignalsAsRuntimeEvidence, true);
+    assert.equal(input.promptContext.promptRules.useFamilyProfilesAsRuntimeEvidence, true);
     assert.equal(input.promptContext.meetingRelationshipSignalGrounding.cardCount, 2);
     assert.equal(input.promptContext.meetingRelationshipSignalGrounding.boundary.rawMeetingSessionIdIncluded, false);
+    assert.equal(input.promptContext.familyProfileGrounding.fieldCount, 4);
+    assert.equal(input.promptContext.familyProfileGrounding.boundary.rawMetadataIncluded, false);
     return {
       model: "gpt-test-route-b-character",
       tokenUsage: { inputTokens: 212.9, outputTokens: 57.6 },
@@ -266,6 +288,11 @@ async function main() {
           providerInput.promptContext.meetingRelationshipSignalGrounding.cardCount,
         promptContextMeetingSignalSourceReferenceIdsIncluded:
           providerInput.promptContext.meetingRelationshipSignalGrounding.boundary.sourceReferenceIdsIncluded,
+        promptContextFamilyProfileRuntimeFieldCount: providerInput.promptContext.familyProfileGrounding.fieldCount,
+        promptContextFamilyProfileSourceReferenceIdsIncluded:
+          providerInput.promptContext.familyProfileGrounding.boundary.sourceReferenceIdsIncluded,
+        promptContextFamilyProfileWritesRelationshipGraph:
+          providerInput.promptContext.familyProfileGrounding.boundary.writesRelationshipGraph,
         blockedProviderCallAttempted: blockedResult.providerCallAttempted,
         writesConfirmedCrmFact: successResult.appendCandidate.writesConfirmedCrmFact,
         rawPrivateTranscriptIncluded: successResult.appendCandidate.rawPrivateTranscriptIncluded,
@@ -359,6 +386,7 @@ function baseSnapshot(turns: RouteBSessionSnapshot["turns"]): RouteBSessionSnaps
       ],
       sourceGrounding: {
         meetingRelationshipSignals: meetingSignalGrounding(),
+        familyProfiles: familyProfileGrounding(),
       },
     },
     characters: [
@@ -495,6 +523,53 @@ function meetingSignalGrounding() {
 
   if (!summary) {
     throw new Error("Expected meeting signal grounding summary fixture.");
+  }
+
+  return summary;
+}
+
+function familyProfileGrounding() {
+  const summary = buildTheaterRouteBFamilyProfileGroundingSummary([
+    {
+      field: "occupation",
+      label: "職位／職業",
+      person: "林先生",
+      relation: "本人",
+      value: "科技公司營運長，重視效率與決策速度。",
+      status: "FACT",
+      sourceRefs: ["profile_source_focus_job"],
+    },
+    {
+      field: "decisionRole",
+      label: "決策角色",
+      person: "林太太",
+      relation: "配偶",
+      value: "共同決策者，可能關注月繳現金流。",
+      status: "INFERENCE",
+      sourceRefs: ["profile_source_spouse_decision"],
+    },
+    {
+      field: "annualIncome",
+      label: "年收入／財務依賴",
+      person: "林太太",
+      relation: "配偶",
+      value: "待確認是否固定收入或主要依賴家庭共同現金流。",
+      status: "UNKNOWN",
+      sourceRefs: ["profile_source_spouse_income"],
+    },
+    {
+      field: "relationshipContext",
+      label: "關係脈絡",
+      person: "合夥人",
+      relation: "合夥人",
+      value: "曾提醒公司責任風險，但不是家庭保障決策者。",
+      status: "FACT",
+      sourceRefs: ["profile_source_partner_context"],
+    },
+  ]);
+
+  if (!summary) {
+    throw new Error("Expected family profile grounding summary fixture.");
   }
 
   return summary;

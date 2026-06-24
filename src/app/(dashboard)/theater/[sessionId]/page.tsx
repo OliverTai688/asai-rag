@@ -81,6 +81,8 @@ type RouteBMeetingSignalRuntimeGrounding =
   TheaterRouteBNextTurnDraft["inputSummary"]["meetingRelationshipSignalGrounding"];
 type RouteBRelationshipEdgeShadowRuntimeGrounding =
   TheaterRouteBNextTurnDraft["inputSummary"]["relationshipEdgeShadowGrounding"];
+type RouteBFamilyProfileRuntimeGrounding =
+  TheaterRouteBNextTurnDraft["inputSummary"]["familyProfileGrounding"];
 type RouteBRedLineActionPersistenceStatus = "idle" | "loading" | "saving" | "ready" | "error";
 
 type RouteBFeedbackReviewEmptyPayload = {
@@ -2114,6 +2116,7 @@ function RouteBNextTurnPreviewPanel({
   const guardLines = draft ? nextTurnGuardLines(snapshot, draft) : [];
   const meetingSignalRuntimeGrounding = draft?.inputSummary.meetingRelationshipSignalGrounding;
   const relationshipEdgeShadowRuntimeGrounding = draft?.inputSummary.relationshipEdgeShadowGrounding;
+  const familyProfileRuntimeGrounding = draft?.inputSummary.familyProfileGrounding;
   const canConfirmAppend = Boolean(appendCandidate && appendUsageLogId && draft?.status === "READY");
   const canGenerateProviderCandidate = Boolean(draft?.status === "READY" && !isGeneratingProviderCandidate);
 
@@ -2180,6 +2183,10 @@ function RouteBNextTurnPreviewPanel({
 
             {relationshipEdgeShadowRuntimeGrounding?.usedInNextTurnRuntime ? (
               <RouteBNextTurnRelationshipEdgeShadowRuntimeGroundingPanel grounding={relationshipEdgeShadowRuntimeGrounding} />
+            ) : null}
+
+            {familyProfileRuntimeGrounding?.usedInNextTurnRuntime ? (
+              <RouteBNextTurnFamilyProfileRuntimeGroundingPanel grounding={familyProfileRuntimeGrounding} />
             ) : null}
 
             <div className="mt-3 space-y-2">
@@ -2352,6 +2359,75 @@ function RouteBNextTurnRelationshipEdgeShadowRuntimeGroundingPanel({
       </div>
     </div>
   );
+}
+
+function RouteBNextTurnFamilyProfileRuntimeGroundingPanel({
+  grounding,
+}: {
+  grounding: RouteBFamilyProfileRuntimeGrounding;
+}) {
+  const statusText = routeBCountMapText(grounding.factStatusCounts, "none");
+
+  return (
+    <div
+      className="mt-3 rounded-lg border border-hairline bg-background px-3 py-3"
+      data-route-b-next-turn-family-profile-runtime-grounding="true"
+    >
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge variant="outline" className="rounded-full">
+          family profile in runtime
+        </Badge>
+        <span className="text-xs leading-5 text-muted-foreground">
+          {grounding.profiledMemberCount} people・{grounding.fieldCount} fields・{grounding.unknownFieldCount} unknowns
+        </span>
+      </div>
+
+      <div className="mt-2 rounded-md border border-hairline bg-paper px-3 py-2">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">fact status</p>
+        <p className="mt-1 text-xs leading-5 text-muted-foreground">{statusText}</p>
+      </div>
+
+      <div className="mt-2 space-y-2">
+        {grounding.fields.slice(0, 3).map((field) => (
+          <div key={`${field.memberLabel}-${field.fieldLabel}-${field.valueSummary}`} className="rounded-md border border-hairline bg-paper px-3 py-2">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <Badge variant="outline" className="text-[10px]">
+                {routeBFamilyProfileRuntimeStatusLabel(field.status)}
+              </Badge>
+              <span className="rounded-full border border-hairline bg-background px-2 py-0.5 text-[10px] text-muted-foreground">
+                {field.relationLabel}
+              </span>
+            </div>
+            <p className="mt-2 line-clamp-2 text-xs font-medium leading-5 text-ink">
+              {field.memberLabel}・{field.fieldLabel}
+            </p>
+            <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">{field.valueSummary}</p>
+          </div>
+        ))}
+      </div>
+
+      {grounding.unknownPrompts.length ? (
+        <p className="mt-2 rounded-md border border-hairline bg-paper px-3 py-2 text-xs leading-5 text-muted-foreground">
+          unknown prompts: {grounding.unknownPrompts.slice(0, 2).join("・")}
+        </p>
+      ) : null}
+
+      <div className="mt-3 grid gap-2 text-[11px] text-muted-foreground">
+        <ContextLine label="Raw metadata" value={String(grounding.boundary.rawMetadataIncluded)} />
+        <ContextLine label="Source refs" value={String(grounding.boundary.sourceReferenceIdsIncluded)} />
+        <ContextLine label="Provider payload" value={String(grounding.boundary.rawProviderPayloadIncluded)} />
+        <ContextLine label="Graph write" value={String(grounding.boundary.writesRelationshipGraph)} />
+        <ContextLine label="VisitPlan write" value={String(grounding.boundary.writesVisitPlan)} />
+        <ContextLine label="CRM fact write" value={String(grounding.boundary.writesConfirmedCrmFact)} />
+      </div>
+    </div>
+  );
+}
+
+function routeBFamilyProfileRuntimeStatusLabel(status: RouteBFamilyProfileRuntimeGrounding["fields"][number]["status"]) {
+  if (status === "confirmed") return "confirmed";
+  if (status === "inference") return "inference";
+  return "unknown";
 }
 
 function RouteBMetric({ label, value }: { label: string; value: number | string }) {

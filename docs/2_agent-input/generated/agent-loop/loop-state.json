@@ -84,11 +84,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 0,
+    "normalLoopsSinceLastWholeProductReview": 1,
     "lastWholeProductReviewAt": "2026-06-24T09:41:04Z",
     "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-24_lv3-whole-product-gap-review-family-profile-runtime.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "REL-006e family profile -> Route B next-turn/provider runtime grounding. REL-006d already made FamilyMember.metadata.profile advisor-editable and REL-006c carries sourceGrounding.familyProfiles into Route B session/readback, but source audit shows only meetingRelationshipSignals and relationshipEdgeShadow are consumed by route-b-next-turn/provider/feedback runtime today. Next normal loop should add least-disclosure familyProfileGrounding to buildTheaterRouteBNextTurnDraft(), buildRouteBProviderPromptContext(), next-turn UI preview, AgentFacts manifest, and no-provider QA; then follow with REL-006f feedback review/provider grounding. If operator approves formal RelationshipEdge schema/migration or answers relationship confirmation persistence A/B/C first, prioritize that explicit unblock.",
+    "nextRecommendedImplementationSlice": "REL-006f family profile -> Route B feedback review/provider grounding. REL-006e now carries sourceGrounding.familyProfiles into buildTheaterRouteBNextTurnDraft(), buildRouteBProviderPromptContext(), next-turn provider input, stage UI preview, AgentFacts manifest, and no-provider QA. Next normal loop should add least-disclosure familyProfileGrounding to buildTheaterRouteBFeedbackContract(), buildTheaterRouteBFeedbackProviderInput(), buildTheaterRouteBFeedbackReview(), feedback review UI, AgentFacts manifest, and no-provider QA. If operator approves formal RelationshipEdge schema/migration or answers relationship confirmation persistence A/B/C first, prioritize that explicit unblock.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {
@@ -156,5 +156,5 @@
     "lv3ImmersiveLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-immersive-loop.md",
     "lv3WholeProductGapReviewLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md"
   },
-  "updatedAt": "2026-06-24T09:41:04Z"
+  "updatedAt": "2026-06-24T10:25:25Z"
 }
