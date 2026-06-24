@@ -62,6 +62,7 @@
     "meeting:route-b-red-line-context-qa": "node scripts/meeting-route-b-red-line-context-qa.mjs",
     "meeting:route-b-state-proposal-context-qa": "node scripts/meeting-route-b-state-proposal-context-qa.mjs",
     "meeting:route-b-state-proposal-writeback-bridge-qa": "node scripts/meeting-route-b-state-proposal-writeback-bridge-qa.mjs",
+    "meeting:route-b-feedback-advisor-writeback-bridge-qa": "node scripts/meeting-route-b-feedback-advisor-writeback-bridge-qa.mjs",
     "meeting:notes-hub-quarantine-qa": "node scripts/meeting-notes-hub-quarantine-qa.mjs",
     "meeting:writeback-qa": "node scripts/meeting-writeback-qa.mjs",
     "visit:theater-handoff-dry-run": "node scripts/visit-theater-handoff-dry-run.mjs",

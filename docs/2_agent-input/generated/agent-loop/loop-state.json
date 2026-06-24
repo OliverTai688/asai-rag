@@ -84,11 +84,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 3,
+    "normalLoopsSinceLastWholeProductReview": 4,
     "lastWholeProductReviewAt": "2026-06-24T09:41:04Z",
     "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-24_lv3-whole-product-gap-review-family-profile-runtime.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "REL-006g is complete: Route B feedback family-profile evidence now reaches visit preparation reasoning and AI Meeting notes advisor-context consumption through a server-owned no-write BFF, manifest refs, and source/dry-run QA. Next normal loop should rescore remaining LV3 cross-surface gaps; if operator approves formal RelationshipEdge schema/migration or answers relationship confirmation persistence A/B/C, prioritize that unblock. Without new approval, prefer a clean-browser onboarding proof over the full client -> graph -> prep -> theater path, or a small meeting/writeback preview slice that consumes the same advisor context without writing confirmed CRM facts.",
+    "nextRecommendedImplementationSlice": "REL-006h is complete: Route B feedback family-profile advisor context now reaches AI Meeting writeback preview context through a no-schema/no-provider bridge that requires persisted meeting summary and advisor confirmation before any writeback review. Cadence counter is now 4, so the next loop should run the fifth-loop whole-product gap review prompt unless the operator explicitly supplies a formal RelationshipEdge schema/migration approval or relationship confirmation persistence A/B/C decision first.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {
@@ -156,5 +156,5 @@
     "lv3ImmersiveLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-immersive-loop.md",
     "lv3WholeProductGapReviewLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md"
   },
-  "updatedAt": "2026-06-24T14:27:51Z"
+  "updatedAt": "2026-06-24T14:51:51Z"
 }

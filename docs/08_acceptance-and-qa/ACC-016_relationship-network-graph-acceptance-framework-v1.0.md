@@ -5,7 +5,7 @@
 - 研究依據：`docs/07_research-and-design/RES-024_relationship-network-graph-creation-gap-research-v1.0.md`
 - 建立日期：2026-06-20
 
-本框架定義 REL-001..REL-005 的驗收條目。每張 batch 卡完成前須通過對應段落，並保存 proof（API response、DB 查詢、Browser 截圖、command output）。2026-06-23 fifth-loop review 新增 REL-004a，作為正式 edge table migration 前的不動 schema contract / dry-run bridge；2026-06-24 fifth-loop review 新增 REL-004e/REL-004f/REL-004g，作為正式 edge table 前的 Route B session source-grounding/readback、next-turn/runtime grounding、feedback review/provider grounding bridge；REL-006d 補上 advisor 可操作的人物 profile editor UI source proof；2026-06-24 family profile runtime calibration 新增 REL-006e/REL-006f，用同一套 no-schema/least-disclosure 邊界把 `sourceGrounding.familyProfiles` 推進 Route B next-turn/provider 與 feedback review/provider；REL-006g 再把 feedback family profile evidence 轉成準備包 / AI Meeting notes advisor context consumption。
+本框架定義 REL-001..REL-005 的驗收條目。每張 batch 卡完成前須通過對應段落，並保存 proof（API response、DB 查詢、Browser 截圖、command output）。2026-06-23 fifth-loop review 新增 REL-004a，作為正式 edge table migration 前的不動 schema contract / dry-run bridge；2026-06-24 fifth-loop review 新增 REL-004e/REL-004f/REL-004g，作為正式 edge table 前的 Route B session source-grounding/readback、next-turn/runtime grounding、feedback review/provider grounding bridge；REL-006d 補上 advisor 可操作的人物 profile editor UI source proof；2026-06-24 family profile runtime calibration 新增 REL-006e/REL-006f，用同一套 no-schema/least-disclosure 邊界把 `sourceGrounding.familyProfiles` 推進 Route B next-turn/provider 與 feedback review/provider；REL-006g 再把 feedback family profile evidence 轉成準備包 / AI Meeting notes advisor context consumption；REL-006h 把同一 advisor context 轉成 AI Meeting writeback preview bridge，但仍需 persisted summary 與 advisor confirmation。
 
 ---
 
@@ -179,6 +179,17 @@ REL-006f evidence（2026-06-24）：新增 feedback-specific `familyProfileGroun
 - [x] `pnpm visit:route-b-feedback-advisor-context-dry-run`、`pnpm visit:route-b-feedback-advisor-context-qa`、`pnpm ai:protocol-registry-qa`、`pnpm ai:bff-audit`、`pnpm theater:route-b-family-profile-feedback-qa` 通過，且 provider-disabled path 不寫 fake `AiUsageLog`。
 
 REL-006g evidence（2026-06-24）：新增 visit-domain `VisitRouteBFeedbackAdvisorContext`、server-owned BFF endpoint、準備包/AI Meeting UI consumption 與 AgentFacts manifest/registry refs。Proof command `pnpm visit:route-b-feedback-advisor-context-qa` 串跑 dry-run 與 source sentinel，確認 P/I/N 問題清單會消費 feedback profile evidence、BFF 不接受 browser-supplied theater/person scope、UI/DTO 不暴露 raw source refs/private/provider payload，且 provider/DB/graph/VisitPlan/client profile/policy/confirmed CRM fact write 皆為 false。
+
+### D2.11. Feedback advisor context to meeting writeback preview bridge（REL-006h，不動 schema）
+
+- [x] `MeetingRouteBFeedbackAdvisorWritebackBridge` 從 safe `VisitRouteBFeedbackAdvisorContext` 產生 `MEETING_WRITEBACK_PREVIEW_CONTEXT` cards；不得直接建立 writeback candidate、CRM event、relationship graph edge 或 VisitPlan mutation。
+- [x] Bridge 狀態必須區分 `NO_CONTEXT` / `NO_FEEDBACK_PROFILE_ITEMS` / `SUMMARY_REQUIRED` / `READY_FOR_ADVISOR_REVIEW`；無 persisted meeting summary 時不得顯示為 ready。
+- [x] Card 保留 FACT/INFERENCE/UNKNOWN 分流與 `requiresConfirmation=true`，且標示 advisor confirmation required；inference/unknown 不得升格為 confirmed CRM fact。
+- [x] Meeting workspace 顯示 `data-route-b-feedback-advisor-writeback-bridge` panel，並標示 provider、AiUsageLog、relationship graph、VisitPlan、client profile、policy、confirmed CRM fact write 皆為 false。
+- [x] AgentFacts manifest / registry QA 含 capability/action/DTO/evidence/proof refs，且 `registryReadiness` 仍為 `internal-only`；不得宣稱 external-ready / external-registered。
+- [x] `pnpm meeting:route-b-feedback-advisor-writeback-bridge-qa`、`pnpm visit:route-b-feedback-advisor-context-qa`、`pnpm ai:protocol-registry-qa` 通過，且 source sentinel 證明不暴露 raw theater session id、person id、source packet id、raw private transcript 或 raw provider payload。
+
+REL-006h evidence（2026-06-24）：新增 meeting-domain `MeetingRouteBFeedbackAdvisorWritebackBridge`、AI Meeting workspace preview panel、package proof command 與 AgentFacts manifest/registry refs。Proof command `pnpm meeting:route-b-feedback-advisor-writeback-bridge-qa` 驗證 summary prerequisite、advisor confirmation、MEETING_WRITEBACK_PREVIEW_CONTEXT target、no-provider/no fake `AiUsageLog`、no graph/VisitPlan/client profile/policy/confirmed CRM fact write、no raw source scope leakage。
 
 ## E. 佈局/互動/可及性（REL-005）
 
