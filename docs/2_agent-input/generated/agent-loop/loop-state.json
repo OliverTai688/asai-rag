@@ -84,11 +84,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 4,
-    "lastWholeProductReviewAt": "2026-06-24T17:42:08Z",
-    "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-25_lv3-whole-product-gap-review-after-meeting-review-context-bff.md",
+    "normalLoopsSinceLastWholeProductReview": 0,
+    "lastWholeProductReviewAt": "2026-06-24T19:23:40Z",
+    "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-25_lv3-whole-product-gap-review-after-client-route-b-next-turn-context.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "LV3-TDF-004f completed a no-DB client-build Route B handoff -> provider-disabled next-turn/provider-prompt context proof with `pnpm theater:client-route-b-next-turn-context-dry-run`, plus AgentFacts registry adoption. Supabase DNS/DB is still `ENOTFOUND`, so live DB-backed `DEMO_QA_BASE_URL=http://127.0.0.1:<free-port> pnpm lv3:cross-flow-no-provider-qa` remains blocked. Because normalLoopsSinceLastWholeProductReview is now 4, the next automation loop should follow cadence and run `docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md` before choosing the next implementation slice; include a fresh DB DNS check and decide whether to prioritize full cross-flow DB proof, handoff -> persisted Route B session source review, or RelationshipEdge/relationship-confirmation blocker escalation.",
+    "nextRecommendedImplementationSlice": "Whole-product review after LV3-TDF-004f completed. Supabase DNS/DB remains `ENOTFOUND`, while `LV3_CROSS_FLOW_COVERAGE=meeting-review-context-chain pnpm lv3:cross-flow-no-provider-qa` and `pnpm theater:client-route-b-next-turn-context-dry-run` both pass. Next normal loop should first re-check DB DNS. If DB is restored, prioritize full live DB-backed `DEMO_QA_BASE_URL=http://127.0.0.1:<free-port> pnpm lv3:cross-flow-no-provider-qa`. If DB remains unavailable and no RelationshipEdge / relationship confirmation decision arrives, select source-backed `LV3-TDF-004g client-build Route B handoff -> persisted Route B session source review`, proving the client-built handoff/source grounding can be shaped into a persisted/session-safe Route B source review boundary without provider calls, DB writes, or confirmed CRM fact writes.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {
@@ -156,5 +156,5 @@
     "lv3ImmersiveLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-immersive-loop.md",
     "lv3WholeProductGapReviewLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md"
   },
-  "updatedAt": "2026-06-24T19:08:24Z"
+  "updatedAt": "2026-06-24T19:23:40Z"
 }

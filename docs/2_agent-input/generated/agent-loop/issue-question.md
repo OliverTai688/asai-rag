@@ -2,6 +2,8 @@
 
 Last updated: 2026-06-25
 
+- 2026-06-25 open update / fifth-loop review after client Route B next-turn context: DB/DNS blocker unchanged (`db.wwocdcicvpmbdmqvskzi.supabase.co` still `ENOTFOUND`), while `LV3_CROSS_FLOW_COVERAGE=meeting-review-context-chain pnpm lv3:cross-flow-no-provider-qa` and `pnpm theater:client-route-b-next-turn-context-dry-run` both pass. If DB recovers, rerun the full live DB-backed cross-flow proof. If DB remains unavailable and no RelationshipEdge / relationship confirmation A/B/C decision arrives, next normal loop should use a non-DB source-backed slice: `LV3-TDF-004g client-build Route B handoff -> persisted Route B session source review`, not another docs-only blocker report.
+
 ## 使用者決策
 
 - 2026-06-20 resolved: 使用者要求參考 NuvaClub automation，建立 ASAI 自動化。已定義 ASAI LV3 automation 目標為「架構、體驗、介面、容易操作簡約的沉浸式顧問系統成熟度」，不是自動宣稱 Level 3 public launch ready。
