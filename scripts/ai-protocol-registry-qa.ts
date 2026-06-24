@@ -534,6 +534,7 @@ function runQa() {
 
   assertMeetingRouteBRedLineContextConsumption(manifests);
   assertMeetingRouteBStateProposalContextConsumption(manifests);
+  assertMeetingRouteBStateProposalWritebackBridge(manifests);
   assertMeetingNotesHubQuarantine(manifests);
   assertMeetingQuickNoteWritebackBridge(manifests);
   assertVisitMeetingRelationshipSignal(manifests);
@@ -771,6 +772,66 @@ function assertMeetingRouteBStateProposalContextConsumption(manifests: AgentProt
 
   for (const evidenceRef of requiredEvidenceRefs) {
     push(adoption.evidenceRefs.includes(evidenceRef), `meeting Route B state proposal evidence includes ${evidenceRef}`);
+  }
+}
+
+function assertMeetingRouteBStateProposalWritebackBridge(manifests: AgentProtocolManifest[]) {
+  const manifest = manifests.find((item) => item.identity.agentId === "asai.meeting.prototype");
+  push(Boolean(manifest), "meeting manifest exists for Route B state proposal writeback bridge");
+
+  if (!manifest?.proof.sourceAdoption) {
+    return;
+  }
+
+  push(
+    manifest.capabilities.some((capability) => capability.id === "meeting-route-b-state-proposal-writeback-bridge"),
+    "meeting manifest declares Route B state proposal writeback bridge capability",
+  );
+  push(
+    manifest.interfaces.actions.some((action) => action.id === "route-b-state-proposal-writeback-preview-bridge"),
+    "meeting manifest declares Route B state proposal writeback bridge action boundary",
+  );
+  push(
+    manifest.schemas.outputDtoRefs.includes("MeetingRouteBStateProposalWritebackBridge"),
+    "meeting manifest output DTOs include MeetingRouteBStateProposalWritebackBridge",
+  );
+  push(
+    manifest.schemas.evidenceDtoRefs.includes("MeetingRouteBStateProposalWritebackBridge.target=MEETING_WRITEBACK_PREVIEW_CONTEXT"),
+    "meeting manifest evidence includes writeback preview context target",
+  );
+  push(
+    manifest.schemas.evidenceDtoRefs.includes("MeetingRouteBStateProposalWritebackBridge.safety.writesConfirmedCrmFact=false"),
+    "meeting manifest evidence includes no confirmed CRM fact write",
+  );
+  push(
+    manifest.proof.commands.includes("pnpm meeting:route-b-state-proposal-writeback-bridge-qa"),
+    "meeting proof commands include Route B state proposal writeback bridge QA",
+  );
+
+  const adoption = manifest.proof.sourceAdoption;
+  const requiredOwnerRefs = [
+    "src/components/meeting/meeting-workspace.tsx",
+    "src/domains/interview/meeting-route-b-state-proposal-writeback-bridge.ts",
+    "scripts/meeting-route-b-state-proposal-writeback-bridge-qa.mjs",
+  ];
+  const requiredEvidenceRefs = [
+    "meeting-route-b-state-proposal-writeback-bridge",
+    "route-b-state-proposal-writeback-preview-bridge",
+    "buildMeetingRouteBStateProposalWritebackBridge",
+    "MeetingRouteBStateProposalWritebackBridge",
+    "MEETING_WRITEBACK_PREVIEW_CONTEXT",
+    "MeetingRouteBStateProposalWritebackBridge.status=SUMMARY_REQUIRED",
+    "MeetingRouteBStateProposalWritebackBridge.safety.writesRelationshipGraph=false",
+    "MeetingRouteBStateProposalWritebackBridge.safety.writesVisitPlan=false",
+    "MeetingRouteBStateProposalWritebackBridge.safety.writesConfirmedCrmFact=false",
+  ];
+
+  for (const ownerRef of requiredOwnerRefs) {
+    push(adoption.ownerRefs.includes(ownerRef), `meeting Route B state proposal writeback owner includes ${ownerRef}`);
+  }
+
+  for (const evidenceRef of requiredEvidenceRefs) {
+    push(adoption.evidenceRefs.includes(evidenceRef), `meeting Route B state proposal writeback evidence includes ${evidenceRef}`);
   }
 }
 

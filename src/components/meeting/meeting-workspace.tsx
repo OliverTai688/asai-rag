@@ -27,6 +27,10 @@ import {
   type MeetingParticipant,
   type MeetingSummaryItem,
 } from "@/domains/interview/meeting";
+import {
+  buildMeetingRouteBStateProposalWritebackBridge,
+  type MeetingRouteBStateProposalWritebackBridge,
+} from "@/domains/interview/meeting-route-b-state-proposal-writeback-bridge";
 import type { VisitRouteBRedLineContext } from "@/domains/visit/route-b-red-line-context";
 import type { VisitRouteBStateProposalContext } from "@/domains/visit/route-b-state-proposal-context";
 
@@ -420,6 +424,15 @@ export function MeetingWorkspace({
   const noteDraft = hasTouchedNoteDraft
     ? editedNoteDraft
     : mergedInitialNoteDraft ?? DEFAULT_NOTE;
+  const routeBStateProposalWritebackBridge = useMemo(
+    () => buildMeetingRouteBStateProposalWritebackBridge({
+      context: routeBStateProposalContext?.status === "READY"
+        ? routeBStateProposalContext.routeBStateProposalContext ?? null
+        : null,
+      hasPersistedSummary: Boolean(summary),
+    }),
+    [routeBStateProposalContext, summary],
+  );
 
   const resetWritebacks = useCallback(() => {
     setWritebackPreview(null);
@@ -914,6 +927,8 @@ export function MeetingWorkspace({
             )}
           </section>
 
+          <RouteBStateProposalWritebackBridgePanel bridge={routeBStateProposalWritebackBridge} />
+
           <WritebackPanel
             summary={summary}
             preview={writebackPreview}
@@ -1117,6 +1132,78 @@ function RouteBStateProposalContextPanel({
           description="目前沒有 owner-scoped Route B state proposal；會議筆記仍可照常建立。"
         />
       )}
+    </section>
+  );
+}
+
+function RouteBStateProposalWritebackBridgePanel({
+  bridge,
+}: {
+  bridge: MeetingRouteBStateProposalWritebackBridge;
+}) {
+  if (bridge.status === "NO_CONTEXT" || bridge.status === "NO_STATE_PROPOSALS") return null;
+
+  const highlightedCards = bridge.cards
+    .filter((card) => card.status === "unknown" || card.cardType === "writeback_context_evidence_needed")
+    .slice(0, 3);
+  const visibleCards = highlightedCards.length ? highlightedCards : bridge.cards.slice(0, 3);
+  const isReady = bridge.status === "READY_FOR_ADVISOR_REVIEW";
+
+  return (
+    <section
+      data-testid="meeting-route-b-state-proposal-writeback-bridge"
+      data-route-b-state-proposal-writeback-bridge
+      className="rounded-lg border border-hairline bg-card p-4"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-sm font-semibold text-ink">劇場狀態到寫回預覽</p>
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">
+            theater state proposal 只進 MEETING_WRITEBACK_PREVIEW_CONTEXT；摘要與人工確認前不建立寫回候選。
+          </p>
+        </div>
+        <Badge variant={isReady ? "success" : "warning"}>{bridge.status}</Badge>
+      </div>
+
+      <div className="mt-4 grid grid-cols-3 gap-2 text-sm">
+        <RailMetric label="預覽脈絡" value={bridge.summary.cardCount} />
+        <RailMetric label="待確認" value={bridge.summary.unknownCount} />
+        <RailMetric label="需佐證" value={bridge.summary.evidenceNeededCount} />
+      </div>
+
+      {bridge.status === "SUMMARY_REQUIRED" ? (
+        <div className="mt-3 rounded-lg border border-hairline bg-paper p-3 text-xs leading-5 text-muted-foreground">
+          persisted summary required：先生成並保存會議摘要，之後這些狀態提案才可作為寫回候選審查的旁證脈絡。
+        </div>
+      ) : null}
+
+      <div className="mt-3 space-y-2">
+        {visibleCards.map((card) => (
+          <article key={card.id} className="rounded-lg border border-hairline bg-paper p-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant={card.status === "unknown" ? "warning" : "outline"}>
+                {card.status === "unknown" ? "待確認" : "推論"}
+              </Badge>
+              <Badge variant="outline">{card.target}</Badge>
+              <Badge variant="success">requiresConfirmation=true</Badge>
+            </div>
+            <p className="mt-2 text-sm font-medium leading-6 text-ink">{card.label}</p>
+            <p className="mt-1 text-xs leading-5 text-muted-foreground">{card.detail}</p>
+            <div className="mt-2 rounded-md border border-hairline bg-card px-2 py-1.5 text-xs leading-5 text-muted-foreground">
+              <p>補問：{card.followUpQuestion}</p>
+              <p>advisor confirmation required；這不是 relationship graph 或 CRM fact 寫入。</p>
+            </div>
+          </article>
+        ))}
+      </div>
+
+      <div className="mt-3 flex flex-wrap gap-2">
+        <Badge variant="secondary">provider: none</Badge>
+        <Badge variant="secondary">AiUsageLog: no-provider</Badge>
+        <Badge variant="secondary">relationship graph: none</Badge>
+        <Badge variant="secondary">VisitPlan write: none</Badge>
+        <Badge variant="secondary">CRM fact: no direct write</Badge>
+      </div>
     </section>
   );
 }

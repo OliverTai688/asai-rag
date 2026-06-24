@@ -243,6 +243,8 @@ ITA-003o evidence note（2026-06-24）：新增 `VisitRouteBStateProposalContext
 
 ITA/AMM-003p evidence note（2026-06-24）：新增 `/pre-visit/[planId]/notes` -> `MeetingWorkspace` state proposal consumer。Notes page 從 `GET /api/visits/[id]/route-b-state-proposal-context` 載入 context，僅傳 `status`、`summary`、`routeBStateProposalContext` items 與 proof；MeetingWorkspace 新增 `meeting-route-b-state-proposal-context` panel，將 requiresConfirmation=true 的 follow-up / evidence-needed / next-question reminders 併入 manual-note draft，並顯示 no-provider、no relationship graph write、no VisitPlan write、no direct CRM fact write。此 consumer 不採用 untracked `/notes` local prototype，不傳或顯示 `sourcePacketId`、raw theater session id 或 raw person id。Proof：`pnpm meeting:route-b-state-proposal-context-qa`、`pnpm visit:route-b-state-proposal-context-qa`、`pnpm ai:protocol-registry-qa`、`pnpm ai:bff-audit`、`pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
 
+ITA/AMM-003q evidence note（2026-06-24）：新增 Route B state proposal -> AI Meeting writeback preview context bridge。`MeetingRouteBStateProposalWritebackBridge` 只消費已安全化的 `VisitRouteBStateProposalContext`，輸出 `MEETING_WRITEBACK_PREVIEW_CONTEXT` cards；MeetingWorkspace 顯示 `meeting-route-b-state-proposal-writeback-bridge` panel，要求 persisted meeting summary 與 advisor confirmation 後才可進一步 review writeback candidates。Proof 明確 `providerCallAttempted=false`、`aiUsageLogRequired=false`、`writesRelationshipGraph=false`、`writesVisitPlan=false`、`writesConfirmedCrmFact=false`，且不回 raw theater session/person/source packet id。Proof：`pnpm meeting:route-b-state-proposal-writeback-bridge-qa`、`pnpm ai:protocol-registry-qa`、`pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+
 ---
 
 ## 6. Feedback / Compliance Acceptance
