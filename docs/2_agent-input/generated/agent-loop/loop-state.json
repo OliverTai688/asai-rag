@@ -84,11 +84,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 4,
-    "lastWholeProductReviewAt": "2026-06-24T01:51:36Z",
-    "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-24_lv3-whole-product-gap-review.md",
+    "normalLoopsSinceLastWholeProductReview": 0,
+    "lastWholeProductReviewAt": "2026-06-24T03:44:39Z",
+    "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-24_lv3-whole-product-gap-review-runtime-bridges.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "Next loop should run the fifth-loop whole-product gap review prompt before resuming implementation. In that review, prioritize deciding between formal RelationshipEdge schema approval, relationship confirmation persistence A/B/C, and the next no-schema theater/meeting/preparation bridge; do not spend a full loop on residual screenshots if source/runtime proof is already sufficient and self-runnable by the operator.",
+    "nextRecommendedImplementationSlice": "Fifth-loop review completed. If operator approves additive RelationshipEdge schema/migration, resume formal REL-004. If product answers relationship confirmation persistence A/B/C, implement that chosen persistence path. If neither approval/decision is available, run source-backed no-schema ITA-003o: Route B state proposal -> downstream advisor context bridge for visit preparation or AI meeting notes, with no provider call, no fake AiUsageLog, no relationship graph/VisitPlan/confirmed CRM fact write, and no full loop spent on residual screenshots.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {
@@ -156,5 +156,5 @@
     "lv3ImmersiveLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-immersive-loop.md",
     "lv3WholeProductGapReviewLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md"
   },
-  "updatedAt": "2026-06-24T03:27:59Z"
+  "updatedAt": "2026-06-24T03:44:39Z"
 }

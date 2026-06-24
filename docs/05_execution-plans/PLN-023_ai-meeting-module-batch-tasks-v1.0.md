@@ -19,11 +19,11 @@
 
 ## Current AI Meeting Gaps
 
-- 拜訪後筆記只是 `VisitPlan.postVisitNotes` 純文字，無 transcript / 結構化摘要 / 行動項 / citation / 跨會議記憶。
+- 拜訪後筆記已透過 AMM-005c 接入正式 `CLIENT_MEETING` workspace；legacy `VisitPlan.postVisitNotes` / `postVisitAnalysis` 仍保留為手動輸入與相容來源。
 - `interview` domain 已有完整 Park-memory + realtime voice + persistence，但綁在 `/interview`，未成為全站「會議」物件。
 - `retrieveInterviewMemories()` 已有 client-scoped deterministic memory-chat route 與 provider-backed live memory-chat mode；pgvector retrieval 仍待 AMM-007。
 - 已有 `MeetingSummary` / `MeetingCitation` contract、additive `InterviewMeetingSummary` schema、member-scoped meeting capture BFF、deterministic cited summary persistence proof、provider JSON summary success/error `AiUsageLog` proof、pre-visit meeting workspace 入口、dashboard / CRM client detail 全站入口、deterministic writeback boundary 與 workspace confirmation cards。
-- 仍缺 `/pre-visit/[planId]/notes` 與 `postVisitNotes` 相容升級、pgvector retrieval。AMM-008 已補 cross-state proof pack。
+- AMM-005c 已完成 `/pre-visit/[planId]/notes` 與 `postVisitNotes` 相容升級；仍缺 AMM-007 pgvector retrieval。AMM-008 已補 cross-state proof pack。
 
 ---
 
@@ -89,8 +89,8 @@
 - [x] AMM-005a：先從 `/pre-visit/[planId]` 或 `/pre-visit/[planId]/meeting` 建立正式 meeting workspace 入口，接 accepted AMM BFF（create/read `CLIENT_MEETING`、append manual/final-transcript turn、generate deterministic summary），不得要求 raw ID。
 - [x] AMM-005a：若採用既有未追蹤 meeting/notes prototype，必須在本卡明確檢查、限縮 AMM-owned subset、補 Browser/API proof，不能把 prototype 當既成 proof。
 - [x] AMM-005a Browser/API proof：desktop/mobile console error 0、無水平 overflow、refresh/new-context persistence、manager/foreign denial、raw provider/audio/private sentinel blocked、no-provider `AiUsageLog` unchanged。
-- [ ] `拜訪後筆記`（`/pre-visit/[planId]/notes`）升級為會議工作台：手動筆記 + 可選即時轉寫 + 自動摘要 + 對答，對齊同一 `CLIENT_MEETING` session。
-- [ ] `postVisitNotes` / `postVisitAnalysis` 保留為手動輸入來源，相容並存，不破壞既有資料。
+- [x] `拜訪後筆記`（`/pre-visit/[planId]/notes`）升級為會議工作台：手動筆記 + 可選即時轉寫 + 自動摘要 + 對答，對齊同一 `CLIENT_MEETING` session。
+- [x] `postVisitNotes` / `postVisitAnalysis` 保留為手動輸入來源，相容並存，不破壞既有資料。
 - [x] AMM-005b：入口：dashboard「最近會議」、CRM client detail「AI 會議工作台」、訪前規劃詳情皆可開始/檢視會議，且不要求 raw ID workflow。
 - [x] AMM-005b：不改商業資料 schema 邏輯；入口遵循 `ACC-003` modern minimal 與 `ARC-003` 視覺。
 - [x] AMM-005b Browser/API/DB proof：dashboard/CRM desktop + CRM mobile console error 0、無水平 overflow、refresh persistence、manager/foreign denial、raw provider payload guard、client-scoped DB proof、no-provider `AiUsageLog` unchanged。
@@ -100,9 +100,9 @@ Whole-product review note（2026-06-21 after AMM-003a）：第五輪校準確認
 
 完成註記：2026-06-21 AMM-005a 已採納既有 meeting UI prototype 的 AMM-owned subset，改為 `/pre-visit/[planId]` 可點擊進入 `/pre-visit/[planId]/meeting` 的正式工作台；workspace 只用 accepted meeting BFF 自動建立/讀取 `CLIENT_MEETING`、append manual note/final transcript、POST deterministic summary，並以 GET summary 支援 refresh/new-context persistence。`pnpm meeting:workspace-ui-qa` 覆蓋 desktop/mobile no overflow、console error 0、manager denial、raw provider/audio sentinel blocked、owner summary GET、AiUsageLog unchanged。未追蹤 notes UI 與 note domain prototype 仍未採納。
 
-完成註記：2026-06-21 AMM-005b 已完成 dashboard + CRM global meeting entrypoints。新增 dashboard「最近會議」入口、CRM client detail「AI 會議工作台」入口、`/crm/[clientId]/meeting` route，並讓 `MeetingWorkspace` 可從 `visitPlanId` 或 `clientId` 啟動同一 accepted AMM BFF。新增 `scripts/meeting-global-entrypoints-qa.mjs` / `pnpm meeting:global-entrypoints-qa`，證明 dashboard recent meeting 直接進 `/pre-visit/[planId]/meeting`、CRM direct meeting 可建立 client-scoped `CLIENT_MEETING`、summary refresh/new-context persistence、DB client scope / no visitPlan proof、manager denied、raw provider payload blocked、desktop/mobile no overflow、console error 0、no-provider `AiUsageLog` unchanged。`/pre-visit/[planId]/notes` 與 `postVisitNotes` 相容升級仍未完成。
+完成註記：2026-06-21 AMM-005b 已完成 dashboard + CRM global meeting entrypoints。新增 dashboard「最近會議」入口、CRM client detail「AI 會議工作台」入口、`/crm/[clientId]/meeting` route，並讓 `MeetingWorkspace` 可從 `visitPlanId` 或 `clientId` 啟動同一 accepted AMM BFF。新增 `scripts/meeting-global-entrypoints-qa.mjs` / `pnpm meeting:global-entrypoints-qa`，證明 dashboard recent meeting 直接進 `/pre-visit/[planId]/meeting`、CRM direct meeting 可建立 client-scoped `CLIENT_MEETING`、summary refresh/new-context persistence、DB client scope / no visitPlan proof、manager denied、raw provider payload blocked、desktop/mobile no overflow、console error 0、no-provider `AiUsageLog` unchanged。AMM-005c 已於 2026-06-23 補上 `/pre-visit/[planId]/notes` 與 `postVisitNotes` compatibility proof。
 
-Whole-product review note（2026-06-21 after AMM-008）：AMM 已具備跨狀態 source/browser/API/DB/provider proof，但拜訪後整理仍分裂為 legacy `/pre-visit/[planId]/notes` / `postVisitNotes` 與正式 `CLIENT_MEETING` workspace。下一輪不得只補文件或 proof-plan；應以 `AMM-005c` 修改 source，讓 notes route、manual notes、quick-capture、meeting summary、writeback confirmation 與 legacy post-visit notes 有同頁相容路徑並能重跑 proof。
+Whole-product review note（2026-06-21 after AMM-008）：AMM 已具備跨狀態 source/browser/API/DB/provider proof，但當時拜訪後整理仍分裂為 legacy `/pre-visit/[planId]/notes` / `postVisitNotes` 與正式 `CLIENT_MEETING` workspace。此 gap 已由 AMM-005c 於 2026-06-23 關閉；後續不得再把 AMM-005c 當未完成核心缺口。
 
 ## Batch AMM-005c — Notes / postVisitNotes compatibility bridge
 - [x] `/pre-visit/[planId]/notes` 保留 BFF-owned `postVisitNotes` / `postVisitAnalysis` read-write-reload，同頁提供進入或內嵌同一 owner-scoped `CLIENT_MEETING` workspace 的路徑，不要求 raw session ID。
@@ -135,7 +135,7 @@ Whole-product review 註記（2026-06-23 after BFF-402h）：BFF/payment guarded
 
 Whole-product review note（2026-06-21 after AMM-003b）：最新 fifth-loop review 將下一個 normal loop 指向 `AMM-006b meeting workspace writeback confirmation cards`。理由：AMM backend/provider foundation 已完成，但 `src/components/meeting/meeting-workspace.tsx` 尚未消費 `/writebacks` preview/POST；這直接阻斷「AI 會議/訪談補強客戶資料與待辦」的可操作閉環。下一輪需做 source-backed UI/API/DB/browser proof，不得只更新 docs 或 proof plan。
 
-完成註記：2026-06-21 AMM-006b 已完成 meeting workspace writeback confirmation cards；`src/components/meeting/meeting-workspace.tsx` 摘要就緒後會讀取 `/writebacks` preview，顯示 confirmed/inference/action/unknown 候選、reason/riskAccepted、高敏感 blocked 與 created/blocked/skipped 結果。新增 `scripts/meeting-workspace-writeback-ui-qa.mjs` / `pnpm meeting:workspace-writeback-ui-qa`，證明 summary-required UI、desktop/mobile console error 0、無水平 overflow、owner createdEvents、manager 404、raw provider/private sentinel 409/no echo、confirmed approved -> CRM candidate audit、inference CRM fact count = 0、action/unknown -> follow-up task、`writesConfirmedCrmFact=false`、no-provider `AiUsageLog` 153->153 unchanged。AMM-008 cross-state proof pack 已補上；pgvector 與 notes/postVisitNotes 相容升級仍未完成。
+完成註記：2026-06-21 AMM-006b 已完成 meeting workspace writeback confirmation cards；`src/components/meeting/meeting-workspace.tsx` 摘要就緒後會讀取 `/writebacks` preview，顯示 confirmed/inference/action/unknown 候選、reason/riskAccepted、高敏感 blocked 與 created/blocked/skipped 結果。新增 `scripts/meeting-workspace-writeback-ui-qa.mjs` / `pnpm meeting:workspace-writeback-ui-qa`，證明 summary-required UI、desktop/mobile console error 0、無水平 overflow、owner createdEvents、manager 404、raw provider/private sentinel 409/no echo、confirmed approved -> CRM candidate audit、inference CRM fact count = 0、action/unknown -> follow-up task、`writesConfirmedCrmFact=false`、no-provider `AiUsageLog` 153->153 unchanged。AMM-008 cross-state proof pack 與 AMM-005c notes/postVisitNotes 相容升級已補上；剩餘主要為 AMM-007 pgvector/operator path。
 
 ## Batch AMM-007 — pgvector 規模化（operator 依賴）
 - [ ] `InterviewMemory.embeddingStatus` 接 embedding 寫入流程；Supabase 啟用 pgvector + 向量索引。
