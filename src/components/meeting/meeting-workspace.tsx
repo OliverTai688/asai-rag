@@ -28,6 +28,10 @@ import {
   type MeetingSummaryItem,
 } from "@/domains/interview/meeting";
 import {
+  attachFeedbackAdvisorContextToMeetingWritebackCandidates,
+  type MeetingWritebackCandidateReviewContext,
+} from "@/domains/interview/meeting-writeback-boundary";
+import {
   buildMeetingRouteBStateProposalWritebackBridge,
   type MeetingRouteBStateProposalWritebackBridge,
 } from "@/domains/interview/meeting-route-b-state-proposal-writeback-bridge";
@@ -254,6 +258,7 @@ interface MeetingWritebackCandidateDto {
   blockedReason?: string;
   crmWritebackCandidate: boolean;
   writesConfirmedCrmFact: false;
+  reviewContext?: MeetingWritebackCandidateReviewContext[];
 }
 
 interface MeetingWritebackSafetyDto {
@@ -500,6 +505,19 @@ export function MeetingWorkspace({
     }),
     [routeBFeedbackAdvisorContext, summary],
   );
+  const enrichedWritebackPreview = useMemo<MeetingWritebackPreviewDto | null>(() => {
+    if (writebackPreview?.status !== "ready") return writebackPreview;
+
+    return {
+      ...writebackPreview,
+      candidates: attachFeedbackAdvisorContextToMeetingWritebackCandidates(
+        writebackPreview.candidates,
+        routeBFeedbackAdvisorWritebackBridge.status === "READY_FOR_ADVISOR_REVIEW"
+          ? routeBFeedbackAdvisorWritebackBridge.cards
+          : [],
+      ),
+    };
+  }, [routeBFeedbackAdvisorWritebackBridge, writebackPreview]);
 
   const resetWritebacks = useCallback(() => {
     setWritebackPreview(null);
@@ -1006,7 +1024,7 @@ export function MeetingWorkspace({
 
           <WritebackPanel
             summary={summary}
-            preview={writebackPreview}
+            preview={enrichedWritebackPreview}
             result={writebackResult}
             state={writebackState}
             error={writebackError}
@@ -1765,6 +1783,42 @@ function WritebackCandidateCard({
             {candidate.writesConfirmedCrmFact === false ? <Badge variant="success">不寫正式 CRM fact</Badge> : null}
           </div>
           {candidate.blockedReason ? <p className="mt-2 text-xs leading-5 text-destructive">{candidate.blockedReason}</p> : null}
+          {candidate.reviewContext?.length ? (
+            <div
+              data-testid="meeting-writeback-feedback-advisor-review-context"
+              className="mt-3 rounded-lg border border-hairline bg-card p-3"
+            >
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant="secondary">劇場回饋旁證</Badge>
+                <Badge variant="outline">MEETING_WRITEBACK_PREVIEW_CONTEXT</Badge>
+                <Badge variant="success">人工確認必要</Badge>
+              </div>
+              <div className="mt-2 space-y-2">
+                {candidate.reviewContext.map((context) => (
+                  <div key={context.contextCardId} className="rounded-md border border-hairline bg-paper px-2.5 py-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge variant={context.status === "confirmed" ? "success" : context.status === "unknown" ? "warning" : "outline"}>
+                        {displayFeedbackAdvisorReviewStatus(context.status)}
+                      </Badge>
+                      <Badge variant="outline">{context.targetLabel}</Badge>
+                      <Badge variant="outline">{context.fieldLabel}</Badge>
+                    </div>
+                    <p className="mt-2 text-xs font-medium leading-5 text-ink">{context.label}</p>
+                    <p className="mt-1 text-xs leading-5 text-muted-foreground">{context.detail}</p>
+                    <p className="mt-1 text-xs leading-5 text-muted-foreground">補問：{context.followUpQuestion}</p>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-2 flex flex-wrap gap-2">
+                <Badge variant="secondary">provider: none</Badge>
+                <Badge variant="secondary">relationship graph: none</Badge>
+                <Badge variant="secondary">VisitPlan: none</Badge>
+                <Badge variant="secondary">client profile: none</Badge>
+                <Badge variant="secondary">policy: none</Badge>
+                <Badge variant="secondary">CRM fact: no direct write</Badge>
+              </div>
+            </div>
+          ) : null}
         </div>
       </div>
 
@@ -2161,6 +2215,12 @@ function displayCandidateSensitivity(sensitivity: MeetingWritebackSensitivity): 
     case "NORMAL":
       return "一般";
   }
+}
+
+function displayFeedbackAdvisorReviewStatus(status: MeetingWritebackCandidateReviewContext["status"]): string {
+  if (status === "confirmed") return "已知旁證";
+  if (status === "inference") return "推論旁證";
+  return "待確認旁證";
 }
 
 function formatDateTime(value: string): string {

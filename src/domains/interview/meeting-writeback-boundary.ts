@@ -1,4 +1,5 @@
 import type { MeetingActionItem, MeetingCitation, MeetingDataClass, MeetingSummaryItem } from "./meeting";
+import type { MeetingRouteBFeedbackAdvisorWritebackBridgeCard } from "./meeting-route-b-feedback-advisor-writeback-bridge";
 import type { InterviewWritebackSensitivity, InterviewWritebackTarget } from "./writeback-boundary";
 
 export type MeetingWritebackCandidateKind = "CONFIRMED_FACT" | "INFERENCE" | "UNKNOWN" | "ACTION_ITEM";
@@ -21,6 +22,26 @@ export interface MeetingWritebackCandidate {
   reasonHint?: string;
   blockedReason?: string;
   crmWritebackCandidate: boolean;
+  writesConfirmedCrmFact: false;
+  reviewContext?: MeetingWritebackCandidateReviewContext[];
+}
+
+export interface MeetingWritebackCandidateReviewContext {
+  source: "theater_route_b_feedback_profile";
+  target: "MEETING_WRITEBACK_PREVIEW_CONTEXT";
+  contextCardId: string;
+  status: "confirmed" | "inference" | "unknown";
+  targetLabel: string;
+  fieldLabel: string;
+  label: string;
+  detail: string;
+  followUpQuestion: string;
+  requiresAdvisorConfirmation: true;
+  persistedSummaryRequired: true;
+  writesRelationshipGraph: false;
+  writesVisitPlan: false;
+  writesClientProfile: false;
+  writesPolicy: false;
   writesConfirmedCrmFact: false;
 }
 
@@ -163,6 +184,23 @@ export function evaluateMeetingWriteback(input: EvaluateMeetingWritebackInput): 
   });
 }
 
+export function attachFeedbackAdvisorContextToMeetingWritebackCandidates<T extends MeetingWritebackCandidate>(
+  candidates: T[],
+  feedbackAdvisorBridgeCards: MeetingRouteBFeedbackAdvisorWritebackBridgeCard[] = [],
+): T[] {
+  if (feedbackAdvisorBridgeCards.length === 0) return candidates;
+
+  return candidates.map((candidate) => {
+    const reviewContext = selectFeedbackAdvisorReviewContext(candidate, feedbackAdvisorBridgeCards);
+    if (reviewContext.length === 0) return candidate;
+
+    return {
+      ...candidate,
+      reviewContext,
+    };
+  });
+}
+
 function buildCandidate(input: {
   id: string;
   sourceType: MeetingWritebackSourceType;
@@ -243,4 +281,65 @@ function inferSensitivity(text: string): InterviewWritebackSensitivity {
 
 function unique(values: string[]): string[] {
   return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
+}
+
+function selectFeedbackAdvisorReviewContext(
+  candidate: MeetingWritebackCandidate,
+  cards: MeetingRouteBFeedbackAdvisorWritebackBridgeCard[],
+): MeetingWritebackCandidateReviewContext[] {
+  const expectedStatus = toFeedbackAdvisorStatus(candidate.dataClass);
+  const normalizedCandidate = normalizeForContextMatch(candidate.text);
+
+  return cards
+    .filter((card) => card.status === expectedStatus)
+    .filter((card) => feedbackAdvisorCardMatchesCandidate(card, normalizedCandidate))
+    .slice(0, 3)
+    .map(toMeetingWritebackCandidateReviewContext);
+}
+
+function toFeedbackAdvisorStatus(dataClass: MeetingDataClass): MeetingWritebackCandidateReviewContext["status"] {
+  if (dataClass === "INFERENCE") return "inference";
+  if (dataClass === "UNKNOWN") return "unknown";
+  return "confirmed";
+}
+
+function feedbackAdvisorCardMatchesCandidate(
+  card: MeetingRouteBFeedbackAdvisorWritebackBridgeCard,
+  normalizedCandidate: string,
+): boolean {
+  const clues = [card.detail, card.label, card.followUpQuestion, card.fieldLabel, card.targetLabel]
+    .map(normalizeForContextMatch)
+    .filter((value) => value.length >= 2);
+
+  return clues.some((clue) => normalizedCandidate.includes(clue) || clue.includes(normalizedCandidate));
+}
+
+function toMeetingWritebackCandidateReviewContext(
+  card: MeetingRouteBFeedbackAdvisorWritebackBridgeCard,
+): MeetingWritebackCandidateReviewContext {
+  return {
+    source: card.source,
+    target: card.target,
+    contextCardId: card.id,
+    status: card.status,
+    targetLabel: card.targetLabel,
+    fieldLabel: card.fieldLabel,
+    label: card.label,
+    detail: card.detail,
+    followUpQuestion: card.followUpQuestion,
+    requiresAdvisorConfirmation: true,
+    persistedSummaryRequired: true,
+    writesRelationshipGraph: false,
+    writesVisitPlan: false,
+    writesClientProfile: false,
+    writesPolicy: false,
+    writesConfirmedCrmFact: false,
+  };
+}
+
+function normalizeForContextMatch(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^\p{Letter}\p{Number}]+/gu, "")
+    .trim();
 }

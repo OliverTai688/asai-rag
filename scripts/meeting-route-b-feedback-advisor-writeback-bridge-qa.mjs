@@ -38,6 +38,7 @@ console.log(
 
 function runSourceContractAudit() {
   const bridge = readSource("src/domains/interview/meeting-route-b-feedback-advisor-writeback-bridge.ts");
+  const boundary = readSource("src/domains/interview/meeting-writeback-boundary.ts");
   const meetingWorkspace = readSource("src/components/meeting/meeting-workspace.tsx");
   const manifest = readSource("src/domains/ai-protocol/manifest.ts");
   const registryQa = readSource("scripts/ai-protocol-registry-qa.ts");
@@ -63,6 +64,40 @@ function runSourceContractAudit() {
   assertIncludes(bridge, "returnsRawPersonId: false", "bridge does not return person id");
 
   assertIncludes(
+    boundary,
+    "MeetingWritebackCandidateReviewContext",
+    "writeback boundary defines feedback advisor review context DTO",
+  );
+  assertIncludes(
+    boundary,
+    "attachFeedbackAdvisorContextToMeetingWritebackCandidates",
+    "writeback boundary can attach feedback advisor context to candidates",
+  );
+  assertIncludes(
+    boundary,
+    "MeetingRouteBFeedbackAdvisorWritebackBridgeCard",
+    "writeback boundary consumes sanitized feedback advisor bridge cards",
+  );
+  assertIncludes(
+    boundary,
+    "source: \"theater_route_b_feedback_profile\"",
+    "candidate review context keeps feedback profile source label",
+  );
+  assertIncludes(
+    boundary,
+    "target: \"MEETING_WRITEBACK_PREVIEW_CONTEXT\"",
+    "candidate review context targets meeting writeback preview only",
+  );
+  assertIncludes(boundary, "writesRelationshipGraph: false", "candidate review context does not write relationship graph");
+  assertIncludes(boundary, "writesVisitPlan: false", "candidate review context does not write VisitPlan");
+  assertIncludes(boundary, "writesClientProfile: false", "candidate review context does not write client profile");
+  assertIncludes(boundary, "writesPolicy: false", "candidate review context does not write policy");
+  assertIncludes(boundary, "writesConfirmedCrmFact: false", "candidate review context does not write confirmed CRM fact");
+  assertExcludes(boundary, "sourceTheaterSessionId", "writeback boundary does not accept source theater session id");
+  assertExcludes(boundary, "sourcePersonId", "writeback boundary does not accept source person id");
+  assertExcludes(boundary, "sourcePacketId", "writeback boundary does not accept route-b source packet id");
+
+  assertIncludes(
     meetingWorkspace,
     "buildMeetingRouteBFeedbackAdvisorWritebackBridge",
     "workspace consumes the feedback advisor bridge helper",
@@ -71,6 +106,26 @@ function runSourceContractAudit() {
     meetingWorkspace,
     "data-testid=\"meeting-route-b-feedback-advisor-writeback-bridge\"",
     "workspace renders feedback advisor writeback preview bridge panel",
+  );
+  assertIncludes(
+    meetingWorkspace,
+    "attachFeedbackAdvisorContextToMeetingWritebackCandidates",
+    "workspace enriches writeback preview candidates with feedback advisor review context",
+  );
+  assertIncludes(
+    meetingWorkspace,
+    "enrichedWritebackPreview",
+    "workspace passes enriched preview into writeback candidate review",
+  );
+  assertIncludes(
+    meetingWorkspace,
+    "data-testid=\"meeting-writeback-feedback-advisor-review-context\"",
+    "workspace renders feedback advisor context inside writeback candidate cards",
+  );
+  assertIncludes(
+    meetingWorkspace,
+    "劇場回饋旁證",
+    "workspace labels feedback advisor review context as supporting evidence",
   );
   assertIncludes(
     meetingWorkspace,
@@ -104,6 +159,21 @@ function runSourceContractAudit() {
     manifest,
     "MeetingRouteBFeedbackAdvisorWritebackBridge",
     "AgentFacts manifest records feedback advisor bridge DTO",
+  );
+  assertIncludes(
+    manifest,
+    "MeetingWritebackCandidateReviewContext",
+    "AgentFacts manifest records feedback advisor candidate review context DTO",
+  );
+  assertIncludes(
+    manifest,
+    "attachFeedbackAdvisorContextToMeetingWritebackCandidates",
+    "AgentFacts manifest records candidate review context helper evidence",
+  );
+  assertIncludes(
+    manifest,
+    "meeting-writeback-feedback-advisor-review-context",
+    "AgentFacts manifest records candidate card review context UI evidence",
   );
   assertIncludes(
     manifest,

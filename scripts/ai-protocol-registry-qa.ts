@@ -981,12 +981,24 @@ function assertMeetingRouteBFeedbackAdvisorWritebackBridge(manifests: AgentProto
     "meeting manifest output DTOs include MeetingRouteBFeedbackAdvisorWritebackBridge",
   );
   push(
+    manifest.schemas.outputDtoRefs.includes("MeetingWritebackCandidateReviewContext"),
+    "meeting manifest output DTOs include MeetingWritebackCandidateReviewContext",
+  );
+  push(
     manifest.schemas.evidenceDtoRefs.includes("MeetingRouteBFeedbackAdvisorWritebackBridge.target=MEETING_WRITEBACK_PREVIEW_CONTEXT"),
     "meeting manifest evidence includes feedback advisor writeback preview context target",
   );
   push(
     manifest.schemas.evidenceDtoRefs.includes("MeetingRouteBFeedbackAdvisorWritebackBridge.safety.writesConfirmedCrmFact=false"),
     "meeting manifest evidence includes no confirmed CRM fact write for feedback advisor bridge",
+  );
+  push(
+    manifest.schemas.evidenceDtoRefs.includes("MeetingWritebackCandidateReviewContext.target=MEETING_WRITEBACK_PREVIEW_CONTEXT"),
+    "meeting manifest evidence includes feedback advisor candidate-review context target",
+  );
+  push(
+    manifest.schemas.evidenceDtoRefs.includes("MeetingWritebackCandidateReviewContext.writesConfirmedCrmFact=false"),
+    "meeting manifest evidence includes no confirmed CRM fact write for candidate-review context",
   );
   push(
     manifest.proof.commands.includes("pnpm meeting:route-b-feedback-advisor-writeback-bridge-qa"),
@@ -1003,7 +1015,10 @@ function assertMeetingRouteBFeedbackAdvisorWritebackBridge(manifests: AgentProto
     "meeting-route-b-feedback-advisor-writeback-bridge",
     "route-b-feedback-advisor-writeback-preview-bridge",
     "buildMeetingRouteBFeedbackAdvisorWritebackBridge",
+    "attachFeedbackAdvisorContextToMeetingWritebackCandidates",
     "MeetingRouteBFeedbackAdvisorWritebackBridge",
+    "MeetingWritebackCandidateReviewContext",
+    "meeting-writeback-feedback-advisor-review-context",
     "MEETING_WRITEBACK_PREVIEW_CONTEXT",
     "MeetingRouteBFeedbackAdvisorWritebackBridge.status=SUMMARY_REQUIRED",
     "MeetingRouteBFeedbackAdvisorWritebackBridge.safety.writesRelationshipGraph=false",
@@ -1011,6 +1026,10 @@ function assertMeetingRouteBFeedbackAdvisorWritebackBridge(manifests: AgentProto
     "MeetingRouteBFeedbackAdvisorWritebackBridge.safety.writesClientProfile=false",
     "MeetingRouteBFeedbackAdvisorWritebackBridge.safety.writesPolicy=false",
     "MeetingRouteBFeedbackAdvisorWritebackBridge.safety.writesConfirmedCrmFact=false",
+    "MeetingWritebackCandidateReviewContext.target=MEETING_WRITEBACK_PREVIEW_CONTEXT",
+    "MeetingWritebackCandidateReviewContext.writesClientProfile=false",
+    "MeetingWritebackCandidateReviewContext.writesPolicy=false",
+    "MeetingWritebackCandidateReviewContext.writesConfirmedCrmFact=false",
   ];
 
   for (const ownerRef of requiredOwnerRefs) {
