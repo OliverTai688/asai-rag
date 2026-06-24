@@ -29,6 +29,13 @@ check(
     source.includes("sourceReferenceIdsIncluded"),
   "next-turn preview renders safe meeting signal runtime grounding marker",
 );
+check(
+  source.includes("data-route-b-next-turn-edge-shadow-runtime-grounding") &&
+    source.includes("relationshipEdgeShadowGrounding") &&
+    source.includes("rawDraftEdgesIncluded") &&
+    source.includes("formalSchemaApproved"),
+  "next-turn preview renders safe relationship edge shadow runtime grounding marker",
+);
 check(source.includes("onAdvisorTurnCommitted={fetchNextTurnDraft}"), "advisor turn write triggers next-turn preview refresh");
 check(source.includes("generatedTextAllowed={String(draft.nextTurn.generatedTextAllowed)}"), "UI exposes generatedTextAllowed guard");
 check(source.includes("draft.providerBoundary.providerCallAttempted"), "UI exposes providerCallAttempted boundary");
@@ -36,6 +43,8 @@ check(source.includes("draft.providerBoundary.aiUsageLogWritten"), "UI exposes a
 check(source.includes("draft.providerBoundary.storesRawProviderPayload"), "UI exposes raw provider payload boundary");
 check(source.includes("draft.privacyProof.directPrivateDialogReturned"), "UI exposes private dialog boundary");
 check(source.includes("draft.persistenceEnvelope.writesConfirmedCrmFact"), "UI exposes writesConfirmedCrmFact boundary");
+check(!source.includes("draftEdges.map"), "session UI does not render relationship edge draft internals");
+check(!source.includes("sourceReferenceIds.map"), "session UI does not render relationship edge source reference ids");
 check(source.includes("nextTurnGuardLines"), "UI renders named-addressee and consecutive-speaker guard evidence");
 check(
   source.includes('providerCandidateStatus === "generating"') &&
@@ -59,6 +68,7 @@ console.log(
       checkedFile: pagePath,
       checkedCount: checks.length,
       meetingSignalRuntimeGroundingMarker: true,
+      edgeShadowRuntimeGroundingMarker: true,
       providerCallAttempted: false,
       aiUsageLogWritten: false,
       generatedTextAllowed: false,

@@ -198,6 +198,19 @@ ITA-003n evidence note（2026-06-22）：新增 owner-scoped `POST /api/theater/
 - [ ] AgentFacts-style manifest 必須新增 runtime context evidence refs / proof command，且不得宣稱 external-ready、external-registered 或正式 NANDA publication。
 - [ ] 需跑 `pnpm theater:route-b-next-turn-dry-run`、`pnpm theater:route-b-provider-prompt-context-dry-run`、`pnpm theater:route-b-next-turn-provider-dry-run`、`pnpm theater:meeting-signal-session-source-qa`、`pnpm ai:protocol-registry-qa`、`pnpm ai:bff-audit`、`pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。若只剩 live browser/API/DB screenshot evidence，可交由 operator 用既有 Route B session 自行重跑，不得取代 source/runtime context proof。
 
+### 5.11 Route B relationship-edge-shadow runtime context acceptance
+
+`REL-004f` 若把 persisted RelationshipEdge shadow source grounding 接進 next-turn / provider prompt context，完成前必須額外滿足：
+
+- [x] `buildTheaterRouteBNextTurnDraft()` 必須從 `RouteBSessionSnapshot.scene.sourceGrounding.relationshipEdgeShadow` 產出 least-disclosure grounding summary，至少包含 source member count、candidate edge count、edge type/status counts、warning codes、unsupported relation count 與 formal-schema/no-write boundary；不得回 draft edge ids、source/target node ids、sourceReferenceIds、raw private transcript 或 raw provider payload。
+- [x] `buildRouteBProviderPromptContext()` 或 next-turn provider input 必須消費上述 grounding summary 作為 relationship readiness context，並保持 `registryReadiness=internal-only`、`storesRawProviderPayload=false`、`rawPrivateTranscriptAllowed=false`、`directPrivateDialogAllowed=false`。
+- [x] Provider-disabled draft path 不得呼叫 provider、不得寫 fake `AiUsageLog`；live provider path 若使用該 context，success/error 仍必須先寫 THEATER `AiUsageLog` 並只回 safe append candidate。
+- [x] `/theater/[sessionId]` 的 next-turn preview 必須能顯示 runtime 已使用 relationship-edge-shadow grounding 的摘要或 guard flag，但不得要求顧問輸入 raw session/person/edge id。
+- [x] AgentFacts-style manifest 必須新增 runtime context evidence refs / proof command，且不得宣稱 external-ready、external-registered 或正式 NANDA publication。
+- [x] 需跑 `pnpm theater:route-b-next-turn-dry-run`、`pnpm theater:route-b-provider-prompt-context-dry-run`、`pnpm theater:route-b-next-turn-ui-contract-qa`、`pnpm theater:relationship-edge-shadow-session-source-qa`、`pnpm ai:protocol-registry-qa`、`pnpm ai:bff-audit`、`pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。
+
+REL-004f evidence note（2026-06-24）：Route B next-turn draft/provider prompt context 已消費 `relationshipEdgeShadowGrounding`，UI next-turn preview 新增 `data-route-b-next-turn-edge-shadow-runtime-grounding` safe panel；proof 維持 no-provider/no fake usage/no schema/no DB write/no confirmed CRM fact。正式 `RelationshipEdge` table、external registry publication、live provider cost proof 仍未完成。
+
 ---
 
 ## 6. Feedback / Compliance Acceptance

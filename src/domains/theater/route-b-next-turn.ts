@@ -13,6 +13,7 @@ import type {
   TheaterRouteBMeetingSignalGroundingSummary,
   TheaterRouteBPersonaHint,
   TheaterRouteBRelation,
+  TheaterRouteBRelationshipEdgeShadowGroundingSummary,
   TheaterRouteBSourceRef,
   TheaterRouteBTurnRef,
   TheaterRouteBVisibilityRule,
@@ -60,6 +61,35 @@ export interface TheaterRouteBMeetingSignalRuntimeGrounding {
   };
 }
 
+export interface TheaterRouteBRelationshipEdgeShadowRuntimeGrounding {
+  source: "RouteBSessionSnapshot.scene.sourceGrounding.relationshipEdgeShadow";
+  usedInNextTurnRuntime: boolean;
+  providerPromptUsage: "relationship-readiness-context-only";
+  sourceMemberCount: number;
+  candidateEdgeCount: number;
+  unsupportedRelationCount: number;
+  edgeTypeCounts: Record<string, number>;
+  factStatusCounts: Record<string, number>;
+  warningCodes: string[];
+  boundary: {
+    ownerScopedRelationshipGraphRequired: true;
+    browserSuppliedSessionId: false;
+    rawDraftEdgesIncluded: false;
+    sourceReferenceIdsIncluded: false;
+    rawPrivateTranscriptIncluded: false;
+    rawProviderPayloadIncluded: false;
+    clientFacingDraftEdgesReturned: false;
+    formalSchemaApproved: false;
+    schemaChanged: false;
+    databaseWriteAttempted: false;
+    providerCallAttempted: false;
+    aiUsageLogWritten: false;
+    writesRelationshipGraph: false;
+    writesVisitPlan: false;
+    writesConfirmedCrmFact: false;
+  };
+}
+
 export interface TheaterRouteBNextTurnDraft {
   agentId: "asai.theater.route_b";
   registryReadiness: "internal-only";
@@ -80,6 +110,7 @@ export interface TheaterRouteBNextTurnDraft {
     historyVisibilitySummary: Record<TheaterRouteBVisibilityScope, number>;
     narratorQueueCount: number;
     meetingRelationshipSignalGrounding: TheaterRouteBMeetingSignalRuntimeGrounding;
+    relationshipEdgeShadowGrounding: TheaterRouteBRelationshipEdgeShadowRuntimeGrounding;
     rawPrivateTranscriptIncluded: false;
   };
   nextTurn: {
@@ -220,6 +251,9 @@ function buildBaseDraft(
       narratorQueueCount: handoff.scene.narratorQuestions.length,
       meetingRelationshipSignalGrounding: buildMeetingSignalRuntimeGrounding(
         handoff.scene.sourceGrounding?.meetingRelationshipSignals,
+      ),
+      relationshipEdgeShadowGrounding: buildRelationshipEdgeShadowRuntimeGrounding(
+        handoff.scene.sourceGrounding?.relationshipEdgeShadow,
       ),
       rawPrivateTranscriptIncluded: false,
     },
@@ -563,6 +597,61 @@ function buildMeetingSignalRuntimeGrounding(
       writesConfirmedCrmFact: false,
     },
   };
+}
+
+function buildRelationshipEdgeShadowRuntimeGrounding(
+  source: TheaterRouteBRelationshipEdgeShadowGroundingSummary | undefined,
+): TheaterRouteBRelationshipEdgeShadowRuntimeGrounding {
+  const edgeTypeCounts = source ? sanitizeCountRecord(source.edgeTypeCounts, 8) : {};
+  const factStatusCounts = source ? sanitizeCountRecord(source.factStatusCounts, 8) : {};
+  const warningCodes = (source?.warningCodes ?? [])
+    .slice(0, 8)
+    .map((warning) => sanitizeRouteBText(warning).slice(0, 80))
+    .filter(Boolean);
+
+  return {
+    source: "RouteBSessionSnapshot.scene.sourceGrounding.relationshipEdgeShadow",
+    usedInNextTurnRuntime: Boolean(
+      source && (source.candidateEdgeCount > 0 || source.sourceMemberCount > 0 || warningCodes.length > 0),
+    ),
+    providerPromptUsage: "relationship-readiness-context-only",
+    sourceMemberCount: normalizeSafeCount(source?.sourceMemberCount),
+    candidateEdgeCount: normalizeSafeCount(source?.candidateEdgeCount),
+    unsupportedRelationCount: normalizeSafeCount(source?.unsupportedRelationCount),
+    edgeTypeCounts,
+    factStatusCounts,
+    warningCodes,
+    boundary: {
+      ownerScopedRelationshipGraphRequired: true,
+      browserSuppliedSessionId: false,
+      rawDraftEdgesIncluded: false,
+      sourceReferenceIdsIncluded: false,
+      rawPrivateTranscriptIncluded: false,
+      rawProviderPayloadIncluded: false,
+      clientFacingDraftEdgesReturned: false,
+      formalSchemaApproved: false,
+      schemaChanged: false,
+      databaseWriteAttempted: false,
+      providerCallAttempted: false,
+      aiUsageLogWritten: false,
+      writesRelationshipGraph: false,
+      writesVisitPlan: false,
+      writesConfirmedCrmFact: false,
+    },
+  };
+}
+
+function sanitizeCountRecord(value: Record<string, number>, limit: number): Record<string, number> {
+  return Object.fromEntries(
+    Object.entries(value)
+      .slice(0, limit)
+      .map(([key, count]) => [sanitizeRouteBText(key).slice(0, 80) || "unspecified", normalizeSafeCount(count)]),
+  );
+}
+
+function normalizeSafeCount(value: number | undefined): number {
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 0) return 0;
+  return Math.floor(value);
 }
 
 function meetingSignalActionLabel(action: string): string {

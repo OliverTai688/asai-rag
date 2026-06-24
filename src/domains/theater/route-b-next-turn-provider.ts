@@ -304,6 +304,7 @@ function buildNextTurnPromptContext(draft: TheaterRouteBNextTurnDraft) {
     personaHints,
     unknowns: draft.nextTurn.rationale,
     meetingRelationshipSignalGrounding: draft.inputSummary.meetingRelationshipSignalGrounding,
+    relationshipEdgeShadowGrounding: draft.inputSummary.relationshipEdgeShadowGrounding,
     maxItems: 4,
   });
 }

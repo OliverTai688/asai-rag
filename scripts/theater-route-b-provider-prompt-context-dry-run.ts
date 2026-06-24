@@ -2,7 +2,10 @@ import {
   buildRouteBProviderPromptContext,
   type RouteBProviderPromptContext,
 } from "../src/domains/theater/route-b-provider-prompt-context";
-import type { TheaterRouteBMeetingSignalRuntimeGrounding } from "../src/domains/theater/route-b-next-turn";
+import type {
+  TheaterRouteBMeetingSignalRuntimeGrounding,
+  TheaterRouteBRelationshipEdgeShadowRuntimeGrounding,
+} from "../src/domains/theater/route-b-next-turn";
 
 const checks: Array<{ label: string; detail?: string }> = [];
 
@@ -11,6 +14,7 @@ const context = buildRouteBProviderPromptContext({
   personaHints: ["保費負擔", "另一半需要一起討論", "家庭資料隱私敏感"],
   unknowns: ["尚未確認付款者與共同決策者", "不確定是否已有緊急預備金"],
   meetingRelationshipSignalGrounding: meetingSignalRuntimeGrounding(),
+  relationshipEdgeShadowGrounding: relationshipEdgeShadowRuntimeGrounding(),
   maxItems: 5,
 });
 
@@ -38,6 +42,10 @@ check(context.promptRules.useAsRoleplayCoachingContext, "prompt context is rolep
 check(
   context.promptRules.useMeetingRelationshipSignalsAsRuntimeEvidence,
   "prompt context uses meeting signals as runtime evidence only",
+);
+check(
+  context.promptRules.useRelationshipEdgeShadowAsRuntimeEvidence,
+  "prompt context uses relationship edge shadow as runtime evidence only",
 );
 check(context.promptRules.doNotTreatObjectionsAsConfirmedCrmFacts, "objection cues cannot become confirmed CRM facts");
 check(context.promptRules.doNotProvideLegalAdvice, "prompt context forbids legal advice posture");
@@ -68,6 +76,34 @@ check(
   context.meetingRelationshipSignalGrounding.boundary.sourceReferenceIdsIncluded === false,
   "prompt context excludes source reference ids",
 );
+check(
+  context.relationshipEdgeShadowGrounding.usedInNextTurnRuntime,
+  "prompt context carries relationship edge shadow runtime grounding",
+);
+check(
+  context.relationshipEdgeShadowGrounding.candidateEdgeCount === 3,
+  "prompt context carries safe edge shadow candidate edge count",
+);
+check(
+  context.relationshipEdgeShadowGrounding.sourceMemberCount === 4,
+  "prompt context carries safe edge shadow source member count",
+);
+check(
+  context.relationshipEdgeShadowGrounding.boundary.rawDraftEdgesIncluded === false,
+  "prompt context excludes raw draft edges",
+);
+check(
+  context.relationshipEdgeShadowGrounding.boundary.clientFacingDraftEdgesReturned === false,
+  "prompt context excludes client-facing draft edges",
+);
+check(
+  context.relationshipEdgeShadowGrounding.boundary.formalSchemaApproved === false,
+  "prompt context keeps relationship edge formal schema blocked",
+);
+check(
+  context.relationshipEdgeShadowGrounding.boundary.writesRelationshipGraph === false,
+  "prompt context cannot write relationship graph",
+);
 check(context.redLineCues.every((cue) => !cue.legalAdviceIncluded), "red-line cues contain no legal advice");
 check(context.redLineCues.every((cue) => !cue.writesConfirmedCrmFact), "red-line cues cannot write confirmed CRM facts");
 checkNoSentinel(context, "prompt context excludes private/provider sentinel text");
@@ -95,6 +131,11 @@ console.log(
       meetingSignalRuntimeUnknownCount: context.meetingRelationshipSignalGrounding.unknownCount,
       meetingSignalSourceReferenceIdsIncluded:
         context.meetingRelationshipSignalGrounding.boundary.sourceReferenceIdsIncluded,
+      edgeShadowRuntimeCandidateEdgeCount: context.relationshipEdgeShadowGrounding.candidateEdgeCount,
+      edgeShadowRuntimeSourceMemberCount: context.relationshipEdgeShadowGrounding.sourceMemberCount,
+      edgeShadowRuntimeRawDraftEdgesIncluded: context.relationshipEdgeShadowGrounding.boundary.rawDraftEdgesIncluded,
+      edgeShadowRuntimeWritesRelationshipGraph:
+        context.relationshipEdgeShadowGrounding.boundary.writesRelationshipGraph,
     },
     null,
     2,
@@ -146,6 +187,37 @@ function meetingSignalRuntimeGrounding(): TheaterRouteBMeetingSignalRuntimeGroun
       rawProviderPayloadIncluded: false,
       personalContactIncluded: false,
       policyIdentifierIncluded: false,
+      providerCallAttempted: false,
+      aiUsageLogWritten: false,
+      writesRelationshipGraph: false,
+      writesVisitPlan: false,
+      writesConfirmedCrmFact: false,
+    },
+  };
+}
+
+function relationshipEdgeShadowRuntimeGrounding(): TheaterRouteBRelationshipEdgeShadowRuntimeGrounding {
+  return {
+    source: "RouteBSessionSnapshot.scene.sourceGrounding.relationshipEdgeShadow",
+    usedInNextTurnRuntime: true,
+    providerPromptUsage: "relationship-readiness-context-only",
+    sourceMemberCount: 4,
+    candidateEdgeCount: 3,
+    unsupportedRelationCount: 1,
+    edgeTypeCounts: { SPOUSE: 1, PARENT_CHILD: 2 },
+    factStatusCounts: { CONFIRMED: 1, INFERENCE: 1, UNKNOWN: 1 },
+    warningCodes: ["RELATIONSHIP_EDGE_SCHEMA_NOT_APPROVED", "UNSUPPORTED_RELATION_NEEDS_CONFIRMATION"],
+    boundary: {
+      ownerScopedRelationshipGraphRequired: true,
+      browserSuppliedSessionId: false,
+      rawDraftEdgesIncluded: false,
+      sourceReferenceIdsIncluded: false,
+      rawPrivateTranscriptIncluded: false,
+      rawProviderPayloadIncluded: false,
+      clientFacingDraftEdgesReturned: false,
+      formalSchemaApproved: false,
+      schemaChanged: false,
+      databaseWriteAttempted: false,
       providerCallAttempted: false,
       aiUsageLogWritten: false,
       writesRelationshipGraph: false,

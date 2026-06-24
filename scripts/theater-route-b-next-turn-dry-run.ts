@@ -5,7 +5,10 @@ import type {
   TheaterRouteBMaterial,
   TheaterRouteBMaterialUse,
 } from "../src/domains/theater/route-b-handoff";
-import { buildTheaterRouteBMeetingSignalGroundingSummary } from "../src/domains/theater/route-b-handoff";
+import {
+  buildTheaterRouteBMeetingSignalGroundingSummary,
+  buildTheaterRouteBRelationshipEdgeShadowGroundingSummary,
+} from "../src/domains/theater/route-b-handoff";
 import type { RouteBSessionSnapshot } from "../src/domains/theater/route-b-session";
 
 const checks: Array<{ label: string; detail?: string }> = [];
@@ -55,6 +58,46 @@ check(
 check(
   !Object.prototype.hasOwnProperty.call(groupDraft.inputSummary.meetingRelationshipSignalGrounding.cards[0] ?? {}, "stageCardId"),
   "group draft meeting signal grounding drops raw stage card id",
+);
+check(
+  groupDraft.inputSummary.relationshipEdgeShadowGrounding.usedInNextTurnRuntime,
+  "group draft carries relationship edge shadow runtime grounding",
+);
+check(
+  groupDraft.inputSummary.relationshipEdgeShadowGrounding.candidateEdgeCount === 3,
+  "group draft edge shadow grounding exposes safe candidate edge count",
+);
+check(
+  groupDraft.inputSummary.relationshipEdgeShadowGrounding.sourceMemberCount === 4,
+  "group draft edge shadow grounding exposes safe source member count",
+);
+check(
+  groupDraft.inputSummary.relationshipEdgeShadowGrounding.edgeTypeCounts.SPOUSE === 1,
+  "group draft edge shadow grounding exposes edge type count",
+);
+check(
+  groupDraft.inputSummary.relationshipEdgeShadowGrounding.factStatusCounts.INFERENCE === 1,
+  "group draft edge shadow grounding exposes fact status count",
+);
+check(
+  groupDraft.inputSummary.relationshipEdgeShadowGrounding.warningCodes.includes("RELATIONSHIP_EDGE_SCHEMA_NOT_APPROVED"),
+  "group draft edge shadow grounding exposes safe warning code",
+);
+check(
+  groupDraft.inputSummary.relationshipEdgeShadowGrounding.boundary.rawDraftEdgesIncluded === false,
+  "group draft edge shadow grounding excludes raw draft edges",
+);
+check(
+  groupDraft.inputSummary.relationshipEdgeShadowGrounding.boundary.clientFacingDraftEdgesReturned === false,
+  "group draft edge shadow grounding excludes client-facing draft edges",
+);
+check(
+  groupDraft.inputSummary.relationshipEdgeShadowGrounding.boundary.formalSchemaApproved === false,
+  "group draft edge shadow grounding keeps formal schema blocked",
+);
+check(
+  groupDraft.inputSummary.relationshipEdgeShadowGrounding.boundary.writesRelationshipGraph === false,
+  "group draft edge shadow grounding cannot write relationship graph",
 );
 
 const privateDraft = buildTheaterRouteBNextTurnDraft(
@@ -118,6 +161,12 @@ console.log(
         groupDraft.inputSummary.meetingRelationshipSignalGrounding.narratorQuestionCount,
       meetingSignalSourceReferenceIdsIncluded:
         groupDraft.inputSummary.meetingRelationshipSignalGrounding.boundary.sourceReferenceIdsIncluded,
+      edgeShadowRuntimeCandidateEdgeCount: groupDraft.inputSummary.relationshipEdgeShadowGrounding.candidateEdgeCount,
+      edgeShadowRuntimeSourceMemberCount: groupDraft.inputSummary.relationshipEdgeShadowGrounding.sourceMemberCount,
+      edgeShadowRuntimeRawDraftEdgesIncluded:
+        groupDraft.inputSummary.relationshipEdgeShadowGrounding.boundary.rawDraftEdgesIncluded,
+      edgeShadowRuntimeWritesRelationshipGraph:
+        groupDraft.inputSummary.relationshipEdgeShadowGrounding.boundary.writesRelationshipGraph,
     },
     null,
     2,
@@ -173,6 +222,7 @@ function baseSnapshot(turns: RouteBSessionSnapshot["turns"]): RouteBSessionSnaps
       ],
       sourceGrounding: {
         meetingRelationshipSignals: meetingSignalGrounding(),
+        relationshipEdgeShadow: relationshipEdgeShadowGrounding(),
       },
     },
     characters: [
@@ -309,6 +359,29 @@ function meetingSignalGrounding() {
 
   if (!summary) {
     throw new Error("Expected meeting signal grounding summary fixture.");
+  }
+
+  return summary;
+}
+
+function relationshipEdgeShadowGrounding() {
+  const summary = buildTheaterRouteBRelationshipEdgeShadowGroundingSummary({
+    candidateEdges: 3,
+    sourceMembers: 4,
+    edgeTypes: ["SPOUSE", "PARENT_CHILD", "PARENT_CHILD"],
+    factStatus: ["CONFIRMED", "INFERENCE", "UNKNOWN"],
+    warningCodes: ["RELATIONSHIP_EDGE_SCHEMA_NOT_APPROVED", "UNSUPPORTED_RELATION_NEEDS_CONFIRMATION"],
+    unsupportedRelationCount: 1,
+    clientFacingDraftEdgesReturned: false,
+    formalSchemaApproved: false,
+    writesRelationshipGraph: false,
+    writesVisitPlan: false,
+    writesConfirmedCrmFact: false,
+    persistedToDatabase: false,
+  });
+
+  if (!summary) {
+    throw new Error("Expected relationship edge shadow grounding summary fixture.");
   }
 
   return summary;

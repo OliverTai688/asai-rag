@@ -76,6 +76,8 @@ type RouteBRelationshipEdgeShadowGrounding = NonNullable<
 >;
 type RouteBMeetingSignalRuntimeGrounding =
   TheaterRouteBNextTurnDraft["inputSummary"]["meetingRelationshipSignalGrounding"];
+type RouteBRelationshipEdgeShadowRuntimeGrounding =
+  TheaterRouteBNextTurnDraft["inputSummary"]["relationshipEdgeShadowGrounding"];
 type RouteBRedLineActionPersistenceStatus = "idle" | "loading" | "saving" | "ready" | "error";
 
 type RouteBFeedbackReviewEmptyPayload = {
@@ -1999,6 +2001,7 @@ function RouteBNextTurnPreviewPanel({
   const addresseeName = routeBCharacterDisplayName(snapshot, draft?.nextTurn.addresseeRouteBCharacterId);
   const guardLines = draft ? nextTurnGuardLines(snapshot, draft) : [];
   const meetingSignalRuntimeGrounding = draft?.inputSummary.meetingRelationshipSignalGrounding;
+  const relationshipEdgeShadowRuntimeGrounding = draft?.inputSummary.relationshipEdgeShadowGrounding;
   const canConfirmAppend = Boolean(appendCandidate && appendUsageLogId && draft?.status === "READY");
   const canGenerateProviderCandidate = Boolean(draft?.status === "READY" && !isGeneratingProviderCandidate);
 
@@ -2061,6 +2064,10 @@ function RouteBNextTurnPreviewPanel({
 
             {meetingSignalRuntimeGrounding?.usedInNextTurnRuntime ? (
               <RouteBNextTurnMeetingSignalRuntimeGroundingPanel grounding={meetingSignalRuntimeGrounding} />
+            ) : null}
+
+            {relationshipEdgeShadowRuntimeGrounding?.usedInNextTurnRuntime ? (
+              <RouteBNextTurnRelationshipEdgeShadowRuntimeGroundingPanel grounding={relationshipEdgeShadowRuntimeGrounding} />
             ) : null}
 
             <div className="mt-3 space-y-2">
@@ -2177,6 +2184,59 @@ function RouteBNextTurnMeetingSignalRuntimeGroundingPanel({
         <ContextLine label="Person id" value={String(grounding.boundary.rawPersonIdIncluded)} />
         <ContextLine label="Source refs" value={String(grounding.boundary.sourceReferenceIdsIncluded)} />
         <ContextLine label="Provider payload" value={String(grounding.boundary.rawProviderPayloadIncluded)} />
+      </div>
+    </div>
+  );
+}
+
+function RouteBNextTurnRelationshipEdgeShadowRuntimeGroundingPanel({
+  grounding,
+}: {
+  grounding: RouteBRelationshipEdgeShadowRuntimeGrounding;
+}) {
+  const edgeTypes = Object.entries(grounding.edgeTypeCounts).slice(0, 3);
+  const factStatuses = Object.entries(grounding.factStatusCounts).slice(0, 3);
+
+  return (
+    <div
+      className="mt-3 rounded-lg border border-hairline bg-background px-3 py-3"
+      data-route-b-next-turn-edge-shadow-runtime-grounding="true"
+    >
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge variant="outline" className="rounded-full">
+          edge shadow in runtime
+        </Badge>
+        <span className="text-xs leading-5 text-muted-foreground">
+          {grounding.candidateEdgeCount} edges・{grounding.sourceMemberCount} people・{grounding.unsupportedRelationCount} unsupported
+        </span>
+      </div>
+
+      <div className="mt-2 grid gap-2 sm:grid-cols-2">
+        <div className="rounded-md border border-hairline bg-paper px-3 py-2">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">edge types</p>
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">
+            {edgeTypes.length ? edgeTypes.map(([key, count]) => `${key} ${count}`).join("・") : "none"}
+          </p>
+        </div>
+        <div className="rounded-md border border-hairline bg-paper px-3 py-2">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">fact status</p>
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">
+            {factStatuses.length ? factStatuses.map(([key, count]) => `${key} ${count}`).join("・") : "none"}
+          </p>
+        </div>
+      </div>
+
+      {grounding.warningCodes.length ? (
+        <p className="mt-2 rounded-md border border-hairline bg-paper px-3 py-2 text-xs leading-5 text-muted-foreground">
+          warnings: {grounding.warningCodes.slice(0, 3).join("・")}
+        </p>
+      ) : null}
+
+      <div className="mt-3 grid gap-2 text-[11px] text-muted-foreground">
+        <ContextLine label="Raw draft edges" value={String(grounding.boundary.rawDraftEdgesIncluded)} />
+        <ContextLine label="Client-facing edges" value={String(grounding.boundary.clientFacingDraftEdgesReturned)} />
+        <ContextLine label="Formal schema" value={String(grounding.boundary.formalSchemaApproved)} />
+        <ContextLine label="Graph write" value={String(grounding.boundary.writesRelationshipGraph)} />
       </div>
     </div>
   );

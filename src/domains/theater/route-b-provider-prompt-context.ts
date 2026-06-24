@@ -1,5 +1,8 @@
 import type { TheaterRouteBCharacterRole } from "./route-b-handoff";
-import type { TheaterRouteBMeetingSignalRuntimeGrounding } from "./route-b-next-turn";
+import type {
+  TheaterRouteBMeetingSignalRuntimeGrounding,
+  TheaterRouteBRelationshipEdgeShadowRuntimeGrounding,
+} from "./route-b-next-turn";
 import {
   buildRouteBObjectionRedLineLibrarySummary,
   getRouteBRedLineLibrary,
@@ -36,6 +39,7 @@ export interface RouteBProviderPromptRedLineCue {
 
 export interface RouteBProviderPromptContextInput extends RouteBObjectionSelectionInput {
   meetingRelationshipSignalGrounding?: TheaterRouteBMeetingSignalRuntimeGrounding;
+  relationshipEdgeShadowGrounding?: TheaterRouteBRelationshipEdgeShadowRuntimeGrounding;
 }
 
 export interface RouteBProviderPromptContext {
@@ -44,11 +48,13 @@ export interface RouteBProviderPromptContext {
   registryReadiness: "internal-only";
   librarySummary: ReturnType<typeof buildRouteBObjectionRedLineLibrarySummary>;
   meetingRelationshipSignalGrounding: TheaterRouteBMeetingSignalRuntimeGrounding;
+  relationshipEdgeShadowGrounding: TheaterRouteBRelationshipEdgeShadowRuntimeGrounding;
   selectedObjections: RouteBProviderPromptObjectionCue[];
   redLineCues: RouteBProviderPromptRedLineCue[];
   promptRules: {
     useAsRoleplayCoachingContext: true;
     useMeetingRelationshipSignalsAsRuntimeEvidence: true;
+    useRelationshipEdgeShadowAsRuntimeEvidence: true;
     doNotTreatObjectionsAsConfirmedCrmFacts: true;
     doNotProvideLegalAdvice: true;
     immediateSevereRedLineIds: RouteBRedLineRuleId[];
@@ -71,6 +77,8 @@ export function buildRouteBProviderPromptContext(
   const librarySummary = buildRouteBObjectionRedLineLibrarySummary();
   const meetingRelationshipSignalGrounding =
     input.meetingRelationshipSignalGrounding ?? buildEmptyMeetingRelationshipSignalGrounding();
+  const relationshipEdgeShadowGrounding =
+    input.relationshipEdgeShadowGrounding ?? buildEmptyRelationshipEdgeShadowGrounding();
   const selectedObjections = selectRouteBObjectionPrompts(input).map((prompt) => ({
     id: prompt.id,
     label: sanitizePromptText(prompt.label),
@@ -100,11 +108,13 @@ export function buildRouteBProviderPromptContext(
     registryReadiness: "internal-only",
     librarySummary,
     meetingRelationshipSignalGrounding,
+    relationshipEdgeShadowGrounding,
     selectedObjections,
     redLineCues,
     promptRules: {
       useAsRoleplayCoachingContext: true,
       useMeetingRelationshipSignalsAsRuntimeEvidence: true,
+      useRelationshipEdgeShadowAsRuntimeEvidence: true,
       doNotTreatObjectionsAsConfirmedCrmFacts: true,
       doNotProvideLegalAdvice: true,
       immediateSevereRedLineIds: librarySummary.immediateDetectionIds,
@@ -118,6 +128,37 @@ export function buildRouteBProviderPromptContext(
       storesRawProviderPayload: false,
       rawPrivateTranscriptAllowed: false,
       directPrivateDialogAllowed: false,
+    },
+  };
+}
+
+function buildEmptyRelationshipEdgeShadowGrounding(): TheaterRouteBRelationshipEdgeShadowRuntimeGrounding {
+  return {
+    source: "RouteBSessionSnapshot.scene.sourceGrounding.relationshipEdgeShadow",
+    usedInNextTurnRuntime: false,
+    providerPromptUsage: "relationship-readiness-context-only",
+    sourceMemberCount: 0,
+    candidateEdgeCount: 0,
+    unsupportedRelationCount: 0,
+    edgeTypeCounts: {},
+    factStatusCounts: {},
+    warningCodes: [],
+    boundary: {
+      ownerScopedRelationshipGraphRequired: true,
+      browserSuppliedSessionId: false,
+      rawDraftEdgesIncluded: false,
+      sourceReferenceIdsIncluded: false,
+      rawPrivateTranscriptIncluded: false,
+      rawProviderPayloadIncluded: false,
+      clientFacingDraftEdgesReturned: false,
+      formalSchemaApproved: false,
+      schemaChanged: false,
+      databaseWriteAttempted: false,
+      providerCallAttempted: false,
+      aiUsageLogWritten: false,
+      writesRelationshipGraph: false,
+      writesVisitPlan: false,
+      writesConfirmedCrmFact: false,
     },
   };
 }

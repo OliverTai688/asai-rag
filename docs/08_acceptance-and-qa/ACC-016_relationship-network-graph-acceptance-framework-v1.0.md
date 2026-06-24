@@ -5,7 +5,7 @@
 - 研究依據：`docs/07_research-and-design/RES-024_relationship-network-graph-creation-gap-research-v1.0.md`
 - 建立日期：2026-06-20
 
-本框架定義 REL-001..REL-005 的驗收條目。每張 batch 卡完成前須通過對應段落，並保存 proof（API response、DB 查詢、Browser 截圖、command output）。2026-06-23 fifth-loop review 新增 REL-004a，作為正式 edge table migration 前的不動 schema contract / dry-run bridge；2026-06-24 fifth-loop review 新增 REL-004e，作為正式 edge table 前的 Route B session source-grounding/readback bridge。
+本框架定義 REL-001..REL-005 的驗收條目。每張 batch 卡完成前須通過對應段落，並保存 proof（API response、DB 查詢、Browser 截圖、command output）。2026-06-23 fifth-loop review 新增 REL-004a，作為正式 edge table migration 前的不動 schema contract / dry-run bridge；2026-06-24 fifth-loop review 新增 REL-004e/REL-004f，作為正式 edge table 前的 Route B session source-grounding/readback 與 next-turn/runtime grounding bridge。
 
 ---
 
@@ -79,6 +79,16 @@ REL-004d evidence（2026-06-23）：`pnpm visit:edge-shadow-theater-build-qa` pa
 - [x] `pnpm theater:relationship-edge-shadow-session-source-qa` 或等價 proof 通過，且輸出 `providerCallAttempted=false`、`databaseWriteAttempted=false`、`relationshipGraphWriteAttempted=false`、`clientFacingDraftEdgesReturned=false`、`formalSchemaApproved=false`。
 
 REL-004e evidence（2026-06-24）：`pnpm theater:relationship-edge-shadow-session-source-qa` pass，確認 Route B handoff contract、session create/readback、`data-route-b-edge-shadow-source-grounding` UI hook、AgentFacts manifest 與 no-provider/no-DB/no-write/no-draft-payload boundary；`pnpm visit:theater-handoff-dry-run` 仍維持 handoff least-disclosure summary。
+
+### D0.9. Shadow next-turn/runtime grounding（REL-004f，不動 schema）
+
+- [x] `buildTheaterRouteBNextTurnDraft()` 從 `RouteBSessionSnapshot.scene.sourceGrounding.relationshipEdgeShadow` 產出 safe runtime grounding；不得回 `draftEdges`、draft id、source/target node id、source references、metadata、raw private transcript 或 raw provider payload。
+- [x] Runtime grounding 只含 source member/candidate counts、edge type/status counts、warning code、unsupported relation count 與 formal-schema/no-write boundary。
+- [x] `buildRouteBProviderPromptContext()` 消費 `relationshipEdgeShadowGrounding` 作為 roleplay readiness evidence，且 prompt rules 明確 `useRelationshipEdgeShadowAsRuntimeEvidence=true`；不得把 edge shadow 當 confirmed CRM fact。
+- [x] `/theater/[sessionId]` next-turn preview 顯示 `data-route-b-next-turn-edge-shadow-runtime-grounding` safe panel，並標示 raw draft edges / client-facing draft edges / formal schema / graph write 皆為 false。
+- [x] `pnpm theater:route-b-next-turn-dry-run`、`pnpm theater:route-b-provider-prompt-context-dry-run`、`pnpm theater:route-b-next-turn-ui-contract-qa`、`pnpm theater:relationship-edge-shadow-session-source-qa` 通過，且輸出 `providerCallAttempted=false`、`aiUsageLogWritten=false`、`writesRelationshipGraph=false`、`writesVisitPlan=false`、`writesConfirmedCrmFact=false`。
+
+REL-004f evidence（2026-06-24）：Route B next-turn draft、provider prompt context 與 session UI source proof 皆帶 relationship edge shadow runtime grounding；AgentFacts manifest 新增 internal-only runtime evidence refs。此 proof 不改 schema、不呼叫 provider、不寫 DB、不寫 relationship graph/VisitPlan/CRM confirmed fact，也不代表正式 `RelationshipEdge` migration approval。
 
 ### D1. Edge model 持久化（REL-004，動 schema）
 
