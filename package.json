@@ -106,6 +106,7 @@
     "client:family-member-profile-metadata-qa": "node scripts/client-family-member-profile-metadata-qa.mjs",
     "client:family-member-profile-ui-qa": "node scripts/client-family-member-profile-ui-qa.mjs",
     "theater:client-build-dry-run": "node scripts/theater-client-build-dry-run.mjs",
+    "theater:client-build-route-b-handoff-dry-run": "node scripts/theater-client-build-route-b-handoff-dry-run.mjs",
     "theater:client-build-qa": "node scripts/theater-client-build-qa.mjs",
     "theater:direct-field-qa": "node scripts/theater-direct-field-qa.mjs",
     "theater:route-b-handoff-dry-run": "node scripts/theater-route-b-handoff-dry-run.mjs",

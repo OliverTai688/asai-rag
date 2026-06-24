@@ -1224,7 +1224,7 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
       displayName: "Legacy theater AI",
       ownerSurface: "/theater legacy routes",
       module: "THEATER",
-      version: "2026-06-24.client-build-dry-run",
+      version: "2026-06-25.client-build-route-b-handoff-proof",
       status: "guarded-disabled",
     },
     capabilities: [
@@ -1282,7 +1282,11 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
     },
     proof: {
       sourceAuditModule: "THEATER",
-      commands: [...commonProofCommands, "pnpm theater:client-build-dry-run"],
+      commands: [
+        ...commonProofCommands,
+        "pnpm theater:client-build-dry-run",
+        "pnpm theater:client-build-route-b-handoff-dry-run",
+      ],
       sourceAdoption: {
         status: "adopted",
         ownerRefs: [
@@ -1292,17 +1296,25 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
           "src/app/api/theater/client-builds/route.ts",
           "src/app/api/theater/client-builds/[clientId]/route.ts",
           "src/domains/theater/client-build.ts",
+          "src/domains/theater/client-route-b-handoff.ts",
           "src/lib/theater/client-build-repository.ts",
           "src/lib/theater/theater-ai-repository.ts",
           "src/lib/theater/theater-build-ai-repository.ts",
           "scripts/theater-client-build-dry-run.ts",
           "scripts/theater-client-build-dry-run.mjs",
+          "scripts/theater-client-build-route-b-handoff-dry-run.ts",
+          "scripts/theater-client-build-route-b-handoff-dry-run.mjs",
         ],
         evidenceRefs: [
           "theaterRequestSchema",
           "scoreRequestSchema",
           "requestSchema",
           "buildClientTheaterBuild",
+          "buildClientTheaterRouteBHandoff",
+          "ClientTheaterRouteBHandoff.status=BLOCKED_SENSITIVE",
+          "ClientTheaterRouteBHandoff.proof.providerCallAttempted=false",
+          "ClientTheaterRouteBHandoff.proof.databaseWriteAttempted=false",
+          "ClientTheaterRouteBHandoff.proof.writesConfirmedCrmFact=false",
           "ClientTheaterBuild.status=BLOCKED_SENSITIVE",
           "ClientTheaterBuild.sourceSummary.sourceCounts",
           "ClientTheaterBuild.packet.routeBCompatibility.canStartSimulation=false",
@@ -1320,6 +1332,7 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
           "Legacy persona and scoring contracts are preserved while success/error usage is owned by theater AI repositories.",
           "Production legacy demo flow is blocked by the Route B required gate unless explicitly enabled for demo.",
           "Client data theater build review is deterministic-no-provider: it consumes owner-scoped client/family/policy/compliance/AI tag DTOs, preserves fact/inference/unknown separation, blocks HIGHLY_SENSITIVE direct build without reason/riskAccepted, and is guarded by `pnpm theater:client-build-dry-run` plus DB-backed `pnpm theater:client-build-qa` when Supabase is reachable.",
+          "`pnpm theater:client-build-route-b-handoff-dry-run` proves the client-build packet can be transformed into a Route B handoff review with family profile grounding, no provider call, no DB write, no confirmed CRM fact write, and high-sensitive blocking preserved.",
         ],
       },
       knownBlockers: ["Route B provider runtime remains the primary future path."],
@@ -1332,7 +1345,7 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
       displayName: "Route B relationship theater",
       ownerSurface: "/theater/[sessionId]",
       module: "THEATER",
-      version: "2026-06-24.route-b-family-profile-feedback-grounding",
+      version: "2026-06-25.client-build-route-b-handoff-grounding",
       status: "active",
     },
     capabilities: [
@@ -1341,6 +1354,13 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
         label: "Route B stage session",
         summary: "Persists multi-character stage sessions, group/private turns, and state proposals without provider runtime claims.",
         humanTrigger: "Advisor opens a Route B theater session.",
+      },
+      {
+        id: "route-b-client-build-handoff-grounding",
+        label: "Client build handoff grounding",
+        summary:
+          "Transforms deterministic client-data theater build packets into Route B handoff review packets with family profile grounding, high-sensitive blocking, and no provider, DB, or confirmed CRM fact writes.",
+        humanTrigger: "Advisor starts a Route B handoff review from an owner-scoped client-data theater build.",
       },
       {
         id: "route-b-meeting-signal-source-grounding",
@@ -1507,6 +1527,12 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
       actions: [
         { id: "state-proposal", label: "State proposal", actionBoundary: "State patches require confirmation and do not write confirmed CRM facts." },
         {
+          id: "route-b-client-build-handoff-grounding",
+          label: "Client build to Route B handoff grounding",
+          actionBoundary:
+            "Accepts only deterministic client-build packet facts, inferences, unknowns, and family profile grounding; high-sensitive direct builds remain blocked, Route B production start remains opt-in, and no provider, DB, relationship graph, VisitPlan, or confirmed CRM fact write occurs.",
+        },
+        {
           id: "route-b-meeting-signal-source-grounding",
           label: "Meeting signal source grounding",
           actionBoundary:
@@ -1651,6 +1677,8 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
     schemas: {
       inputDtoRefs: [
         "TheaterRouteBHandoffPacket",
+        "BuildClientTheaterRouteBHandoffInput",
+        "ClientTheaterBuild.packet",
         "TheaterRouteBMeetingSignalGroundingSummary",
         "TheaterRouteBRelationshipEdgeShadowGroundingSummary",
         "TheaterRouteBFamilyProfileGroundingSummary",
@@ -1684,6 +1712,8 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
       ],
       outputDtoRefs: [
         "RouteBSessionDto",
+        "ClientTheaterRouteBHandoff",
+        "ClientTheaterRouteBHandoff.proof",
         "RouteBMeetingSignalGroundingPanel",
         "RouteBRelationshipEdgeShadowGroundingPanel",
         "RouteBFamilyProfileGroundingPanel",
@@ -1735,6 +1765,16 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
       evidenceDtoRefs: [
         "visibilityScope",
         "statePatches",
+        "route-b-client-build-handoff-grounding",
+        "buildClientTheaterRouteBHandoff",
+        "ClientTheaterRouteBHandoff.status=READY_FOR_HANDOFF_REVIEW",
+        "ClientTheaterRouteBHandoff.status=BLOCKED_SENSITIVE",
+        "ClientTheaterRouteBHandoff.proof.providerCallAttempted=false",
+        "ClientTheaterRouteBHandoff.proof.databaseWriteAttempted=false",
+        "ClientTheaterRouteBHandoff.proof.writesConfirmedCrmFact=false",
+        "ClientTheaterRouteBHandoff.proof.familyProfileGroundingIncluded=true",
+        "ClientTheaterRouteBHandoff.proof.routeBProductionStartAllowed=false",
+        "ClientTheaterRouteBHandoff.handoff.scene.sourceGrounding.familyProfiles",
         "buildTheaterRouteBMeetingSignalGroundingSummary",
         "buildTheaterRouteBRelationshipEdgeShadowGroundingSummary",
         "buildTheaterRouteBFamilyProfileGroundingSummary",
@@ -1962,6 +2002,7 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
       sourceAuditModule: "THEATER",
       commands: [
         ...commonProofCommands,
+        "pnpm theater:client-build-route-b-handoff-dry-run",
         "pnpm theater:meeting-signal-session-source-qa",
         "pnpm theater:relationship-edge-shadow-session-source-qa",
         "pnpm theater:family-profile-session-source-qa",
@@ -2004,6 +2045,7 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
           "src/app/api/theater/route-b/sessions/[sessionId]/red-line-actions/route.ts",
           "src/app/(dashboard)/theater/[sessionId]/page.tsx",
           "src/app/(dashboard)/theater/page.tsx",
+          "src/domains/theater/client-route-b-handoff.ts",
           "src/domains/theater/route-b-handoff.ts",
           "src/domains/theater/route-b-orchestration.ts",
           "src/domains/theater/route-b-next-turn.ts",
@@ -2023,6 +2065,8 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
           "src/lib/theater/route-b-session-bff-repository.ts",
           "src/lib/theater/route-b-session-repository.ts",
           "scripts/theater-meeting-signal-session-source-qa.mjs",
+          "scripts/theater-client-build-route-b-handoff-dry-run.ts",
+          "scripts/theater-client-build-route-b-handoff-dry-run.mjs",
           "scripts/theater-relationship-edge-shadow-session-source-qa.mjs",
           "scripts/theater-family-profile-session-source-qa.mjs",
           "scripts/theater-route-b-family-profile-runtime-qa.mjs",
@@ -2031,6 +2075,16 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
         ],
         evidenceRefs: [
           "RouteBRuntimeInputPreview",
+          "route-b-client-build-handoff-grounding",
+          "buildClientTheaterRouteBHandoff",
+          "ClientTheaterRouteBHandoff.status=READY_FOR_HANDOFF_REVIEW",
+          "ClientTheaterRouteBHandoff.status=BLOCKED_SENSITIVE",
+          "ClientTheaterRouteBHandoff.proof.providerCallAttempted=false",
+          "ClientTheaterRouteBHandoff.proof.databaseWriteAttempted=false",
+          "ClientTheaterRouteBHandoff.proof.writesConfirmedCrmFact=false",
+          "ClientTheaterRouteBHandoff.proof.familyProfileGroundingIncluded=true",
+          "ClientTheaterRouteBHandoff.proof.routeBProductionStartAllowed=false",
+          "ClientTheaterRouteBHandoff.handoff.scene.sourceGrounding.familyProfiles",
           "route-b-meeting-signal-source-grounding",
           "route-b-relationship-edge-shadow-source-grounding",
           "route-b-family-profile-source-grounding",
@@ -2252,6 +2306,7 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
         ],
         notes: [
           "Route B is source-adopted for deterministic session/turn persistence and guarded runtime preflight, not live provider runtime.",
+          "Client-build handoff dry-run proves deterministic owner-scoped client theater build packets can become Route B handoff reviews with family profile grounding, high-sensitive blocking, providerCallAttempted=false, databaseWriteAttempted=false, and writesConfirmedCrmFact=false.",
           "Orchestration dry-run proves named addressee answer, consecutive-speaker guard, private history scoping, and safe persistence envelope without provider calls.",
           "Next-turn dry-run proves persisted session snapshots can produce a least-disclosure character/narrator draft without provider calls, fake usage logs, or direct private dialog return.",
           "Meeting signal runtime grounding dry-run proves persisted sourceGrounding cards are converted into safe next-turn/provider context counts, summaries, action labels, priority labels, and narrator prompts without raw meeting session ids, person ids, source reference ids, transcript, provider payload, VisitPlan writes, relationship graph writes, or confirmed CRM fact writes.",
