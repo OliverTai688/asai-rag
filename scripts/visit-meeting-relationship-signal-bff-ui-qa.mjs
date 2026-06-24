@@ -43,6 +43,15 @@ check(repositorySource.includes("visitPlanId: source.visitPlan.id"), "repository
 check(repositorySource.includes("readMeetingSummaryForMember(session, latestMeeting.session.id)"), "repository reads persisted meeting summary through owner scope");
 check(repositorySource.includes("getMeetingWritebackPreviewForMember(session, latestMeeting.session.id)"), "repository reads writeback preview through owner scope");
 check(repositorySource.includes("meetingWritebackCandidateToRelationshipSignal"), "repository maps writeback candidates through visit-domain bridge");
+check(
+  repositorySource.includes("meetingWritebackCandidateReviewContextToRelationshipSignals"),
+  "repository maps writeback review context through visit-domain bridge",
+);
+check(repositorySource.includes("writebackReviewContextSignals"), "repository keeps writeback review context signals visible");
+check(
+  repositorySource.includes("writebackReviewContextSignalCount"),
+  "repository exposes writeback review context signal count",
+);
 check(repositorySource.includes("buildVisitMeetingRelationshipSignalDeck"), "repository builds safe signal deck");
 check(repositorySource.includes('sourceActionId: "meeting-notes-relationship-confirmation-signal"'), "repository tags the source action");
 check(repositorySource.includes("ownerScopedVisitPlan: true"), "repository proves owner-scoped visit plan");
@@ -68,9 +77,17 @@ check(!panelBlock.includes("sourceSummaryId"), "UI panel does not render raw sum
 
 check(manifestSource.includes("/api/visits/[id]/meeting-relationship-signals"), "AgentFacts manifest declares meeting relationship signal endpoint");
 check(manifestSource.includes("getVisitMeetingRelationshipSignalDeckForMember"), "AgentFacts manifest declares BFF repository owner ref");
+check(
+  manifestSource.includes("VisitMeetingRelationshipSignalBffDto.summary.writebackReviewContextSignalCount"),
+  "AgentFacts manifest declares BFF review-context signal count",
+);
 check(manifestSource.includes("pnpm visit:meeting-relationship-signal-bff-ui-qa"), "AgentFacts manifest includes BFF/UI proof command");
 check(registryQaSource.includes("src/app/api/visits/[id]/meeting-relationship-signals/route.ts"), "registry QA expects BFF route owner ref");
 check(registryQaSource.includes("getVisitMeetingRelationshipSignalDeckForMember"), "registry QA expects BFF evidence ref");
+check(
+  registryQaSource.includes("VisitMeetingRelationshipSignalBffDto.summary.writebackReviewContextSignalCount"),
+  "registry QA expects BFF review-context signal count evidence",
+);
 check(registryQaSource.includes("pnpm visit:meeting-relationship-signal-bff-ui-qa"), "registry QA expects BFF/UI proof command");
 check(
   packageJson.scripts?.["visit:meeting-relationship-signal-bff-ui-qa"] ===
@@ -90,6 +107,7 @@ console.log(
       providerCallAttempted: false,
       aiUsageLogRequired: false,
       aiUsageLogWritten: false,
+      writesReviewContextSignalsToBffDeck: true,
       persistedToDatabase: false,
       writesRelationshipGraph: false,
       writesVisitPlan: false,

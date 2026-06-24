@@ -615,7 +615,7 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
       displayName: "Visit preparation package",
       ownerSurface: "/pre-visit",
       module: "VISIT",
-      version: "2026-06-25.meeting-review-context-signal-contract",
+      version: "2026-06-25.meeting-review-context-bff-adoption",
       status: "active",
     },
     capabilities: [
@@ -872,6 +872,7 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
         "VisitMeetingRelationshipSignalDeck.writebackBoundary.writesVisitPlan=false",
         "VisitMeetingRelationshipSignalDeck.proof.persistedToDatabase=false",
         "VisitMeetingRelationshipSignalDeck.proof.writesConfirmedCrmFact=false",
+        "VisitMeetingRelationshipSignalBffDto.summary.writebackReviewContextSignalCount",
         "VisitMeetingRelationshipSignalBffDto.proof.ownerScopedMeetingSessionLookup=true",
         "VisitMeetingRelationshipSignalBffDto.proof.browserSuppliedSessionId=false",
         "VisitMeetingRelationshipSignalBffDto.proof.writesRelationshipGraph=false",
@@ -1029,6 +1030,7 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
           "VisitMeetingRelationshipSignalDeck.writebackBoundary.writesVisitPlan=false",
           "VisitMeetingRelationshipSignalDeck.proof.persistedToDatabase=false",
           "VisitMeetingRelationshipSignalDeck.proof.writesConfirmedCrmFact=false",
+          "VisitMeetingRelationshipSignalBffDto.summary.writebackReviewContextSignalCount",
           "VisitMeetingRelationshipSignalBffDto.proof.ownerScopedMeetingSessionLookup=true",
           "VisitMeetingRelationshipSignalBffDto.proof.browserSuppliedSessionId=false",
           "VisitMeetingRelationshipSignalBffDto.proof.writesRelationshipGraph=false",
@@ -1106,6 +1108,7 @@ export const ASAI_AGENT_PROTOCOL_MANIFESTS: AgentProtocolManifest[] = [
         ],
         notes: [
           "LV3 meeting-to-prep bridge adds `VisitMeetingRelationshipSignalDeck`, turning accepted meeting quick notes, summaries, writeback candidates, and MeetingWritebackCandidateReviewContext summaries into deterministic relationship confirmation signal cards. `pnpm visit:meeting-relationship-signal-dry-run` proves redaction, fact/inference/unknown separation, no provider call, no DB persistence, no relationship graph/VisitPlan write, and no direct confirmed CRM fact write.",
+          "Visit preparation BFF now maps `MeetingWritebackCandidate.reviewContext` through `meetingWritebackCandidateReviewContextToRelationshipSignals`, includes those source-only cards in the owner-scoped deck, and exposes `summary.writebackReviewContextSignalCount` without provider calls, DB writes, relationship graph writes, VisitPlan writes, or confirmed CRM fact writes.",
           "Visit preparation BFF/UI now reads meeting relationship signals through `/api/visits/[id]/meeting-relationship-signals`, deriving the meeting session from visitPlanId and server session only, then renders cards in `/pre-visit/[planId]` without raw session/person id input or relationship graph writes.",
           "Visit-to-theater handoff now reads owner-scoped meeting relationship signal decks, passes safe cards into Route B knownMaterials and sourceSummary.meetingRelationshipSignals, adds unknown/next-visit prompts to narrator questions, and exposes a meeting signal count in the theater build source review.",
           "Theater build source review now renders meeting-derived relationship signal stage cards with FACT/INFERENCE/UNKNOWN chips, source labels, action labels, and narrator-question previews while preserving the no-write boundary.",

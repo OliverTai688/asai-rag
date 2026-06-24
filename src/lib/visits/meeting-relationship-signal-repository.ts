@@ -1,5 +1,6 @@
 import type { MeetingDataClass } from "@/domains/interview/meeting";
 import {
+  meetingWritebackCandidateReviewContextToRelationshipSignals,
   meetingWritebackCandidateToRelationshipSignal,
   buildVisitMeetingRelationshipSignalDeck,
   type VisitMeetingRelationshipSignalDeck,
@@ -35,6 +36,7 @@ export interface VisitMeetingRelationshipSignalBffDto {
     quickNoteSignalCount: number;
     summarySignalCount: number;
     writebackCandidateSignalCount: number;
+    writebackReviewContextSignalCount: number;
     cardCount: number;
     highPriorityCount: number;
     unknownCount: number;
@@ -87,6 +89,7 @@ export async function getVisitMeetingRelationshipSignalDeckForMember(
         quickNoteSignalCount: 0,
         summarySignalCount: 0,
         writebackCandidateSignalCount: 0,
+        writebackReviewContextSignalCount: 0,
       }),
     };
   }
@@ -117,14 +120,22 @@ export async function getVisitMeetingRelationshipSignalDeckForMember(
       : [];
 
   const writebackPreview = await getMeetingWritebackPreviewForMember(session, latestMeeting.session.id);
-  const writebackSignals =
+  const writebackCandidates =
     writebackPreview?.status === "ready"
       ? writebackPreview.candidates
           .filter((candidate) => candidate.target !== "BLOCKED")
           .slice(0, 12)
-          .map(meetingWritebackCandidateToRelationshipSignal)
       : [];
-  const signals = uniqueSignals([...quickNoteSignals, ...summarySignals, ...writebackSignals]);
+  const writebackCandidateSignals = writebackCandidates.map(meetingWritebackCandidateToRelationshipSignal);
+  const writebackReviewContextSignals = writebackCandidates.flatMap(
+    meetingWritebackCandidateReviewContextToRelationshipSignals,
+  );
+  const signals = uniqueSignals([
+    ...quickNoteSignals,
+    ...summarySignals,
+    ...writebackCandidateSignals,
+    ...writebackReviewContextSignals,
+  ]);
   const status = resolveStatus({
     hasMeeting: true,
     hasSummary: summaryResult?.status === "found",
@@ -146,7 +157,8 @@ export async function getVisitMeetingRelationshipSignalDeckForMember(
       signals,
       quickNoteSignalCount: quickNoteSignals.length,
       summarySignalCount: summarySignals.length,
-      writebackCandidateSignalCount: writebackSignals.length,
+      writebackCandidateSignalCount: writebackCandidateSignals.length,
+      writebackReviewContextSignalCount: writebackReviewContextSignals.length,
     }),
   };
 }
@@ -161,6 +173,7 @@ function buildDto(input: {
   quickNoteSignalCount: number;
   summarySignalCount: number;
   writebackCandidateSignalCount: number;
+  writebackReviewContextSignalCount: number;
 }): VisitMeetingRelationshipSignalBffDto {
   const deck = buildVisitMeetingRelationshipSignalDeck({
     visitPlanId: input.visitPlanId,
@@ -186,6 +199,7 @@ function buildDto(input: {
       quickNoteSignalCount: input.quickNoteSignalCount,
       summarySignalCount: input.summarySignalCount,
       writebackCandidateSignalCount: input.writebackCandidateSignalCount,
+      writebackReviewContextSignalCount: input.writebackReviewContextSignalCount,
       cardCount: deck.summary.cardCount,
       highPriorityCount: deck.summary.highPriorityCount,
       unknownCount: deck.summary.unknownCount,

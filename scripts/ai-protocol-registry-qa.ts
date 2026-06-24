@@ -89,6 +89,7 @@ const sourceAdoptionRequirements: Record<string, { ownerRefs: string[]; evidence
       "VisitRelationshipConfirmationStateBoundary.proof.persistedToDatabase=false",
       "VisitRelationshipConfirmationStateBoundary.proof.writesConfirmedCrmFact=false",
       "VisitMeetingRelationshipSignalDeck.writebackBoundary.currentPersistence=deterministic-preview-only",
+      "VisitMeetingRelationshipSignalBffDto.summary.writebackReviewContextSignalCount",
       "VisitMeetingRelationshipSignalDeck.proof.writesConfirmedCrmFact=false",
       "VisitMeetingRelationshipSignalBffDto.proof.browserSuppliedSessionId=false",
       "VisitMeetingRelationshipSignalBffDto.proof.writesRelationshipGraph=false",
@@ -1247,6 +1248,10 @@ function assertVisitMeetingRelationshipSignal(manifests: AgentProtocolManifest[]
     "visit manifest evidence includes meeting writeback review context source type",
   );
   push(
+    manifest.schemas.evidenceDtoRefs.includes("VisitMeetingRelationshipSignalBffDto.summary.writebackReviewContextSignalCount"),
+    "visit manifest evidence includes BFF review context signal count",
+  );
+  push(
     manifest.schemas.evidenceDtoRefs.includes("MeetingWritebackCandidateReviewContext.writesRelationshipGraph=false"),
     "visit manifest evidence includes meeting writeback review context no graph write",
   );
@@ -1316,6 +1321,7 @@ function assertVisitMeetingRelationshipSignal(manifests: AgentProtocolManifest[]
     "VisitMeetingRelationshipSignalDeck.writebackBoundary.writesVisitPlan=false",
     "VisitMeetingRelationshipSignalDeck.proof.persistedToDatabase=false",
     "VisitMeetingRelationshipSignalDeck.proof.writesConfirmedCrmFact=false",
+    "VisitMeetingRelationshipSignalBffDto.summary.writebackReviewContextSignalCount",
     "VisitMeetingRelationshipSignalBffDto.proof.ownerScopedMeetingSessionLookup=true",
     "VisitMeetingRelationshipSignalBffDto.proof.browserSuppliedSessionId=false",
     "VisitMeetingRelationshipSignalBffDto.proof.writesRelationshipGraph=false",
