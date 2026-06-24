@@ -107,6 +107,15 @@ REL-004g evidence（2026-06-24）：Route B feedback contract、feedback provide
 - [ ] 既有 `FamilyMember.parentMemberId` backfill 成 `PARENT_OF` edge，idempotent、不破壞真實資料。
 - [ ] 多親/配偶/社會邊建立後重新登入仍可讀。
 
+### D2. Family/person profile metadata boundary（REL-006，不動 schema）
+
+- [ ] Family member profile metadata 只能走 allowlist：職位/職業、年收入或財務依賴、人物狀態/決策角色、關係脈絡、factStatus、source refs。
+- [ ] Metadata 不得包含 email、phone、raw private transcript、raw provider payload、policy number、secret/token/payment data。
+- [ ] BFF update/read 由 current member + client ownership 推導 scope；manager/foreign client 不得寫入或讀取 private profile details。
+- [ ] Relationship graph source review 對已確認 metadata 顯示 FACT/INFERENCE/UNKNOWN，缺值仍保留待確認，不得把 inference 升格為 confirmed CRM fact。
+- [ ] Proof 必須顯示不改 Prisma schema、不寫 RelationshipEdge table、不寫 VisitPlan、不寫 confirmed CRM fact、不呼叫 provider、不偽造 `AiUsageLog`。
+- [ ] 若改 UI，desktop/mobile console error 0、無水平 overflow，且關係圖/來源審查不要求 raw ID workflow。
+
 ## E. 佈局/互動/可及性（REL-005）
 
 - [ ] 配偶同 rank、手足排序、社會邊不破壞世代階層。
