@@ -191,12 +191,14 @@ ITA-003n evidence note（2026-06-22）：新增 owner-scoped `POST /api/theater/
 
 `LV3-THEATER-MEETING-SIGNAL-RUNTIME-CONTEXT-001` 若把 persisted meeting-derived relationship signal grounding 接進 next-turn / provider prompt context，完成前必須額外滿足：
 
-- [ ] `buildTheaterRouteBNextTurnDraft()` 必須從 `RouteBSessionSnapshot.scene.sourceGrounding.meetingRelationshipSignals` 產出 least-disclosure grounding summary，至少包含 card count、unknown count、narrator-question count、safe card summaries 與 source/action/priority labels；不得回 raw meeting session id、person id、sourceReferenceIds、raw transcript 或 raw provider payload。
-- [ ] `buildRouteBProviderPromptContext()` 或 next-turn provider input 必須消費上述 grounding summary 作為 roleplay/evidence context，並保持 `registryReadiness=internal-only`、`storesRawProviderPayload=false`、`rawPrivateTranscriptAllowed=false`、`directPrivateDialogAllowed=false`。
-- [ ] Provider-disabled draft path 不得呼叫 provider、不得寫 fake `AiUsageLog`；live provider path 若使用該 context，success/error 仍必須先寫 THEATER `AiUsageLog` 並只回 safe append candidate。
-- [ ] `/theater/[sessionId]` 的 next-turn preview 必須能顯示 runtime 已使用 meeting-signal grounding 的摘要或 guard flag，但不得要求顧問輸入 raw session/person id。
-- [ ] AgentFacts-style manifest 必須新增 runtime context evidence refs / proof command，且不得宣稱 external-ready、external-registered 或正式 NANDA publication。
-- [ ] 需跑 `pnpm theater:route-b-next-turn-dry-run`、`pnpm theater:route-b-provider-prompt-context-dry-run`、`pnpm theater:route-b-next-turn-provider-dry-run`、`pnpm theater:meeting-signal-session-source-qa`、`pnpm ai:protocol-registry-qa`、`pnpm ai:bff-audit`、`pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。若只剩 live browser/API/DB screenshot evidence，可交由 operator 用既有 Route B session 自行重跑，不得取代 source/runtime context proof。
+- [x] `buildTheaterRouteBNextTurnDraft()` 必須從 `RouteBSessionSnapshot.scene.sourceGrounding.meetingRelationshipSignals` 產出 least-disclosure grounding summary，至少包含 card count、unknown count、narrator-question count、safe card summaries 與 source/action/priority labels；不得回 raw meeting session id、person id、sourceReferenceIds、raw transcript 或 raw provider payload。
+- [x] `buildRouteBProviderPromptContext()` 或 next-turn provider input 必須消費上述 grounding summary 作為 roleplay/evidence context，並保持 `registryReadiness=internal-only`、`storesRawProviderPayload=false`、`rawPrivateTranscriptAllowed=false`、`directPrivateDialogAllowed=false`。
+- [x] Provider-disabled draft path 不得呼叫 provider、不得寫 fake `AiUsageLog`；live provider path 若使用該 context，success/error 仍必須先寫 THEATER `AiUsageLog` 並只回 safe append candidate。
+- [x] `/theater/[sessionId]` 的 next-turn preview 必須能顯示 runtime 已使用 meeting-signal grounding 的摘要或 guard flag，但不得要求顧問輸入 raw session/person id。
+- [x] AgentFacts-style manifest 必須新增 runtime context evidence refs / proof command，且不得宣稱 external-ready、external-registered 或正式 NANDA publication。
+- [x] 需跑 `pnpm theater:route-b-next-turn-dry-run`、`pnpm theater:route-b-provider-prompt-context-dry-run`、`pnpm theater:route-b-next-turn-provider-dry-run`、`pnpm theater:meeting-signal-session-source-qa`、`pnpm ai:protocol-registry-qa`、`pnpm ai:bff-audit`、`pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`。若只剩 live browser/API/DB screenshot evidence，可交由 operator 用既有 Route B session 自行重跑，不得取代 source/runtime context proof。
+
+LV3-THEATER-MEETING-SIGNAL-RUNTIME-CONTEXT-001 evidence note（2026-06-24）：Route B next-turn draft、provider prompt context、next-turn provider input 與 `/theater/[sessionId]` preview 已消費 `meetingRelationshipSignalGrounding`，UI 使用 `data-route-b-next-turn-meeting-signal-runtime-grounding` 顯示 safe runtime summary。Proof 維持 no-provider disabled path / no fake usage / no raw meeting session id / no person id / no sourceReferenceIds / no raw transcript / no raw provider payload；live provider path 仍以 success/error THEATER `AiUsageLog` 作返回前 gate，AgentFacts manifest 保持 `internal-only`，未做 external registry publication。
 
 ### 5.11 Route B relationship-edge-shadow runtime context acceptance
 
