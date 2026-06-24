@@ -57,10 +57,25 @@ type HandoffReview = VisitTheaterHandoffResponse;
 type ClientBuildReview = TheaterClientBuildResponse;
 type MeetingSignalStageStatus = "confirmed" | "inference" | "unknown";
 type MeetingSignalStageCard = TheaterRouteBMeetingSignalGroundingInput;
+type RelationshipEdgeShadowStageSummary = {
+  candidateEdges: number;
+  sourceMembers: number;
+  edgeTypes: string[];
+  factStatus: string[];
+  warningCodes: string[];
+  unsupportedRelationCount: number;
+  clientFacingDraftEdgesReturned: boolean;
+  formalSchemaApproved: boolean;
+  writesRelationshipGraph: boolean;
+  writesVisitPlan: boolean;
+  writesConfirmedCrmFact: boolean;
+  persistedToDatabase: boolean;
+};
 
 const CLASS_PREFIX: Record<DataClass, string> = { fact: "FACT", inference: "INFERENCE", unknown: "UNKNOWN" };
 const CLASS_LABEL: Record<DataClass, string> = { fact: "確認事實", inference: "推論", unknown: "待確認" };
 const MEETING_SIGNAL_MATERIAL_PREFIX = "meeting_relationship_signal_card=";
+const RELATIONSHIP_EDGE_SHADOW_MATERIAL_PREFIX = "relationship_edge_shadow_summary=true";
 const MEETING_SIGNAL_STATUS_LABEL: Record<MeetingSignalStageStatus, string> = {
   confirmed: "FACT 確認事實",
   inference: "INFERENCE 推論",
@@ -149,23 +164,70 @@ function parseMeetingSignalMaterial(material: string): MeetingSignalStageCard | 
     .split("；")
     .map((field) => field.trim())
     .filter(Boolean);
-  const id = getMeetingSignalField(fields, "meeting_relationship_signal_card");
+  const id = getMaterialField(fields, "meeting_relationship_signal_card");
   if (!id) return null;
 
   return {
     id,
-    status: normalizeMeetingSignalStatus(getMeetingSignalField(fields, "status")),
-    action: getMeetingSignalField(fields, "action"),
-    priority: getMeetingSignalField(fields, "priority"),
-    sourceLabel: getMeetingSignalField(fields, "source"),
-    summary: getMeetingSignalField(fields, "summary") || getMeetingSignalField(fields, "relationship"),
-    prompt: getMeetingSignalField(fields, "prompt"),
+    status: normalizeMeetingSignalStatus(getMaterialField(fields, "status")),
+    action: getMaterialField(fields, "action"),
+    priority: getMaterialField(fields, "priority"),
+    sourceLabel: getMaterialField(fields, "source"),
+    summary: getMaterialField(fields, "summary") || getMaterialField(fields, "relationship"),
+    prompt: getMaterialField(fields, "prompt"),
   };
 }
 
-function getMeetingSignalField(fields: string[], key: string) {
+function getMaterialField(fields: string[], key: string) {
   const prefix = `${key}=`;
   return fields.find((field) => field.startsWith(prefix))?.slice(prefix.length).trim() ?? "";
+}
+
+function getRelationshipEdgeShadowSummary(materials: string[]): RelationshipEdgeShadowStageSummary | null {
+  const material = materials.find((item) => item.includes(RELATIONSHIP_EDGE_SHADOW_MATERIAL_PREFIX));
+  if (!material) return null;
+
+  const fields = material
+    .replace(/^(FACT|INFERENCE|UNKNOWN):\s*/, "")
+    .split("；")
+    .map((field) => field.trim())
+    .filter(Boolean);
+
+  return {
+    candidateEdges: parseMaterialCount(getMaterialField(fields, "candidate_edges")),
+    sourceMembers: parseMaterialCount(getMaterialField(fields, "source_members")),
+    edgeTypes: parseMaterialList(getMaterialField(fields, "edge_types")),
+    factStatus: parseMaterialList(getMaterialField(fields, "fact_status")),
+    warningCodes: parseMaterialList(getMaterialField(fields, "warning_codes")),
+    unsupportedRelationCount: parseMaterialList(getMaterialField(fields, "unsupported_relations")).length,
+    clientFacingDraftEdgesReturned: parseMaterialBoolean(getMaterialField(fields, "client_facing_draft_edges_returned")),
+    formalSchemaApproved: parseMaterialBoolean(getMaterialField(fields, "formal_schema_approved")),
+    writesRelationshipGraph: parseMaterialBoolean(getMaterialField(fields, "writes_relationship_graph")),
+    writesVisitPlan: parseMaterialBoolean(getMaterialField(fields, "writes_visit_plan")),
+    writesConfirmedCrmFact: parseMaterialBoolean(getMaterialField(fields, "writes_confirmed_crm_fact")),
+    persistedToDatabase: parseMaterialBoolean(getMaterialField(fields, "persisted_to_database")),
+  };
+}
+
+function parseMaterialCount(value: string) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+}
+
+function parseMaterialBoolean(value: string) {
+  return value === "true";
+}
+
+function parseMaterialList(value: string) {
+  if (!value || value === "none") return [];
+  return value
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function formatMaterialList(items: string[], fallback: string) {
+  return items.length ? items.join("、") : fallback;
 }
 
 function normalizeMeetingSignalStatus(status: string): MeetingSignalStageStatus {
@@ -978,6 +1040,7 @@ function VisitSourceReviewPanel({
   const canApprove = reason.trim().length >= 8 && riskAccepted && !isApproving;
   const meetingSignalCards = getMeetingSignalStageCards(review.handoff.knownMaterials);
   const meetingSignalNarratorPreviews = getMeetingSignalNarratorPreviews(packet.narratorQuestions);
+  const relationshipEdgeShadow = getRelationshipEdgeShadowSummary(review.handoff.knownMaterials);
 
   return (
     <section className="rounded-xl border border-hairline bg-card p-4">
@@ -993,11 +1056,15 @@ function VisitSourceReviewPanel({
             已從 {review.client.name} 的準備包整理角色、關係、提問依據與待確認項；推論與未知會停留在建構包，不會寫回 CRM 事實。
           </p>
         </div>
-        <div className="grid grid-cols-2 gap-2 text-center sm:min-w-96 md:grid-cols-4">
+        <div className="grid grid-cols-2 gap-2 text-center sm:min-w-[30rem] md:grid-cols-5">
           <SourceCountPill label="目標" value={sourceCounts.objectives} />
           <SourceCountPill label="提問" value={sourceCounts.spinQuestions} />
           <SourceCountPill label="依據" value={sourceCounts.questionEvidence} />
           <SourceCountPill label="會議" value={sourceCounts.meetingRelationshipSignals ?? 0} />
+          <SourceCountPill
+            label="邊候選"
+            value={sourceCounts.relationshipEdgeShadowCandidates ?? relationshipEdgeShadow?.candidateEdges ?? 0}
+          />
         </div>
       </div>
 
@@ -1049,6 +1116,8 @@ function VisitSourceReviewPanel({
       {meetingSignalCards.length ? (
         <MeetingSignalStageReview cards={meetingSignalCards} narratorQuestions={meetingSignalNarratorPreviews} />
       ) : null}
+
+      {relationshipEdgeShadow ? <RelationshipEdgeShadowReadiness summary={relationshipEdgeShadow} /> : null}
 
       {review.handoff.warnings.length ? (
         <div className="mt-3 rounded-lg border border-hairline bg-paper px-3 py-2 text-xs leading-5 text-muted-foreground">
@@ -1131,6 +1200,65 @@ function MeetingSignalStageReview({
 
       <p className="mt-3 text-[11px] leading-5 text-muted-foreground">
         Stage-only：不寫回關係圖、VisitPlan 或 CRM 事實；若要持久化確認狀態，仍需 product/schema decision。
+      </p>
+    </div>
+  );
+}
+
+function RelationshipEdgeShadowReadiness({ summary }: { summary: RelationshipEdgeShadowStageSummary }) {
+  const boundaryOk =
+    !summary.clientFacingDraftEdgesReturned &&
+    !summary.formalSchemaApproved &&
+    !summary.writesRelationshipGraph &&
+    !summary.writesVisitPlan &&
+    !summary.writesConfirmedCrmFact &&
+    !summary.persistedToDatabase;
+  const hasWarnings = summary.warningCodes.length > 0 || summary.unsupportedRelationCount > 0;
+
+  return (
+    <div className="mt-4 rounded-lg border border-hairline bg-paper p-3" data-edge-shadow-readiness="true">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-ink">關係邊 readiness</p>
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">
+            人物關係圖已先整理為劇場可讀的安全摘要；正式 RelationshipEdge schema 尚未核可。
+          </p>
+        </div>
+        <Badge variant={boundaryOk ? "outline" : "destructive"} className="w-fit tabular-nums">
+          {summary.candidateEdges} 條候選
+        </Badge>
+      </div>
+
+      <div className="mt-3 grid gap-2 md:grid-cols-3">
+        <div className="rounded-md border border-hairline bg-card px-3 py-2">
+          <p className="text-[11px] text-muted-foreground">來源人物</p>
+          <p className="mt-1 text-lg font-semibold tabular-nums text-ink">{summary.sourceMembers}</p>
+        </div>
+        <div className="rounded-md border border-hairline bg-card px-3 py-2">
+          <p className="text-[11px] text-muted-foreground">關係型別</p>
+          <p className="mt-1 line-clamp-2 text-xs font-medium leading-5 text-ink">
+            {formatMaterialList(summary.edgeTypes, "尚無候選")}
+          </p>
+        </div>
+        <div className="rounded-md border border-hairline bg-card px-3 py-2">
+          <p className="text-[11px] text-muted-foreground">事實狀態</p>
+          <p className="mt-1 line-clamp-2 text-xs font-medium leading-5 text-ink">
+            {formatMaterialList(summary.factStatus, "尚無狀態")}
+          </p>
+        </div>
+      </div>
+
+      {hasWarnings ? (
+        <div className="mt-3 rounded-md border border-hairline bg-card px-3 py-2 text-xs leading-5 text-muted-foreground">
+          <span className="font-semibold text-ink">需後續確認：</span>
+          {summary.warningCodes.length ? formatMaterialList(summary.warningCodes, "無 warning code") : "無 warning code"}
+          {summary.unsupportedRelationCount ? `；含 ${summary.unsupportedRelationCount} 類尚未支援的關係描述。` : ""}
+        </div>
+      ) : null}
+
+      <p className="mt-3 text-[11px] leading-5 text-muted-foreground">
+        Readiness-only：不回傳草稿邊內容、不寫回關係圖、VisitPlan 或 CRM 事實、不持久化 DB；正式 schema 仍需 migration
+        approval。
       </p>
     </div>
   );
@@ -1355,6 +1483,7 @@ type VisitTheaterHandoffResponse = {
         visitMaterials: number;
         relationshipConfirmationCards: number;
         meetingRelationshipSignals: number;
+        relationshipEdgeShadowCandidates: number;
       };
     };
     packet: TheaterBuildPacket;

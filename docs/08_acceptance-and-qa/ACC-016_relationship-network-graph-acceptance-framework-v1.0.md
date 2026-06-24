@@ -62,6 +62,15 @@ REL-004b evidence（2026-06-23）：`pnpm client:relationship-edge-shadow-qa` pa
 
 REL-004c evidence（2026-06-23）：`pnpm visit:theater-handoff-dry-run` pass，5 candidate edges、`UNSUPPORTED_ROOT_RELATION` warning、summary 進入 theater knownMaterials/sourceSummary，server-only draft payload sentinel 0；no provider/no DB/no writeback boundary 維持。
 
+### D0.7. Shadow theater build source review（REL-004d，不動 schema）
+
+- [x] `/theater/build?visitPlanId=...` 來源審查解析 `relationship_edge_shadow_summary=true` knownMaterial，顯示 candidate count、source member count、edge type/status counts 與 warning code。
+- [x] UI copy 明確標示 formal `RelationshipEdge` schema 尚未核可；此區只作 readiness/source review，不回傳草稿邊內容、不寫回 relationship graph、VisitPlan、CRM fact 或 DB。
+- [x] `pnpm visit:edge-shadow-theater-build-qa` 通過，且檢查 theater build source review 未渲染 server-only draft internals（source/target node id、source references、metadata、policy number、raw provider/private fields）。
+- [x] `pnpm visit:theater-handoff-dry-run` 仍通過，證明 handoff 端 no-provider/no-DB/no-write/no-draft-payload boundary 未退化。
+
+REL-004d evidence（2026-06-23）：`pnpm visit:edge-shadow-theater-build-qa` pass，劇場建立頁來源審查具 `data-edge-shadow-readiness` panel、關係邊候選計數與 formal-schema/no-write boundary；`pnpm visit:theater-handoff-dry-run` pass，仍無 provider/DB/writeback。
+
 ### D1. Edge model 持久化（REL-004，動 schema）
 
 - [ ] `RelationshipEdge` 全表帶可驗證 `organizationId`（經 client）；UI 不直接 import Prisma。

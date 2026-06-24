@@ -802,6 +802,14 @@ function assertVisitMeetingRelationshipSignal(manifests: AgentProtocolManifest[]
     "visit manifest declares meeting signal theater handoff action boundary",
   );
   push(
+    manifest.capabilities.some((capability) => capability.id === "relationship-edge-shadow-theater-source-review"),
+    "visit manifest declares relationship edge shadow theater source review capability",
+  );
+  push(
+    manifest.interfaces.actions.some((action) => action.id === "relationship-edge-shadow-theater-source-review"),
+    "visit manifest declares relationship edge shadow theater source review action boundary",
+  );
+  push(
     manifest.schemas.inputDtoRefs.includes("VisitMeetingRelationshipSignalInput"),
     "visit manifest input DTOs include VisitMeetingRelationshipSignalInput",
   );
@@ -822,6 +830,14 @@ function assertVisitMeetingRelationshipSignal(manifests: AgentProtocolManifest[]
     "visit manifest output DTOs include meeting signal theater handoff summary",
   );
   push(
+    manifest.schemas.outputDtoRefs.includes("VisitTheaterHandoff.sourceSummary.evidenceSummary.relationshipEdgeShadow"),
+    "visit manifest output DTOs include relationship edge shadow theater handoff summary",
+  );
+  push(
+    manifest.schemas.outputDtoRefs.includes("VisitTheaterRelationshipEdgeShadowHandoffSummary"),
+    "visit manifest output DTOs include relationship edge shadow handoff summary DTO",
+  );
+  push(
     manifest.schemas.evidenceDtoRefs.includes(
       "VisitMeetingRelationshipSignalDeck.writebackBoundary.currentPersistence=deterministic-preview-only",
     ),
@@ -830,6 +846,14 @@ function assertVisitMeetingRelationshipSignal(manifests: AgentProtocolManifest[]
   push(
     manifest.schemas.evidenceDtoRefs.includes("VisitMeetingRelationshipSignalDeck.proof.writesConfirmedCrmFact=false"),
     "visit manifest evidence includes no confirmed CRM fact write",
+  );
+  push(
+    manifest.schemas.evidenceDtoRefs.includes("VisitTheaterRelationshipEdgeShadowHandoffSummary.formalSchemaApproved=false"),
+    "visit manifest evidence includes relationship edge shadow formal schema boundary",
+  );
+  push(
+    manifest.schemas.evidenceDtoRefs.includes("VisitTheaterRelationshipEdgeShadowHandoffSummary.writesRelationshipGraph=false"),
+    "visit manifest evidence includes relationship edge shadow no relationship graph write",
   );
   push(
     manifest.proof.commands.includes("pnpm visit:meeting-relationship-signal-dry-run"),
@@ -843,6 +867,10 @@ function assertVisitMeetingRelationshipSignal(manifests: AgentProtocolManifest[]
     manifest.proof.commands.includes("pnpm visit:meeting-signal-theater-handoff-qa"),
     "visit proof commands include meeting signal theater handoff QA",
   );
+  push(
+    manifest.proof.commands.includes("pnpm visit:edge-shadow-theater-build-qa"),
+    "visit proof commands include relationship edge shadow theater build QA",
+  );
 
   const adoption = manifest.proof.sourceAdoption;
   const requiredOwnerRefs = [
@@ -854,6 +882,7 @@ function assertVisitMeetingRelationshipSignal(manifests: AgentProtocolManifest[]
     "src/lib/visits/meeting-relationship-signal-repository.ts",
     "src/domains/visit/meeting-relationship-signal.ts",
     "scripts/visit-meeting-signal-theater-handoff-qa.mjs",
+    "scripts/visit-edge-shadow-theater-build-qa.mjs",
     "scripts/visit-meeting-relationship-signal-bff-ui-qa.mjs",
     "scripts/visit-meeting-relationship-signal-dry-run.mjs",
     "scripts/visit-meeting-relationship-signal-dry-run.ts",
@@ -878,16 +907,28 @@ function assertVisitMeetingRelationshipSignal(manifests: AgentProtocolManifest[]
     "MeetingSignalStageReview.data-meeting-signal-stage-cards",
     "MeetingSignalStageReview.data-meeting-signal-narrator-preview",
     "MEETING_SIGNAL_STATUS_LABEL",
+    "relationship-edge-shadow-theater-source-review",
+    "relationship_edge_shadow_summary=true",
+    "RelationshipEdgeShadowReadiness.data-edge-shadow-readiness",
     "meeting-relationship-signal-theater-handoff-grounding",
     "VisitTheaterHandoff.sourceSummary.evidenceSummary.meetingRelationshipSignals",
+    "VisitTheaterHandoff.sourceSummary.evidenceSummary.relationshipEdgeShadow",
     "VisitTheaterMeetingRelationshipSignalHandoffSummary.ownerScopedVisitPlanRequired=true",
     "VisitTheaterMeetingRelationshipSignalHandoffSummary.providerCallAttempted=false",
     "VisitTheaterMeetingRelationshipSignalHandoffSummary.persistedToDatabase=false",
     "VisitTheaterMeetingRelationshipSignalHandoffSummary.writesRelationshipGraph=false",
     "VisitTheaterMeetingRelationshipSignalHandoffSummary.writesVisitPlan=false",
     "VisitTheaterMeetingRelationshipSignalHandoffSummary.writesConfirmedCrmFact=false",
+    "VisitTheaterRelationshipEdgeShadowHandoffSummary.clientFacingDraftEdgesReturned=false",
+    "VisitTheaterRelationshipEdgeShadowHandoffSummary.formalSchemaApproved=false",
+    "VisitTheaterRelationshipEdgeShadowHandoffSummary.providerCallAttempted=false",
+    "VisitTheaterRelationshipEdgeShadowHandoffSummary.persistedToDatabase=false",
+    "VisitTheaterRelationshipEdgeShadowHandoffSummary.writesRelationshipGraph=false",
+    "VisitTheaterRelationshipEdgeShadowHandoffSummary.writesVisitPlan=false",
+    "VisitTheaterRelationshipEdgeShadowHandoffSummary.writesConfirmedCrmFact=false",
     "meetingRelationshipSignalDeck",
     "SourceCountPill label=會議",
+    "SourceCountPill label=邊候選",
   ];
 
   for (const ownerRef of requiredOwnerRefs) {

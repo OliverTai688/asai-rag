@@ -84,11 +84,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 3,
+    "normalLoopsSinceLastWholeProductReview": 4,
     "lastWholeProductReviewAt": "2026-06-23T12:05:43Z",
     "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-23_lv3-whole-product-gap-review-relationship-edge-shadow-contract.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "REL-004 formal RelationshipEdge table only if operator explicitly approves additive Prisma schema + migration/rollback + development/staging DB proof. If approval is not present, keep schema/DB untouched and choose either relationship confirmation persistence after A/B/C decision, or a no-schema UI/session-source consumer that shows edgeShadow readiness in previsit/theater without exposing draft edges.",
+    "nextRecommendedImplementationSlice": "Cadence has reached four normal implementation loops since the last whole-product review; the next heartbeat should run lv3-whole-product-gap-review-loop.md before selecting another implementation slice. If no critical review blocker appears afterward, formal REL-004 still requires explicit schema/migration approval; otherwise continue no-schema consumers or relationship confirmation persistence only after product decision.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {
@@ -156,5 +156,5 @@
     "lv3ImmersiveLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-immersive-loop.md",
     "lv3WholeProductGapReviewLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md"
   },
-  "updatedAt": "2026-06-23T13:06:13Z"
+  "updatedAt": "2026-06-23T13:27:51Z"
 }

@@ -59,6 +59,7 @@
     "meeting:notes-hub-quarantine-qa": "node scripts/meeting-notes-hub-quarantine-qa.mjs",
     "meeting:writeback-qa": "node scripts/meeting-writeback-qa.mjs",
     "visit:theater-handoff-dry-run": "node scripts/visit-theater-handoff-dry-run.mjs",
+    "visit:edge-shadow-theater-build-qa": "node scripts/visit-edge-shadow-theater-build-qa.mjs",
     "visit:theater-bff-qa": "node scripts/visit-theater-bff-qa.mjs",
     "visit:theater-gate-qa": "node scripts/visit-theater-gate-qa.mjs",
     "visit:bff-qa": "node scripts/visit-bff-qa.mjs",
