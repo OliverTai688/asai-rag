@@ -84,11 +84,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 4,
-    "lastWholeProductReviewAt": "2026-06-24T19:23:40Z",
-    "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-25_lv3-whole-product-gap-review-after-client-route-b-next-turn-context.md",
+    "normalLoopsSinceLastWholeProductReview": 0,
+    "lastWholeProductReviewAt": "2026-06-25T08:17:13Z",
+    "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-25_lv3-whole-product-gap-review-after-live-cross-flow-recovery.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "LV3-TDF-004j completed. `pnpm theater:client-route-b-stage-render-harness-qa`, `pnpm theater:client-route-b-stage-fixture-qa`, `pnpm ai:protocol-registry-qa`, `pnpm ai:bff-audit`, and `pnpm exec tsc --noEmit --pretty false` pass; DB DNS preflight still reports Supabase host `ENOTFOUND`. Because `normalLoopsSinceLastWholeProductReview` is now 4, the next heartbeat should run `docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md`. In that review, re-check DB DNS first. If DB is restored, recommend full live DB-backed `DEMO_QA_BASE_URL=http://127.0.0.1:<free-port> pnpm lv3:cross-flow-no-provider-qa`; if DB remains unavailable, choose the next non-DB source-backed Route B/previsit/meeting bridge after the review rather than repeating a blocker report.",
+    "nextRecommendedImplementationSlice": "Scheduled fifth-loop review completed. Supabase DB DNS recovered and full live DB-backed no-provider proof passed when run against a warmed local ASAI dev server: `DEMO_QA_BASE_URL=http://127.0.0.1:3050 pnpm lv3:cross-flow-no-provider-qa` (21/21 commands, `AiUsageLog` 182->182). Direct cold-start wrapper still timed out at `/api/public/status`; `pnpm public:status-qa` passed, so treat that as proof-harness cold-start reliability, not DB blocker. Next normal loop should select `REL-007 family-member parent/relation integrity hardening` unless the operator first approves formal `RelationshipEdge` schema/migration or answers relationship confirmation persistence A/B/C. REL-007 should add shared POST/PATCH parent existence/same-client/self/cycle validation, safe relation normalization/UNKNOWN generation, dangling parent render fallback, and update `pnpm client:relationship-graph-write-qa`.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {
@@ -156,5 +156,5 @@
     "lv3ImmersiveLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-immersive-loop.md",
     "lv3WholeProductGapReviewLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md"
   },
-  "updatedAt": "2026-06-24T20:52:02Z"
+  "updatedAt": "2026-06-25T08:17:13Z"
 }
