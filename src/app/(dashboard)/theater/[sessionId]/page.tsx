@@ -22,6 +22,7 @@ import { toast } from "sonner";
 import { QuickstartGuide } from "@/components/demo/quickstart-guide";
 import { SpotlightTour } from "@/components/demo/spotlight-tour";
 import { Badge } from "@/components/ui/badge";
+import { RouteBStageGraph } from "@/components/theater/route-b-stage-graph";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
@@ -1469,78 +1470,24 @@ function RouteBRelationshipStageMap({
         </div>
 
         <div className="grid gap-4 p-4 xl:grid-cols-[minmax(0,1fr)_320px]">
-          <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-3">
-            {snapshot.characters.map((character) => {
-              const knownFacts = routeBRecords(character.knownFacts);
-              const unknowns = routeBRecords(character.unknowns);
-              const personaHints = routeBRecords(character.personaHints);
-              const isLatestSpeaker =
-                latestTurn?.speakerRouteBCharacterId === character.routeBCharacterId;
-              const isLatestAddressee =
-                latestTurn?.addresseeRouteBCharacterId === character.routeBCharacterId;
-              const isFocused = focusCharacterId === character.routeBCharacterId;
-
-              return (
-                <button
-                  key={character.id}
-                  type="button"
-                  className={cn(
-                    "group min-h-[190px] rounded-lg border border-hairline bg-paper p-4 text-left transition hover:border-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-                    isFocused && "border-ink bg-background",
-                  )}
-                  aria-label={`與 ${character.displayName} 私聊`}
-                  onClick={() => onPrivateFocus(character.routeBCharacterId)}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="truncate text-base font-semibold text-ink">
-                        {character.displayName}
-                      </p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {ROUTE_B_ROLE_LABEL[character.role] ?? character.role}
-                      </p>
-                    </div>
-                    <Badge
-                      variant={character.isFocus ? "default" : "outline"}
-                      className="shrink-0 rounded-full"
-                    >
-                      {character.isFocus ? "Focus" : "NPC"}
-                    </Badge>
-                  </div>
-
-                  <div className="mt-4 grid grid-cols-3 gap-2 text-center">
-                    <RouteBMiniCount label="已知" value={knownFacts.length} />
-                    <RouteBMiniCount label="推論" value={personaHints.length} />
-                    <RouteBMiniCount label="未知" value={unknowns.length} />
-                  </div>
-
-                  <div className="mt-4 space-y-2 text-xs text-muted-foreground">
-                    <div className="flex items-center justify-between gap-2">
-                      <span>狀態 proposal</span>
-                      <span className="font-mono text-ink">
-                        {character.statePatchCount}
-                      </span>
-                    </div>
-                    <div className="flex flex-wrap gap-1">
-                      {isLatestSpeaker ? (
-                        <span className="rounded-full bg-ink px-2 py-1 text-[10px] text-paper">
-                          latest speaker
-                        </span>
-                      ) : null}
-                      {isLatestAddressee ? (
-                        <span className="rounded-full border border-hairline bg-background px-2 py-1 text-[10px] text-ink">
-                          private addressee
-                        </span>
-                      ) : null}
-                      <span className="rounded-full border border-hairline bg-background px-2 py-1 text-[10px] text-ink">
-                        私聊焦點
-                      </span>
-                    </div>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
+          <RouteBStageGraph
+            focusCharacterId={focusCharacterId}
+            onSelect={onPrivateFocus}
+            characters={snapshot.characters.map((character) => ({
+              id: character.routeBCharacterId,
+              displayName: character.displayName,
+              roleLabel: ROUTE_B_ROLE_LABEL[character.role] ?? character.role,
+              isFocus: character.isFocus,
+              knownCount: routeBRecords(character.knownFacts).length,
+              inferenceCount: routeBRecords(character.personaHints).length,
+              unknownCount: routeBRecords(character.unknowns).length,
+              statePatchCount: character.statePatchCount,
+              isLatestSpeaker:
+                latestTurn?.speakerRouteBCharacterId === character.routeBCharacterId,
+              isLatestAddressee:
+                latestTurn?.addresseeRouteBCharacterId === character.routeBCharacterId,
+            }))}
+          />
 
           <aside className="space-y-3 rounded-lg border border-hairline bg-paper p-4">
             <div>

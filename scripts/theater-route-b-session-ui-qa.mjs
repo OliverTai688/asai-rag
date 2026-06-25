@@ -203,7 +203,7 @@ async function readJson(response) {
 function pushNoPrivateSentinel(text, label) {
   push(
     !text.includes("@") &&
-      !/09\d{2}/.test(text) &&
+      !/(^|\D)09\d{8}(\D|$)/.test(text) &&
       !["rawPayload", "providerPayload", "authorization", "cookie", "secret", "token", "otp", "payment"].some((key) =>
         text.toLowerCase().includes(key.toLowerCase()),
       ),

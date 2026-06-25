@@ -8,6 +8,7 @@ const files = {
   pln: "docs/05_execution-plans/PLN-015_interview-theater-dual-agent-batch-tasks-v1.0.md",
   report: "docs/2_agent-input/generated/agent-loop/reports/2026-06-21_lv3-ita-003f-route-b-stage-map.md",
   sessionUiQa: "scripts/theater-route-b-session-ui-qa.mjs",
+  stageGraph: "src/components/theater/route-b-stage-graph.tsx",
 };
 
 const source = Object.fromEntries(
@@ -57,15 +58,15 @@ function checkPackageCommand() {
 }
 
 function checkStageMapSourceMarkers() {
-  const requiredMarkers = [
+  const requiredPageMarkers = [
     "function RouteBRelationshipStageMap",
+    "RouteBStageGraph",
     "Relationship Stage Map",
     "客戶關係舞台",
     "providerCallAttempted={String(provider.callAttempted)}",
     "usageLogWritten={String(provider.usageLogWritten)}",
     "requiresConfirmation=true",
     "writesConfirmedCrmFact=false",
-    "aria-label={`與 ${character.displayName} 私聊`}",
     "關係證據",
     "factStatus",
     "visibilityScope",
@@ -74,8 +75,33 @@ function checkStageMapSourceMarkers() {
     "選擇 Route B 狀態更新對象",
   ];
 
-  for (const marker of requiredMarkers) {
+  for (const marker of requiredPageMarkers) {
     push(source.page.includes(marker), `theater session source includes marker: ${marker}`);
+  }
+
+  const requiredStageGraphMarkers = [
+    "export function RouteBStageGraph",
+    "function StageNode",
+    "aria-label={`與 ${character.displayName} 私聊`}",
+    "data-route-b-stage-graph=\"relationship-map\"",
+    "data-route-b-stage-map=\"desktop\"",
+    "data-route-b-stage-map=\"mobile-stack\"",
+    "data-route-b-stage-person={character.id}",
+    "data-route-b-private-chat-target={character.id}",
+    "data-route-b-fact-count={character.knownCount}",
+    "data-route-b-inference-count={character.inferenceCount}",
+    "data-route-b-unknown-count={character.unknownCount}",
+    "data-route-b-state-patch-count={character.statePatchCount}",
+    "data-provider-call-attempted=\"false\"",
+    "data-ai-usage-log-written=\"false\"",
+    "data-writes-confirmed-crm-fact=\"false\"",
+    "aria-label=\"客戶關係舞台地圖\"",
+    "點選任一人物即可把發話範圍切到私聊",
+    "不呼叫 AI、不寫回 CRM 既成事實",
+  ];
+
+  for (const marker of requiredStageGraphMarkers) {
+    push(source.stageGraph.includes(marker), `RouteBStageGraph source includes marker: ${marker}`);
   }
 }
 
