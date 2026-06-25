@@ -7,6 +7,7 @@ const files = {
   theaterBuild: "src/app/(dashboard)/theater/build/page.tsx",
   sessionPage: "src/app/(dashboard)/theater/[sessionId]/page.tsx",
   handoffDomain: "src/domains/theater/route-b-handoff.ts",
+  sourceRenderDomain: "src/domains/theater/route-b-meeting-signal-source-render.ts",
   sessionDomain: "src/domains/theater/route-b-session.ts",
   nextTurnDomain: "src/domains/theater/route-b-next-turn.ts",
   boundary: "src/lib/theater/route-b-boundary.ts",
@@ -62,8 +63,24 @@ expect(
   "Route B stage UI renders persisted meeting signal grounding preview",
   source.sessionPage.includes("data-route-b-meeting-signal-source-grounding") &&
     source.sessionPage.includes("RouteBMeetingSignalGroundingPanel") &&
+    source.sessionPage.includes("buildRouteBMeetingSignalSourceRenderModel") &&
+    source.sessionPage.includes("data-route-b-meeting-signal-source-type-summary") &&
+    source.sessionPage.includes("data-route-b-meeting-signal-source-types") &&
+    source.sessionPage.includes("data-route-b-meeting-signal-card-source-type") &&
     source.sessionPage.includes("Browser session id") &&
     source.sessionPage.includes("CRM fact write"),
+);
+expect(
+  "meeting signal render model exposes advisor-visible source-type chips without raw ids",
+  source.sourceRenderDomain.includes("TheaterRouteBMeetingSignalSourceRenderModel") &&
+    source.sourceRenderDomain.includes("sourceTypeChips") &&
+    source.sourceRenderDomain.includes("sourceTypesVisibleToAdvisor") &&
+    source.sourceRenderDomain.includes("rawMeetingSessionIdIncluded: false") &&
+    source.sourceRenderDomain.includes("rawPersonIdIncluded: false") &&
+    source.sourceRenderDomain.includes("sourceReferenceIdsIncluded: false") &&
+    source.sourceRenderDomain.includes("rawPrivateTranscriptIncluded: false") &&
+    source.sourceRenderDomain.includes("rawProviderPayloadIncluded: false") &&
+    source.sourceRenderDomain.includes("writesConfirmedCrmFact: false"),
 );
 expect(
   "Route B persistence QA covers create/read/DB meeting grounding proof",

@@ -36,6 +36,7 @@ import { theaterTourSteps } from "@/domains/demo/tour-steps";
 import { useSpinStore } from "@/domains/spin/store";
 import type { RouteBComplianceReviewIntake } from "@/domains/theater/route-b-compliance-review-intake";
 import type { TheaterRouteBFeedbackReview } from "@/domains/theater/route-b-feedback-review";
+import { buildRouteBMeetingSignalSourceRenderModel } from "@/domains/theater/route-b-meeting-signal-source-render";
 import type { TheaterRouteBNextTurnAppendCandidate } from "@/domains/theater/route-b-next-turn-append";
 import type { TheaterRouteBNextTurnDraft } from "@/domains/theater/route-b-next-turn";
 import type { TheaterRouteBNextTurnProviderRunResult } from "@/domains/theater/route-b-next-turn-provider";
@@ -1063,21 +1064,41 @@ function RouteBSessionStage({
 }
 
 function RouteBMeetingSignalGroundingPanel({ grounding }: { grounding: RouteBMeetingSignalGrounding }) {
+  const renderModel = buildRouteBMeetingSignalSourceRenderModel(grounding);
+
   return (
-    <Card className="border-hairline shadow-none" data-route-b-meeting-signal-source-grounding="true">
+    <Card
+      className="border-hairline shadow-none"
+      data-route-b-meeting-signal-source-grounding="true"
+      data-route-b-meeting-signal-source-type-summary={renderModel.sourceTypeChips.length ? "visible" : "empty"}
+    >
       <CardContent className="space-y-4 p-5">
         <div className="flex items-start gap-3">
           <BrainCircuit className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
           <div className="min-w-0">
             <h2 className="text-sm font-semibold text-ink">會議訊號來源</h2>
             <p className="mt-2 text-sm leading-6 text-muted-foreground">
-              {grounding.cardCount} 張 stage card・{grounding.unknownCount} 個待確認・{grounding.narratorQuestionCount} 個旁白補問
+              {renderModel.cardCount} 張 stage card・{renderModel.unknownCount} 個待確認・{renderModel.narratorQuestionCount} 個旁白補問
             </p>
           </div>
         </div>
 
+        {renderModel.sourceTypeChips.length ? (
+          <div className="flex flex-wrap gap-1.5" data-route-b-meeting-signal-source-types="true">
+            {renderModel.sourceTypeChips.map((chip) => (
+              <span
+                key={chip.sourceType}
+                className="rounded-full border border-hairline bg-paper px-2 py-1 text-[10px] font-medium text-ink"
+                data-route-b-meeting-signal-source-type-chip={chip.sourceType}
+              >
+                來源類型：{chip.sourceType}・{chip.count}
+              </span>
+            ))}
+          </div>
+        ) : null}
+
         <div className="space-y-2">
-          {grounding.cards.slice(0, 3).map((card) => (
+          {renderModel.cards.slice(0, 3).map((card) => (
             <div key={card.stageCardId} className="rounded-lg border border-hairline bg-paper px-3 py-2">
               <div className="flex flex-wrap items-center gap-1.5">
                 <Badge variant="outline" className="text-[10px]">
@@ -1092,6 +1113,14 @@ function RouteBMeetingSignalGroundingPanel({ grounding }: { grounding: RouteBMee
                 <span className="rounded-full border border-hairline bg-background px-2 py-0.5">
                   來源：{card.sourceLabel || "AI Meeting"}
                 </span>
+                {card.sourceType ? (
+                  <span
+                    className="rounded-full border border-hairline bg-background px-2 py-0.5"
+                    data-route-b-meeting-signal-card-source-type={card.sourceType}
+                  >
+                    類型：{card.sourceType}
+                  </span>
+                ) : null}
                 <span className="rounded-full border border-hairline bg-background px-2 py-0.5">
                   動作：{routeBMeetingSignalActionLabel(card.action)}
                 </span>
@@ -1103,11 +1132,11 @@ function RouteBMeetingSignalGroundingPanel({ grounding }: { grounding: RouteBMee
           ))}
         </div>
 
-        {grounding.narratorQuestions.length ? (
+        {renderModel.narratorQuestions.length ? (
           <div className="rounded-lg border border-hairline bg-paper px-3 py-2">
             <p className="text-xs font-semibold text-ink">補問 preview</p>
             <ul className="mt-1 space-y-1">
-              {grounding.narratorQuestions.slice(0, 2).map((question, index) => (
+              {renderModel.narratorQuestions.slice(0, 2).map((question, index) => (
                 <li key={`${question}-${index}`} className="line-clamp-2 text-xs leading-5 text-muted-foreground">
                   {question}
                 </li>
@@ -1117,10 +1146,10 @@ function RouteBMeetingSignalGroundingPanel({ grounding }: { grounding: RouteBMee
         ) : null}
 
         <div className="grid gap-2 text-[11px] text-muted-foreground">
-          <ContextLine label="Owner visit scope" value={String(grounding.boundary.ownerScopedVisitPlanRequired)} />
-          <ContextLine label="Browser session id" value={String(grounding.boundary.browserSuppliedSessionId)} />
-          <ContextLine label="Provider call" value={String(grounding.boundary.providerCallAttempted)} />
-          <ContextLine label="CRM fact write" value={String(grounding.boundary.writesConfirmedCrmFact)} />
+          <ContextLine label="Owner visit scope" value={String(renderModel.boundary.ownerScopedVisitPlanRequired)} />
+          <ContextLine label="Browser session id" value={String(renderModel.boundary.browserSuppliedSessionId)} />
+          <ContextLine label="Provider call" value={String(renderModel.boundary.providerCallAttempted)} />
+          <ContextLine label="CRM fact write" value={String(renderModel.boundary.writesConfirmedCrmFact)} />
         </div>
       </CardContent>
     </Card>
