@@ -35,6 +35,9 @@ const GENERATION_STYLE: Record<number, { bg: string; border: string; icon: strin
   "2":  { bg: "bg-yellow-50 dark:bg-yellow-950/40", border: "border-yellow-200 dark:border-yellow-800", icon: "text-yellow-600" },
 };
 
+const RELATIONSHIP_GRAPH_ADVISOR_NODE_LIMIT = 24;
+const THEATER_FOCUS_ROLE_LIMIT = 4;
+
 function getGenerationStyle(generation: number) {
   const clamped = Math.max(-2, Math.min(2, generation));
   return GENERATION_STYLE[clamped] ?? GENERATION_STYLE["0"];
@@ -65,6 +68,15 @@ type RelationshipEdgeData = {
   relationshipType: RelationshipGraphEdgeType;
   factStatus: RelationshipGraphFactStatus;
   layoutRole: "hierarchy" | "same-rank" | "association";
+};
+
+type RelationshipGraphQualitySummary = {
+  duplicateNodeCount: number;
+  edgeCount: number;
+  nodeCount: number;
+  screenReaderSummary: string;
+  sizeStatus: "compact" | "large";
+  warnings: string[];
 };
 
 const PersonNode = ({
@@ -272,6 +284,56 @@ function buildGraph(
   return { nodes: laidOutNodes, edges };
 }
 
+function normalizeGraphNodeIdentity(node: RelationshipGraphPersonNode): string {
+  return `${node.relation}:${node.displayName.trim().toLocaleLowerCase("zh-TW")}`;
+}
+
+function buildGraphQualitySummary(review: ClientRelationshipGraphReview): RelationshipGraphQualitySummary {
+  const seen = new Set<string>();
+  let duplicateNodeCount = 0;
+
+  for (const node of review.nodes) {
+    if (node.nodeKey === "primary") continue;
+
+    const identity = normalizeGraphNodeIdentity(node);
+    if (seen.has(identity)) {
+      duplicateNodeCount += 1;
+    } else {
+      seen.add(identity);
+    }
+  }
+
+  const nodeCount = review.nodes.length;
+  const edgeCount = review.edges.length;
+  const sizeStatus = nodeCount > RELATIONSHIP_GRAPH_ADVISOR_NODE_LIMIT ? "large" : "compact";
+  const warnings: string[] = [];
+
+  if (sizeStatus === "large") {
+    warnings.push(`關係人已超過建議 ${RELATIONSHIP_GRAPH_ADVISOR_NODE_LIMIT} 位，建議先用下方清單整理重點。`);
+  }
+
+  if (duplicateNodeCount > 0) {
+    warnings.push(`偵測到 ${duplicateNodeCount} 個可能重複的關係人名稱與關係，請用下方清單確認。`);
+  }
+
+  const screenReaderSummary = [
+    `人物關係圖含 ${nodeCount} 個節點與 ${edgeCount} 條關係線。`,
+    "每個節點可用 Tab 聚焦，聚焦後可新增父節點或子節點。",
+    "下方關係人清單提供同一資料的鍵盤與螢幕閱讀 fallback。",
+    `從圖面建立劇場時，角色焦點建議上限為 ${THEATER_FOCUS_ROLE_LIMIT} 位。`,
+    ...warnings,
+  ].join(" ");
+
+  return {
+    duplicateNodeCount,
+    edgeCount,
+    nodeCount,
+    screenReaderSummary,
+    sizeStatus,
+    warnings,
+  };
+}
+
 function getReactFlowNodeId(client: Client, node: RelationshipGraphPersonNode): string {
   if (node.nodeKey === "primary") return client.id;
 
@@ -381,6 +443,11 @@ export function RelationshipMap({ client, graphReview, onAddChild, onAddParent }
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [client, graphReview]
   );
+  const graphQuality = useMemo(
+    () => buildGraphQualitySummary(graphReview ?? buildClientRelationshipGraphReview(client)),
+    [client, graphReview]
+  );
+  const graphSummaryId = React.useId();
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
@@ -393,7 +460,25 @@ export function RelationshipMap({ client, graphReview, onAddChild, onAddParent }
   }, [client, graphReview]);
 
   return (
-    <div className="relative h-[600px] w-full overflow-hidden rounded-xl border border-hairline bg-zinc-50 shadow-none dark:bg-zinc-950">
+    <div
+      aria-describedby={graphSummaryId}
+      aria-label="人物關係圖互動區"
+      className="relative h-[600px] w-full overflow-hidden rounded-xl border border-hairline bg-zinc-50 shadow-none dark:bg-zinc-950"
+      data-relationship-graph-a11y="canvas-with-list-fallback"
+      data-relationship-graph-duplicate-count={graphQuality.duplicateNodeCount}
+      data-relationship-graph-edge-count={graphQuality.edgeCount}
+      data-relationship-graph-node-count={graphQuality.nodeCount}
+      data-relationship-graph-size-status={graphQuality.sizeStatus}
+      data-theater-focus-limit={THEATER_FOCUS_ROLE_LIMIT}
+      role="region"
+    >
+      <p
+        className="sr-only"
+        data-relationship-graph-accessibility-summary=""
+        id={graphSummaryId}
+      >
+        {graphQuality.screenReaderSummary}
+      </p>
       <ReactFlow
         aria-label="人物關係圖互動畫布"
         nodes={nodes}
@@ -431,6 +516,22 @@ export function RelationshipMap({ client, graphReview, onAddChild, onAddParent }
               <span className="text-[9px] text-zinc-500">{label}</span>
             </div>
           ))}
+        </div>
+      </div>
+      <div
+        className="pointer-events-none absolute bottom-4 left-4 right-4 z-10 rounded-xl border border-hairline bg-white/90 p-3 text-xs text-zinc-500 shadow-none backdrop-blur-md dark:bg-zinc-900/90 dark:text-zinc-400 sm:left-auto sm:max-w-[280px]"
+        data-relationship-graph-guardrail-panel=""
+      >
+        <div className="font-bold text-zinc-900 dark:text-zinc-100">
+          圖面 {graphQuality.nodeCount} 人・{graphQuality.edgeCount} 線
+        </div>
+        <div className="mt-1 text-[11px] leading-5">
+          下方清單是鍵盤與螢幕閱讀 fallback；劇場焦點上限 {THEATER_FOCUS_ROLE_LIMIT} 位。
+        </div>
+        <div className="mt-1 text-[11px] leading-5">
+          {graphQuality.warnings.length > 0
+            ? graphQuality.warnings.join(" ")
+            : `目前在建議上限 ${RELATIONSHIP_GRAPH_ADVISOR_NODE_LIMIT} 位內。`}
         </div>
       </div>
     </div>

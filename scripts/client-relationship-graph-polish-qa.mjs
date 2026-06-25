@@ -27,8 +27,18 @@ const clients = {
 
 mkdirSync(screenshotDir, { recursive: true });
 
-await runApiSetupAndProof();
-await runBrowserProof();
+runSourceContractProof();
+
+if (process.env.RELATIONSHIP_GRAPH_POLISH_SOURCE_ONLY === "1") {
+  push(
+    true,
+    "source-only fallback selected",
+    "set RELATIONSHIP_GRAPH_POLISH_SOURCE_ONLY=1 when DB/API target is unavailable",
+  );
+} else {
+  await runApiSetupAndProof();
+  await runBrowserProof();
+}
 
 push(true, "no provider route invoked", "script uses deterministic client/family/relationship graph BFF only");
 
@@ -44,6 +54,23 @@ if (consoleErrors.length > 0) {
 
 if (checks.some((check) => check.status === "fail")) {
   process.exitCode = 1;
+}
+
+function runSourceContractProof() {
+  const source = readFileSync("src/components/crm/RelationshipMap.tsx", "utf8");
+  const fragments = [
+    ["data-relationship-graph-a11y", "RelationshipMap exposes graph a11y/fallback contract"],
+    ["data-relationship-graph-guardrail-panel", "RelationshipMap exposes graph guardrail panel"],
+    ["data-theater-focus-limit", "RelationshipMap marks theater focus limit"],
+    ["RELATIONSHIP_GRAPH_ADVISOR_NODE_LIMIT", "RelationshipMap declares advisor node limit"],
+    ["THEATER_FOCUS_ROLE_LIMIT", "RelationshipMap declares theater role focus limit"],
+    ["aria-describedby", "RelationshipMap links graph region to screen-reader summary"],
+    ["螢幕閱讀 fallback", "RelationshipMap names list fallback for assistive tech"],
+  ];
+
+  for (const [fragment, label] of fragments) {
+    push(source.includes(fragment), label);
+  }
 }
 
 async function runApiSetupAndProof() {
@@ -197,6 +224,10 @@ async function runPageStateProof(context, client, options) {
 
     const pageChecks = await page.evaluate(({ clientId, privateEmailPrefix, privatePhone }) => {
       const text = document.body.innerText;
+      const graphRegion = document.querySelector('[data-relationship-graph-a11y="canvas-with-list-fallback"]');
+      const describedBy = graphRegion?.getAttribute("aria-describedby") ?? "";
+      const describedSummary = describedBy ? document.getElementById(describedBy) : null;
+      const guardrailPanel = document.querySelector("[data-relationship-graph-guardrail-panel]");
       const graphSurfaceText = Array.from(
         document.querySelectorAll(".react-flow, [aria-label='人物關係圖互動畫布']"),
       )
@@ -205,18 +236,51 @@ async function runPageStateProof(context, client, options) {
       return {
         hasReview: text.includes("關係圖來源審查"),
         hasCanvasLabel: Boolean(document.querySelector('[aria-label="人物關係圖互動畫布"]')),
+        hasGraphRegionA11y:
+          graphRegion?.getAttribute("role") === "region" &&
+          Boolean(graphRegion.getAttribute("aria-label")) &&
+          Boolean(describedSummary?.textContent?.includes("螢幕閱讀 fallback")),
         hasNodeGroups: document.querySelectorAll('[role="group"][aria-label^="關係圖節點："]').length > 0,
         edgeCount: document.querySelectorAll(".react-flow__edge").length,
+        graphGuardrailText: guardrailPanel?.textContent ?? "",
+        graphNodeCountAttr: graphRegion?.getAttribute("data-relationship-graph-node-count") ?? "",
+        graphSizeStatus: graphRegion?.getAttribute("data-relationship-graph-size-status") ?? "",
+        graphSummaryText: describedSummary?.textContent ?? "",
         horizontalOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
         hidesRawClientId: !text.includes(clientId),
         graphSurfaceHidesPrivateEmail: !graphSurfaceText.includes(privateEmailPrefix),
         graphSurfaceHidesPrivatePhone: !graphSurfaceText.includes(privatePhone),
         darkTextVisible: text.includes("人物關係圖") && text.includes("關係圖來源審查"),
+        theaterFocusLimit: graphRegion?.getAttribute("data-theater-focus-limit") ?? "",
       };
     }, { clientId: client.id, privateEmailPrefix: qaPrivateEmailPrefix, privatePhone: qaPrivatePhone });
 
     push(pageChecks.hasReview, `${options.label} browser renders source review`);
     push(pageChecks.hasCanvasLabel, `${options.label} browser exposes canvas aria label`);
+    push(pageChecks.hasGraphRegionA11y, `${options.label} browser graph region has a11y summary fallback`);
+    push(
+      pageChecks.graphSummaryText.includes("劇場") && pageChecks.graphSummaryText.includes("fallback"),
+      `${options.label} browser screen-reader summary names theater/fallback boundary`,
+    );
+    push(
+      pageChecks.graphGuardrailText.includes("劇場焦點上限 4 位"),
+      `${options.label} browser guardrail panel displays theater focus limit`,
+    );
+    push(
+      pageChecks.theaterFocusLimit === "4",
+      `${options.label} browser graph exposes theater focus limit attribute`,
+      pageChecks.theaterFocusLimit,
+    );
+    push(
+      ["compact", "large"].includes(pageChecks.graphSizeStatus),
+      `${options.label} browser graph exposes graph size status`,
+      pageChecks.graphSizeStatus,
+    );
+    push(
+      Number.parseInt(pageChecks.graphNodeCountAttr, 10) >= 1,
+      `${options.label} browser graph exposes node count attribute`,
+      pageChecks.graphNodeCountAttr,
+    );
     push(pageChecks.hasNodeGroups, `${options.label} browser exposes focusable graph node groups`);
     push(pageChecks.edgeCount >= options.expectedEdges, `${options.label} browser renders expected graph edge count`, `edges=${pageChecks.edgeCount}`);
     push(!pageChecks.horizontalOverflow, `${options.label} browser has no horizontal overflow`);
@@ -275,7 +339,11 @@ async function createClient(name, annualIncome) {
     status: "ACTIVE",
   });
   const id = response.body?.client?.id ?? "";
-  push(response.status === 201 && Boolean(id), `POST /api/clients creates ${name}`, `status=${response.status} client=${id}`);
+  push(
+    response.status === 201 && Boolean(id),
+    `POST /api/clients creates ${name}`,
+    `status=${response.status} client=${id}${response.error ? ` error=${response.error}` : ""}`,
+  );
   return id;
 }
 
@@ -283,7 +351,11 @@ async function createFamilyMember(clientId, body) {
   const response = await memberRequestJson("POST", `/api/clients/${clientId}/family-members`, body);
   const family = response.body?.client?.family ?? [];
   const member = findLatestMatchingMember(family, body.name, body.relation);
-  push(response.status === 201 && Boolean(member?.id), `POST family member creates ${body.name}`, `status=${response.status}`);
+  push(
+    response.status === 201 && Boolean(member?.id),
+    `POST family member creates ${body.name}`,
+    `status=${response.status}${response.error ? ` error=${response.error}` : ""}`,
+  );
   return member;
 }
 
@@ -325,19 +397,27 @@ function findLatestMatchingMember(family, name, relation) {
 }
 
 async function memberRequestJson(method, path, body) {
-  const response = await fetch(`${baseUrl}${path}`, {
-    method,
-    headers: {
-      "content-type": "application/json",
-      "x-asai-demo-user-email": demoMemberEmail,
-    },
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
+  try {
+    const response = await fetch(`${baseUrl}${path}`, {
+      method,
+      headers: {
+        "content-type": "application/json",
+        "x-asai-demo-user-email": demoMemberEmail,
+      },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
 
-  return {
-    status: response.status,
-    body: await readJson(response),
-  };
+    return {
+      status: response.status,
+      body: await readJson(response),
+    };
+  } catch (error) {
+    return {
+      status: 0,
+      body: null,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
 }
 
 async function readJson(response) {
