@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { spawn } from "node:child_process";
+import { createServer } from "node:net";
 import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { Client as PgClient } from "pg";
@@ -7,7 +8,13 @@ import { Client as PgClient } from "pg";
 loadEnvFile(".env");
 
 const pnpmBin = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
-const baseUrl = process.env.DEMO_QA_BASE_URL ?? "http://localhost:3000";
+const configuredBaseUrl = process.env.DEMO_QA_BASE_URL ?? process.env.LV3_CROSS_FLOW_BASE_URL;
+let baseUrl = configuredBaseUrl ?? `http://127.0.0.1:${readPositiveInteger("LV3_CROSS_FLOW_DEFAULT_PORT", 3085)}`;
+const baseUrlExplicit = Boolean(configuredBaseUrl);
+const publicStatusTimeoutMs = readPositiveInteger("LV3_CROSS_FLOW_STATUS_TIMEOUT_MS", 10_000);
+const serverStartTimeoutMs = readPositiveInteger("LV3_CROSS_FLOW_SERVER_TIMEOUT_MS", 180_000);
+const warmupTimeoutMs = readPositiveInteger("LV3_CROSS_FLOW_WARMUP_TIMEOUT_MS", 45_000);
+const preflightOnly = process.env.LV3_CROSS_FLOW_PREFLIGHT_ONLY === "true";
 const dbUrl = process.env.DIRECT_URL ?? process.env.DATABASE_URL;
 const screenshotDir = resolve(
   process.env.DEMO_QA_SCREENSHOT_DIR ?? "docs/06_audits-and-reports/screenshots/lv3-cross-flow-no-provider",
@@ -152,7 +159,7 @@ try {
     push(true, "LV3 cross-flow coverage filter applied", `${coverageFilter}: ${selectedQaCommands.length}/${qaCommands.length} proof commands selected`);
   }
 
-  if (selectedQaCommands.some((command) => command.requiresDevServer !== false)) {
+  if (preflightOnly || selectedQaCommands.some((command) => command.requiresDevServer !== false)) {
     await ensureDevServer();
   } else {
     push(true, "ASAI dev server skipped for selected coverage", coverageFilter || "all selected commands marked serverless");
@@ -160,8 +167,12 @@ try {
 
   const beforeUsageCount = await countAiUsageLogs();
 
-  for (const command of selectedQaCommands) {
-    await runPnpmScript(command);
+  if (preflightOnly) {
+    push(true, "LV3 cross-flow preflight-only proof completed", `baseUrl=${baseUrl}`);
+  } else {
+    for (const command of selectedQaCommands) {
+      await runPnpmScript(command);
+    }
   }
 
   const afterUsageCount = await countAiUsageLogs();
@@ -170,19 +181,21 @@ try {
   } else {
     push(true, "AiUsageLog count check skipped", aiUsageLogCountSkipReason || "DB URL is unavailable");
   }
-  pushChainSummary(
-    "post-rel-006h-family-profile-bridge",
-    "post-REL-006h family-profile feedback/writeback chain covered",
-  );
-  push(
-    countCoverage(MEETING_REVIEW_CONTEXT_COVERAGE) === MEETING_REVIEW_CONTEXT_EXPECTED_COMMANDS,
-    "meeting reviewContext cross-flow chain covered",
-    `${countCoverage(MEETING_REVIEW_CONTEXT_COVERAGE)}/${MEETING_REVIEW_CONTEXT_EXPECTED_COMMANDS} proof commands passed`,
-  );
-  pushChainSummary("meeting-review-context-cross-flow", "meeting reviewContext visit/theater source chain covered");
-  pushChainSummary("cross-flow-regression", "Route B state proposal cross-flow regression covered");
-  pushChainSummary("protocol-boundary", "AgentFacts/protocol boundary covered");
-  push(true, "LV3 cross-flow proof pack completed", `${selectedQaCommands.length}/${qaCommands.length} proof commands passed`);
+  if (!preflightOnly) {
+    pushChainSummary(
+      "post-rel-006h-family-profile-bridge",
+      "post-REL-006h family-profile feedback/writeback chain covered",
+    );
+    push(
+      countCoverage(MEETING_REVIEW_CONTEXT_COVERAGE) === MEETING_REVIEW_CONTEXT_EXPECTED_COMMANDS,
+      "meeting reviewContext cross-flow chain covered",
+      `${countCoverage(MEETING_REVIEW_CONTEXT_COVERAGE)}/${MEETING_REVIEW_CONTEXT_EXPECTED_COMMANDS} proof commands passed`,
+    );
+    pushChainSummary("meeting-review-context-cross-flow", "meeting reviewContext visit/theater source chain covered");
+    pushChainSummary("cross-flow-regression", "Route B state proposal cross-flow regression covered");
+    pushChainSummary("protocol-boundary", "AgentFacts/protocol boundary covered");
+    push(true, "LV3 cross-flow proof pack completed", `${selectedQaCommands.length}/${qaCommands.length} proof commands passed`);
+  }
 } catch (error) {
   push(false, "LV3 cross-flow proof pack failed", error instanceof Error ? error.message : String(error));
   process.exitCode = 1;
@@ -200,9 +213,47 @@ if (checks.some((check) => check.status === "fail")) {
 }
 
 async function ensureDevServer() {
-  if (await isAsaiAppReachable(baseUrl)) {
-    push(true, "ASAI dev server reachable", baseUrl);
+  const preflight = await probeAsaiPublicStatus(baseUrl, publicStatusTimeoutMs);
+  if (preflight.signatureOk) {
+    push(true, "ASAI public status signature verified before proof pack", `${baseUrl}; ${preflight.detail}`);
+    await warmAsaiApp(baseUrl);
     return;
+  }
+
+  if (!baseUrlExplicit) {
+    const existingAsaiBaseUrl = await findReachableAsaiBaseUrl(["http://127.0.0.1:3000", "http://localhost:3000"]);
+    if (existingAsaiBaseUrl) {
+      push(
+        true,
+        "existing ASAI dev server discovered before spawning new proof server",
+        `${baseUrl} -> ${existingAsaiBaseUrl}`,
+      );
+      baseUrl = existingAsaiBaseUrl;
+      await warmAsaiApp(baseUrl);
+      return;
+    }
+  }
+
+  if (preflight.reachable) {
+    if (baseUrlExplicit) {
+      throw new Error(
+        `Configured ASAI proof base URL is reachable but failed the public-status signature check: ${baseUrl}; ${preflight.detail}`,
+      );
+    }
+
+    const replacementBaseUrl = await findAvailableBaseUrl(baseUrl);
+    push(
+      true,
+      "default proof base URL occupied by non-ASAI app; using free ASAI proof port",
+      `${baseUrl} -> ${replacementBaseUrl}; ${preflight.detail}`,
+    );
+    baseUrl = replacementBaseUrl;
+  } else if (!baseUrlExplicit) {
+    const replacementBaseUrl = await findAvailableBaseUrl(baseUrl);
+    if (replacementBaseUrl !== baseUrl) {
+      push(true, "default proof base URL moved to a free ASAI proof port", `${baseUrl} -> ${replacementBaseUrl}`);
+      baseUrl = replacementBaseUrl;
+    }
   }
 
   const url = new URL(baseUrl);
@@ -222,7 +273,8 @@ async function ensureDevServer() {
   child.stdout.on("data", (chunk) => process.stdout.write(`[dev] ${chunk}`));
   child.stderr.on("data", (chunk) => process.stderr.write(`[dev] ${chunk}`));
 
-  await waitForAsaiApp(baseUrl, 90_000);
+  await waitForAsaiApp(baseUrl, serverStartTimeoutMs);
+  await warmAsaiApp(baseUrl);
   push(true, "ASAI dev server started for proof pack", baseUrl);
 }
 
@@ -261,18 +313,17 @@ function runCommand(command, args, env) {
   });
 }
 
-async function isAsaiAppReachable(url) {
+async function probeAsaiPublicStatus(url, timeoutMs) {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 2500);
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const response = await fetch(withPath(url, "/api/public/status"), {
       method: "GET",
       signal: controller.signal,
     });
-    if (response.status !== 200) return false;
-
     const body = await response.json().catch(() => null);
-    return Boolean(
+    const signatureOk = Boolean(
+      response.status === 200 &&
       body &&
         typeof body === "object" &&
         body.version === "asai.public_status.v1" &&
@@ -280,8 +331,21 @@ async function isAsaiAppReachable(url) {
         "checkoutAvailability" in body &&
         "legalStatus" in body,
     );
+    const version =
+      body && typeof body === "object" && "version" in body && typeof body.version === "string"
+        ? body.version
+        : "missing";
+    return {
+      reachable: true,
+      signatureOk,
+      detail: `status=${response.status} version=${version}`,
+    };
   } catch {
-    return false;
+    return {
+      reachable: false,
+      signatureOk: false,
+      detail: "unreachable_or_timeout",
+    };
   } finally {
     clearTimeout(timeout);
   }
@@ -289,12 +353,86 @@ async function isAsaiAppReachable(url) {
 
 async function waitForAsaiApp(url, timeoutMs) {
   const startedAt = Date.now();
+  let lastDetail = "not_checked";
   while (Date.now() - startedAt < timeoutMs) {
-    if (await isAsaiAppReachable(url)) return;
+    const probe = await probeAsaiPublicStatus(url, publicStatusTimeoutMs);
+    if (probe.signatureOk) {
+      push(true, "ASAI public status signature verified after dev-server start", `${url}; ${probe.detail}`);
+      return;
+    }
+    lastDetail = probe.detail;
     await delay(1000);
   }
 
-  throw new Error(`Timed out waiting for ASAI public status at ${withPath(url, "/api/public/status")}`);
+  throw new Error(
+    `Timed out waiting for ASAI public status at ${withPath(url, "/api/public/status")} after ${timeoutMs}ms; last=${lastDetail}`,
+  );
+}
+
+async function warmAsaiApp(url) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), warmupTimeoutMs);
+  let detail = "not_attempted";
+  try {
+    const response = await fetch(withPath(url, "/"), {
+      method: "GET",
+      signal: controller.signal,
+    });
+    detail = `root_status=${response.status}`;
+  } catch {
+    detail = "root_unreachable_or_timeout";
+  } finally {
+    clearTimeout(timeout);
+  }
+
+  push(true, "ASAI app root warmup attempted before proof pack", detail);
+
+  const probe = await probeAsaiPublicStatus(url, publicStatusTimeoutMs);
+  if (!probe.signatureOk) {
+    throw new Error(`ASAI public status signature missing after warmup at ${url}; ${probe.detail}`);
+  }
+  push(true, "ASAI public status signature verified after warmup", `${url}; ${probe.detail}`);
+}
+
+async function findReachableAsaiBaseUrl(candidateUrls) {
+  for (const candidateUrl of candidateUrls) {
+    const probe = await probeAsaiPublicStatus(candidateUrl, publicStatusTimeoutMs);
+    if (probe.signatureOk) return candidateUrl;
+  }
+
+  return null;
+}
+
+async function findAvailableBaseUrl(url) {
+  const target = new URL(url);
+  const protocol = target.protocol || "http:";
+  const host = target.hostname === "localhost" ? "127.0.0.1" : target.hostname;
+  const startingPort = Number(target.port || (protocol === "https:" ? "443" : "3000"));
+
+  for (let offset = 0; offset < 30; offset += 1) {
+    const candidatePort = startingPort + offset;
+    if (await canBindPort(host, candidatePort)) {
+      target.hostname = host;
+      target.port = String(candidatePort);
+      target.pathname = "";
+      target.search = "";
+      target.hash = "";
+      return target.toString().replace(/\/$/, "");
+    }
+  }
+
+  throw new Error(`No free ASAI proof port found near ${url}; set DEMO_QA_BASE_URL to a free localhost URL.`);
+}
+
+function canBindPort(host, port) {
+  return new Promise((resolvePromise) => {
+    const server = createServer();
+    server.once("error", () => resolvePromise(false));
+    server.once("listening", () => {
+      server.close(() => resolvePromise(true));
+    });
+    server.listen(port, host);
+  });
 }
 
 function withPath(url, pathname) {
@@ -377,6 +515,13 @@ function safeErrorCode(error) {
   }
 
   return "unavailable";
+}
+
+function readPositiveInteger(name, fallback) {
+  const rawValue = process.env[name];
+  if (!rawValue) return fallback;
+  const value = Number(rawValue);
+  return Number.isFinite(value) && value > 0 ? Math.round(value) : fallback;
 }
 
 function loadEnvFile(path) {
