@@ -84,11 +84,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 4,
-    "lastWholeProductReviewAt": "2026-06-25T13:42:16Z",
-    "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-25_lv3-whole-product-gap-review-after-graph-polish-db-regression.md",
+    "normalLoopsSinceLastWholeProductReview": 0,
+    "lastWholeProductReviewAt": "2026-06-25T15:37:20Z",
+    "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-25_lv3-whole-product-gap-review-after-route-b-source-and-edge-persistence.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "Route B meeting-signal source-type visible browser harness proof is complete for desktop/mobile source chips, card-level source type, redacted raw-looking source type, no horizontal overflow, no provider, no fake AiUsageLog, and no graph/VisitPlan/confirmed CRM writes. Cadence is now 4 normal loops since the last whole-product review, so the next heartbeat should run the whole-product gap review prompt first; re-check DB DNS during review, then either rerun full DB-backed graph/cross-flow evidence if connectivity is recovered or pick the next safe no-DB source-backed slice after review.",
+    "nextRecommendedImplementationSlice": "REL-004 formal RelationshipEdge persistence proof convergence: the worktree now contains RelationshipEdge schema/repository/API/QA source and ACC-016 marks most D1 items complete, so the next normal loop should isolate and validate this formal edge path instead of continuing shadow/no-schema proof. First re-check DB DNS; if recovered, run the live HTTP proof `DEMO_QA_BASE_URL=http://127.0.0.1:<asai-port> pnpm client:relationship-edge-persistence-qa` plus graph/cross-flow follow-up. If DB remains ENOTFOUND, add or run a source-only formal RelationshipEdge route/repository QA proving authz scope, metadata allowlist, no private sentinel, no provider, and no confirmed CRM fact write, and explicitly defer live HTTP/DB proof. Do not stage unrelated dirty files.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {
@@ -156,5 +156,5 @@
     "lv3ImmersiveLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-immersive-loop.md",
     "lv3WholeProductGapReviewLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md"
   },
-  "updatedAt": "2026-06-25T15:12:44Z"
+  "updatedAt": "2026-06-25T15:37:20Z"
 }
