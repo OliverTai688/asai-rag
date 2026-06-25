@@ -75,6 +75,7 @@ const sourceAdoptionRequirements: Record<string, { ownerRefs: string[]; evidence
       "buildVisitRelationshipConfirmationDeck",
       "buildVisitRelationshipConfirmationStateBoundary",
       "buildVisitMeetingRelationshipSignalDeck",
+      "meetingQuickNoteWritebackBridgeToRelationshipSignal",
       "getVisitMeetingRelationshipSignalDeckForMember",
       "relationship-graph-prep-confirmation-cards",
       "relationship-confirmation-card-state-boundary",
@@ -89,6 +90,7 @@ const sourceAdoptionRequirements: Record<string, { ownerRefs: string[]; evidence
       "VisitRelationshipConfirmationStateBoundary.proof.persistedToDatabase=false",
       "VisitRelationshipConfirmationStateBoundary.proof.writesConfirmedCrmFact=false",
       "VisitMeetingRelationshipSignalDeck.writebackBoundary.currentPersistence=deterministic-preview-only",
+      "VisitMeetingRelationshipSignalInput.sourceType=MEETING_QUICK_NOTE_WRITEBACK_BRIDGE",
       "VisitMeetingRelationshipSignalBffDto.summary.writebackReviewContextSignalCount",
       "VisitMeetingRelationshipSignalDeck.proof.writesConfirmedCrmFact=false",
       "VisitMeetingRelationshipSignalBffDto.proof.browserSuppliedSessionId=false",
@@ -1338,6 +1340,10 @@ function assertVisitMeetingRelationshipSignal(manifests: AgentProtocolManifest[]
     "visit manifest input DTOs include VisitMeetingRelationshipSignalInput",
   );
   push(
+    manifest.schemas.inputDtoRefs.includes("VisitMeetingQuickNoteWritebackBridgeDto"),
+    "visit manifest input DTOs include VisitMeetingQuickNoteWritebackBridgeDto",
+  );
+  push(
     manifest.schemas.inputDtoRefs.includes("MeetingWritebackCandidate"),
     "visit manifest input DTOs include MeetingWritebackCandidate",
   );
@@ -1370,6 +1376,12 @@ function assertVisitMeetingRelationshipSignal(manifests: AgentProtocolManifest[]
       "VisitMeetingRelationshipSignalDeck.writebackBoundary.currentPersistence=deterministic-preview-only",
     ),
     "visit manifest evidence includes deterministic preview boundary",
+  );
+  push(
+    manifest.schemas.evidenceDtoRefs.includes(
+      "VisitMeetingRelationshipSignalInput.sourceType=MEETING_QUICK_NOTE_WRITEBACK_BRIDGE",
+    ),
+    "visit manifest evidence includes quick-note writeback bridge source type",
   );
   push(
     manifest.schemas.evidenceDtoRefs.includes("VisitMeetingRelationshipSignalInput.sourceType=MEETING_WRITEBACK_REVIEW_CONTEXT"),
@@ -1429,6 +1441,7 @@ function assertVisitMeetingRelationshipSignal(manifests: AgentProtocolManifest[]
   ];
   const requiredEvidenceRefs = [
     "buildVisitMeetingRelationshipSignalDeck",
+    "meetingQuickNoteWritebackBridgeToRelationshipSignal",
     "meetingWritebackCandidateToRelationshipSignal",
     "meetingWritebackCandidateReviewContextToRelationshipSignals",
     "getVisitMeetingRelationshipSignalDeckForMember",
@@ -1436,6 +1449,7 @@ function assertVisitMeetingRelationshipSignal(manifests: AgentProtocolManifest[]
     "MEETING_WRITEBACK_REVIEW_CONTEXT",
     "meeting-notes-relationship-confirmation-signal",
     "VisitMeetingRelationshipSignalDeck.writebackBoundary.currentPersistence=deterministic-preview-only",
+    "VisitMeetingRelationshipSignalInput.sourceType=MEETING_QUICK_NOTE_WRITEBACK_BRIDGE",
     "VisitMeetingRelationshipSignalInput.sourceType=MEETING_WRITEBACK_REVIEW_CONTEXT",
     "MeetingWritebackCandidate.reviewContext=MeetingWritebackCandidateReviewContext[]",
     "MeetingWritebackCandidateReviewContext.requiresAdvisorConfirmation=true",

@@ -1,6 +1,7 @@
 import type { MeetingWritebackCandidate } from "../src/domains/interview/meeting-writeback-boundary";
 import {
   buildVisitMeetingRelationshipSignalDeck,
+  meetingQuickNoteWritebackBridgeToRelationshipSignal,
   meetingWritebackCandidateReviewContextToRelationshipSignals,
   meetingWritebackCandidateToRelationshipSignal,
 } from "../src/domains/visit/meeting-relationship-signal";
@@ -9,6 +10,29 @@ const emailSentinel = "meeting.relationship.signal@example.com";
 const phoneSentinel = "0912-888-777";
 const policySentinel = "保單號 AB12345678";
 const now = "2026-06-23T07:58:47.889Z";
+
+const quickNoteWritebackBridge = {
+  sourceActionId: "visit-meeting-quick-note-writeback-bridge",
+  status: "summary_required",
+  acceptedWorkspaceHref: "/pre-visit/visit_plan_meeting_relationship_signal/meeting",
+  targetSurface: "/pre-visit/[planId]/meeting",
+  summaryEndpointPattern: "/api/ai/meeting/sessions/[sessionId]/summary",
+  writebackEndpointPattern: "/api/ai/meeting/sessions/[sessionId]/writebacks",
+  requirements: {
+    persistedSummaryRequired: true,
+    advisorConfirmationRequired: true,
+    reasonRiskAcceptedForSensitive: true,
+  },
+  safety: {
+    providerCallAttempted: false,
+    aiUsageLogRequired: false,
+    browserSuppliedSessionId: false,
+    rawPrivateTranscriptStored: false,
+    storesRawProviderPayload: false,
+    writesConfirmedCrmFact: false,
+    directCrmWriteDisabled: true,
+  },
+} as const;
 
 const writebackCandidate: MeetingWritebackCandidate = {
   id: "candidate-spouse-decision-context",
@@ -77,6 +101,11 @@ const deck = buildVisitMeetingRelationshipSignalDeck({
       dataClass: "CONFIRMED",
       sourceReferenceIds: ["visit-meeting-quick-note.turn-1", emailSentinel],
     },
+    meetingQuickNoteWritebackBridgeToRelationshipSignal(quickNoteWritebackBridge, {
+      id: "quick-note-writeback-bridge",
+      quickNoteTurnId: "turn-quick-note-1",
+      meetingSessionId: "meeting-session-source-owned",
+    }),
     meetingWritebackCandidateToRelationshipSignal(writebackCandidate),
     ...meetingWritebackCandidateReviewContextToRelationshipSignals(writebackCandidate),
     {
@@ -85,13 +114,6 @@ const deck = buildVisitMeetingRelationshipSignalDeck({
       text: `是否要確認收入與 ${policySentinel} 的保費壓力？ raw private transcript should not leak`,
       dataClass: "UNKNOWN",
       sourceReferenceIds: ["meeting-question.income"],
-    },
-    {
-      id: "action-follow-up",
-      sourceType: "MEETING_ACTION_ITEM",
-      text: "下次拜訪請確認小孩教育金與受益人安排。",
-      dataClass: "UNKNOWN",
-      sourceReferenceIds: ["meeting-action.education"],
     },
   ],
 });
@@ -118,6 +140,9 @@ if (deck.writebackBoundary.writesVisitPlan) failures.push("must not write visit 
 if (!deck.writebackBoundary.requiresAdvisorConfirmation) failures.push("advisor confirmation should be required");
 if (!deck.writebackBoundary.acceptedSourceTypes.includes("MEETING_QUICK_NOTE")) {
   failures.push("quick note source should be accepted");
+}
+if (!deck.writebackBoundary.acceptedSourceTypes.includes("MEETING_QUICK_NOTE_WRITEBACK_BRIDGE")) {
+  failures.push("quick note writeback bridge source should be accepted");
 }
 if (!deck.writebackBoundary.acceptedSourceTypes.includes("MEETING_WRITEBACK_REVIEW_CONTEXT")) {
   failures.push("meeting writeback review context source should be accepted");
@@ -148,8 +173,17 @@ if (!deck.cards.some((card) => card.sourceReferenceIds.includes("meeting-memory.
 if (!deck.cards.some((card) => card.sourceType === "MEETING_WRITEBACK_REVIEW_CONTEXT")) {
   failures.push("meeting writeback review context cards missing");
 }
+if (!deck.cards.some((card) => card.sourceType === "MEETING_QUICK_NOTE_WRITEBACK_BRIDGE")) {
+  failures.push("quick note writeback bridge card missing");
+}
 if (!deck.cards.some((card) => card.sourceReferenceIds.includes("meeting-writeback-review-context.ctx-spouse-decision"))) {
   failures.push("meeting writeback review context source reference missing");
+}
+if (!deck.cards.some((card) => card.sourceReferenceIds.includes("direct-crm-write-disabled"))) {
+  failures.push("quick note bridge direct CRM write boundary missing");
+}
+if (!deck.cards.some((card) => card.sourceReferenceIds.includes("browser-session-id-disabled"))) {
+  failures.push("quick note bridge browser session id boundary missing");
 }
 if (!deck.cards.some((card) => card.recommendedAction === "ASK_IN_NEXT_VISIT")) {
   failures.push("unknown meeting signals should become next-visit questions");

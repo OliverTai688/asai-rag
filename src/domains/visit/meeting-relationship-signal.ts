@@ -7,6 +7,7 @@ import type { VisitQuestionEvidenceStatus } from "./types";
 
 export type VisitMeetingRelationshipSignalSourceType =
   | "MEETING_QUICK_NOTE"
+  | "MEETING_QUICK_NOTE_WRITEBACK_BRIDGE"
   | "MEETING_SUMMARY_DECISION"
   | "MEETING_ACTION_ITEM"
   | "MEETING_OPEN_QUESTION"
@@ -26,6 +27,29 @@ export interface VisitMeetingRelationshipSignalInput {
   text: string;
   dataClass?: MeetingDataClass | VisitQuestionEvidenceStatus;
   sourceReferenceIds?: string[];
+}
+
+export interface VisitMeetingQuickNoteWritebackBridgeSignalInput {
+  sourceActionId: "visit-meeting-quick-note-writeback-bridge";
+  status: "summary_required";
+  acceptedWorkspaceHref: string;
+  targetSurface: "/pre-visit/[planId]/meeting";
+  summaryEndpointPattern: "/api/ai/meeting/sessions/[sessionId]/summary";
+  writebackEndpointPattern: "/api/ai/meeting/sessions/[sessionId]/writebacks";
+  requirements: {
+    persistedSummaryRequired: true;
+    advisorConfirmationRequired: true;
+    reasonRiskAcceptedForSensitive: true;
+  };
+  safety: {
+    providerCallAttempted: false;
+    aiUsageLogRequired: false;
+    browserSuppliedSessionId: false;
+    rawPrivateTranscriptStored: false;
+    storesRawProviderPayload: false;
+    writesConfirmedCrmFact: false;
+    directCrmWriteDisabled: true;
+  };
 }
 
 export interface VisitMeetingRelationshipSignalCard {
@@ -95,6 +119,7 @@ export interface BuildVisitMeetingRelationshipSignalDeckInput {
 
 export const VISIT_MEETING_RELATIONSHIP_SIGNAL_SOURCE_TYPES = [
   "MEETING_QUICK_NOTE",
+  "MEETING_QUICK_NOTE_WRITEBACK_BRIDGE",
   "MEETING_SUMMARY_DECISION",
   "MEETING_ACTION_ITEM",
   "MEETING_OPEN_QUESTION",
@@ -143,6 +168,7 @@ const RAW_PAYLOAD_PATTERN = /\braw\s+(?:provider\s+payload|private\s+transcript)
 
 const SOURCE_LABELS: Record<VisitMeetingRelationshipSignalSourceType, string> = {
   MEETING_QUICK_NOTE: "會議快記",
+  MEETING_QUICK_NOTE_WRITEBACK_BRIDGE: "會議快記寫回橋接",
   MEETING_SUMMARY_DECISION: "會議摘要決議",
   MEETING_ACTION_ITEM: "會議待辦",
   MEETING_OPEN_QUESTION: "會議未解問題",
@@ -223,6 +249,37 @@ export function meetingWritebackCandidateToRelationshipSignal(
       ...candidate.citationTurnIds.map((turnId) => `meeting-turn.${turnId}`),
       ...candidate.supportingMemoryIds.map((memoryId) => `meeting-memory.${memoryId}`),
     ],
+  };
+}
+
+export function meetingQuickNoteWritebackBridgeToRelationshipSignal(
+  bridge: VisitMeetingQuickNoteWritebackBridgeSignalInput,
+  input: {
+    id: string;
+    quickNoteTurnId?: string;
+    meetingSessionId?: string;
+  },
+): VisitMeetingRelationshipSignalInput {
+  return {
+    id: input.id,
+    sourceType: "MEETING_QUICK_NOTE_WRITEBACK_BRIDGE",
+    text: [
+      "會議快記已同步至 accepted CLIENT_MEETING 工作台",
+      "需先生成會議摘要，再由顧問檢視寫回卡",
+      "敏感內容需理由或風險接受",
+      "不得直接寫入 CRM confirmed fact 或關係圖",
+    ].join("。"),
+    dataClass: "UNKNOWN",
+    sourceReferenceIds: [
+      bridge.sourceActionId,
+      `meeting-workspace.${bridge.targetSurface}`,
+      `meeting-summary-endpoint.${bridge.summaryEndpointPattern}`,
+      `meeting-writeback-endpoint.${bridge.writebackEndpointPattern}`,
+      input.quickNoteTurnId ? `meeting-turn.${input.quickNoteTurnId}` : "",
+      input.meetingSessionId ? `meeting-session.${input.meetingSessionId}` : "",
+      bridge.safety.directCrmWriteDisabled ? "direct-crm-write-disabled" : "",
+      bridge.safety.browserSuppliedSessionId === false ? "browser-session-id-disabled" : "",
+    ].filter(Boolean),
   };
 }
 
