@@ -8,6 +8,7 @@ const files = {
   sessionPage: "src/app/(dashboard)/theater/[sessionId]/page.tsx",
   handoffDomain: "src/domains/theater/route-b-handoff.ts",
   sourceRenderDomain: "src/domains/theater/route-b-meeting-signal-source-render.ts",
+  sourceRenderDryRun: "scripts/theater-meeting-signal-source-render-dry-run.ts",
   sessionDomain: "src/domains/theater/route-b-session.ts",
   nextTurnDomain: "src/domains/theater/route-b-next-turn.ts",
   boundary: "src/lib/theater/route-b-boundary.ts",
@@ -81,6 +82,16 @@ expect(
     source.sourceRenderDomain.includes("rawPrivateTranscriptIncluded: false") &&
     source.sourceRenderDomain.includes("rawProviderPayloadIncluded: false") &&
     source.sourceRenderDomain.includes("writesConfirmedCrmFact: false"),
+);
+expect(
+  "meeting signal browser harness covers source-type chips, mobile, overflow, and raw sentinel exclusion",
+  source.sourceRenderDryRun.includes('assertBrowserViewport(browser, renderModel, "desktop"') &&
+    source.sourceRenderDryRun.includes('assertBrowserViewport(browser, renderModel, "mobile"') &&
+    source.sourceRenderDryRun.includes("browser harness renders quick-note bridge source-type chip") &&
+    source.sourceRenderDryRun.includes("browser harness has no horizontal overflow") &&
+    source.sourceRenderDryRun.includes("browser harness excludes raw source sentinels") &&
+    source.sourceRenderDryRun.includes("data-route-b-meeting-signal-source-type-chip") &&
+    source.sourceRenderDryRun.includes("data-route-b-meeting-signal-card-source-type"),
 );
 expect(
   "Route B persistence QA covers create/read/DB meeting grounding proof",
