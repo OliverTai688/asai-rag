@@ -24,13 +24,17 @@ export async function POST(req: Request, ctx: FamilyMemberRouteContext) {
       );
     }
 
-    const client = await createFamilyMemberForClient(session, id, parsedBody.data);
+    const result = await createFamilyMemberForClient(session, id, parsedBody.data);
 
-    if (!client) {
+    if (!result) {
       return Response.json({ error: "CLIENT_NOT_FOUND" }, { status: 404 });
     }
 
-    return Response.json({ client }, { status: 201 });
+    if ("error" in result) {
+      return Response.json({ error: result.error }, { status: 400 });
+    }
+
+    return Response.json({ client: result }, { status: 201 });
   } catch (error) {
     return authErrorResponse(error);
   }

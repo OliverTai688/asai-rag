@@ -63,6 +63,45 @@ export const RELATION_GROUPS = {
   其他: ["親戚", "朋友", "合作夥伴", "其他"] as RelationshipType[],
 };
 
+const RELATION_TYPE_SET = new Set<string>(Object.values(RELATION_GROUPS).flat());
+
+const RELATION_ALIASES: Record<string, RelationshipType> = {
+  爸爸: "父",
+  爸: "父",
+  父親: "父",
+  媽媽: "母",
+  媽: "母",
+  母親: "母",
+  老公: "配偶",
+  丈夫: "配偶",
+  先生: "配偶",
+  老婆: "配偶",
+  太太: "配偶",
+  妻子: "配偶",
+  兒子: "子",
+  兒: "子",
+  女兒: "女",
+  女子: "女",
+};
+
+export function normalizeRelationshipType(relation: string): RelationshipType {
+  const trimmed = relation.trim();
+
+  if (RELATION_TYPE_SET.has(trimmed)) {
+    return trimmed as RelationshipType;
+  }
+
+  return RELATION_ALIASES[trimmed] ?? "其他";
+}
+
+export function hasKnownRelationGeneration(relation: string): boolean {
+  return Object.prototype.hasOwnProperty.call(RELATION_GENERATION, normalizeRelationshipType(relation));
+}
+
+export function getRelationGeneration(relation: string): number {
+  return RELATION_GENERATION[normalizeRelationshipType(relation)] ?? 0;
+}
+
 export interface FamilyMember {
   id: string;
   relation: RelationshipType | string;

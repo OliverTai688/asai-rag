@@ -1,4 +1,4 @@
-import { RELATION_GENERATION, type Client, type FamilyMember } from "./types";
+import { getRelationGeneration, type Client, type FamilyMember } from "./types";
 import type { RelationshipGraphEdgeType, RelationshipGraphFactStatus } from "./relationship-graph";
 
 export type RelationshipEdgeShadowDerivedFrom =
@@ -321,7 +321,7 @@ function buildRootConnectedDraftInput(
     });
   }
 
-  const generation = RELATION_GENERATION[member.relation] ?? 0;
+  const generation = getRelationGeneration(member.relation);
 
   if (generation < 0) {
     return noWarningDraft({

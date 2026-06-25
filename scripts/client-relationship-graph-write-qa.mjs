@@ -65,6 +65,90 @@ async function runApiProof() {
   );
   push(invalidCreate.status === 400, "POST family member missing name returns 400", `status=${invalidCreate.status}`);
 
+  const missingParentCreate = await memberRequestJson(
+    "POST",
+    `/api/clients/${createdClientId}/family-members`,
+    {
+      name: `${qaStamp} 不存在父節點`,
+      relation: "子",
+      parentMemberId: "fm_missing_parent_for_rel_007",
+    },
+  );
+  push(
+    missingParentCreate.status === 400 && missingParentCreate.body?.error === "FAMILY_MEMBER_PARENT_NOT_FOUND",
+    "POST rejects dangling parentMemberId",
+    `status=${missingParentCreate.status} error=${missingParentCreate.body?.error ?? ""}`,
+  );
+
+  const foreignClient = await createClient("foreign");
+  const foreignParent = foreignClient.id
+    ? await createFamilyMember(foreignClient.id, {
+        name: `${qaStamp} 跨客戶父節點`,
+        relation: "父",
+        age: 70,
+      })
+    : { member: null };
+  const validPostChildWithParent = foreignClient.id && foreignParent.member?.id
+    ? await createFamilyMember(foreignClient.id, {
+        name: `${qaStamp} POST 父子節點`,
+        relation: "子",
+        age: 9,
+        parentMemberId: foreignParent.member.id,
+      })
+    : { member: null };
+  push(
+    validPostChildWithParent.member?.parentMemberId === foreignParent.member?.id,
+    "POST persists valid parentMemberId in returned client DTO",
+  );
+  const crossClientParentCreate = await memberRequestJson(
+    "POST",
+    `/api/clients/${createdClientId}/family-members`,
+    {
+      name: `${qaStamp} 跨客戶子節點`,
+      relation: "子",
+      parentMemberId: foreignParent.member?.id ?? "fm_missing_cross_client_parent",
+    },
+  );
+  push(
+    crossClientParentCreate.status === 400 && crossClientParentCreate.body?.error === "FAMILY_MEMBER_PARENT_NOT_FOUND",
+    "POST rejects cross-client parentMemberId without leaking parent ownership",
+    `status=${crossClientParentCreate.status} error=${crossClientParentCreate.body?.error ?? ""}`,
+  );
+
+  const aliasCreate = await memberRequestJson(
+    "POST",
+    `/api/clients/${createdClientId}/family-members`,
+    {
+      name: `${qaStamp} 同義詞父節點`,
+      relation: "爸爸",
+      age: 68,
+    },
+  );
+  const aliasMember = aliasCreate.body?.client?.family?.find((member) => member.name === `${qaStamp} 同義詞父節點`);
+  push(
+    aliasCreate.status === 201 && aliasMember?.relation === "父",
+    "POST normalizes relation aliases before persistence",
+    `status=${aliasCreate.status} relation=${aliasMember?.relation ?? ""}`,
+  );
+
+  const unknownRelationCreate = await memberRequestJson(
+    "POST",
+    `/api/clients/${createdClientId}/family-members`,
+    {
+      name: `${qaStamp} 未知關係節點`,
+      relation: "乾親",
+      age: 52,
+    },
+  );
+  const unknownRelationMember = unknownRelationCreate.body?.client?.family?.find(
+    (member) => member.name === `${qaStamp} 未知關係節點`,
+  );
+  push(
+    unknownRelationCreate.status === 201 && unknownRelationMember?.relation === "其他",
+    "POST normalizes unsupported relation to explicit UNKNOWN-generation relation",
+    `status=${unknownRelationCreate.status} relation=${unknownRelationMember?.relation ?? ""}`,
+  );
+
   const rootElder = await createFamilyMember(createdClientId, {
     name: `${qaStamp} 直接父節點`,
     relation: "父",
@@ -276,11 +360,12 @@ async function runBrowserProof() {
   }
 }
 
-async function createClient() {
-  const name = `${qaStamp} 客戶`;
+async function createClient(label = "client") {
+  const name = `${qaStamp} ${label} 客戶`;
+  const emailLabel = label.replace(/[^a-z0-9]+/gi, "").toLowerCase() || "client";
   const client = await memberRequestJson("POST", "/api/clients", {
     name,
-    email: `relationship-write-${Date.now()}@asai.local`,
+    email: `relationship-write-${Date.now()}-${emailLabel}@asai.local`,
     phone: "0912-771-662",
     occupation: "家族企業負責人",
     annualIncome: 5800000,

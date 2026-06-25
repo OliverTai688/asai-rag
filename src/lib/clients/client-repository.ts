@@ -5,6 +5,7 @@ import {
   familyMemberProfileInputSchema,
   mergeFamilyMemberProfileIntoMetadata,
 } from "@/domains/client/family-member-profile";
+import { normalizeRelationshipType } from "@/domains/client/types";
 import { canReadClientDetail, canWriteClient } from "@/lib/auth/policies";
 import type { AppSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
@@ -48,6 +49,11 @@ export type UpdateClientInput = z.infer<typeof updateClientInputSchema>;
 export type CreateFamilyMemberInput = z.infer<typeof createFamilyMemberInputSchema>;
 export type UpdateFamilyMemberInput = z.infer<typeof updateFamilyMemberInputSchema>;
 export type CreatePolicyInput = z.infer<typeof createPolicyInputSchema>;
+
+type FamilyMemberParentValidationError =
+  | "FAMILY_MEMBER_PARENT_NOT_FOUND"
+  | "FAMILY_MEMBER_PARENT_SELF"
+  | "FAMILY_MEMBER_PARENT_CYCLE";
 
 const clientInclude = {
   complianceChecklist: true,
@@ -201,14 +207,25 @@ export async function createFamilyMemberForClient(
     return null;
   }
 
+  const members = await prisma.familyMember.findMany({
+    where: { clientId },
+    select: { id: true, parentMemberId: true },
+  });
+  const nextParentMemberId = input.parentMemberId?.trim() || null;
+  const parentValidationError = validateFamilyParentMemberId(members, null, nextParentMemberId);
+
+  if (parentValidationError) {
+    return { error: parentValidationError };
+  }
+
   await prisma.familyMember.create({
     data: {
       clientId,
       name: input.name,
-      relation: input.relation,
+      relation: normalizeRelationshipType(input.relation),
       age: input.age ?? null,
       phone: input.phone || null,
-      parentMemberId: input.parentMemberId || null,
+      parentMemberId: nextParentMemberId,
       ...(input.profile !== undefined
         ? { metadata: toNullableInputJson(mergeFamilyMemberProfileIntoMetadata(null, input.profile) ?? null) }
         : {}),
@@ -244,14 +261,10 @@ export async function updateFamilyMemberForClient(
     input.parentMemberId === undefined ? undefined : input.parentMemberId.trim() || null;
 
   if (nextParentMemberId !== undefined) {
-    if (nextParentMemberId === memberId) {
-      return { error: "FAMILY_MEMBER_PARENT_SELF" as const };
-    }
-    if (nextParentMemberId && !members.some((member) => member.id === nextParentMemberId)) {
-      return { error: "FAMILY_MEMBER_PARENT_NOT_FOUND" as const };
-    }
-    if (nextParentMemberId && wouldCreateFamilyCycle(members, memberId, nextParentMemberId)) {
-      return { error: "FAMILY_MEMBER_PARENT_CYCLE" as const };
+    const parentValidationError = validateFamilyParentMemberId(members, memberId, nextParentMemberId);
+
+    if (parentValidationError) {
+      return { error: parentValidationError };
     }
   }
 
@@ -260,7 +273,7 @@ export async function updateFamilyMemberForClient(
       where: { id: memberId },
       data: {
         ...(input.name !== undefined ? { name: input.name } : {}),
-        ...(input.relation !== undefined ? { relation: input.relation } : {}),
+        ...(input.relation !== undefined ? { relation: normalizeRelationshipType(input.relation) } : {}),
         ...(input.age !== undefined ? { age: input.age ?? null } : {}),
         ...(input.phone !== undefined ? { phone: input.phone || null } : {}),
         ...(nextParentMemberId !== undefined ? { parentMemberId: nextParentMemberId } : {}),
@@ -380,6 +393,28 @@ function wouldCreateFamilyCycle(
   }
 
   return false;
+}
+
+function validateFamilyParentMemberId(
+  members: Array<{ id: string; parentMemberId: string | null }>,
+  memberId: string | null,
+  proposedParentId: string | null,
+): FamilyMemberParentValidationError | null {
+  if (!proposedParentId) return null;
+
+  if (memberId && proposedParentId === memberId) {
+    return "FAMILY_MEMBER_PARENT_SELF";
+  }
+
+  if (!members.some((member) => member.id === proposedParentId)) {
+    return "FAMILY_MEMBER_PARENT_NOT_FOUND";
+  }
+
+  if (memberId && wouldCreateFamilyCycle(members, memberId, proposedParentId)) {
+    return "FAMILY_MEMBER_PARENT_CYCLE";
+  }
+
+  return null;
 }
 
 function toNullableInputJson(

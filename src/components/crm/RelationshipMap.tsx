@@ -20,7 +20,7 @@ import {
   type RelationshipGraphFactStatus,
   type RelationshipGraphPersonNode,
 } from "@/domains/client/relationship-graph";
-import { Client, RELATION_GENERATION } from "@/domains/client/types";
+import { Client, getRelationGeneration } from "@/domains/client/types";
 import { Users, User, Heart, Baby, Star, Crown, Smile, UserPlus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { applyDagreLayout } from "@/lib/graph-layout";
@@ -42,7 +42,7 @@ function getGenerationStyle(generation: number) {
 function getNodeIcon(relation: string, isRoot: boolean, iconClass: string) {
   if (isRoot) return <Star className={cn("w-5 h-5", "text-[#1565C0]")} />;
   if (relation === "配偶") return <Heart className={cn("w-5 h-5", "text-rose-500")} />;
-  const gen = RELATION_GENERATION[relation] ?? 0;
+  const gen = getRelationGeneration(relation);
   if (gen <= -2) return <Crown className={cn("w-5 h-5", iconClass)} />;
   if (gen === 1) return <Baby className={cn("w-5 h-5", iconClass)} />;
   if (gen >= 2) return <Smile className={cn("w-5 h-5", iconClass)} />;

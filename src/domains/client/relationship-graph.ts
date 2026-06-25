@@ -1,4 +1,4 @@
-import { RELATION_GENERATION, type Client, type FamilyMember } from "./types";
+import { getRelationGeneration, type Client, type FamilyMember } from "./types";
 import type { FamilyMemberProfile, FamilyMemberProfileField } from "./family-member-profile";
 
 export type RelationshipGraphFactStatus = "FACT" | "INFERENCE" | "UNKNOWN";
@@ -322,7 +322,7 @@ function buildFamilyNode(client: Client, member: FamilyMember, index: number): R
     nodeKey: familyNodeKey(index),
     displayName: member.name,
     relation: member.relation,
-    generation: RELATION_GENERATION[member.relation] ?? 0,
+    generation: getRelationGeneration(member.relation),
     role,
     roleLabel: ROLE_LABELS[role],
     roleFactStatus: "INFERENCE",
@@ -450,7 +450,7 @@ function buildRootConnectedEdge(
   targetNodeKey: string,
   sourceReferenceIds: string[],
 ): RelationshipGraphEdge {
-  const generation = RELATION_GENERATION[member.relation] ?? 0;
+  const generation = getRelationGeneration(member.relation);
 
   if (isSpouseRelation(member.relation)) {
     return relationshipEdge({
@@ -532,7 +532,7 @@ function relationshipEdge(input: Omit<RelationshipGraphEdge, "edgeKey">): Relati
 
 function inferFamilyRole(member: FamilyMember): RelationshipGraphPersonRole {
   const relation = member.relation;
-  const generation = RELATION_GENERATION[relation] ?? 0;
+  const generation = getRelationGeneration(relation);
 
   if (relation.includes("配偶") || relation.includes("合作夥伴")) {
     return "DECISION_MAKER";
