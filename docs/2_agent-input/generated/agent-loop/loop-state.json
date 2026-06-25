@@ -84,11 +84,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 4,
-    "lastWholeProductReviewAt": "2026-06-25T08:17:13Z",
-    "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-25_lv3-whole-product-gap-review-after-live-cross-flow-recovery.md",
+    "normalLoopsSinceLastWholeProductReview": 0,
+    "lastWholeProductReviewAt": "2026-06-25T10:31:52Z",
+    "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-25_lv3-whole-product-gap-review-after-rel-bff-convergence.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "REL-009 BFF-backed relationship map source convergence completed: `/crm/[clientId]/relationships` now fetches `/api/clients/[id]/relationship-graph`, marks `data-relationship-graph-source=bff`, passes that `ClientRelationshipGraphReview` into `RelationshipMap`, and falls back to local graph review only if BFF is unavailable. `RelationshipMap` now accepts an optional graph review so the canvas and source review share the same BFF truth source. `pnpm exec tsc --noEmit --pretty false`, `pnpm lint:changed`, and warmed-server `DEMO_QA_BASE_URL=http://localhost:3011 pnpm client:relationship-graph-write-qa` passed; the proof includes `source=bff status=ready` before and after parent-create reload, linked-client privacy sentinels, desktop/mobile no horizontal overflow, and no provider route invoked. A first default-port proof attempt hit another app on localhost:3000 and returned 404, then passed on the dedicated repo dev server. Cadence is now at 4 normal loops since the last review, so the next heartbeat should run `lv3-whole-product-gap-review-loop.md` before selecting another implementation slice.",
+    "nextRecommendedImplementationSlice": "Scheduled whole-product review completed after REL-007/REL-008/REL-009 relationship BFF convergence. Top next normal slice is `AMM notes-hub source-boundary quarantine`: `/notes` currently imports the local NotesBoard prototype, while the AgentFacts manifest and `meeting:notes-hub-quarantine-qa` expect a safe hub with `data-testid=notes-hub-quarantine`, local note store disabled, and an accepted source handoff to `/pre-visit/[planId]/notes` / CLIENT_MEETING workspace. `pnpm ai:protocol-registry-qa` and `pnpm ai:protocol-readiness-qa` passed with all 11 agents internal-only, but `pnpm meeting:notes-hub-quarantine-qa` failed 7 route-source checks and `pnpm theater:route-b-stage-map-acceptance-reconcile-qa` still fails a stale stage-map private-chat marker. Next loop should fix `/notes` source-boundary drift first, then run `meeting:notes-hub-quarantine-qa`, `ai:protocol-registry-qa`, tsc, and lint. No provider/DB write is needed.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {
@@ -156,5 +156,5 @@
     "lv3ImmersiveLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-immersive-loop.md",
     "lv3WholeProductGapReviewLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md"
   },
-  "updatedAt": "2026-06-25T10:14:06Z"
+  "updatedAt": "2026-06-25T10:31:52Z"
 }
