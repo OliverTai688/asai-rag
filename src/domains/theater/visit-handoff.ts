@@ -15,7 +15,9 @@ import {
 import type {
   VisitMeetingRelationshipSignalAction,
   VisitMeetingRelationshipSignalDeck,
+  VisitMeetingRelationshipSignalSourceType,
 } from "../visit/meeting-relationship-signal";
+import { VISIT_MEETING_RELATIONSHIP_SIGNAL_SOURCE_TYPES } from "../visit/meeting-relationship-signal";
 import type {
   ObjectionHandling,
   SpinQuestion,
@@ -46,6 +48,7 @@ export interface VisitTheaterMeetingRelationshipSignalHandoffSummary {
   cardCount: number;
   highPriorityCount: number;
   byStatus: Record<VisitQuestionEvidenceStatus, number>;
+  bySourceType: Record<VisitMeetingRelationshipSignalSourceType, number>;
   actions: VisitMeetingRelationshipSignalAction[];
   meetingSourceCount: number;
   narratorQuestionCount: number;
@@ -320,6 +323,7 @@ function buildMeetingRelationshipSignalMaterials(deck: VisitMeetingRelationshipS
         `status=${card.evidenceStatus}`,
         `action=${card.recommendedAction}`,
         `priority=${card.priority}`,
+        `source_type=${card.sourceType}`,
         `source=${card.sourceLabel}`,
         `summary=${card.safeSummary}`,
         `prompt=${card.confirmationPrompt}`,
@@ -643,15 +647,20 @@ function summarizeMeetingRelationshipSignalDeck(
     inference: 0,
     unknown: 0,
   };
+  const bySourceType = Object.fromEntries(
+    VISIT_MEETING_RELATIONSHIP_SIGNAL_SOURCE_TYPES.map((sourceType) => [sourceType, 0]),
+  ) as Record<VisitMeetingRelationshipSignalSourceType, number>;
 
   for (const card of deck?.cards ?? []) {
     byStatus[card.evidenceStatus] += 1;
+    bySourceType[card.sourceType] += 1;
   }
 
   return {
     cardCount: deck?.summary.cardCount ?? 0,
     highPriorityCount: deck?.summary.highPriorityCount ?? 0,
     byStatus,
+    bySourceType,
     actions: Array.from(new Set((deck?.cards ?? []).map((card) => card.recommendedAction))).sort() as VisitMeetingRelationshipSignalAction[],
     meetingSourceCount: deck?.summary.meetingSourceCount ?? 0,
     narratorQuestionCount:

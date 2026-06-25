@@ -34,6 +34,7 @@ export interface TheaterRouteBMeetingSignalGroundingInput {
   status: TheaterRouteBMeetingSignalGroundingStatus;
   action: string;
   priority: string;
+  sourceType?: string;
   sourceLabel: string;
   summary: string;
   prompt?: string;
@@ -44,6 +45,7 @@ export interface TheaterRouteBMeetingSignalGroundingCard {
   status: TheaterRouteBMeetingSignalGroundingStatus;
   action: string;
   priority: string;
+  sourceType?: string;
   sourceLabel: string;
   summary: string;
   narratorQuestion?: string;
@@ -53,6 +55,7 @@ export interface TheaterRouteBMeetingSignalGroundingSummary {
   cardCount: number;
   unknownCount: number;
   narratorQuestionCount: number;
+  bySourceType: Record<string, number>;
   cards: TheaterRouteBMeetingSignalGroundingCard[];
   narratorQuestions: string[];
   boundary: {
@@ -345,6 +348,7 @@ export function buildTheaterRouteBMeetingSignalGroundingSummary(
     cardCount: safeCards.length,
     unknownCount: safeCards.filter((card) => card.status === "unknown").length,
     narratorQuestionCount: safeNarratorQuestions.length,
+    bySourceType: countMeetingSignalSourceTypes(safeCards),
     cards: safeCards,
     narratorQuestions: safeNarratorQuestions,
     boundary: {
@@ -743,6 +747,7 @@ function sanitizeMeetingSignalGroundingSummary(
       status: normalizeMeetingSignalStatus(card.status),
       action: sanitizeRouteBText(card.action),
       priority: sanitizeRouteBText(card.priority),
+      ...(card.sourceType ? { sourceType: sanitizeRouteBText(card.sourceType) } : {}),
       sourceLabel: sanitizeRouteBText(card.sourceLabel || "AI Meeting"),
       summary: sanitizeRouteBText(card.summary),
       ...(card.narratorQuestion ? { narratorQuestion: sanitizeRouteBText(card.narratorQuestion) } : {}),
@@ -754,6 +759,7 @@ function sanitizeMeetingSignalGroundingSummary(
     cardCount: safeCards.length,
     unknownCount: safeCards.filter((card) => card.status === "unknown").length,
     narratorQuestionCount: safeNarratorQuestions.length,
+    bySourceType: countMeetingSignalSourceTypes(safeCards),
     cards: safeCards,
     narratorQuestions: safeNarratorQuestions,
     boundary: {
@@ -886,10 +892,19 @@ function sanitizeMeetingSignalGroundingCard(
     status: normalizeMeetingSignalStatus(card.status),
     action: sanitizeRouteBText(card.action),
     priority: sanitizeRouteBText(card.priority),
+    ...(card.sourceType ? { sourceType: sanitizeRouteBText(card.sourceType) } : {}),
     sourceLabel: sanitizeRouteBText(card.sourceLabel || "AI Meeting"),
     summary: sanitizeRouteBText(card.summary),
     ...(narratorQuestion ? { narratorQuestion } : {}),
   };
+}
+
+function countMeetingSignalSourceTypes(cards: TheaterRouteBMeetingSignalGroundingCard[]): Record<string, number> {
+  return cards.reduce<Record<string, number>>((counts, card) => {
+    if (!card.sourceType) return counts;
+    counts[card.sourceType] = (counts[card.sourceType] ?? 0) + 1;
+    return counts;
+  }, {});
 }
 
 function normalizeMeetingSignalStatus(status: TheaterRouteBMeetingSignalGroundingStatus): TheaterRouteBMeetingSignalGroundingStatus {

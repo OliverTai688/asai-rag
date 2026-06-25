@@ -24,6 +24,8 @@ expect(
   "Route B handoff contract declares safe meeting signal source grounding",
   source.handoffDomain.includes("TheaterRouteBMeetingSignalGroundingSummary") &&
     source.handoffDomain.includes("buildTheaterRouteBMeetingSignalGroundingSummary") &&
+    source.handoffDomain.includes("bySourceType") &&
+    source.handoffDomain.includes("sourceType") &&
     source.handoffDomain.includes("sourceGrounding?: TheaterRouteBSourceGrounding") &&
     source.handoffDomain.includes("browserSuppliedSessionId: false") &&
     source.handoffDomain.includes("rawTranscriptStored: false"),
@@ -33,6 +35,7 @@ expect(
   source.theaterBuild.includes("buildTheaterRouteBMeetingSignalGroundingSummary") &&
     source.theaterBuild.includes("meetingRelationshipSignals: meetingSignalGrounding") &&
     source.theaterBuild.includes("getMeetingSignalStageCards(handoffReview.handoff.knownMaterials)") &&
+    source.theaterBuild.includes('getMaterialField(fields, "source_type")') &&
     source.theaterBuild.includes("getMeetingSignalNarratorPreviews(packet.narratorQuestions)"),
 );
 expect(

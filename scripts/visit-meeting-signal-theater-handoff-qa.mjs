@@ -33,12 +33,15 @@ expect(
 expect(
   "handoff domain emits meeting signal knownMaterials and narrator questions",
   source.domain.includes("meeting_relationship_signal_card=") &&
+    source.domain.includes("source_type=${card.sourceType}") &&
+    source.domain.includes("VISIT_MEETING_RELATIONSHIP_SIGNAL_SOURCE_TYPES") &&
     source.domain.includes("writes_relationship_graph=false") &&
     source.domain.includes("addMeetingSignalNarratorQuestions"),
 );
 expect(
   "handoff domain exposes no-provider/no-write source summary",
-  source.domain.includes("VisitTheaterMeetingRelationshipSignalHandoffSummary") &&
+    source.domain.includes("VisitTheaterMeetingRelationshipSignalHandoffSummary") &&
+    source.domain.includes("bySourceType") &&
     source.domain.includes("providerCallAttempted: false") &&
     source.domain.includes("persistedToDatabase: false") &&
     source.domain.includes("writesRelationshipGraph: false") &&
@@ -59,6 +62,8 @@ expect(
   "theater build source review renders meeting signal stage cards",
   source.theaterBuild.includes("data-meeting-signal-stage-cards") &&
     source.theaterBuild.includes("getMeetingSignalStageCards") &&
+    source.theaterBuild.includes('getMaterialField(fields, "source_type")') &&
+    source.theaterBuild.includes("sourceType") &&
     source.theaterBuild.includes("MEETING_SIGNAL_STATUS_LABEL") &&
     source.theaterBuild.includes("meeting_relationship_signal_card="),
 );

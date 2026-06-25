@@ -1,6 +1,9 @@
 import type { Client } from "../src/domains/client/types";
 import { buildVisitTheaterHandoff } from "../src/domains/theater/visit-handoff";
-import { buildVisitMeetingRelationshipSignalDeck } from "../src/domains/visit/meeting-relationship-signal";
+import {
+  buildVisitMeetingRelationshipSignalDeck,
+  meetingQuickNoteWritebackBridgeToRelationshipSignal,
+} from "../src/domains/visit/meeting-relationship-signal";
 import { enrichSpinQuestionsWithReasoning } from "../src/domains/visit/reasoning";
 import type { SpinQuestion, VisitPlan } from "../src/domains/visit/types";
 
@@ -125,11 +128,39 @@ const visitPlan: VisitPlan = {
   ],
 };
 
+const quickNoteWritebackBridge = {
+  sourceActionId: "visit-meeting-quick-note-writeback-bridge",
+  status: "summary_required",
+  acceptedWorkspaceHref: "/pre-visit/visit_lv3_handoff/notes?meeting=latest",
+  targetSurface: "/pre-visit/[planId]/meeting",
+  summaryEndpointPattern: "/api/ai/meeting/sessions/[sessionId]/summary",
+  writebackEndpointPattern: "/api/ai/meeting/sessions/[sessionId]/writebacks",
+  requirements: {
+    persistedSummaryRequired: true,
+    advisorConfirmationRequired: true,
+    reasonRiskAcceptedForSensitive: true,
+  },
+  safety: {
+    providerCallAttempted: false,
+    aiUsageLogRequired: false,
+    browserSuppliedSessionId: false,
+    rawPrivateTranscriptStored: false,
+    storesRawProviderPayload: false,
+    writesConfirmedCrmFact: false,
+    directCrmWriteDisabled: true,
+  },
+} as const;
+
 const meetingRelationshipSignalDeck = buildVisitMeetingRelationshipSignalDeck({
   visitPlanId: visitPlan.id,
   clientId: demoClient.id,
   generatedAt: "2026-06-20T00:00:00.000Z",
   signals: [
+    meetingQuickNoteWritebackBridgeToRelationshipSignal(quickNoteWritebackBridge, {
+      id: "meeting-quick-note-writeback-bridge-1",
+      quickNoteTurnId: "turn-quick-note-1",
+      meetingSessionId: "meeting-session-owner-scoped",
+    }),
     {
       id: "meeting-summary-1",
       sourceType: "MEETING_SUMMARY_DECISION",
@@ -294,6 +325,13 @@ if (!handoff.knownMaterials.some((item) => item.includes("advisor_state=local_on
 if (!handoff.knownMaterials.some((item) => item.includes("meeting_relationship_signal_card="))) {
   failures.push("meeting relationship signal cards did not enter theater knownMaterials");
 }
+if (
+  !handoff.knownMaterials.some((item) =>
+    item.includes("source_type=MEETING_QUICK_NOTE_WRITEBACK_BRIDGE"),
+  )
+) {
+  failures.push("quick-note writeback bridge source type did not enter theater knownMaterials");
+}
 if (!handoff.knownMaterials.some((item) => item.includes("writes_relationship_graph=false"))) {
   failures.push("meeting relationship signal relationship-graph write boundary missing");
 }
@@ -413,6 +451,9 @@ if (
 }
 if (meetingRelationshipSignals.cardCount < 1) failures.push("meeting relationship signal summary missing");
 if (meetingRelationshipSignals.highPriorityCount < 1) failures.push("meeting relationship signal high-priority summary missing");
+if (meetingRelationshipSignals.bySourceType.MEETING_QUICK_NOTE_WRITEBACK_BRIDGE !== 1) {
+  failures.push("quick-note writeback bridge source type was not preserved in handoff source summary");
+}
 if (!meetingRelationshipSignals.actions.includes("ASK_IN_NEXT_VISIT")) {
   failures.push("meeting relationship signal next-visit action missing");
 }

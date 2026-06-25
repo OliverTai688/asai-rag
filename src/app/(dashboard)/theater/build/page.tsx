@@ -185,6 +185,7 @@ function parseMeetingSignalMaterial(material: string): MeetingSignalStageCard | 
     status: normalizeMeetingSignalStatus(getMaterialField(fields, "status")),
     action: getMaterialField(fields, "action"),
     priority: getMaterialField(fields, "priority"),
+    sourceType: getMaterialField(fields, "source_type"),
     sourceLabel: getMaterialField(fields, "source"),
     summary: getMaterialField(fields, "summary") || getMaterialField(fields, "relationship"),
     prompt: getMaterialField(fields, "prompt"),
@@ -1283,6 +1284,11 @@ function MeetingSignalStageReview({
               <span className="rounded-full border border-hairline bg-paper px-2 py-0.5">
                 來源：{card.sourceLabel || "AI Meeting"}
               </span>
+              {card.sourceType ? (
+                <span className="rounded-full border border-hairline bg-paper px-2 py-0.5">
+                  類型：{card.sourceType}
+                </span>
+              ) : null}
               <span className="rounded-full border border-hairline bg-paper px-2 py-0.5">
                 動作：{getMeetingSignalActionLabel(card.action)}
               </span>

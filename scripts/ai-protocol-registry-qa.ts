@@ -101,6 +101,7 @@ const sourceAdoptionRequirements: Record<string, { ownerRefs: string[]; evidence
       "MEETING_SIGNAL_STATUS_LABEL",
       "VisitTheaterHandoff.sourceSummary.evidenceSummary.relationshipConfirmation",
       "VisitTheaterHandoff.sourceSummary.evidenceSummary.meetingRelationshipSignals",
+      "VisitTheaterHandoff.sourceSummary.evidenceSummary.meetingRelationshipSignals.bySourceType.MEETING_QUICK_NOTE_WRITEBACK_BRIDGE",
       "VisitTheaterRelationshipConfirmationHandoffSummary.localAdvisorStatePersisted=false",
       "VisitTheaterRelationshipConfirmationHandoffSummary.providerCallAttempted=false",
       "VisitTheaterRelationshipConfirmationHandoffSummary.writesConfirmedCrmFact=false",
@@ -432,6 +433,7 @@ const sourceAdoptionRequirements: Record<string, { ownerRefs: string[]; evidence
       "route-b-relationship-edge-shadow-source-grounding",
       "route-b-family-profile-source-grounding",
       "buildTheaterRouteBMeetingSignalGroundingSummary",
+      "TheaterRouteBMeetingSignalGroundingSummary.bySourceType.MEETING_QUICK_NOTE_WRITEBACK_BRIDGE",
       "buildTheaterRouteBRelationshipEdgeShadowGroundingSummary",
       "buildTheaterRouteBFamilyProfileGroundingSummary",
       "TheaterRouteBScene.sourceGrounding.meetingRelationshipSignals",
@@ -1384,6 +1386,12 @@ function assertVisitMeetingRelationshipSignal(manifests: AgentProtocolManifest[]
     "visit manifest evidence includes quick-note writeback bridge source type",
   );
   push(
+    manifest.schemas.evidenceDtoRefs.includes(
+      "VisitTheaterMeetingRelationshipSignalHandoffSummary.bySourceType.MEETING_QUICK_NOTE_WRITEBACK_BRIDGE",
+    ),
+    "visit manifest evidence includes quick-note bridge theater handoff source type",
+  );
+  push(
     manifest.schemas.evidenceDtoRefs.includes("VisitMeetingRelationshipSignalInput.sourceType=MEETING_WRITEBACK_REVIEW_CONTEXT"),
     "visit manifest evidence includes meeting writeback review context source type",
   );
@@ -1450,6 +1458,8 @@ function assertVisitMeetingRelationshipSignal(manifests: AgentProtocolManifest[]
     "meeting-notes-relationship-confirmation-signal",
     "VisitMeetingRelationshipSignalDeck.writebackBoundary.currentPersistence=deterministic-preview-only",
     "VisitMeetingRelationshipSignalInput.sourceType=MEETING_QUICK_NOTE_WRITEBACK_BRIDGE",
+    "VisitTheaterMeetingRelationshipSignalHandoffSummary.bySourceType.MEETING_QUICK_NOTE_WRITEBACK_BRIDGE",
+    "TheaterRouteBMeetingSignalGroundingSummary.bySourceType.MEETING_QUICK_NOTE_WRITEBACK_BRIDGE",
     "VisitMeetingRelationshipSignalInput.sourceType=MEETING_WRITEBACK_REVIEW_CONTEXT",
     "MeetingWritebackCandidate.reviewContext=MeetingWritebackCandidateReviewContext[]",
     "MeetingWritebackCandidateReviewContext.requiresAdvisorConfirmation=true",
@@ -1478,6 +1488,7 @@ function assertVisitMeetingRelationshipSignal(manifests: AgentProtocolManifest[]
     "RelationshipEdgeShadowReadiness.data-edge-shadow-readiness",
     "meeting-relationship-signal-theater-handoff-grounding",
     "VisitTheaterHandoff.sourceSummary.evidenceSummary.meetingRelationshipSignals",
+    "VisitTheaterHandoff.sourceSummary.evidenceSummary.meetingRelationshipSignals.bySourceType.MEETING_QUICK_NOTE_WRITEBACK_BRIDGE",
     "VisitTheaterHandoff.sourceSummary.evidenceSummary.relationshipEdgeShadow",
     "VisitTheaterMeetingRelationshipSignalHandoffSummary.ownerScopedVisitPlanRequired=true",
     "VisitTheaterMeetingRelationshipSignalHandoffSummary.providerCallAttempted=false",

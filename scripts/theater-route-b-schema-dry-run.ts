@@ -95,6 +95,7 @@ const meetingSignalGrounding = buildTheaterRouteBMeetingSignalGroundingSummary(
       status: "unknown",
       action: "ASK_IN_NEXT_VISIT",
       priority: "high",
+      sourceType: "MEETING_QUICK_NOTE_WRITEBACK_BRIDGE",
       sourceLabel: "AI Meeting",
       summary: "林太太可能需要共同參與保障決策，仍待確認。",
       prompt: "請確認林太太是否會一起參與家庭保障討論。",
@@ -176,7 +177,15 @@ const persistedFamilyProfileBoundary = persistedFamilyProfiles.boundary as Recor
 const persistedFamilyProfileFields = persistedFamilyProfiles.fields as Array<Record<string, unknown>>;
 check(persistedMeetingGrounding.cardCount === 1, "session sceneState stores one safe meeting signal grounding card");
 check(persistedMeetingGrounding.narratorQuestionCount === 1, "session sceneState stores meeting signal narrator question count");
+check(
+  (persistedMeetingGrounding.bySourceType as Record<string, unknown>)?.MEETING_QUICK_NOTE_WRITEBACK_BRIDGE === 1,
+  "session sceneState stores quick-note bridge meeting signal source type count",
+);
 check(persistedMeetingCards[0]?.stageCardId === "route_b_meeting_signal_1", "meeting signal grounding does not persist raw meeting/person ids");
+check(
+  persistedMeetingCards[0]?.sourceType === "MEETING_QUICK_NOTE_WRITEBACK_BRIDGE",
+  "meeting signal grounding preserves safe source type enum",
+);
 check(persistedMeetingBoundary.providerCallAttempted === false, "meeting signal grounding keeps provider call false");
 check(persistedMeetingBoundary.writesRelationshipGraph === false, "meeting signal grounding writes no relationship graph");
 check(persistedMeetingBoundary.writesVisitPlan === false, "meeting signal grounding writes no VisitPlan");

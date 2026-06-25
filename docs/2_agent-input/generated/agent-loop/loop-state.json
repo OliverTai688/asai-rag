@@ -84,11 +84,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 1,
+    "normalLoopsSinceLastWholeProductReview": 2,
     "lastWholeProductReviewAt": "2026-06-25T13:42:16Z",
     "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-25_lv3-whole-product-gap-review-after-graph-polish-db-regression.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "AMM quick-note writeback bridge -> visit meeting relationship signal deck source/proof is complete. Next normal loop should continue the same no-DB cross-surface chain by proving the new `MEETING_QUICK_NOTE_WRITEBACK_BRIDGE` source type is preserved through visit theater handoff and Route B stage/source review without relationship graph, VisitPlan, CRM confirmed fact, provider, or DB writes. If DB connectivity is recovered first, rerun the full DB-backed graph/cross-flow evidence before claiming live DB proof.",
+    "nextRecommendedImplementationSlice": "AMM quick-note writeback bridge -> visit theater handoff -> Route B stage/source review source-type propagation is complete. Next normal loop should continue a safe L2/L1 source-backed cross-surface slice: either add a no-DB Route B persisted-session/readback render proof for `MEETING_QUICK_NOTE_WRITEBACK_BRIDGE` visible source-type chips, or, if DB connectivity is confirmed recovered first, rerun full DB-backed graph/cross-flow evidence before claiming live DB proof.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {
@@ -156,5 +156,5 @@
     "lv3ImmersiveLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-immersive-loop.md",
     "lv3WholeProductGapReviewLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md"
   },
-  "updatedAt": "2026-06-25T14:04:49Z"
+  "updatedAt": "2026-06-25T14:29:48Z"
 }
