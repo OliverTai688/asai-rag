@@ -352,6 +352,7 @@ async function runBrowserProof() {
     await page.getByText(browserChildName).first().waitFor({ timeout: 30000 });
     await page.getByText(linkedMemberName).first().waitFor({ timeout: 30000 });
     await page.getByText(linkedClientName).first().waitFor({ timeout: 30000 });
+    await page.locator('[data-relationship-graph-source="bff"]').waitFor({ timeout: 30000 });
     const deleteButton = page.getByLabel(`刪除 ${browserDeleteMemberName}`);
     await deleteButton.waitFor({ timeout: 30000 });
 
@@ -365,11 +366,14 @@ async function runBrowserProof() {
         matchingLinkedAffordance instanceof HTMLAnchorElement
           ? matchingLinkedAffordance
           : matchingLinkedAffordance?.querySelector("a");
+      const graphSourceElement = document.querySelector("[data-relationship-graph-source]");
 
       return {
         hasRootElder: text.includes(expectedNames.rootElderName),
         hasBrowserChild: text.includes(expectedNames.browserChildName),
         hasLinkedMember: text.includes(expectedNames.linkedMemberName),
+        graphSource: graphSourceElement?.getAttribute("data-relationship-graph-source") ?? "",
+        graphStatus: graphSourceElement?.getAttribute("data-relationship-graph-status") ?? "",
         hasLinkedClientAffordance: Boolean(matchingLinkedAffordance),
         linkedClientState: matchingLinkedAffordance?.getAttribute("data-linked-client-state") ?? "",
         linkedClientHref: linkedAnchor?.getAttribute("href") ?? "",
@@ -390,6 +394,11 @@ async function runBrowserProof() {
     push(initialGraphChecks.hasRootElder, "browser renders root-connected elder node");
     push(initialGraphChecks.hasBrowserChild, "browser renders parent-mode target child node");
     push(initialGraphChecks.hasLinkedMember, "browser renders linked-client family member node");
+    push(
+      initialGraphChecks.graphSource === "bff" && initialGraphChecks.graphStatus === "ready",
+      "browser relationship map consumes BFF graph response",
+      `source=${initialGraphChecks.graphSource} status=${initialGraphChecks.graphStatus}`,
+    );
     push(
       initialGraphChecks.hasLinkedClientAffordance &&
         initialGraphChecks.linkedClientState === "readable" &&
@@ -415,21 +424,30 @@ async function runBrowserProof() {
     await page.getByText("關係人已新增").waitFor({ timeout: 30000 });
     await page.reload({ waitUntil: "networkidle", timeout: 60000 });
     await page.getByText(browserParentName).first().waitFor({ timeout: 30000 });
+    await page.locator('[data-relationship-graph-source="bff"]').waitFor({ timeout: 30000 });
 
     const parentCreateChecks = await page.evaluate((expectedNames) => {
       const text = document.body.innerText;
       const rows = Array.from(document.querySelectorAll("div")).map((element) => element.textContent ?? "");
+      const graphSourceElement = document.querySelector("[data-relationship-graph-source]");
       return {
         parentVisible: text.includes(expectedNames.browserParentName),
         childLinkedToParent: rows.some((row) =>
           row.includes(expectedNames.browserChildName) && row.includes(`連結至 ${expectedNames.browserParentName}`),
         ),
+        graphSource: graphSourceElement?.getAttribute("data-relationship-graph-source") ?? "",
+        graphStatus: graphSourceElement?.getAttribute("data-relationship-graph-status") ?? "",
         edgeCount: document.querySelectorAll(".react-flow__edge").length,
         horizontalOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
       };
     }, { browserChildName, browserParentName });
     push(parentCreateChecks.parentVisible, "browser parent-mode create persists new parent after reload");
     push(parentCreateChecks.childLinkedToParent, "browser parent-mode create re-parents target child after reload");
+    push(
+      parentCreateChecks.graphSource === "bff" && parentCreateChecks.graphStatus === "ready",
+      "browser relationship map remains BFF-backed after parent create reload",
+      `source=${parentCreateChecks.graphSource} status=${parentCreateChecks.graphStatus}`,
+    );
     push(parentCreateChecks.edgeCount >= 5, "browser graph still renders parent/child edges after parent create", `edges=${parentCreateChecks.edgeCount}`);
     push(!parentCreateChecks.horizontalOverflow, "relationship graph write desktop has no horizontal overflow after parent create");
 
@@ -478,10 +496,17 @@ async function runBrowserProof() {
 
 function runSourceProof() {
   const relationshipMapSource = readFileSync("src/components/crm/RelationshipMap.tsx", "utf8");
+  const relationshipsPageSource = readFileSync("src/app/(dashboard)/crm/[clientId]/relationships/page.tsx", "utf8");
   push(
     relationshipMapSource.includes('data-linked-client-state="unavailable"') &&
       relationshipMapSource.includes("linkedClient.canNavigate && linkedClient.href"),
     "RelationshipMap source gates unavailable linked-client navigation",
+  );
+  push(
+    relationshipMapSource.includes("graphReview?: ClientRelationshipGraphReview") &&
+      relationshipsPageSource.includes("/api/clients/${clientId}/relationship-graph") &&
+      relationshipsPageSource.includes("data-relationship-graph-source={graphSource}"),
+    "relationship graph page passes BFF graph review into RelationshipMap",
   );
 }
 

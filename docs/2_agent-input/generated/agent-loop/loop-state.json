@@ -84,11 +84,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 3,
+    "normalLoopsSinceLastWholeProductReview": 4,
     "lastWholeProductReviewAt": "2026-06-25T08:17:13Z",
     "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-25_lv3-whole-product-gap-review-after-live-cross-flow-recovery.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "REL-008 UI/source slice completed: client detail BFF now attaches owner-scoped linked-client summaries to family members, RelationshipMap renders readable linked clients as clickable CRM navigation affordances and unavailable linked clients as non-navigable markers, and `client:relationship-graph-write-qa` proves BFF + browser behavior with no linked email/phone leakage. `pnpm exec tsc --noEmit --pretty false`, `pnpm lint:changed`, and warmed-server `DEMO_QA_BASE_URL=http://127.0.0.1:3070 pnpm client:relationship-graph-write-qa` passed. Adjacent `pnpm client:relationship-edge-shadow-bff-qa` was attempted and failed only because current worktree has unrelated dirty `prisma/schema.prisma`, so do not treat that as this slice regression. Next normal loop should choose REL-009 BFF convergence/perf/a11y/relationship graph page proof or proof-harness stability (`pnpm client:relationship-graph-qa` cold-start/browser phase), unless operator first approves formal `RelationshipEdge` schema/migration or answers relationship confirmation persistence A/B/C.",
+    "nextRecommendedImplementationSlice": "REL-009 BFF-backed relationship map source convergence completed: `/crm/[clientId]/relationships` now fetches `/api/clients/[id]/relationship-graph`, marks `data-relationship-graph-source=bff`, passes that `ClientRelationshipGraphReview` into `RelationshipMap`, and falls back to local graph review only if BFF is unavailable. `RelationshipMap` now accepts an optional graph review so the canvas and source review share the same BFF truth source. `pnpm exec tsc --noEmit --pretty false`, `pnpm lint:changed`, and warmed-server `DEMO_QA_BASE_URL=http://localhost:3011 pnpm client:relationship-graph-write-qa` passed; the proof includes `source=bff status=ready` before and after parent-create reload, linked-client privacy sentinels, desktop/mobile no horizontal overflow, and no provider route invoked. A first default-port proof attempt hit another app on localhost:3000 and returned 404, then passed on the dedicated repo dev server. Cadence is now at 4 normal loops since the last review, so the next heartbeat should run `lv3-whole-product-gap-review-loop.md` before selecting another implementation slice.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {
@@ -156,5 +156,5 @@
     "lv3ImmersiveLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-immersive-loop.md",
     "lv3WholeProductGapReviewLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md"
   },
-  "updatedAt": "2026-06-25T09:57:25Z"
+  "updatedAt": "2026-06-25T10:14:06Z"
 }

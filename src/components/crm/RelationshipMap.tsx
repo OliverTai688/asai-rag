@@ -15,6 +15,7 @@ import type { Edge, Node } from "reactflow";
 import "reactflow/dist/style.css";
 import {
   buildClientRelationshipGraphReview,
+  type ClientRelationshipGraphReview,
   type RelationshipGraphEdge,
   type RelationshipGraphEdgeType,
   type RelationshipGraphFactStatus,
@@ -201,16 +202,18 @@ const nodeTypes = { person: PersonNode };
 
 interface RelationshipMapProps {
   client: Client;
+  graphReview?: ClientRelationshipGraphReview;
   onAddChild?: (parentMemberId: string | null) => void;
   onAddParent?: (childMemberId: string | null) => void;
 }
 
 function buildGraph(
   client: Client,
+  graphReview?: ClientRelationshipGraphReview,
   onAddChild?: (id: string | null) => void,
   onAddParent?: (id: string | null) => void
 ) {
-  const review = buildClientRelationshipGraphReview(client);
+  const review = graphReview ?? buildClientRelationshipGraphReview(client);
   const nodes: Node<PersonNodeData>[] = [];
   const nodeIdByKey = new Map<string, string>();
 
@@ -372,22 +375,22 @@ function getSameRankDistance(edge: Edge<RelationshipEdgeData>, offsetIndex: numb
   return baseDistance + Math.floor(offsetIndex / 2) * 160;
 }
 
-export function RelationshipMap({ client, onAddChild, onAddParent }: RelationshipMapProps) {
+export function RelationshipMap({ client, graphReview, onAddChild, onAddParent }: RelationshipMapProps) {
   const { nodes: initialNodes, edges: initialEdges } = useMemo(
-    () => buildGraph(client, onAddChild, onAddParent),
+    () => buildGraph(client, graphReview, onAddChild, onAddParent),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [client]
+    [client, graphReview]
   );
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
 
   React.useEffect(() => {
-    const { nodes: n, edges: e } = buildGraph(client, onAddChild, onAddParent);
+    const { nodes: n, edges: e } = buildGraph(client, graphReview, onAddChild, onAddParent);
     setNodes(n);
     setEdges(e);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [client]);
+  }, [client, graphReview]);
 
   return (
     <div className="relative h-[600px] w-full overflow-hidden rounded-xl border border-hairline bg-zinc-50 shadow-none dark:bg-zinc-950">

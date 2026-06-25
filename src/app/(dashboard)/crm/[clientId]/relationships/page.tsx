@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import { AddRelationshipDialog } from "@/components/crm/AddRelationshipDialog";
 import { RelationshipMap } from "@/components/crm/RelationshipMap";
@@ -17,7 +17,10 @@ import type {
   FamilyMemberProfileField,
 } from "@/domains/client/family-member-profile";
 import { FAMILY_MEMBER_PROFILE_SCHEMA_VERSION } from "@/domains/client/family-member-profile";
-import { buildClientRelationshipGraphReview } from "@/domains/client/relationship-graph";
+import {
+  buildClientRelationshipGraphReview,
+  type ClientRelationshipGraphReview,
+} from "@/domains/client/relationship-graph";
 import { clientService } from "@/domains/client/service";
 import type { FamilyMember } from "@/domains/client/types";
 import { Info, PencilLine, Save, ShieldCheck, Trash2, UserPlus, Users, X } from "lucide-react";
@@ -43,6 +46,12 @@ type ProfileFieldDraft = {
 };
 
 type ProfileDraft = Record<ProfileFieldKey, ProfileFieldDraft>;
+
+type RelationshipGraphBffStatus = "idle" | "ready" | "error";
+
+interface RelationshipGraphBffResponse {
+  graph: ClientRelationshipGraphReview;
+}
 
 const PROFILE_FIELD_CONFIG: Array<{ key: ProfileFieldKey; label: string; placeholder: string }> = [
   { key: "jobTitle", label: "職位 / 職業", placeholder: "例如：科技業主管、退休教師" },
@@ -70,10 +79,43 @@ export default function ClientRelationshipsPage() {
   const [editingProfileMemberId, setEditingProfileMemberId] = useState<string | null>(null);
   const [savingProfileMemberId, setSavingProfileMemberId] = useState<string | null>(null);
   const [profileDraftByMemberId, setProfileDraftByMemberId] = useState<Record<string, ProfileDraft>>({});
-  const graphReview = useMemo(
+  const [bffGraphReview, setBffGraphReview] = useState<ClientRelationshipGraphReview | null>(null);
+  const [bffGraphStatus, setBffGraphStatus] = useState<RelationshipGraphBffStatus>("idle");
+  const localGraphReview = useMemo(
     () => (client ? buildClientRelationshipGraphReview(client) : null),
     [client],
   );
+  const familyGraphSignature = useMemo(() => buildFamilyGraphSignature(client?.family ?? []), [client?.family]);
+  const graphReview = bffGraphReview ?? localGraphReview;
+  const graphSource = bffGraphReview ? "bff" : "client-fallback";
+
+  useEffect(() => {
+    let cancelled = false;
+
+    fetch(`/api/clients/${clientId}/relationship-graph`, { cache: "no-store" })
+      .then(async (response) => {
+        if (!response.ok) {
+          throw new Error(`RELATIONSHIP_GRAPH_BFF_${response.status}`);
+        }
+
+        return response.json() as Promise<RelationshipGraphBffResponse>;
+      })
+      .then((payload) => {
+        if (cancelled) return;
+        setBffGraphReview(payload.graph);
+        setBffGraphStatus("ready");
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        console.error(error);
+        setBffGraphReview(null);
+        setBffGraphStatus("error");
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [clientId, familyGraphSignature]);
 
   function openDialogForRoot() {
     setTargetNodeId(null);
@@ -223,11 +265,17 @@ export default function ClientRelationshipsPage() {
         <CompactMetric label="人物資料" value={`${profiledMembers} 位`} helper={`可聯絡 ${withPhone} 位`} />
       </div>
 
-      <RelationshipMap
-        client={client}
-        onAddChild={openDialogForNodeAsChild}
-        onAddParent={openDialogForNodeAsParent}
-      />
+      <div
+        data-relationship-graph-source={graphSource}
+        data-relationship-graph-status={bffGraphStatus}
+      >
+        <RelationshipMap
+          client={client}
+          graphReview={graphReview}
+          onAddChild={openDialogForNodeAsChild}
+          onAddParent={openDialogForNodeAsParent}
+        />
+      </div>
 
       <RelationshipGraphSourceReview graph={graphReview} />
 
@@ -456,6 +504,21 @@ function createProfileDraft(member: FamilyMember): ProfileDraft {
       [field.key]: createProfileFieldDraft(profileField),
     };
   }, createEmptyProfileDraft());
+}
+
+function buildFamilyGraphSignature(family: FamilyMember[]): string {
+  return family
+    .map((member) =>
+      [
+        member.id,
+        member.name,
+        member.relation,
+        member.parentMemberId ?? "",
+        member.linkedClientId ?? "",
+        member.profile ? JSON.stringify(member.profile) : "",
+      ].join(":"),
+    )
+    .join("|");
 }
 
 function createEmptyProfileDraft(): ProfileDraft {
