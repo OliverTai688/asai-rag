@@ -84,11 +84,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 0,
+    "normalLoopsSinceLastWholeProductReview": 1,
     "lastWholeProductReviewAt": "2026-06-25T10:31:52Z",
     "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-25_lv3-whole-product-gap-review-after-rel-bff-convergence.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "Scheduled whole-product review completed after REL-007/REL-008/REL-009 relationship BFF convergence. Top next normal slice is `AMM notes-hub source-boundary quarantine`: `/notes` currently imports the local NotesBoard prototype, while the AgentFacts manifest and `meeting:notes-hub-quarantine-qa` expect a safe hub with `data-testid=notes-hub-quarantine`, local note store disabled, and an accepted source handoff to `/pre-visit/[planId]/notes` / CLIENT_MEETING workspace. `pnpm ai:protocol-registry-qa` and `pnpm ai:protocol-readiness-qa` passed with all 11 agents internal-only, but `pnpm meeting:notes-hub-quarantine-qa` failed 7 route-source checks and `pnpm theater:route-b-stage-map-acceptance-reconcile-qa` still fails a stale stage-map private-chat marker. Next loop should fix `/notes` source-boundary drift first, then run `meeting:notes-hub-quarantine-qa`, `ai:protocol-registry-qa`, tsc, and lint. No provider/DB write is needed.",
+    "nextRecommendedImplementationSlice": "AMM notes-hub source-boundary quarantine completed: `/notes` is again the accepted-source safe hub with `data-testid=notes-hub-quarantine`, local note store disabled, and handoff to `/pre-visit/[planId]/notes` / CLIENT_MEETING workspace. `pnpm meeting:notes-hub-quarantine-qa` passed 25 checks and `pnpm ai:protocol-registry-qa` passed with all 11 agents internal-only; no provider/DB/Prisma operation was needed. The source route now matches the committed quarantine baseline, so no source diff remains for `src/app/(dashboard)/notes/page.tsx`; untracked notes prototype files remain unaccepted and unstaged. Next normal slice should address `TDF Route B rehearsal stage source/proof reconciliation`: update the stale `theater:route-b-stage-map-acceptance-reconcile-qa` private-chat marker around the current `RouteBStageGraph`/session UI source, preserve no-provider/no fake AiUsageLog, and prove stage map/private/group/state boundary markers.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {
@@ -156,5 +156,5 @@
     "lv3ImmersiveLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-immersive-loop.md",
     "lv3WholeProductGapReviewLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md"
   },
-  "updatedAt": "2026-06-25T10:31:52Z"
+  "updatedAt": "2026-06-25T11:09:39Z"
 }
