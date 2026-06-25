@@ -655,6 +655,7 @@ model Client {
   unit                OrganizationUnit? @relation(fields: [unitId], references: [id], onDelete: SetNull)
   owner               User?             @relation("ClientOwner", fields: [ownerId], references: [id], onDelete: SetNull)
   familyMembers       FamilyMember[]
+  relationshipEdges   RelationshipEdge[]
   policies            Policy[]
   complianceChecklist ComplianceChecklist?
   visitPlans          VisitPlan[]
@@ -695,6 +696,46 @@ model FamilyMember {
 
   @@index([clientId])
   @@map("family_members")
+}
+
+enum RelationshipEdgeType {
+  PARENT_OF
+  SPOUSE_OF
+  SIBLING_OF
+  CHILD_OF
+  SOCIAL_TIE
+}
+
+enum RelationshipEdgeFactStatus {
+  FACT
+  INFERENCE
+  UNKNOWN
+}
+
+// 關係網絡的「節點＋邊」模型：補足單一 parentMemberId 樹無法表達的雙親、配偶結合、手足與社會關係。
+// FamilyMember 仍保留為節點與相容來源；edge 以 backfill 從 FamilyMember 推導，並可額外新增跨成員關係。
+// 全表帶可驗證 organizationId（經 client）；node id 對齊 relationship-edge-shadow 的 client:<id>:primary / family-member:<id>。
+model RelationshipEdge {
+  id                String                     @id @default(cuid())
+  organizationId    String                     @map("organization_id")
+  clientId          String                     @map("client_id")
+  sourceNodeId      String                     @map("source_node_id")
+  targetNodeId      String                     @map("target_node_id")
+  type              RelationshipEdgeType
+  factStatus        RelationshipEdgeFactStatus @default(UNKNOWN) @map("fact_status")
+  label             String?
+  derivedFrom       String?                    @map("derived_from")
+  backfillKey       String?                    @map("backfill_key")
+  metadata          Json?
+  createdAt         DateTime                   @default(now()) @map("created_at")
+  updatedAt         DateTime                   @updatedAt @map("updated_at")
+
+  client            Client                     @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@unique([clientId, backfillKey])
+  @@index([clientId])
+  @@index([organizationId, clientId])
+  @@map("relationship_edges")
 }
 
 model Policy {
