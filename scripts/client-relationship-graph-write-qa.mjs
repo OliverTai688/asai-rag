@@ -23,11 +23,17 @@ let browserDeleteMemberName = "";
 let browserChildName = "";
 let browserParentName = "";
 let rootElderName = "";
+let linkedMemberName = "";
+let linkedClientId = "";
+let linkedClientName = "";
+let linkedClientEmail = "";
+let linkedClientPhone = "";
 
 mkdirSync(screenshotDir, { recursive: true });
 
 await runApiProof();
 await runBrowserProof();
+runSourceProof();
 
 push(true, "no provider route invoked", "script uses deterministic client/family BFF only");
 
@@ -149,7 +155,11 @@ async function runApiProof() {
     `status=${unknownRelationCreate.status} relation=${unknownRelationMember?.relation ?? ""}`,
   );
 
-  const linkedClient = await createClient("linked-client");
+  const linkedClient = await createClient("linked-client", memberRequestJson, { phone: "0988-771-663" });
+  linkedClientId = linkedClient.id;
+  linkedClientName = linkedClient.name;
+  linkedClientEmail = linkedClient.email;
+  linkedClientPhone = linkedClient.phone;
   const readableLinkedMember = linkedClient.id
     ? await createFamilyMember(createdClientId, {
         name: `${qaStamp} 同時是客戶節點`,
@@ -162,6 +172,7 @@ async function runApiProof() {
     readableLinkedMember.member?.linkedClientId === linkedClient.id,
     "POST persists readable linkedClientId in returned client DTO",
   );
+  linkedMemberName = readableLinkedMember.member?.name ?? "";
 
   const graphResponse = await memberRequestJson("GET", `/api/clients/${createdClientId}/relationship-graph`);
   const linkedGraphNode = graphResponse.body?.graph?.nodes?.find(
@@ -302,7 +313,16 @@ async function runApiProof() {
 }
 
 async function runBrowserProof() {
-  if (!createdClientId || !browserDeleteMemberName || !browserChildName || !browserParentName || !rootElderName) {
+  if (
+    !createdClientId ||
+    !browserDeleteMemberName ||
+    !browserChildName ||
+    !browserParentName ||
+    !rootElderName ||
+    !linkedMemberName ||
+    !linkedClientId ||
+    !linkedClientName
+  ) {
     push(false, "browser proof has created client and member");
     return;
   }
@@ -330,20 +350,57 @@ async function runBrowserProof() {
     await page.getByRole("heading", { name: "關係人管理" }).waitFor({ timeout: 30000 });
     await page.getByText(rootElderName).first().waitFor({ timeout: 30000 });
     await page.getByText(browserChildName).first().waitFor({ timeout: 30000 });
+    await page.getByText(linkedMemberName).first().waitFor({ timeout: 30000 });
+    await page.getByText(linkedClientName).first().waitFor({ timeout: 30000 });
     const deleteButton = page.getByLabel(`刪除 ${browserDeleteMemberName}`);
     await deleteButton.waitFor({ timeout: 30000 });
 
     const initialGraphChecks = await page.evaluate((expectedNames) => {
       const text = document.body.innerText;
+      const linkedAffordances = Array.from(document.querySelectorAll("[data-linked-client-affordance]"));
+      const matchingLinkedAffordance = linkedAffordances.find((element) =>
+        (element.textContent ?? "").includes(expectedNames.linkedClientName),
+      );
+      const linkedAnchor =
+        matchingLinkedAffordance instanceof HTMLAnchorElement
+          ? matchingLinkedAffordance
+          : matchingLinkedAffordance?.querySelector("a");
+
       return {
         hasRootElder: text.includes(expectedNames.rootElderName),
         hasBrowserChild: text.includes(expectedNames.browserChildName),
+        hasLinkedMember: text.includes(expectedNames.linkedMemberName),
+        hasLinkedClientAffordance: Boolean(matchingLinkedAffordance),
+        linkedClientState: matchingLinkedAffordance?.getAttribute("data-linked-client-state") ?? "",
+        linkedClientHref: linkedAnchor?.getAttribute("href") ?? "",
+        linkedClientPrivateSentinelLeaked:
+          text.includes(expectedNames.linkedClientEmail) || text.includes(expectedNames.linkedClientPhone),
         edgeCount: document.querySelectorAll(".react-flow__edge").length,
         horizontalOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
       };
-    }, { rootElderName, browserChildName });
+    }, {
+      rootElderName,
+      browserChildName,
+      linkedMemberName,
+      linkedClientId,
+      linkedClientName,
+      linkedClientEmail,
+      linkedClientPhone,
+    });
     push(initialGraphChecks.hasRootElder, "browser renders root-connected elder node");
     push(initialGraphChecks.hasBrowserChild, "browser renders parent-mode target child node");
+    push(initialGraphChecks.hasLinkedMember, "browser renders linked-client family member node");
+    push(
+      initialGraphChecks.hasLinkedClientAffordance &&
+        initialGraphChecks.linkedClientState === "readable" &&
+        initialGraphChecks.linkedClientHref === `/crm/${linkedClientId}`,
+      "browser renders readable linked-client CRM navigation affordance",
+      `href=${initialGraphChecks.linkedClientHref} state=${initialGraphChecks.linkedClientState}`,
+    );
+    push(
+      !initialGraphChecks.linkedClientPrivateSentinelLeaked,
+      "browser linked-client affordance omits linked email and phone sentinels",
+    );
     push(initialGraphChecks.edgeCount >= 4, "browser graph renders an edge for each root/family relationship", `edges=${initialGraphChecks.edgeCount}`);
     push(!initialGraphChecks.horizontalOverflow, "relationship graph write desktop has no horizontal overflow before parent create");
 
@@ -419,11 +476,20 @@ async function runBrowserProof() {
   }
 }
 
-async function createClient(label = "client", request = memberRequestJson) {
+function runSourceProof() {
+  const relationshipMapSource = readFileSync("src/components/crm/RelationshipMap.tsx", "utf8");
+  push(
+    relationshipMapSource.includes('data-linked-client-state="unavailable"') &&
+      relationshipMapSource.includes("linkedClient.canNavigate && linkedClient.href"),
+    "RelationshipMap source gates unavailable linked-client navigation",
+  );
+}
+
+async function createClient(label = "client", request = memberRequestJson, overrides = {}) {
   const name = `${qaStamp} ${label} 客戶`;
   const emailLabel = label.replace(/[^a-z0-9]+/gi, "").toLowerCase() || "client";
   const email = `relationship-write-${Date.now()}-${emailLabel}@asai.local`;
-  const phone = "0912-771-662";
+  const phone = overrides.phone ?? "0912-771-662";
   const client = await request("POST", "/api/clients", {
     name,
     email,
@@ -431,6 +497,7 @@ async function createClient(label = "client", request = memberRequestJson) {
     occupation: "家族企業負責人",
     annualIncome: 5800000,
     status: "ACTIVE",
+    ...overrides,
   });
   const id = client.body?.client?.id ?? "";
   push(client.status === 201 && Boolean(id), "POST /api/clients creates graph write QA client", `status=${client.status} client=${id}`);

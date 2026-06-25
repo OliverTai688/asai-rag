@@ -5,7 +5,11 @@ import {
   familyMemberProfileInputSchema,
   mergeFamilyMemberProfileIntoMetadata,
 } from "@/domains/client/family-member-profile";
-import { normalizeRelationshipType } from "@/domains/client/types";
+import {
+  normalizeRelationshipType,
+  type Client,
+  type FamilyMemberLinkedClientSummary,
+} from "@/domains/client/types";
 import { canReadClientDetail, canWriteClient } from "@/lib/auth/policies";
 import type { AppSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
@@ -112,7 +116,7 @@ export async function createClientForMember(session: AppSession, input: CreateCl
     include: clientInclude,
   });
 
-  return toClientDto(record);
+  return attachReadableLinkedClients(session, toClientDto(record));
 }
 
 export async function getClientForMember(session: AppSession, clientId: string) {
@@ -129,7 +133,7 @@ export async function getClientForMember(session: AppSession, clientId: string) 
     return null;
   }
 
-  return toClientDto(record);
+  return attachReadableLinkedClients(session, toClientDto(record));
 }
 
 export async function updateClientForMember(session: AppSession, clientId: string, input: UpdateClientInput) {
@@ -166,7 +170,7 @@ export async function updateClientForMember(session: AppSession, clientId: strin
     include: clientInclude,
   });
 
-  return toClientDto(record);
+  return attachReadableLinkedClients(session, toClientDto(record));
 }
 
 export async function archiveClientForMember(session: AppSession, clientId: string) {
@@ -472,6 +476,63 @@ async function validateFamilyLinkedClientId(
   }
 
   return null;
+}
+
+async function attachReadableLinkedClients(session: AppSession, client: Client): Promise<Client> {
+  const linkedClientIds = uniqueClientIds(client.family.map((member) => member.linkedClientId));
+
+  if (linkedClientIds.length === 0) {
+    return client;
+  }
+
+  const linkedRecords = await prisma.client.findMany({
+    where: {
+      id: { in: linkedClientIds },
+      organizationId: session.organization.id,
+      status: { not: ClientStatus.ARCHIVED },
+    },
+    select: {
+      id: true,
+      name: true,
+      status: true,
+      organizationId: true,
+      unitId: true,
+      ownerId: true,
+    },
+  });
+  const linkedById = new Map<string, FamilyMemberLinkedClientSummary>();
+
+  linkedRecords.forEach((record) => {
+    if (!canReadClientDetail(session, record)) return;
+
+    linkedById.set(record.id, {
+      availability: "READABLE",
+      displayName: record.name,
+      status: record.status as Client["status"],
+      href: `/crm/${record.id}`,
+    });
+  });
+
+  return {
+    ...client,
+    family: client.family.map((member) => {
+      if (!member.linkedClientId) {
+        return member;
+      }
+
+      return {
+        ...member,
+        linkedClient: linkedById.get(member.linkedClientId) ?? {
+          availability: "UNAVAILABLE",
+          displayName: "已連結 CRM 客戶",
+        },
+      };
+    }),
+  };
+}
+
+function uniqueClientIds(values: Array<string | undefined>): string[] {
+  return [...new Set(values.map((value) => value?.trim()).filter((value): value is string => Boolean(value)))];
 }
 
 function toNullableInputJson(

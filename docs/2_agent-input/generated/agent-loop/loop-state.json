@@ -84,11 +84,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 2,
+    "normalLoopsSinceLastWholeProductReview": 3,
     "lastWholeProductReviewAt": "2026-06-25T08:17:13Z",
     "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-25_lv3-whole-product-gap-review-after-live-cross-flow-recovery.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "REL-008 completed as a source/proof loop: family member POST/PATCH now accepts guarded `linkedClientId`, rejects self/unreadable targets with non-leaking errors, relationship graph BFF decorates readable linked clients with safe display/href metadata, and edge-shadow summary now counts cross-client linked-client candidates without exposing server-only draft edges. `pnpm client:relationship-edge-shadow-qa`, `pnpm client:relationship-edge-shadow-bff-qa`, and warmed-server `DEMO_QA_BASE_URL=http://127.0.0.1:3069 pnpm client:relationship-graph-write-qa` passed. Next normal loop should choose either REL-008 UI navigation polish (RelationshipMap clickable linked-client affordance if clean and low-conflict) or release-proof harness stability (`pnpm client:relationship-graph-qa` Playwright cold-start/browser phase), unless operator first approves formal `RelationshipEdge` schema/migration or answers relationship confirmation persistence A/B/C.",
+    "nextRecommendedImplementationSlice": "REL-008 UI/source slice completed: client detail BFF now attaches owner-scoped linked-client summaries to family members, RelationshipMap renders readable linked clients as clickable CRM navigation affordances and unavailable linked clients as non-navigable markers, and `client:relationship-graph-write-qa` proves BFF + browser behavior with no linked email/phone leakage. `pnpm exec tsc --noEmit --pretty false`, `pnpm lint:changed`, and warmed-server `DEMO_QA_BASE_URL=http://127.0.0.1:3070 pnpm client:relationship-graph-write-qa` passed. Adjacent `pnpm client:relationship-edge-shadow-bff-qa` was attempted and failed only because current worktree has unrelated dirty `prisma/schema.prisma`, so do not treat that as this slice regression. Next normal loop should choose REL-009 BFF convergence/perf/a11y/relationship graph page proof or proof-harness stability (`pnpm client:relationship-graph-qa` cold-start/browser phase), unless operator first approves formal `RelationshipEdge` schema/migration or answers relationship confirmation persistence A/B/C.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {
@@ -156,5 +156,5 @@
     "lv3ImmersiveLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-immersive-loop.md",
     "lv3WholeProductGapReviewLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md"
   },
-  "updatedAt": "2026-06-25T09:40:26Z"
+  "updatedAt": "2026-06-25T09:57:25Z"
 }

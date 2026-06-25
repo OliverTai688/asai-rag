@@ -21,7 +21,7 @@ import {
   type RelationshipGraphPersonNode,
 } from "@/domains/client/relationship-graph";
 import { Client, getRelationGeneration } from "@/domains/client/types";
-import { Users, User, Heart, Baby, Star, Crown, Smile, UserPlus } from "lucide-react";
+import { ArrowUpRight, Users, User, Heart, Baby, Star, Crown, Smile, UserPlus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { applyDagreLayout } from "@/lib/graph-layout";
 
@@ -54,6 +54,7 @@ type PersonNodeData = {
   relation: string;
   isRoot?: boolean;
   generation: number;
+  linkedClient?: RelationshipGraphPersonNode["linkedClient"];
   onAddChild?: (memberId: string) => void;
   onAddParent?: (memberId: string) => void;
   memberId: string;
@@ -92,7 +93,7 @@ const PersonNode = ({
         }
       }}
       className={cn(
-        "flex min-h-[72px] min-w-[160px] items-center gap-3 rounded-xl border px-4 py-3 shadow-none transition-colors motion-reduce:transition-none",
+        "flex min-h-[72px] min-w-[190px] flex-col items-stretch gap-3 rounded-xl border px-4 py-3 shadow-none transition-colors motion-reduce:transition-none",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1A3A6B] focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-zinc-950",
         style.bg,
         style.border,
@@ -100,18 +101,21 @@ const PersonNode = ({
       )}
     >
       <Handle type="target" position={Position.Top} className="opacity-0" />
-      <div
-        className={cn(
-          "flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-hairline",
-          data.isRoot ? "bg-white" : "bg-white/60 dark:bg-zinc-800/60"
-        )}
-      >
-        {getNodeIcon(data.relation, !!data.isRoot, style.icon)}
+      <div className="flex items-center gap-3">
+        <div
+          className={cn(
+            "flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-hairline",
+            data.isRoot ? "bg-white" : "bg-white/60 dark:bg-zinc-800/60"
+          )}
+        >
+          {getNodeIcon(data.relation, !!data.isRoot, style.icon)}
+        </div>
+        <div className="min-w-0 flex-1 text-left">
+          <p className="text-xs font-bold text-zinc-400 uppercase tracking-tight">{data.relation}</p>
+          <p className="truncate text-sm font-bold text-zinc-900 dark:text-zinc-100">{data.label}</p>
+        </div>
       </div>
-      <div className="flex-1 min-w-0 text-left">
-        <p className="text-xs font-bold text-zinc-400 uppercase tracking-tight">{data.relation}</p>
-        <p className="text-sm font-bold truncate text-zinc-900 dark:text-zinc-100">{data.label}</p>
-      </div>
+      {data.linkedClient && <LinkedClientAffordance linkedClient={data.linkedClient} />}
       <Handle type="source" position={Position.Bottom} className="opacity-0" />
       <Handle type="target" position={Position.Top} className="opacity-0" />
 
@@ -144,6 +148,54 @@ const PersonNode = ({
     </div>
   );
 };
+
+function LinkedClientAffordance({
+  linkedClient,
+}: {
+  linkedClient: NonNullable<RelationshipGraphPersonNode["linkedClient"]>;
+}) {
+  const commonClassName =
+    "flex min-h-8 items-center gap-1.5 rounded-md border border-hairline bg-white/70 px-2.5 py-1.5 text-left text-[11px] font-semibold text-zinc-700 shadow-none dark:bg-zinc-900/70 dark:text-zinc-200";
+
+  if (linkedClient.canNavigate && linkedClient.href) {
+    return (
+      <a
+        href={linkedClient.href}
+        aria-label={`開啟${linkedClient.label}的 CRM 客戶資料`}
+        title={`開啟${linkedClient.label}的 CRM 客戶資料`}
+        data-linked-client-affordance="readable"
+        data-linked-client-state="readable"
+        className={cn(
+          commonClassName,
+          "transition-colors hover:border-[#1A3A6B]/40 hover:text-[#1A3A6B] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1A3A6B] focus-visible:ring-offset-2 motion-reduce:transition-none"
+        )}
+        onClick={(event) => event.stopPropagation()}
+        onPointerDown={(event) => event.stopPropagation()}
+      >
+        <ArrowUpRight className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+        <span className="min-w-0 flex-1 truncate">{linkedClient.label}</span>
+        {linkedClient.status && (
+          <span className="shrink-0 border-l border-hairline pl-1.5 text-[10px] text-zinc-500 dark:text-zinc-400">
+            {linkedClient.status}
+          </span>
+        )}
+      </a>
+    );
+  }
+
+  return (
+    <span
+      aria-label="此關係人也是 CRM 客戶，但目前無權檢視明細"
+      title="此關係人也是 CRM 客戶，但目前無權檢視明細"
+      data-linked-client-affordance="unavailable"
+      data-linked-client-state="unavailable"
+      className={cn(commonClassName, "text-zinc-500 dark:text-zinc-400")}
+    >
+      <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-zinc-400" aria-hidden="true" />
+      <span className="min-w-0 flex-1 truncate">{linkedClient.label}</span>
+    </span>
+  );
+}
 
 const nodeTypes = { person: PersonNode };
 
@@ -178,6 +230,7 @@ function buildGraph(
         relation: reviewNode.relation,
         isRoot,
         generation: reviewNode.generation,
+        linkedClient: reviewNode.linkedClient,
         memberId: reactFlowNodeId,
         onAddChild: onAddChild ? () => onAddChild(isRoot ? null : reactFlowNodeId) : undefined,
         onAddParent: onAddParent ? () => onAddParent(isRoot ? null : reactFlowNodeId) : undefined,
