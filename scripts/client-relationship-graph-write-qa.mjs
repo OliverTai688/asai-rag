@@ -149,6 +149,65 @@ async function runApiProof() {
     `status=${unknownRelationCreate.status} relation=${unknownRelationMember?.relation ?? ""}`,
   );
 
+  const linkedClient = await createClient("linked-client");
+  const readableLinkedMember = linkedClient.id
+    ? await createFamilyMember(createdClientId, {
+        name: `${qaStamp} 同時是客戶節點`,
+        relation: "配偶",
+        age: 45,
+        linkedClientId: linkedClient.id,
+      })
+    : { member: null };
+  push(
+    readableLinkedMember.member?.linkedClientId === linkedClient.id,
+    "POST persists readable linkedClientId in returned client DTO",
+  );
+
+  const graphResponse = await memberRequestJson("GET", `/api/clients/${createdClientId}/relationship-graph`);
+  const linkedGraphNode = graphResponse.body?.graph?.nodes?.find(
+    (node) => node.displayName === readableLinkedMember.member?.name,
+  );
+  const serializedGraphResponse = JSON.stringify(graphResponse.body ?? {});
+  push(graphResponse.status === 200, "GET relationship graph returns linkedClientId review payload", `status=${graphResponse.status}`);
+  push(
+    linkedGraphNode?.linkedClient?.canNavigate === true && linkedGraphNode?.linkedClient?.href === `/crm/${linkedClient.id}`,
+    "relationship graph marks readable linked client as navigable",
+  );
+  push(
+    linkedGraphNode?.fields?.relationshipContext?.value?.includes(linkedClient.name),
+    "relationship graph context names readable linked client",
+  );
+  push(
+    graphResponse.body?.edgeShadow?.linkedClientCandidateCount >= 1,
+    "edge-shadow BFF summary counts linked client candidates without returning draft edges",
+    `linkedClientCandidateCount=${graphResponse.body?.edgeShadow?.linkedClientCandidateCount ?? ""}`,
+  );
+  push(
+    !serializedGraphResponse.includes(linkedClient.email) && !serializedGraphResponse.includes(linkedClient.phone),
+    "relationship graph BFF omits linked client email and phone sentinels",
+  );
+
+  const managerOwnedClient = await createClient("manager-linked-client", managerRequestJson);
+  if (managerOwnedClient.id) {
+    const forbiddenLinkedClientCreate = await memberRequestJson(
+      "POST",
+      `/api/clients/${createdClientId}/family-members`,
+      {
+        name: `${qaStamp} 無權連結客戶節點`,
+        relation: "朋友",
+        linkedClientId: managerOwnedClient.id,
+      },
+    );
+    push(
+      forbiddenLinkedClientCreate.status === 400 &&
+        forbiddenLinkedClientCreate.body?.error === "FAMILY_MEMBER_LINKED_CLIENT_NOT_FOUND",
+      "POST rejects unreadable linkedClientId without leaking target ownership",
+      `status=${forbiddenLinkedClientCreate.status} error=${forbiddenLinkedClientCreate.body?.error ?? ""}`,
+    );
+  } else {
+    push(false, "POST rejects unreadable linkedClientId without leaking target ownership", "manager client setup failed");
+  }
+
   const rootElder = await createFamilyMember(createdClientId, {
     name: `${qaStamp} 直接父節點`,
     relation: "父",
@@ -360,20 +419,22 @@ async function runBrowserProof() {
   }
 }
 
-async function createClient(label = "client") {
+async function createClient(label = "client", request = memberRequestJson) {
   const name = `${qaStamp} ${label} 客戶`;
   const emailLabel = label.replace(/[^a-z0-9]+/gi, "").toLowerCase() || "client";
-  const client = await memberRequestJson("POST", "/api/clients", {
+  const email = `relationship-write-${Date.now()}-${emailLabel}@asai.local`;
+  const phone = "0912-771-662";
+  const client = await request("POST", "/api/clients", {
     name,
-    email: `relationship-write-${Date.now()}-${emailLabel}@asai.local`,
-    phone: "0912-771-662",
+    email,
+    phone,
     occupation: "家族企業負責人",
     annualIncome: 5800000,
     status: "ACTIVE",
   });
   const id = client.body?.client?.id ?? "";
   push(client.status === 201 && Boolean(id), "POST /api/clients creates graph write QA client", `status=${client.status} client=${id}`);
-  return { id, name };
+  return { id, name, email, phone };
 }
 
 async function createFamilyMember(clientId, body) {

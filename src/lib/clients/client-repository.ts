@@ -30,6 +30,7 @@ export const createFamilyMemberInputSchema = z.object({
   age: z.coerce.number().int().min(0).max(130).optional(),
   phone: z.string().trim().max(40).optional().or(z.literal("")),
   parentMemberId: z.string().trim().optional().or(z.literal("")),
+  linkedClientId: z.string().trim().optional().or(z.literal("")),
   profile: familyMemberProfileInputSchema.nullish(),
 });
 
@@ -50,10 +51,12 @@ export type CreateFamilyMemberInput = z.infer<typeof createFamilyMemberInputSche
 export type UpdateFamilyMemberInput = z.infer<typeof updateFamilyMemberInputSchema>;
 export type CreatePolicyInput = z.infer<typeof createPolicyInputSchema>;
 
-type FamilyMemberParentValidationError =
+type FamilyMemberValidationError =
   | "FAMILY_MEMBER_PARENT_NOT_FOUND"
   | "FAMILY_MEMBER_PARENT_SELF"
-  | "FAMILY_MEMBER_PARENT_CYCLE";
+  | "FAMILY_MEMBER_PARENT_CYCLE"
+  | "FAMILY_MEMBER_LINKED_CLIENT_NOT_FOUND"
+  | "FAMILY_MEMBER_LINKED_CLIENT_SELF";
 
 const clientInclude = {
   complianceChecklist: true,
@@ -218,6 +221,13 @@ export async function createFamilyMemberForClient(
     return { error: parentValidationError };
   }
 
+  const nextLinkedClientId = input.linkedClientId?.trim() || null;
+  const linkedClientValidationError = await validateFamilyLinkedClientId(session, clientId, nextLinkedClientId);
+
+  if (linkedClientValidationError) {
+    return { error: linkedClientValidationError };
+  }
+
   await prisma.familyMember.create({
     data: {
       clientId,
@@ -226,6 +236,7 @@ export async function createFamilyMemberForClient(
       age: input.age ?? null,
       phone: input.phone || null,
       parentMemberId: nextParentMemberId,
+      linkedClientId: nextLinkedClientId,
       ...(input.profile !== undefined
         ? { metadata: toNullableInputJson(mergeFamilyMemberProfileIntoMetadata(null, input.profile) ?? null) }
         : {}),
@@ -259,12 +270,26 @@ export async function updateFamilyMemberForClient(
 
   const nextParentMemberId =
     input.parentMemberId === undefined ? undefined : input.parentMemberId.trim() || null;
+  const nextLinkedClientId =
+    input.linkedClientId === undefined ? undefined : input.linkedClientId.trim() || null;
 
   if (nextParentMemberId !== undefined) {
     const parentValidationError = validateFamilyParentMemberId(members, memberId, nextParentMemberId);
 
     if (parentValidationError) {
       return { error: parentValidationError };
+    }
+  }
+
+  if (nextLinkedClientId !== undefined) {
+    const linkedClientValidationError = await validateFamilyLinkedClientId(
+      session,
+      clientId,
+      nextLinkedClientId,
+    );
+
+    if (linkedClientValidationError) {
+      return { error: linkedClientValidationError };
     }
   }
 
@@ -277,6 +302,7 @@ export async function updateFamilyMemberForClient(
         ...(input.age !== undefined ? { age: input.age ?? null } : {}),
         ...(input.phone !== undefined ? { phone: input.phone || null } : {}),
         ...(nextParentMemberId !== undefined ? { parentMemberId: nextParentMemberId } : {}),
+        ...(nextLinkedClientId !== undefined ? { linkedClientId: nextLinkedClientId } : {}),
         ...(input.profile !== undefined
           ? {
               metadata: toNullableInputJson(
@@ -399,7 +425,7 @@ function validateFamilyParentMemberId(
   members: Array<{ id: string; parentMemberId: string | null }>,
   memberId: string | null,
   proposedParentId: string | null,
-): FamilyMemberParentValidationError | null {
+): FamilyMemberValidationError | null {
   if (!proposedParentId) return null;
 
   if (memberId && proposedParentId === memberId) {
@@ -412,6 +438,37 @@ function validateFamilyParentMemberId(
 
   if (memberId && wouldCreateFamilyCycle(members, memberId, proposedParentId)) {
     return "FAMILY_MEMBER_PARENT_CYCLE";
+  }
+
+  return null;
+}
+
+async function validateFamilyLinkedClientId(
+  session: AppSession,
+  clientId: string,
+  proposedLinkedClientId: string | null,
+): Promise<FamilyMemberValidationError | null> {
+  if (!proposedLinkedClientId) return null;
+
+  if (proposedLinkedClientId === clientId) {
+    return "FAMILY_MEMBER_LINKED_CLIENT_SELF";
+  }
+
+  const linkedClient = await prisma.client.findFirst({
+    where: {
+      id: proposedLinkedClientId,
+      organizationId: session.organization.id,
+      status: { not: ClientStatus.ARCHIVED },
+    },
+    select: {
+      organizationId: true,
+      unitId: true,
+      ownerId: true,
+    },
+  });
+
+  if (!linkedClient || !canReadClientDetail(session, linkedClient)) {
+    return "FAMILY_MEMBER_LINKED_CLIENT_NOT_FOUND";
   }
 
   return null;

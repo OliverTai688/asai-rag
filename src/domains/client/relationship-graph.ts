@@ -41,6 +41,17 @@ export interface RelationshipGraphField {
   rationale?: string;
 }
 
+export interface RelationshipGraphLinkedClient {
+  label: string;
+  availability: "READABLE" | "UNAVAILABLE";
+  canNavigate: boolean;
+  href?: string;
+  status?: string;
+  factStatus: RelationshipGraphFactStatus;
+  sourceReferenceIds: string[];
+  rationale: string;
+}
+
 export interface RelationshipGraphPersonNode {
   nodeKey: string;
   displayName: string;
@@ -56,6 +67,7 @@ export interface RelationshipGraphPersonNode {
     status: RelationshipGraphField;
     relationshipContext: RelationshipGraphField;
   };
+  linkedClient?: RelationshipGraphLinkedClient;
   unknowns: string[];
   sourceReferenceIds: string[];
 }
@@ -194,6 +206,9 @@ function buildSourceReferences(client: Client): RelationshipGraphSourceReference
       factStatus: "FACT",
       summary: `${member.relation} ${member.name}${member.age !== undefined ? `，${member.age} 歲` : ""}。`,
     });
+    if (member.linkedClientId) {
+      references.push(buildLinkedClientSourceReference(member, index));
+    }
     references.push(...buildFamilyProfileSourceReferences(member, index));
   });
 
@@ -267,6 +282,8 @@ function buildFamilyNode(client: Client, member: FamilyMember, index: number): R
   const role = inferFamilyRole(member);
   const parentLabel = getParentLabel(client, member);
   const sourceId = familySourceId(index);
+  const linkedClient = buildLinkedClientReview(member, index);
+  const sourceReferenceIds = linkedClient ? [sourceId, ...linkedClient.sourceReferenceIds] : [sourceId];
   const profile = member.profile;
   const jobTitle = profileField(
     profile,
@@ -307,15 +324,16 @@ function buildFamilyNode(client: Client, member: FamilyMember, index: number): R
     index,
     field(
       "關係脈絡",
-      `${member.relation}，連結至 ${parentLabel}${member.age !== undefined ? `，年齡 ${member.age} 歲` : ""}。`,
+      buildRelationshipContextValue(member, parentLabel),
       "FACT",
-      [sourceId],
+      sourceReferenceIds,
     ),
   );
   const unknowns = [
     jobTitle.factStatus === "UNKNOWN" ? `${member.name} 的職位/職業待確認。` : "",
     annualIncome.factStatus === "UNKNOWN" ? `${member.name} 的年收入或財務依賴關係待確認。` : "",
     status.factStatus === "UNKNOWN" ? `${member.name} 在保額、保費或受益安排中的狀態待確認。` : "",
+    linkedClient?.availability === "UNAVAILABLE" ? `${member.name} 有跨客戶連結，但目前權限不可檢視對方 CRM 明細。` : "",
   ].filter(Boolean);
 
   return {
@@ -333,8 +351,75 @@ function buildFamilyNode(client: Client, member: FamilyMember, index: number): R
       status,
       relationshipContext,
     },
+    ...(linkedClient ? { linkedClient } : {}),
     unknowns,
-    sourceReferenceIds: [sourceId],
+    sourceReferenceIds,
+  };
+}
+
+function buildRelationshipContextValue(member: FamilyMember, parentLabel: string): string {
+  const ageSuffix = member.age !== undefined ? `，年齡 ${member.age} 歲` : "";
+  const linkedClient = member.linkedClient;
+
+  if (!member.linkedClientId) {
+    return `${member.relation}，連結至 ${parentLabel}${ageSuffix}。`;
+  }
+
+  if (linkedClient?.availability === "READABLE") {
+    return `${member.relation}，連結至 ${parentLabel}${ageSuffix}；同時是 CRM 客戶：${linkedClient.displayName}。`;
+  }
+
+  return `${member.relation}，連結至 ${parentLabel}${ageSuffix}；已連結另一筆 CRM 客戶，但目前 session 無權檢視明細。`;
+}
+
+function buildLinkedClientReview(member: FamilyMember, index: number): RelationshipGraphLinkedClient | undefined {
+  if (!member.linkedClientId) return undefined;
+
+  const sourceReferenceIds = [linkedClientSourceId(index)];
+  const linkedClient = member.linkedClient;
+
+  if (linkedClient?.availability === "READABLE") {
+    return {
+      label: `同時是 CRM 客戶：${linkedClient.displayName}`,
+      availability: "READABLE",
+      canNavigate: Boolean(linkedClient.href),
+      ...(linkedClient.href ? { href: linkedClient.href } : {}),
+      ...(linkedClient.status ? { status: CLIENT_STATUS_LABELS[linkedClient.status] } : {}),
+      factStatus: "FACT",
+      sourceReferenceIds,
+      rationale: "familyMember.linkedClientId 指向同組織且目前 session 可讀的 CRM 客戶。",
+    };
+  }
+
+  return {
+    label: "同時是 CRM 客戶（無權檢視明細）",
+    availability: "UNAVAILABLE",
+    canNavigate: false,
+    factStatus: "UNKNOWN",
+    sourceReferenceIds,
+    rationale: "familyMember.linkedClientId 存在，但目前 session 不具備對方客戶明細讀取權限；BFF 只保留連結存在事實，不揭露姓名或聯絡資料。",
+  };
+}
+
+function buildLinkedClientSourceReference(member: FamilyMember, index: number): RelationshipGraphSourceReference {
+  const linkedClient = member.linkedClient;
+
+  if (linkedClient?.availability === "READABLE") {
+    return {
+      id: linkedClientSourceId(index),
+      type: "relationship_graph",
+      label: `跨客戶連結 ${index + 1}`,
+      factStatus: "FACT",
+      summary: `${member.name} 透過 linkedClientId 連結至可讀 CRM 客戶 ${linkedClient.displayName}。`,
+    };
+  }
+
+  return {
+    id: linkedClientSourceId(index),
+    type: "relationship_graph",
+    label: `跨客戶連結 ${index + 1}`,
+    factStatus: "UNKNOWN",
+    summary: `${member.name} 有 linkedClientId，但目前 session 不可檢視對方客戶明細。`,
   };
 }
 
@@ -601,6 +686,10 @@ function buildEvidenceBuckets(client: Client, nodes: RelationshipGraphPersonNode
   const facts = [
     `${client.name} 是主客戶，狀態為 ${CLIENT_STATUS_LABELS[client.status]}。`,
     ...client.family.slice(0, 6).map((member) => `${member.name} 是${client.name}的${member.relation}。`),
+    ...client.family
+      .filter((member) => member.linkedClientId && member.linkedClient?.availability === "READABLE")
+      .slice(0, 3)
+      .map((member) => `${member.name} 同時連結至 CRM 客戶 ${member.linkedClient?.displayName}。`),
     ...client.existingPolicies.slice(0, 3).map((policy) => `${client.name} 已有 ${policy.provider} ${policy.type}。`),
   ];
   const inferences = nodes
@@ -676,6 +765,10 @@ function field(
 
 function familySourceId(index: number): string {
   return `relationship.${index + 1}`;
+}
+
+function linkedClientSourceId(index: number): string {
+  return `${familySourceId(index)}.linked-client`;
 }
 
 function familyNodeKey(index: number): string {

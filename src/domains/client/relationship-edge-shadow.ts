@@ -8,7 +8,8 @@ export type RelationshipEdgeShadowDerivedFrom =
   | "root_sibling_relation"
   | "root_generation_relation"
   | "unsupported_root_relation"
-  | "missing_parent_member";
+  | "missing_parent_member"
+  | "linked_client_relation";
 
 export type RelationshipEdgeShadowWarningCode =
   | "MISSING_PARENT_MEMBER"
@@ -48,6 +49,7 @@ export interface RelationshipEdgeShadowBackfillResult {
   generatedAt: string;
   clientId: string;
   sourceMemberCount: number;
+  linkedClientCandidateCount: number;
   draftEdges: RelationshipEdgeDraft[];
   duplicateDraftIds: string[];
   unsupportedRelations: string[];
@@ -70,6 +72,7 @@ export interface RelationshipEdgeShadowBffSummary {
   generatedAt: string;
   sourceMemberCount: number;
   draftEdgeCount: number;
+  linkedClientCandidateCount: number;
   duplicateDraftIdCount: number;
   unsupportedRelations: string[];
   warningCodes: RelationshipEdgeShadowWarningCode[];
@@ -114,7 +117,7 @@ export function buildRelationshipEdgeShadowBackfill(
 
   for (const member of client.family) {
     const candidate = buildDraftInputForMember(client, member, memberById);
-    draftInputs.push(candidate.draft);
+    draftInputs.push(...candidate.drafts);
     warnings.push(...candidate.warnings);
   }
 
@@ -145,6 +148,7 @@ export function buildRelationshipEdgeShadowBackfill(
     generatedAt,
     clientId: client.id,
     sourceMemberCount: client.family.length,
+    linkedClientCandidateCount: draftEdges.filter((edge) => edge.metadata.derivedFrom === "linked_client_relation").length,
     draftEdges,
     duplicateDraftIds,
     unsupportedRelations: unique(
@@ -196,6 +200,7 @@ export function toRelationshipEdgeShadowBffSummary(
     generatedAt: result.generatedAt,
     sourceMemberCount: result.sourceMemberCount,
     draftEdgeCount: result.draftEdges.length,
+    linkedClientCandidateCount: result.linkedClientCandidateCount,
     duplicateDraftIdCount: result.duplicateDraftIds.length,
     unsupportedRelations: result.unsupportedRelations,
     warningCodes: unique(result.warnings.map((warning) => warning.code)) as RelationshipEdgeShadowWarningCode[],
@@ -214,27 +219,32 @@ function buildDraftInputForMember(
   client: Client,
   member: FamilyMember,
   memberById: Map<string, FamilyMember>,
-): { draft: DraftInput; warnings: RelationshipEdgeShadowWarning[] } {
+): { drafts: DraftInput[]; warnings: RelationshipEdgeShadowWarning[] } {
   const sourceReferenceIds = [`relationship.${member.id}`];
+  const linkedClientDraft = member.linkedClientId
+    ? buildLinkedClientDraftInput(client, member, sourceReferenceIds)
+    : null;
 
   if (member.parentMemberId) {
     const parent = memberById.get(member.parentMemberId);
 
     if (parent) {
+      const primaryDraft = draftInput({
+        clientId: client.id,
+        sourceNodeId: familyMemberNodeId(parent.id),
+        targetNodeId: familyMemberNodeId(member.id),
+        type: "PARENT_OF",
+        factStatus: "FACT",
+        label: member.relation,
+        sourceReferenceIds: [`relationship.${parent.id}`, ...sourceReferenceIds],
+        derivedFrom: "family_member_parent_member_id",
+        safeSummary: "Existing parentMemberId can be backfilled into a parent edge.",
+        confidence: "high",
+        warningCodes: [],
+      });
+
       return {
-        draft: draftInput({
-          clientId: client.id,
-          sourceNodeId: familyMemberNodeId(parent.id),
-          targetNodeId: familyMemberNodeId(member.id),
-          type: "PARENT_OF",
-          factStatus: "FACT",
-          label: member.relation,
-          sourceReferenceIds: [`relationship.${parent.id}`, ...sourceReferenceIds],
-          derivedFrom: "family_member_parent_member_id",
-          safeSummary: "Existing parentMemberId can be backfilled into a parent edge.",
-          confidence: "high",
-          warningCodes: [],
-        }),
+        drafts: linkedClientDraft ? [primaryDraft, linkedClientDraft] : [primaryDraft],
         warnings: [],
       };
     }
@@ -246,25 +256,52 @@ function buildDraftInputForMember(
       message: "parentMemberId did not match an existing family member; candidate edge falls back to SOCIAL_TIE.",
     };
 
+    const primaryDraft = draftInput({
+      clientId: client.id,
+      sourceNodeId: primaryClientNodeId(client.id),
+      targetNodeId: familyMemberNodeId(member.id),
+      type: "SOCIAL_TIE",
+      factStatus: "UNKNOWN",
+      label: member.relation,
+      sourceReferenceIds,
+      derivedFrom: "missing_parent_member",
+      safeSummary: "Missing parent reference needs advisor confirmation before schema migration.",
+      confidence: "low",
+      warningCodes: [warning.code],
+    });
+
     return {
-      draft: draftInput({
-        clientId: client.id,
-        sourceNodeId: primaryClientNodeId(client.id),
-        targetNodeId: familyMemberNodeId(member.id),
-        type: "SOCIAL_TIE",
-        factStatus: "UNKNOWN",
-        label: member.relation,
-        sourceReferenceIds,
-        derivedFrom: "missing_parent_member",
-        safeSummary: "Missing parent reference needs advisor confirmation before schema migration.",
-        confidence: "low",
-        warningCodes: [warning.code],
-      }),
+      drafts: linkedClientDraft ? [primaryDraft, linkedClientDraft] : [primaryDraft],
       warnings: [warning],
     };
   }
 
-  return buildRootConnectedDraftInput(client, member, sourceReferenceIds);
+  const rootDraft = buildRootConnectedDraftInput(client, member, sourceReferenceIds);
+
+  return {
+    drafts: linkedClientDraft ? [rootDraft.draft, linkedClientDraft] : [rootDraft.draft],
+    warnings: rootDraft.warnings,
+  };
+}
+
+function buildLinkedClientDraftInput(
+  client: Client,
+  member: FamilyMember,
+  sourceReferenceIds: string[],
+): DraftInput {
+  return draftInput({
+    clientId: client.id,
+    sourceNodeId: familyMemberNodeId(member.id),
+    targetNodeId: linkedClientNodeId(member.linkedClientId ?? "unknown"),
+    type: "SOCIAL_TIE",
+    factStatus: "FACT",
+    label: "跨客戶連結",
+    sourceReferenceIds: [...sourceReferenceIds, `relationship.${member.id}.linked-client`],
+    derivedFrom: "linked_client_relation",
+    safeSummary: "Family member is linked to another CRM client; formal edge migration must keep this as a cross-client candidate and recheck viewer permission.",
+    confidence: "high",
+    warningCodes: [],
+  });
 }
 
 function buildRootConnectedDraftInput(
@@ -457,6 +494,10 @@ function primaryClientNodeId(clientId: string): string {
 
 function familyMemberNodeId(memberId: string): string {
   return `family-member:${memberId}`;
+}
+
+function linkedClientNodeId(clientId: string): string {
+  return `linked-client:${clientId}`;
 }
 
 function sourceMemberIdFromNodeId(nodeId: string): string {

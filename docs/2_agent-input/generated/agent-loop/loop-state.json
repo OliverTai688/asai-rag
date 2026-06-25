@@ -84,11 +84,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 1,
+    "normalLoopsSinceLastWholeProductReview": 2,
     "lastWholeProductReviewAt": "2026-06-25T08:17:13Z",
     "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-25_lv3-whole-product-gap-review-after-live-cross-flow-recovery.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "REL-007 completed as a source/proof hardening loop: POST/PATCH family-member parent validation now shares existence/same-client/self/cycle guards where applicable, POST rejects dangling or cross-client parentMemberId, relation aliases normalize before persistence, and unsupported relation labels normalize to explicit `其他` so graph/edge-shadow/UI generation uses UNKNOWN/social fallback instead of silent same-rank inference. `pnpm client:relationship-graph-write-qa` and `pnpm client:relationship-edge-shadow-qa` passed against a warmed local dev server; `pnpm client:relationship-graph-qa` API phase reached DB-backed 200s but its Playwright browser phase hung and was interrupted, so treat that as proof-harness stability work rather than source regression. Next normal loop should select `REL-008 linkedClientId cross-client relationship network` if staying source-backed, unless the operator first approves formal `RelationshipEdge` schema/migration or answers relationship confirmation persistence A/B/C. If release evidence is the priority, fix the cold-start/browser proof harnesses before adding new product surface.",
+    "nextRecommendedImplementationSlice": "REL-008 completed as a source/proof loop: family member POST/PATCH now accepts guarded `linkedClientId`, rejects self/unreadable targets with non-leaking errors, relationship graph BFF decorates readable linked clients with safe display/href metadata, and edge-shadow summary now counts cross-client linked-client candidates without exposing server-only draft edges. `pnpm client:relationship-edge-shadow-qa`, `pnpm client:relationship-edge-shadow-bff-qa`, and warmed-server `DEMO_QA_BASE_URL=http://127.0.0.1:3069 pnpm client:relationship-graph-write-qa` passed. Next normal loop should choose either REL-008 UI navigation polish (RelationshipMap clickable linked-client affordance if clean and low-conflict) or release-proof harness stability (`pnpm client:relationship-graph-qa` Playwright cold-start/browser phase), unless operator first approves formal `RelationshipEdge` schema/migration or answers relationship confirmation persistence A/B/C.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {
@@ -156,5 +156,5 @@
     "lv3ImmersiveLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-immersive-loop.md",
     "lv3WholeProductGapReviewLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md"
   },
-  "updatedAt": "2026-06-25T08:41:53Z"
+  "updatedAt": "2026-06-25T09:40:26Z"
 }

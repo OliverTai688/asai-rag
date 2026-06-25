@@ -13,6 +13,7 @@ const phoneSentinel = "0912-222-333";
 const policySentinel = "POLICY-EDGE-SHADOW-001";
 const providerPayloadSentinel = "rawProviderPayload";
 const secretSentinel = "sk-relationship-edge-shadow";
+const linkedClientIdSentinel = "client_linked_spouse";
 
 const fixtureClient: Client = {
   id: "client_relationship_edge_shadow",
@@ -25,7 +26,7 @@ const fixtureClient: Client = {
   family: [
     { id: "father", relation: "父", name: "林父", age: 72 },
     { id: "mother", relation: "母", name: "林母", age: 70 },
-    { id: "spouse", relation: "配偶", name: "陳雅雯", age: 45 },
+    { id: "spouse", relation: "配偶", name: "陳雅雯", age: 45, linkedClientId: linkedClientIdSentinel },
     { id: "sibling", relation: "妹", name: "林妹妹", age: 39 },
     { id: "child", relation: "女", name: "林小芸", age: 13, parentMemberId: "father" },
     { id: "partner", relation: "合作夥伴", name: "張合夥", age: 48 },
@@ -77,6 +78,7 @@ console.log(
       version: firstRun.version,
       draftEdgeCount: firstRun.draftEdges.length,
       sourceMemberCount: firstRun.sourceMemberCount,
+      linkedClientCandidateCount: firstRun.linkedClientCandidateCount,
       counts: firstRun.counts,
       warningCodes: firstRun.warnings.map((warning) => warning.code),
       unsupportedRelations: firstRun.unsupportedRelations,
@@ -99,7 +101,10 @@ function assertResultShape(result: ReturnType<typeof buildRelationshipEdgeShadow
   if (result.version !== "2026-06-23.relationship-edge-shadow.v1") shapeFailures.push("unexpected shadow version");
   if (result.generatedAt !== now) shapeFailures.push("generatedAt should be deterministic when now is passed");
   if (result.sourceMemberCount !== fixtureClient.family.length) shapeFailures.push("source member count mismatch");
-  if (result.draftEdges.length !== fixtureClient.family.length) shapeFailures.push("each family member should produce one candidate edge");
+  if (result.draftEdges.length !== fixtureClient.family.length + 1) {
+    shapeFailures.push("linkedClientId member should produce an additional cross-client candidate edge");
+  }
+  if (result.linkedClientCandidateCount !== 1) shapeFailures.push("linked client candidate count mismatch");
   if (draftIds.size !== result.draftEdges.length) shapeFailures.push("draft ids are not unique");
   if (!edgeTypes.has("PARENT_OF")) shapeFailures.push("missing PARENT_OF candidate");
   if (!edgeTypes.has("SPOUSE_OF")) shapeFailures.push("missing SPOUSE_OF candidate");
@@ -115,6 +120,7 @@ function assertResultShape(result: ReturnType<typeof buildRelationshipEdgeShadow
   if (!metadataDerivedFrom.has("root_social_relation")) shapeFailures.push("missing social candidate");
   if (!metadataDerivedFrom.has("unsupported_root_relation")) shapeFailures.push("missing unsupported relation candidate");
   if (!metadataDerivedFrom.has("missing_parent_member")) shapeFailures.push("missing missing-parent candidate");
+  if (!metadataDerivedFrom.has("linked_client_relation")) shapeFailures.push("missing linked client candidate");
   if (result.duplicateDraftIds.length !== 0) shapeFailures.push("duplicate guard should report zero duplicate ids for fixture");
   if (!result.unsupportedRelations.includes("親戚")) shapeFailures.push("unsupported relation warning should include 親戚");
   if (!result.warnings.some((warning) => warning.code === "MISSING_PARENT_MEMBER")) {
@@ -139,6 +145,11 @@ function assertResultShape(result: ReturnType<typeof buildRelationshipEdgeShadow
   const orphanEdge = findEdge(result.draftEdges, `client:${fixtureClient.id}:primary`, "family-member:orphan", "SOCIAL_TIE");
   if (!orphanEdge || orphanEdge.factStatus !== "UNKNOWN") {
     shapeFailures.push("missing-parent fallback should produce UNKNOWN SOCIAL_TIE");
+  }
+
+  const linkedClientEdge = findEdge(result.draftEdges, "family-member:spouse", `linked-client:${linkedClientIdSentinel}`, "SOCIAL_TIE");
+  if (!linkedClientEdge || linkedClientEdge.metadata.derivedFrom !== "linked_client_relation") {
+    shapeFailures.push("linkedClientId should produce a cross-client SOCIAL_TIE candidate");
   }
 
   const relativeEdge = findEdge(result.draftEdges, `client:${fixtureClient.id}:primary`, "family-member:relative", "SOCIAL_TIE");
@@ -170,6 +181,9 @@ function assertBffSummary(
   if (summary.version !== result.version) summaryFailures.push("BFF summary version mismatch");
   if (summary.sourceMemberCount !== result.sourceMemberCount) summaryFailures.push("BFF summary source count mismatch");
   if (summary.draftEdgeCount !== result.draftEdges.length) summaryFailures.push("BFF summary draft count mismatch");
+  if (summary.linkedClientCandidateCount !== result.linkedClientCandidateCount) {
+    summaryFailures.push("BFF summary linked client candidate count mismatch");
+  }
   if (summary.duplicateDraftIdCount !== result.duplicateDraftIds.length) {
     summaryFailures.push("BFF summary duplicate draft count mismatch");
   }
@@ -187,6 +201,9 @@ function assertBffSummary(
 
   for (const key of forbiddenServerOnlyKeys) {
     if (serialized.includes(key)) summaryFailures.push(`BFF summary leaked server-only key: ${key}`);
+  }
+  if (serialized.includes(linkedClientIdSentinel)) {
+    summaryFailures.push("BFF summary leaked linked client id");
   }
 
   return summaryFailures;

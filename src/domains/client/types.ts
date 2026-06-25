@@ -102,6 +102,15 @@ export function getRelationGeneration(relation: string): number {
   return RELATION_GENERATION[normalizeRelationshipType(relation)] ?? 0;
 }
 
+export type FamilyMemberLinkedClientAvailability = "READABLE" | "UNAVAILABLE";
+
+export interface FamilyMemberLinkedClientSummary {
+  availability: FamilyMemberLinkedClientAvailability;
+  displayName: string;
+  status?: ClientStatus;
+  href?: string;
+}
+
 export interface FamilyMember {
   id: string;
   relation: RelationshipType | string;
@@ -109,6 +118,7 @@ export interface FamilyMember {
   age?: number;
   phone?: string;
   linkedClientId?: string;
+  linkedClient?: FamilyMemberLinkedClientSummary;
   parentMemberId?: string; // 連結至哪個成員（undefined = 直接連結主客戶）
   profile?: FamilyMemberProfile;
 }

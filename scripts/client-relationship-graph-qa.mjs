@@ -115,10 +115,15 @@ async function runApiProof() {
     `source=${edgeShadow?.sourceMemberCount ?? ""}`,
   );
   push(
-    edgeShadow?.draftEdgeCount === edgeShadow?.sourceMemberCount &&
+    edgeShadow?.draftEdgeCount >= edgeShadow?.sourceMemberCount &&
       edgeShadow?.counts?.total === edgeShadow?.draftEdgeCount,
     "edge shadow BFF summary counts candidate edges without returning drafts",
     `drafts=${edgeShadow?.draftEdgeCount ?? ""}`,
+  );
+  push(
+    Number.isInteger(edgeShadow?.linkedClientCandidateCount) && edgeShadow.linkedClientCandidateCount >= 0,
+    "edge shadow BFF summary exposes linked client candidate count",
+    `linkedClientCandidateCount=${edgeShadow?.linkedClientCandidateCount ?? ""}`,
   );
   push(
     edgeShadow?.proof?.clientFacingDraftEdgesReturned === false && edgeShadow?.proof?.formalSchemaApproved === false,

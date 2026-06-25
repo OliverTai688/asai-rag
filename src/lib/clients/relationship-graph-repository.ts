@@ -10,6 +10,7 @@ import { canReadClientDetail } from "@/lib/auth/policies";
 import type { AppSession } from "@/lib/auth/session";
 import { toClientDto } from "@/lib/clients/client-dto";
 import { prisma } from "@/lib/prisma";
+import type { Client, FamilyMemberLinkedClientSummary } from "@/domains/client/types";
 
 const relationshipGraphInclude = {
   complianceChecklist: true,
@@ -58,7 +59,7 @@ export async function getClientRelationshipGraphForMember(
     return { status: "FORBIDDEN" };
   }
 
-  const client = toClientDto(record);
+  const client = await attachReadableLinkedClients(session, toClientDto(record));
   const graph = buildClientRelationshipGraphReview(client);
   const edgeShadow = toRelationshipEdgeShadowBffSummary(buildRelationshipEdgeShadowBackfill(client));
 
@@ -75,4 +76,62 @@ export async function getClientRelationshipGraphForMember(
       edgeShadow,
     },
   };
+}
+
+async function attachReadableLinkedClients(session: AppSession, client: Client): Promise<Client> {
+  const linkedClientIds = uniqueClientIds(client.family.map((member) => member.linkedClientId));
+
+  if (linkedClientIds.length === 0) {
+    return client;
+  }
+
+  const linkedRecords = await prisma.client.findMany({
+    where: {
+      id: { in: linkedClientIds },
+      organizationId: session.organization.id,
+      status: { not: ClientStatus.ARCHIVED },
+    },
+    select: {
+      id: true,
+      name: true,
+      status: true,
+      organizationId: true,
+      unitId: true,
+      ownerId: true,
+    },
+  });
+
+  const linkedById = new Map<string, FamilyMemberLinkedClientSummary>();
+
+  linkedRecords.forEach((record) => {
+    if (!canReadClientDetail(session, record)) return;
+
+    linkedById.set(record.id, {
+      availability: "READABLE",
+      displayName: record.name,
+      status: record.status as Client["status"],
+      href: `/crm/${record.id}`,
+    });
+  });
+
+  return {
+    ...client,
+    family: client.family.map((member) => {
+      if (!member.linkedClientId) {
+        return member;
+      }
+
+      return {
+        ...member,
+        linkedClient: linkedById.get(member.linkedClientId) ?? {
+          availability: "UNAVAILABLE",
+          displayName: "已連結 CRM 客戶",
+        },
+      };
+    }),
+  };
+}
+
+function uniqueClientIds(values: Array<string | undefined>): string[] {
+  return [...new Set(values.map((value) => value?.trim()).filter((value): value is string => Boolean(value)))];
 }
