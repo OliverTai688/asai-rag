@@ -14,6 +14,7 @@ import {
 import { NotificationHub } from "./notification-hub";
 import { signOutAction, switchDemoAccountAction } from "@/lib/auth/session-actions";
 import { GlobalSearch } from "./global-search";
+import { ThemeToggle } from "@/components/theme/theme-toggle";
 
 export type TopBarViewer = {
   name: string;
@@ -92,6 +93,9 @@ export function TopBar({
       </div>
 
       <div className="flex items-center gap-2 relative">
+        {/* Theme toggle (dark default) */}
+        <ThemeToggle />
+
         {/* Notifications */}
         <NotificationHub />
 

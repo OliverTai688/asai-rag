@@ -11,6 +11,7 @@ import {
   Theater,
   CalendarDays,
   FileText,
+  StickyNote,
   Users2,
   Settings,
   Sparkles,
@@ -79,6 +80,7 @@ const navSections: Array<{ label: string; items: NavItem[] }> = [
     label: "客戶工作",
     items: [
       { name: "客戶管理", href: "/crm", icon: Users },
+      { name: "隨手筆記", href: "/notes", icon: StickyNote },
       { name: "訪前規劃", href: "/pre-visit", icon: CalendarDays },
       { name: "分析報告", href: "/reports", icon: FileText },
     ],

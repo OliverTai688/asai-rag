@@ -3,6 +3,7 @@ import { Noto_Sans_TC, Noto_Serif_TC, JetBrains_Mono, DM_Serif_Display, Geist } 
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { ThemeProvider } from "@/components/theme/theme-provider";
 
 const notoSans = Noto_Sans_TC({
   variable: "--font-sans",
@@ -58,10 +59,12 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col font-sans">
-        <TooltipProvider>
-          {children}
-          <Toaster position="top-center" richColors />
-        </TooltipProvider>
+        <ThemeProvider>
+          <TooltipProvider>
+            {children}
+            <Toaster position="top-center" richColors />
+          </TooltipProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

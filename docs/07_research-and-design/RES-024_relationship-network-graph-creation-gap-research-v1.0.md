@@ -78,6 +78,26 @@
 
 ---
 
+## 2.1 延伸缺口（深度程式碼審查補充，2026-06-24）
+
+§2 的 Bug A–F 是初版渲染/型別層診斷。第二輪深入 service / repository / API 路徑後，再找出 9 個未涵蓋缺口（N1–N9）。**狀態以 2026-06-24 現況程式碼為準**（REL-001..006h 已由並行開發部分修復）。
+
+| 代號 | 缺口 | 位置 | 影響 | 現況 | 對應卡 |
+| --- | --- | --- | --- | --- | --- |
+| N1 | **POST 新增關係人完全不驗證 `parentMemberId`** | `client-repository.ts` `createFamilyMemberForClient` 直接寫入未驗證的 `parentMemberId`，無 existence/same-client/cycle 檢查（只有 PATCH `updateFamilyMemberForClient` 有 `wouldCreateFamilyCycle` / `PARENT_NOT_FOUND` / `PARENT_SELF`） | 可寫入指向不存在或跨 client member 的 parent → DB dangling edge → 圖上 edge source 指向虛空節點；跨客戶 parent 注入 | **OPEN（HIGH）** | REL-007 |
+| N2 | **`relation` 為自由字串，未綁定 `RELATION_GENERATION` 鍵** | schema `relation: z.string().min(1).max(40)`；`RELATION_GENERATION[relation] ?? 0` 對非標準字串 fallback 成「同輩」 | 使用者打「爸爸/兒子」或 AI 寫回任意字串時世代/顏色/rank 全錯；`其他`組（親戚/朋友/合作夥伴）一律當同輩 | **OPEN（MEDIUM）** | REL-007 |
+| N3 | **`linkedClientId` 被關係圖完全忽略** | `FamilyMember.linkedClientId` 在 type/Prisma/DTO（`client-dto.ts`）存在、pre-visit 頁有用，但 `RelationshipMap`/`relationship-graph.ts` 不讀 | 關係人同時是另一 CRM 客戶（配偶也是客戶）時無法跨客戶連結/導覽 → 真正的「跨客戶關係網絡」形不成 | **OPEN（MEDIUM，network 核心）** | REL-008 |
+| N4 | **BFF relationship-graph 路由未被前端消費** | `/api/clients/[id]/relationship-graph` → `getClientRelationshipGraphForMember`（含 REL-004b `edgeShadow`）無前端 caller；relationships 頁仍 client-side `buildClientRelationshipGraphReview(client)` | 「blessed」BFF 路徑等同 dead endpoint；畫面與 BFF 靠各自重算硬維持一致（脆弱、易漂移） | **OPEN（MEDIUM，架構）** | REL-009 |
+| N5 | 刪除把長輩子節點 re-parent 回主客戶曾與 line-186 orphan 渲染交互製造孤兒 | `deleteFamilyMemberForClient` re-parent + 舊 `RelationshipMap.tsx:186` | 刪除動作憑空生孤立節點 | **likely RESOLVED**（REL-001 已修長輩 edge；需回歸驗證） | REL-009（回歸） |
+| N6 | parent mode 用 local store mutator，會被下次 BFF `setClient` 覆蓋 | 舊 `AddRelationshipDialog` parent mode | 同 session 內也丟失 | **RESOLVED**（REL-002：child/parent 兩 mode 皆走 `createFamilyMemberRemote` + `updateFamilyMemberRemote`） | — |
+| N7 | 每次 mutation 兩次 round-trip + 整包 `getClientForMember` refetch | repository write helpers | 互動拖曳全量重算/重抓 | OPEN（LOW，效能） | REL-009 |
+| N8 | ReactFlow canvas 無 a11y（節點無語意 div） | `RelationshipMap.tsx` | screen-reader 不可讀；下方清單為唯一 fallback | **partial**（REL-005 已補 toolbar aria/keyboard；canvas 本體仍無語意） | REL-009（residual） |
+| N9 | CRM 圖無關係人數量上限/去重 | 全鏈路 | 大家庭 dagre 擠成一團；劇場有 NPC≤4，CRM 沒有 | OPEN（LOW） | REL-009 |
+
+> 最關鍵仍為 **N1（越權/dangling edge）、N3（跨客戶網絡）、N4（BFF 未接）**：前者是資料完整性紅線，後二者是「能否成為真正關係網絡」的根本。
+
+---
+
 ## 3. 關係網絡實作方法研究（web）
 
 ### 3.1 渲染 / 互動函式庫

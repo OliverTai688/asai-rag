@@ -191,6 +191,16 @@ REL-006g evidence（2026-06-24）：新增 visit-domain `VisitRouteBFeedbackAdvi
 
 REL-006h evidence（2026-06-24）：新增 meeting-domain `MeetingRouteBFeedbackAdvisorWritebackBridge`、AI Meeting workspace preview panel、package proof command 與 AgentFacts manifest/registry refs。Proof command `pnpm meeting:route-b-feedback-advisor-writeback-bridge-qa` 驗證 summary prerequisite、advisor confirmation、MEETING_WRITEBACK_PREVIEW_CONTEXT target、no-provider/no fake `AiUsageLog`、no graph/VisitPlan/client profile/policy/confirmed CRM fact write、no raw source scope leakage。
 
+### D1. Formal RelationshipEdge persistence（REL-004，動 schema，operator 2026-06-25 核可）
+
+- [x] Prisma `RelationshipEdge` model + enum `RelationshipEdgeType`/`RelationshipEdgeFactStatus`；全表帶可驗證 `organizationId`（經 client）；保留 `FamilyMember` 作 compatibility。
+- [x] Repository `src/lib/clients/relationship-edge-repository.ts`：UI 不直接 import Prisma；list/backfill 由 `requireCurrentMember` + `canReadClientDetail`/`canWriteClient` server-scoped。
+- [x] Backfill idempotent：以 `backfillKey`（= REL-004a draftId）upsert；重跑 created=0、total 不變、不刪手動新增邊。
+- [x] `pnpm prisma:validate` / `pnpm prisma:generate` / `pnpm exec prisma db push`（dev target in sync）；rollback note 記於 `PLN-024` REL-004。
+- [x] DB-layer idempotency proof（live dev DB，直接 SQL）：first backfill 3 edges → second backfill 仍 3（no dup）→ in-place upsert → unique(client_id, backfill_key) index → node id/type 持久化 → test rows 清理。
+- [ ] live HTTP proof：`GET/POST /api/clients/[id]/relationship-edges` 與 `pnpm client:relationship-edge-persistence-qa`（unauth 401、backfill 200 idempotent、edge types PARENT_OF/SPOUSE_OF/SIBLING_OF/SOCIAL_TIE、manager 403/404、no email/phone sentinel、metadata allowlist）。**待 dev server 可用後重跑**（目前被 single-dev-server lock 阻擋）。
+- [x] `pnpm exec tsc --noEmit --pretty false`、`pnpm lint:changed`（changed-file 0 新增問題）。
+
 ## E. 佈局/互動/可及性（REL-005）
 
 - [ ] 配偶同 rank、手足排序、社會邊不破壞世代階層。
@@ -203,3 +213,26 @@ REL-006h evidence（2026-06-24）：新增 meeting-domain `MeetingRouteBFeedback
 - [ ] org manager aggregate API 不回關係人姓名以外的客戶私密明細。
 - [ ] 高敏感客戶關係資料進劇場仍走 reason/riskAccepted gate。
 - [ ] client-facing / share 介面不外洩內部關係圖私密欄位。
+
+## G. 延伸缺口驗收（REL-007 / REL-008 / REL-009，對應 RES-024 §2.1 N1–N9）
+
+### G1. 建立/edge 完整性（REL-007，N1 + N2）
+
+- [ ] POST `/api/clients/[id]/family-members` 帶不存在 `parentMemberId` → 400；跨 client parent → 400/404；自我/成環 → 400；正常 → 201。
+- [ ] POST 與 PATCH 共用同一套 parent 驗證 helper（existence / same-client / self / cycle），不再只有 PATCH 驗證。
+- [ ] `relation` 正規化到 `RELATION_GENERATION` 鍵或同義詞映射；未知關係標 `UNKNOWN` generation，不靜默當「同輩」。
+- [ ] 渲染端遇指向不存在 member 的 `parentMemberId` 時 fallback 主客戶並標記，無指向虛空的 edge。
+
+### G2. 跨客戶網絡 `linkedClientId`（REL-008，N3）
+
+- [ ] BFF review / edge 推導讀取 `linkedClientId`，linked 關係人正確標記為「同時是 CRM 客戶」。
+- [ ] 有權限時可導覽到對應 `/crm/[clientId]`；無權限只標記、不導覽、不外洩對方明細。
+- [ ] sentinel 掃描：跨客戶連結不外洩對方 email/phone/明細到 org manager aggregate 或 client-facing 介面。
+
+### G3. BFF 收斂 + 效能/a11y/上限（REL-009，N4 + N5 回歸 + N7/N8/N9）
+
+- [ ] relationships 頁消費 `/api/clients/[id]/relationship-graph` BFF（含 `edgeShadow`）或明確移除死碼風險；BFF-consumed 與 client-side 渲染一致。
+- [ ] N5 回歸：刪除長輩/中間節點後無漂浮孤立節點。
+- [ ] N7：mutation 後不再全量 refetch（受影響子集或 cache patch）。
+- [ ] N8：ReactFlow canvas 補基本 a11y；尊重 `prefers-reduced-motion`。
+- [ ] N9：關係人數量上限/去重策略明確（與劇場 NPC≤4 一致或分流）。

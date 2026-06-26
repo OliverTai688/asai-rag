@@ -32,7 +32,9 @@
       "Bash(curl -s -H 'x-asai-demo-user-email: demo.member@asai.local' -H 'Content-Type: application/json' -X POST http://localhost:3000/api/ai/chat -d '{\"messages\":[{\"role\":\"user\",\"content\":\"張志明是誰\"}],\"context\":{\"route\":\"/crm/demo_client_chang\"}}')",
       "Bash(curl -s -H 'x-asai-demo-user-email: demo.member@asai.local' -H 'Content-Type: application/json' -X POST http://localhost:3000/api/ai/chat -d '{\"messages\":[{\"role\":\"user\",\"content\":\"我有哪些客戶？列出全部\"}],\"context\":{\"route\":\"/crm\"}}')",
       "Bash(curl -s -H 'x-asai-demo-user-email: demo.member@asai.local' -H 'Content-Type: application/json' -X POST http://localhost:3000/api/ai/chat -d '{\"messages\":[{\"role\":\"user\",\"content\":\"張志明是誰\"}],\"context\":{\"route\":\"/crm/demo_client_chang\",\"clientId\":\"demo_client_chang\",\"clientName\":\"張志明\"}}')",
-      "Bash(curl -s -H 'x-asai-demo-user-email: demo.member@asai.local' -H 'Content-Type: application/json' -X POST http://localhost:3000/api/ai/chat -d '{\"messages\":[{\"role\":\"user\",\"content\":\"他目前的保障缺口是什麼？\"}],\"context\":{\"route\":\"/crm/demo_client_chang\",\"clientId\":\"demo_client_chang\",\"clientName\":\"張志明\"}}')"
+      "Bash(curl -s -H 'x-asai-demo-user-email: demo.member@asai.local' -H 'Content-Type: application/json' -X POST http://localhost:3000/api/ai/chat -d '{\"messages\":[{\"role\":\"user\",\"content\":\"他目前的保障缺口是什麼？\"}],\"context\":{\"route\":\"/crm/demo_client_chang\",\"clientId\":\"demo_client_chang\",\"clientName\":\"張志明\"}}')",
+      "Bash(node -e \"require\\('dns'\\).lookup\\('db.wwocdcicvpmbdmqvskzi.supabase.co',\\(e,a\\)=>{console.log\\(e?\\('DNS_FAIL: '+e.code\\):\\('DNS_OK: '+a\\)\\)}\\)\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" -H \"x-asai-demo-user-email: demo.member@asai.local\" \"http://localhost:3000/notes\")"
     ]
   }
 }

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { getPublicStatus } from "@/lib/public/status-repository";
 import {
   ArrowRight,
@@ -29,20 +30,15 @@ export default async function Home() {
             </span>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Link href="/pricing" className="hidden sm:inline text-[13px] font-medium text-ink-2 hover:text-ink px-3 py-2 transition-colors">
-            方案價格
-          </Link>
+        <nav className="flex items-center gap-3">
+          <ThemeToggle />
           <Link
-            href={status.primaryCta.href}
+            href="/signup"
             className={buttonVariants({ variant: "mono", size: "sm", className: "rounded-full font-medium" })}
-            data-public-cta
-            data-public-cta-mode={status.primaryCta.mode}
-            data-checkout-status={status.checkoutAvailability.status}
           >
-            {status.primaryCta.label}
+            開始使用
           </Link>
-        </div>
+        </nav>
       </header>
 
       <main className="flex-1">
@@ -72,19 +68,16 @@ export default async function Home() {
 
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-5">
               <Link
-                href={status.primaryCta.href}
+                href="/signup"
                 className={buttonVariants({ size: "lg", variant: "mono", className: "h-12 px-8 text-[15px] rounded-full font-medium" })}
-                data-public-cta
-                data-public-cta-mode={status.primaryCta.mode}
-                data-checkout-status={status.checkoutAvailability.status}
               >
-                {status.primaryCta.label} <ArrowRight className="ml-1.5 w-4 h-4" strokeWidth={2} />
+                開始使用 <ArrowRight className="ml-1.5 w-4 h-4" strokeWidth={2} />
               </Link>
               <Link
                 href="/pricing"
                 className={buttonVariants({ size: "lg", variant: "monoOutline", className: "h-12 px-8 text-[15px] rounded-full" })}
               >
-                查看 beta 狀態
+                查看方案
               </Link>
             </div>
             <p className="text-[12px] text-ink-3 flex items-center justify-center gap-4">
