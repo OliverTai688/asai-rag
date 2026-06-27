@@ -62,6 +62,8 @@ async function runApiProof() {
   const graph = detail.body?.graph;
   const edgeShadow = detail.body?.edgeShadow;
   const edgeShadowText = JSON.stringify(edgeShadow ?? {});
+  const edgePersistence = detail.body?.edgePersistence;
+  const edgePersistenceText = JSON.stringify(edgePersistence ?? {});
 
   push(detail.status === 200, "relationship graph detail returns 200", `status=${detail.status}`);
   push(graph?.version === "2026-06-20.relationship-graph-review.v1", "relationship graph DTO has stable version");
@@ -134,6 +136,39 @@ async function runApiProof() {
       edgeShadowText.includes(key),
     ),
     "edge shadow BFF summary omits server-only draft edge payload",
+  );
+  push(
+    edgePersistence?.version === "2026-06-27.relationship-edge-persistence-summary.v1",
+    "relationship graph response includes formal edge persistence summary",
+  );
+  push(
+    ["READY", "EMPTY", "UNAVAILABLE"].includes(edgePersistence?.status),
+    "edge persistence summary exposes explicit readiness status",
+    `status=${edgePersistence?.status ?? ""}`,
+  );
+  push(
+    Number.isInteger(edgePersistence?.persistedEdgeCount) && edgePersistence.persistedEdgeCount >= 0,
+    "edge persistence summary exposes persisted edge count",
+    `persisted=${edgePersistence?.persistedEdgeCount ?? ""}`,
+  );
+  push(
+    edgePersistence?.proof?.formalSchemaAvailable === true &&
+      edgePersistence?.proof?.organizationScoped === true,
+    "edge persistence summary proves formal schema and org scoping boundary",
+  );
+  push(
+    edgePersistence?.proof?.clientFacingRawEdgesReturned === false &&
+      edgePersistence?.proof?.dbWriteAttempted === false &&
+      edgePersistence?.proof?.providerCallAttempted === false &&
+      edgePersistence?.proof?.aiUsageLogWritten === false &&
+      edgePersistence?.proof?.writesConfirmedCrmFact === false,
+    "edge persistence summary is read-only and does not claim AI/provider writes",
+  );
+  push(
+    !["sourceNodeId", "targetNodeId", "metadata", "backfillKey", "derivedFrom", "clientId"].some((key) =>
+      edgePersistenceText.includes(key),
+    ),
+    "edge persistence summary omits raw persisted edge payload",
   );
   push(
     !detailText.includes(qaPrivateEmailPrefix) && !detailText.includes(qaPrivatePhone),

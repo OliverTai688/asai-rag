@@ -1,4 +1,8 @@
-import { ClientStatus } from "@/generated/prisma/enums";
+import {
+  ClientStatus,
+  RelationshipEdgeFactStatus,
+  RelationshipEdgeType,
+} from "@/generated/prisma/enums";
 import type { ClientRelationshipGraphReview } from "@/domains/client/relationship-graph";
 import { buildClientRelationshipGraphReview } from "@/domains/client/relationship-graph";
 import type { RelationshipEdgeShadowBffSummary } from "@/domains/client/relationship-edge-shadow";
@@ -36,7 +40,44 @@ export type ClientRelationshipGraphResponse = {
   };
   graph: ClientRelationshipGraphReview;
   edgeShadow: RelationshipEdgeShadowBffSummary;
+  edgePersistence: RelationshipEdgePersistenceBffSummary;
 };
+
+const RELATIONSHIP_EDGE_PERSISTENCE_SUMMARY_VERSION =
+  "2026-06-27.relationship-edge-persistence-summary.v1";
+
+export type RelationshipEdgePersistenceBffSummary = {
+  version: typeof RELATIONSHIP_EDGE_PERSISTENCE_SUMMARY_VERSION;
+  status: "READY" | "EMPTY" | "UNAVAILABLE";
+  persistedEdgeCount: number;
+  countsByType: Record<RelationshipEdgeType, number>;
+  countsByFactStatus: Record<RelationshipEdgeFactStatus, number>;
+  warningCodes: Array<"RELATIONSHIP_EDGE_QUERY_UNAVAILABLE">;
+  proof: {
+    formalSchemaAvailable: true;
+    organizationScoped: true;
+    queriedRelationshipEdgeTable: boolean;
+    clientFacingRawEdgesReturned: false;
+    dbWriteAttempted: false;
+    providerCallAttempted: false;
+    aiUsageLogWritten: false;
+    writesConfirmedCrmFact: false;
+  };
+};
+
+const RELATIONSHIP_EDGE_TYPES = [
+  RelationshipEdgeType.PARENT_OF,
+  RelationshipEdgeType.SPOUSE_OF,
+  RelationshipEdgeType.SIBLING_OF,
+  RelationshipEdgeType.CHILD_OF,
+  RelationshipEdgeType.SOCIAL_TIE,
+] as const;
+
+const RELATIONSHIP_EDGE_FACT_STATUSES = [
+  RelationshipEdgeFactStatus.FACT,
+  RelationshipEdgeFactStatus.INFERENCE,
+  RelationshipEdgeFactStatus.UNKNOWN,
+] as const;
 
 export async function getClientRelationshipGraphForMember(
   session: AppSession,
@@ -62,6 +103,7 @@ export async function getClientRelationshipGraphForMember(
   const client = await attachReadableLinkedClients(session, toClientDto(record));
   const graph = buildClientRelationshipGraphReview(client);
   const edgeShadow = toRelationshipEdgeShadowBffSummary(buildRelationshipEdgeShadowBackfill(client));
+  const edgePersistence = await getRelationshipEdgePersistenceSummary(session, clientId);
 
   return {
     status: "OK",
@@ -74,8 +116,84 @@ export async function getClientRelationshipGraphForMember(
       },
       graph,
       edgeShadow,
+      edgePersistence,
     },
   };
+}
+
+async function getRelationshipEdgePersistenceSummary(
+  session: AppSession,
+  clientId: string,
+): Promise<RelationshipEdgePersistenceBffSummary> {
+  try {
+    const edges = await prisma.relationshipEdge.findMany({
+      where: {
+        clientId,
+        organizationId: session.organization.id,
+      },
+      select: {
+        type: true,
+        factStatus: true,
+      },
+    });
+
+    return toRelationshipEdgePersistenceSummary(edges);
+  } catch {
+    return unavailableRelationshipEdgePersistenceSummary();
+  }
+}
+
+function toRelationshipEdgePersistenceSummary(
+  edges: Array<{
+    type: RelationshipEdgeType;
+    factStatus: RelationshipEdgeFactStatus;
+  }>,
+): RelationshipEdgePersistenceBffSummary {
+  return {
+    version: RELATIONSHIP_EDGE_PERSISTENCE_SUMMARY_VERSION,
+    status: edges.length > 0 ? "READY" : "EMPTY",
+    persistedEdgeCount: edges.length,
+    countsByType: countBy(RELATIONSHIP_EDGE_TYPES, edges.map((edge) => edge.type)),
+    countsByFactStatus: countBy(
+      RELATIONSHIP_EDGE_FACT_STATUSES,
+      edges.map((edge) => edge.factStatus),
+    ),
+    warningCodes: [],
+    proof: baseRelationshipEdgePersistenceProof(true),
+  };
+}
+
+function unavailableRelationshipEdgePersistenceSummary(): RelationshipEdgePersistenceBffSummary {
+  return {
+    version: RELATIONSHIP_EDGE_PERSISTENCE_SUMMARY_VERSION,
+    status: "UNAVAILABLE",
+    persistedEdgeCount: 0,
+    countsByType: countBy(RELATIONSHIP_EDGE_TYPES, []),
+    countsByFactStatus: countBy(RELATIONSHIP_EDGE_FACT_STATUSES, []),
+    warningCodes: ["RELATIONSHIP_EDGE_QUERY_UNAVAILABLE"],
+    proof: baseRelationshipEdgePersistenceProof(false),
+  };
+}
+
+function baseRelationshipEdgePersistenceProof(
+  queriedRelationshipEdgeTable: boolean,
+): RelationshipEdgePersistenceBffSummary["proof"] {
+  return {
+    formalSchemaAvailable: true,
+    organizationScoped: true,
+    queriedRelationshipEdgeTable,
+    clientFacingRawEdgesReturned: false,
+    dbWriteAttempted: false,
+    providerCallAttempted: false,
+    aiUsageLogWritten: false,
+    writesConfirmedCrmFact: false,
+  };
+}
+
+function countBy<const T extends string>(keys: readonly T[], values: T[]): Record<T, number> {
+  return Object.fromEntries(
+    keys.map((key) => [key, values.filter((value) => value === key).length]),
+  ) as Record<T, number>;
 }
 
 async function attachReadableLinkedClients(session: AppSession, client: Client): Promise<Client> {

@@ -84,11 +84,11 @@
   ],
   "cadenceReview": {
     "everyCompletedLoops": 5,
-    "normalLoopsSinceLastWholeProductReview": 1,
+    "normalLoopsSinceLastWholeProductReview": 2,
     "lastWholeProductReviewAt": "2026-06-25T15:37:20Z",
     "lastWholeProductReviewReport": "docs/2_agent-input/generated/agent-loop/reports/2026-06-25_lv3-whole-product-gap-review-after-route-b-source-and-edge-persistence.md",
     "reviewPrompt": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md",
-    "nextRecommendedImplementationSlice": "REL-004 live HTTP/DB proof recovery or next graph consumer slice: this loop added and ran `pnpm client:relationship-edge-persistence-qa --source-only`, proving the formal RelationshipEdge schema/repository/route source boundary, authz scope, metadata allowlist, no provider/fake AiUsageLog, and no confirmed CRM fact write without DB access. DB DNS still returns ENOTFOUND, so live HTTP proof remains deferred. Next loop should re-check DB DNS first; if recovered, run `DEMO_QA_BASE_URL=http://127.0.0.1:<asai-port> pnpm client:relationship-edge-persistence-qa` and then graph/cross-flow evidence. If DB remains unavailable, choose the next no-DB source-backed slice that consumes persisted/formal edge readiness into relationship graph BFF/render boundaries without claiming live persistence proof. Do not stage unrelated dirty files.",
+    "nextRecommendedImplementationSlice": "REL-004 graph consumer slice completed source-side: this loop added a formal `edgePersistence` summary to `/api/clients/[id]/relationship-graph`, querying `RelationshipEdge` by current client and organization scope, returning only aggregate counts/status/proof, and extending live relationship graph QA plus new `pnpm client:relationship-edge-graph-bff-qa`. DB DNS still returns ENOTFOUND, so live HTTP/DB proof remains deferred. Next loop should re-check DB DNS first; if recovered, run `DEMO_QA_BASE_URL=http://127.0.0.1:<asai-port> pnpm client:relationship-edge-persistence-qa` and `DEMO_QA_BASE_URL=http://127.0.0.1:<asai-port> pnpm client:relationship-graph-qa`. If DB remains unavailable, choose the next no-DB source-backed relationship graph render/UI affordance slice that consumes `edgePersistence.status` visibly without claiming live persistence proof. Do not stage unrelated dirty files.",
     "policy": "Run four narrow LV3 implementation/proof loops, then run one whole-product architecture, experience, interface, safety, and onboarding review loop before resuming implementation."
   },
   "stopPolicy": {
@@ -156,5 +156,5 @@
     "lv3ImmersiveLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-immersive-loop.md",
     "lv3WholeProductGapReviewLoop": "docs/2_agent-input/generated/agent-loop/prompts/lv3-whole-product-gap-review-loop.md"
   },
-  "updatedAt": "2026-06-25T15:41:05Z"
+  "updatedAt": "2026-06-27T03:18:30Z"
 }
