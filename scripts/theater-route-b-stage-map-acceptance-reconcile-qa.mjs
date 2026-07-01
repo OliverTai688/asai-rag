@@ -70,6 +70,8 @@ function checkStageMapSourceMarkers() {
     "data-route-b-source-browser-active={selectedSource.id}",
     "data-route-b-review-browser=\"true\"",
     "data-route-b-review-browser-active={selectedView.id}",
+    "data-route-b-red-line-browser=\"true\"",
+    "data-route-b-red-line-browser-active={selectedWarning?.id ?? \"empty\"}",
     "function RouteBRelationshipEvidencePopover",
     "function RouteBProviderProofPopover",
     "label=\"providerCallAttempted\" value={String(provider.callAttempted)}",

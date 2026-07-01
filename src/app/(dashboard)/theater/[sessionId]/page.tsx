@@ -1529,21 +1529,39 @@ function RouteBSevereRedLineWarningPanel({
   const isBusy = status === "loading" || status === "saving";
   const evidenceNeededCount = Object.values(actionStates).filter((state) => state === "EVIDENCE_NEEDED").length;
   const escalateCount = Object.values(actionStates).filter((state) => state === "ESCALATE").length;
+  const [activeRuleId, setActiveRuleId] = useState(warningPreview.warnings[0]?.id ?? "");
+  const selectedWarning =
+    warningPreview.warnings.find((warning) => warning.id === activeRuleId) ??
+    warningPreview.warnings[0] ??
+    null;
+  const selectedActionCard = selectedWarning
+    ? actionWorkflow.cards.find((card) => card.ruleId === selectedWarning.id)
+    : undefined;
+  const selectedState = selectedWarning
+    ? actionStates[selectedWarning.id] ?? selectedActionCard?.defaultState ?? "WATCHING"
+    : "WATCHING";
+  const selectedOption =
+    selectedActionCard?.options.find((option) => option.state === selectedState) ??
+    selectedActionCard?.options[0];
   const persistedAt = actionPersistence?.records
     .map((record) => record.updatedAt)
     .sort()
     .at(-1);
 
   return (
-    <div className="space-y-4" data-route-b-feedback-review-view="true">
+    <div
+      className="space-y-4"
+      data-route-b-red-line-browser="true"
+      data-route-b-red-line-browser-active={selectedWarning?.id ?? "empty"}
+    >
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-              Severe Red-line Watchlist
+              Red-line Browser
             </p>
             <h2 className="mt-1 text-sm font-semibold text-ink">守門紅線</h2>
             <p className="mt-2 text-sm leading-6 text-muted-foreground">
-              從 provider prompt context 同源顯示嚴重即時項；可標示觀察、佐證、不適用或升級審閱，但不自動阻斷對話、不提供法律意見、不寫 CRM confirmed fact。
+              從 provider prompt context 同源顯示嚴重即時項；一次聚焦一條規則，可標示觀察、佐證、不適用或升級審閱。
             </p>
           </div>
           <CircleAlert className="mt-1 h-4 w-4 shrink-0 text-muted-foreground" />
@@ -1586,71 +1604,108 @@ function RouteBSevereRedLineWarningPanel({
           </p>
         ) : null}
 
-        <div className="space-y-2">
-          {warningPreview.warnings.map((warning) => {
-            const actionCard = actionWorkflow.cards.find((card) => card.ruleId === warning.id);
-            const selectedState = actionStates[warning.id] ?? actionCard?.defaultState ?? "WATCHING";
-            const selectedOption = actionCard?.options.find((option) => option.state === selectedState) ?? actionCard?.options[0];
+        {warningPreview.warnings.length ? (
+          <div className="grid gap-3">
+            <div className="flex gap-2 overflow-x-auto pb-1" role="tablist" aria-label="Route B 紅線規則">
+              {warningPreview.warnings.map((warning) => {
+                const state = actionStates[warning.id] ?? actionWorkflow.cards.find((card) => card.ruleId === warning.id)?.defaultState ?? "WATCHING";
 
-            return (
-              <details key={warning.id} className="group rounded-lg border border-hairline bg-paper">
-                <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 px-3 text-sm font-medium text-ink [&::-webkit-details-marker]:hidden">
-                  <span>{warning.label}</span>
+                return (
+                  <button
+                    key={warning.id}
+                    type="button"
+                    role="tab"
+                    aria-label={warning.label}
+                    aria-selected={selectedWarning?.id === warning.id}
+                    onClick={() => setActiveRuleId(warning.id)}
+                    className={cn(
+                      "flex min-w-44 shrink-0 items-start gap-2 rounded-lg border border-hairline px-3 py-2 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                      selectedWarning?.id === warning.id
+                        ? "bg-ink text-paper"
+                        : "bg-paper text-muted-foreground hover:text-ink",
+                    )}
+                  >
+                    <CircleAlert className="mt-0.5 h-4 w-4 shrink-0" />
+                    <span className="min-w-0">
+                      <span className="block truncate text-xs font-semibold">{warning.label}</span>
+                      <span className="mt-1 block text-[11px] opacity-75">{state}</span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {selectedWarning ? (
+              <div className="rounded-lg border border-hairline bg-background p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                      Selected Rule
+                    </p>
+                    <h3 className="mt-1 text-sm font-semibold text-ink">{selectedWarning.label}</h3>
+                  </div>
                   <Badge variant={selectedState === "ESCALATE" ? "destructive" : "outline"} className="shrink-0 rounded-full">
                     {selectedOption?.label ?? selectedState}
                   </Badge>
-                </summary>
-                <div className="space-y-3 border-t border-hairline p-3">
-                  <div className="flex flex-wrap gap-1.5">
-                    {warning.triggerSignals.slice(0, 3).map((signal) => (
-                      <Badge key={`${warning.id}-${signal}`} variant="outline" className="rounded-full">
-                        {signal}
-                      </Badge>
+                </div>
+
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  {selectedWarning.triggerSignals.slice(0, 3).map((signal) => (
+                    <Badge key={`${selectedWarning.id}-${signal}`} variant="outline" className="rounded-full">
+                      {signal}
+                    </Badge>
+                  ))}
+                </div>
+
+                <p className="mt-3 text-xs leading-5 text-muted-foreground">
+                  {selectedWarning.advisorReminder}
+                </p>
+
+                {selectedActionCard ? (
+                  <div className="mt-3 grid grid-cols-2 gap-1.5">
+                    {selectedActionCard.options.map((option) => (
+                      <button
+                        key={`${selectedWarning.id}-${option.state}`}
+                        type="button"
+                        aria-label={`${selectedWarning.label}：${option.label}`}
+                        aria-pressed={selectedState === option.state}
+                        onClick={() => onActionStateChange(selectedWarning.id, option.state)}
+                        className={cn(
+                          "min-h-9 rounded-full border border-hairline px-2.5 text-xs font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                          selectedState === option.state
+                            ? "bg-ink text-paper"
+                            : "bg-paper text-muted-foreground hover:bg-muted/40",
+                        )}
+                      >
+                        {option.label}
+                      </button>
                     ))}
                   </div>
-                  <p className="text-xs leading-5 text-muted-foreground">
-                    {warning.advisorReminder}
+                ) : null}
+
+                {selectedOption ? (
+                  <p className="mt-3 border-t border-hairline pt-3 text-xs leading-5 text-muted-foreground">
+                    {selectedOption.summary}
                   </p>
-                  {actionCard ? (
-                    <div className="grid grid-cols-2 gap-1.5">
-                      {actionCard.options.map((option) => (
-                        <button
-                          key={`${warning.id}-${option.state}`}
-                          type="button"
-                          aria-label={`${warning.label}：${option.label}`}
-                          aria-pressed={selectedState === option.state}
-                          onClick={() => onActionStateChange(warning.id, option.state)}
-                          className={cn(
-                            "min-h-9 rounded-full border border-hairline px-2.5 text-xs font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                            selectedState === option.state
-                              ? "bg-ink text-paper"
-                              : "bg-background text-muted-foreground hover:bg-muted/40",
-                          )}
-                        >
-                          {option.label}
-                        </button>
-                      ))}
-                    </div>
-                  ) : null}
-                  {selectedOption ? (
-                    <div className="rounded-lg border border-hairline bg-background px-3 py-2 text-xs leading-5 text-muted-foreground">
-                      {selectedOption.summary}
-                    </div>
-                  ) : null}
-                  <div className="grid gap-2 text-xs text-muted-foreground">
-                    <ContextLine label="Status" value={warning.status} />
-                    <ContextLine label="Action state" value={selectedState} />
-                    <ContextLine label="Evidence" value={warning.evidencePolicy} />
-                    <ContextLine label="Reason code" value={String(Boolean(selectedOption?.requiresAdvisorReasonCode))} />
-                    <ContextLine label="Evidence ref" value={String(Boolean(selectedOption?.requiresEvidenceReference))} />
-                    <ContextLine label="Legal advice" value={String(warning.legalAdviceIncluded)} />
-                    <ContextLine label="Writes CRM fact" value={String(warning.writesConfirmedCrmFact)} />
-                  </div>
+                ) : null}
+
+                <div className="mt-3 grid gap-2 text-xs text-muted-foreground">
+                  <ContextLine label="Status" value={selectedWarning.status} />
+                  <ContextLine label="Action state" value={selectedState} />
+                  <ContextLine label="Evidence" value={selectedWarning.evidencePolicy} />
+                  <ContextLine label="Reason code" value={String(Boolean(selectedOption?.requiresAdvisorReasonCode))} />
+                  <ContextLine label="Evidence ref" value={String(Boolean(selectedOption?.requiresEvidenceReference))} />
+                  <ContextLine label="Legal advice" value={String(selectedWarning.legalAdviceIncluded)} />
+                  <ContextLine label="Writes CRM fact" value={String(selectedWarning.writesConfirmedCrmFact)} />
                 </div>
-              </details>
-            );
-          })}
-        </div>
+              </div>
+            ) : null}
+          </div>
+        ) : (
+          <p className="rounded-lg border border-dashed border-hairline bg-paper px-3 py-3 text-sm leading-6 text-muted-foreground">
+            目前沒有嚴重即時紅線。
+          </p>
+        )}
 
         <div className="grid gap-2 text-sm text-muted-foreground">
           <ContextLine label="Workflow" value={actionWorkflow.actionId} />

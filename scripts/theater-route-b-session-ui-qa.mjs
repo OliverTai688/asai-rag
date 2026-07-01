@@ -190,6 +190,16 @@ async function assertStageViewport(browser, viewportName, viewport) {
           push(!(await hasHorizontalOverflow(page)), `${viewportName} review browser ${reviewLabel} view has no horizontal overflow`);
         }
       }
+      if (tabLabel === "合規紅線") {
+        const redLineBrowser = page.locator('[data-route-b-red-line-browser="true"]');
+        await redLineBrowser.waitFor({ state: "visible", timeout: 10000 });
+        push(await redLineBrowser.isVisible(), `${viewportName} risk tab renders single red-line browser`);
+        const firstRuleTab = redLineBrowser.getByRole("tab").first();
+        if ((await firstRuleTab.count()) > 0) {
+          await firstRuleTab.click();
+          push(!(await hasHorizontalOverflow(page)), `${viewportName} red-line browser first rule view has no horizontal overflow`);
+        }
+      }
     }
     await page.keyboard.press("Escape");
     await page.waitForTimeout(200);
