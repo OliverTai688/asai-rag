@@ -29,6 +29,7 @@ import { Badge } from "@/components/ui/badge";
 import { RouteBStageGraph } from "@/components/theater/route-b-stage-graph";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Sheet,
   SheetContent,
@@ -37,6 +38,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { clientService } from "@/domains/client/service";
 import {
   demoQuickstart,
@@ -877,83 +879,59 @@ function RouteBSessionStage({
             role="group"
             aria-label="劇場模式"
           >
-            <button
-              type="button"
+            <RouteBModeIconButton
+              active={stageMode === "CONVERSE"}
+              icon={<MessageSquare className="h-4 w-4" />}
+              label="對話模式"
               onClick={() => setStageMode("CONVERSE")}
-              aria-pressed={stageMode === "CONVERSE"}
-              className={cn(
-                "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                stageMode === "CONVERSE" ? "bg-ink text-paper" : "text-muted-foreground hover:text-ink",
-              )}
-            >
-              <MessageSquare className="h-4 w-4" />
-              對話模式
-            </button>
-            <button
-              type="button"
+            />
+            <RouteBModeIconButton
+              active={stageMode === "OBSERVE"}
+              icon={<Eye className="h-4 w-4" />}
+              label="觀察模式"
               onClick={() => setStageMode("OBSERVE")}
-              aria-pressed={stageMode === "OBSERVE"}
-              className={cn(
-                "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                stageMode === "OBSERVE" ? "bg-ink text-paper" : "text-muted-foreground hover:text-ink",
-              )}
-            >
-              <Eye className="h-4 w-4" />
-              觀察模式
-            </button>
-            <button
-              type="button"
+            />
+            <RouteBModeIconButton
+              active={stageMode === "COMMENT"}
+              icon={<StickyNote className="h-4 w-4" />}
+              label="Comment"
               onClick={() => setStageMode("COMMENT")}
-              aria-pressed={stageMode === "COMMENT"}
-              className={cn(
-                "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                stageMode === "COMMENT" ? "bg-ink text-paper" : "text-muted-foreground hover:text-ink",
-              )}
-            >
-              <StickyNote className="h-4 w-4" />
-              Comment
-            </button>
+            />
           </div>
-          <Button
-            type="button"
-            variant="outline"
-            className="rounded-full"
-            onClick={() => setIsAdvancedOpen(true)}
-            aria-label="開啟進階面板"
-          >
-            <SlidersHorizontal className="h-4 w-4" />
-            進階
-          </Button>
         </div>
       </header>
 
-      <div className="grid min-h-0 flex-1 gap-4">
-        <main className="grid min-h-0 gap-4 xl:grid-cols-[320px_minmax(0,1fr)]">
-          <section className="xl:col-span-2">
-            <RouteBRelationshipStageMap
-              snapshot={snapshot}
-              relationships={relationships}
-              privateFocusCharacterId={privateFocusCharacterId}
-              onPrivateFocus={handlePrivateFocus}
-            />
-          </section>
-
-          <section className="rounded-lg border border-hairline bg-background p-4">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Characters</p>
-                <h2 className="mt-1 text-base font-semibold text-ink">舞台角色</h2>
-              </div>
-              <Users className="h-4 w-4 text-muted-foreground" />
+      <main
+        className="grid min-h-[calc(100vh-220px)] flex-1 overflow-hidden rounded-xl border border-hairline bg-background xl:grid-cols-[minmax(0,0.95fr)_minmax(420px,1.05fr)]"
+        data-route-b-stage-workspace="single-surface"
+      >
+        <section className="flex min-h-[520px] flex-col border-b border-hairline xl:border-b-0 xl:border-r">
+          <div className="flex flex-wrap items-start justify-between gap-3 border-b border-hairline px-4 py-3">
+            <div className="min-w-0">
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                Relationship Stage Map
+              </p>
+              <h2 className="mt-1 text-lg font-semibold tracking-tight text-ink">客戶關係舞台</h2>
             </div>
-            <div className="mt-4 space-y-3">
-              {snapshot.characters.map((character) => (
-                <RouteBCharacterCard key={character.id} character={character} />
-              ))}
+            <div className="flex items-center gap-1.5" aria-label="舞台工具列">
+              <RouteBCharacterPopover snapshot={snapshot} />
+              <RouteBRelationshipEvidencePopover relationships={relationships} />
+              <RouteBProviderProofPopover provider={provider} snapshot={snapshot} />
+              <RouteBIconButton
+                icon={<SlidersHorizontal className="h-4 w-4" />}
+                label="進階"
+                onClick={() => setIsAdvancedOpen(true)}
+              />
             </div>
-          </section>
+          </div>
+          <RouteBRelationshipStageMap
+            snapshot={snapshot}
+            privateFocusCharacterId={privateFocusCharacterId}
+            onPrivateFocus={handlePrivateFocus}
+          />
+        </section>
 
-          <section className="flex min-h-[640px] flex-col overflow-hidden rounded-lg border border-hairline bg-background">
+        <section className="flex min-h-[640px] flex-col overflow-hidden">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-hairline px-4 py-3">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Stage Runtime</p>
@@ -985,7 +963,7 @@ function RouteBSessionStage({
 
               <div className="flex min-h-0 flex-col">
                 <RouteBLaneHeader icon={<ShieldCheck className="h-4 w-4" />} title="私聊" subtitle="只對指定角色可見" />
-                <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
+                <div className="min-h-0 flex-1 overflow-y-auto">
                   {snapshot.characters.map((character) => {
                     const privateTurns = snapshot.turns.filter(
                       (turn) =>
@@ -994,29 +972,38 @@ function RouteBSessionStage({
                     );
 
                     return (
-                    <div key={character.id} className="rounded-lg border border-hairline bg-paper px-3 py-3">
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-semibold text-ink">{character.displayName}</p>
-                          <p className="mt-1 text-xs text-muted-foreground">
-                            {ROUTE_B_ROLE_LABEL[character.role] ?? character.role}
-                          </p>
-                        </div>
-                        <Badge variant="outline" className="rounded-full">
-                          私聊
-                        </Badge>
+                      <div key={character.id} className="border-b border-hairline last:border-b-0">
+                        <button
+                          type="button"
+                          className="flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+                          onClick={() => handlePrivateFocus(character.routeBCharacterId)}
+                        >
+                          <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-hairline bg-background text-muted-foreground">
+                            <UserRound className="h-4 w-4" />
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="flex items-center gap-2">
+                              <span className="truncate text-sm font-semibold text-ink">{character.displayName}</span>
+                              <span className="rounded-full border border-hairline px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                                私聊
+                              </span>
+                            </span>
+                            <span className="mt-1 block text-xs text-muted-foreground">
+                              {ROUTE_B_ROLE_LABEL[character.role] ?? character.role}
+                            </span>
+                            <span className="mt-1 line-clamp-2 block text-xs leading-5 text-muted-foreground">
+                              {firstRouteBText(character.personaHints) ?? firstRouteBText(character.unknowns) ?? "尚無私聊提示。"}
+                            </span>
+                          </span>
+                        </button>
+                        {privateTurns.length ? (
+                          <div className="space-y-2 px-4 pb-3">
+                            {privateTurns.map((turn) => (
+                              <RouteBTurnBubble key={turn.id} snapshot={snapshot} turn={turn} />
+                            ))}
+                          </div>
+                        ) : null}
                       </div>
-                      <p className="mt-2 line-clamp-2 text-xs leading-5 text-muted-foreground">
-                        {firstRouteBText(character.personaHints) ?? firstRouteBText(character.unknowns) ?? "尚無私聊提示。"}
-                      </p>
-                      {privateTurns.length ? (
-                        <div className="mt-3 space-y-2">
-                          {privateTurns.map((turn) => (
-                            <RouteBTurnBubble key={turn.id} snapshot={snapshot} turn={turn} />
-                          ))}
-                        </div>
-                      ) : null}
-                    </div>
                     );
                   })}
                 </div>
@@ -1048,44 +1035,50 @@ function RouteBSessionStage({
                   onStatePatchTargetRouteBCharacterIdChange={setComposerStatePatchTargetRouteBCharacterId}
                 />
               ) : (
-                <div className="mx-auto max-w-3xl rounded-lg border border-hairline bg-background px-4 py-4 text-sm leading-6 text-muted-foreground">
-                  <p className="font-medium text-ink">觀察模式</p>
-                  <p className="mt-1">
+                <div className="mx-auto flex max-w-3xl items-start gap-3 px-1 py-2 text-sm leading-6 text-muted-foreground">
+                  <span className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-hairline bg-background text-muted-foreground">
+                    <Eye className="h-4 w-4" />
+                  </span>
+                  <p>
+                    <span className="font-medium text-ink">觀察模式：</span>
                     由導演挑選下一位發言者、產生角色之間的自然對話，你在旁觀察互動。啟用 provider 後才會實際生成角色台詞；目前只顯示導演的下一步規劃。
                   </p>
                 </div>
               )}
-              <RouteBNextTurnPreviewPanel
-                appendCandidate={pendingAppendCandidate}
-                appendUsageLogId={pendingAppendUsageLogId}
-                draft={nextTurnDraft}
-                error={nextTurnError}
-                isAppending={isConfirmingNextTurnAppend}
-                onConfirmAppend={handleConfirmNextTurnAppend}
-                onGenerateProviderCandidate={generateNextTurnProviderCandidate}
-                onRefresh={fetchNextTurnDraft}
-                providerCandidateError={providerCandidateError}
-                providerCandidateStatus={providerCandidateStatus}
-                snapshot={snapshot}
-                status={nextTurnStatus}
-              />
-              <div className="mx-auto grid max-w-3xl gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
-                <div className="rounded-lg border border-hairline bg-background px-3 py-3 text-sm text-muted-foreground">
-                  Provider 目前關閉；互動只寫入顧問 turn 與待確認狀態，不產生角色訊息、不寫假 `AiUsageLog`。
-                </div>
-                <Button type="button" variant="mono" className="rounded-full" disabled>
+              <div className="mx-auto flex max-w-3xl items-center justify-end gap-2">
+                <RouteBNextTurnPopover
+                  appendCandidate={pendingAppendCandidate}
+                  appendUsageLogId={pendingAppendUsageLogId}
+                  draft={nextTurnDraft}
+                  error={nextTurnError}
+                  isAppending={isConfirmingNextTurnAppend}
+                  onConfirmAppend={handleConfirmNextTurnAppend}
+                  onGenerateProviderCandidate={generateNextTurnProviderCandidate}
+                  onRefresh={fetchNextTurnDraft}
+                  providerCandidateError={providerCandidateError}
+                  providerCandidateStatus={providerCandidateStatus}
+                  snapshot={snapshot}
+                  status={nextTurnStatus}
+                />
+                <Button
+                  type="button"
+                  variant="mono"
+                  className="h-10 w-10 rounded-full p-0"
+                  disabled
+                  aria-label={
+                    stageMode === "OBSERVE"
+                      ? "讓角色自然互動（待 provider）"
+                      : stageMode === "COMMENT"
+                        ? "Comment 不觸發 provider"
+                        : "待 provider proof"
+                  }
+                >
                   <Sparkles className="h-4 w-4" />
-                  {stageMode === "OBSERVE"
-                    ? "讓角色自然互動（待 provider）"
-                    : stageMode === "COMMENT"
-                      ? "Comment 不觸發 provider"
-                      : "待 provider proof"}
                 </Button>
               </div>
             </div>
           </section>
-        </main>
-      </div>
+      </main>
 
       <Sheet open={isAdvancedOpen} onOpenChange={setIsAdvancedOpen}>
         <SheetContent
@@ -1557,15 +1550,209 @@ function RouteBSevereRedLineWarningPanel({
   );
 }
 
+function RouteBIconButton({
+  icon,
+  label,
+  onClick,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        aria-label={label}
+        className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-hairline bg-background text-muted-foreground transition-colors hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        onClick={onClick}
+        type="button"
+      >
+        {icon}
+      </TooltipTrigger>
+      <TooltipContent>{label}</TooltipContent>
+    </Tooltip>
+  );
+}
+
+function RouteBModeIconButton({
+  active,
+  icon,
+  label,
+  onClick,
+}: {
+  active: boolean;
+  icon: React.ReactNode;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        aria-label={label}
+        aria-pressed={active}
+        className={cn(
+          "inline-flex h-9 w-9 items-center justify-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+          active ? "bg-ink text-paper" : "text-muted-foreground hover:text-ink",
+        )}
+        onClick={onClick}
+        type="button"
+      >
+        {icon}
+      </TooltipTrigger>
+      <TooltipContent>{label}</TooltipContent>
+    </Tooltip>
+  );
+}
+
+function RouteBCharacterPopover({ snapshot }: { snapshot: RouteBSessionSnapshot }) {
+  return (
+    <Popover>
+      <PopoverTrigger
+        aria-label="舞台角色"
+        className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-hairline bg-background text-muted-foreground transition-colors hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        title="舞台角色"
+      >
+        <Users className="h-4 w-4" />
+      </PopoverTrigger>
+      <PopoverContent align="end" className="max-h-[70vh] w-80 max-w-[calc(100vw-2rem)] overflow-y-auto p-3">
+        <div className="space-y-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Characters</p>
+            <h3 className="mt-1 text-sm font-semibold text-ink">舞台角色</h3>
+          </div>
+          {snapshot.characters.map((character) => (
+            <RouteBCharacterCard key={character.id} character={character} />
+          ))}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+function RouteBRelationshipEvidencePopover({ relationships }: { relationships: Array<Record<string, unknown>> }) {
+  return (
+    <Popover>
+      <PopoverTrigger
+        aria-label="關係證據"
+        className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-hairline bg-background text-muted-foreground transition-colors hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        title="關係證據"
+      >
+        <BrainCircuit className="h-4 w-4" />
+      </PopoverTrigger>
+      <PopoverContent align="end" className="max-h-[70vh] w-80 max-w-[calc(100vw-2rem)] overflow-y-auto p-3">
+        <div className="space-y-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+              Relationship Evidence
+            </p>
+            <h3 className="mt-1 text-sm font-semibold text-ink">關係證據</h3>
+          </div>
+          {relationships.length ? (
+            relationships.map((relationship, index) => (
+              <div
+                key={`route-b-stage-relationship-${index}`}
+                className="rounded-lg border border-hairline bg-background p-3"
+              >
+                <p className="text-sm font-medium leading-6 text-ink">
+                  {routeBRecordText(relationship)}
+                </p>
+                <div className="mt-2 grid grid-cols-2 gap-2 text-[11px] text-muted-foreground">
+                  <span>
+                    factStatus{" "}
+                    <strong className="font-mono text-ink">
+                      {routeBRecordField(relationship, "factStatus", "UNKNOWN")}
+                    </strong>
+                  </span>
+                  <span>
+                    visibilityScope{" "}
+                    <strong className="font-mono text-ink">
+                      {routeBRecordField(relationship, "visibilityScope", "SCENE")}
+                    </strong>
+                  </span>
+                  <span>
+                    sources{" "}
+                    <strong className="font-mono text-ink">
+                      {routeBSourceCount(relationship)}
+                    </strong>
+                  </span>
+                  <span>
+                    mode <strong className="font-mono text-ink">stage</strong>
+                  </span>
+                </div>
+              </div>
+            ))
+          ) : (
+            <p className="rounded-lg border border-dashed border-hairline bg-background p-3 text-sm leading-6 text-muted-foreground">
+              無關係證據。
+            </p>
+          )}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+function RouteBProviderProofPopover({
+  provider,
+  snapshot,
+}: {
+  provider: RouteBSessionSnapshot["session"]["provider"];
+  snapshot: RouteBSessionSnapshot;
+}) {
+  return (
+    <Popover>
+      <PopoverTrigger
+        aria-label="Provider guard"
+        className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-hairline bg-background text-muted-foreground transition-colors hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        title="Provider guard"
+      >
+        <ShieldCheck className="h-4 w-4" />
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-80 max-w-[calc(100vw-2rem)] p-3">
+        <div className="space-y-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Provider guard</p>
+            <h3 className="mt-1 text-sm font-semibold text-ink">範圍證明</h3>
+          </div>
+          <div className="grid gap-2 text-xs text-muted-foreground">
+            <ContextLine label="providerCallAttempted" value={String(provider.callAttempted)} />
+            <ContextLine label="usageLogWritten" value={String(provider.usageLogWritten)} />
+            <ContextLine label="requiresConfirmation" value="true" />
+            <ContextLine label="writesConfirmedCrmFact" value="false" />
+            <ContextLine label="Owner read" value={String(snapshot.visibilityProof.ownerOnlyRead)} />
+            <ContextLine label="Scoped turn columns" value={String(snapshot.visibilityProof.scopedTurnColumnsPersisted)} />
+            <ContextLine label="Raw provider payload" value={String(provider.storesProviderBody)} />
+          </div>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+function RouteBNextTurnPopover(props: Parameters<typeof RouteBNextTurnPreviewPanel>[0]) {
+  return (
+    <Popover>
+      <PopoverTrigger
+        aria-label="下一回合預覽"
+        className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-hairline bg-background text-muted-foreground transition-colors hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        title="下一回合預覽"
+      >
+        <Sparkles className="h-4 w-4" />
+      </PopoverTrigger>
+      <PopoverContent align="end" className="max-h-[80vh] w-[min(720px,calc(100vw-2rem))] overflow-y-auto p-2">
+        <RouteBNextTurnPreviewPanel {...props} />
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 function RouteBRelationshipStageMap({
   onPrivateFocus,
   privateFocusCharacterId,
-  relationships,
   snapshot,
 }: {
   onPrivateFocus: (characterId: string) => void;
   privateFocusCharacterId: string | null;
-  relationships: Array<Record<string, unknown>>;
   snapshot: RouteBSessionSnapshot;
 }) {
   const latestTurn = latestRouteBTurn(snapshot.turns);
@@ -1575,115 +1762,27 @@ function RouteBRelationshipStageMap({
     latestTurn?.addresseeRouteBCharacterId ??
     snapshot.characters.find((character) => character.isFocus)?.routeBCharacterId ??
     null;
-  const provider = snapshot.session.provider;
-
   return (
-    <Card className="border-hairline shadow-none">
-      <CardContent className="p-0">
-        <div className="border-b border-hairline p-4">
-          <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
-            <div className="space-y-2">
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                Relationship Stage Map
-              </p>
-              <h2 className="text-2xl font-semibold tracking-[-0.02em] text-ink">
-                客戶關係舞台
-              </h2>
-              <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
-                從交接包的關係圖、未知項與狀態 proposal 建立演練環境；點選人物即可把發話範圍切到私聊，不寫回 CRM 既成事實。
-              </p>
-            </div>
-
-            <div className="grid gap-2 text-[11px] text-muted-foreground sm:grid-cols-2 xl:min-w-[440px]">
-              <span className="rounded-md border border-hairline bg-paper px-2.5 py-2 text-center">
-                providerCallAttempted={String(provider.callAttempted)}
-              </span>
-              <span className="rounded-md border border-hairline bg-paper px-2.5 py-2 text-center">
-                usageLogWritten={String(provider.usageLogWritten)}
-              </span>
-              <span className="rounded-md border border-hairline bg-paper px-2.5 py-2 text-center">
-                requiresConfirmation=true
-              </span>
-              <span className="rounded-md border border-hairline bg-paper px-2.5 py-2 text-center">
-                writesConfirmedCrmFact=false
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <div className="grid gap-4 p-4 xl:grid-cols-[minmax(0,1fr)_320px]">
-          <RouteBStageGraph
-            focusCharacterId={focusCharacterId}
-            onSelect={onPrivateFocus}
-            characters={snapshot.characters.map((character) => ({
-              id: character.routeBCharacterId,
-              displayName: character.displayName,
-              roleLabel: ROUTE_B_ROLE_LABEL[character.role] ?? character.role,
-              isFocus: character.isFocus,
-              knownCount: routeBRecords(character.knownFacts).length,
-              inferenceCount: routeBRecords(character.personaHints).length,
-              unknownCount: routeBRecords(character.unknowns).length,
-              statePatchCount: character.statePatchCount,
-              isLatestSpeaker:
-                latestTurn?.speakerRouteBCharacterId === character.routeBCharacterId,
-              isLatestAddressee:
-                latestTurn?.addresseeRouteBCharacterId === character.routeBCharacterId,
-            }))}
-          />
-
-          <aside className="space-y-3 rounded-lg border border-hairline bg-paper p-4">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                Relationship Evidence
-              </p>
-              <h3 className="mt-1 text-base font-semibold text-ink">關係證據</h3>
-            </div>
-
-            <div className="space-y-3">
-              {relationships.length ? (
-                relationships.map((relationship, index) => (
-                  <div
-                    key={`route-b-stage-relationship-${index}`}
-                    className="rounded-lg border border-hairline bg-background p-3"
-                  >
-                    <p className="text-sm font-medium leading-6 text-ink">
-                      {routeBRecordText(relationship)}
-                    </p>
-                    <div className="mt-2 grid grid-cols-2 gap-2 text-[11px] text-muted-foreground">
-                      <span>
-                        status{" "}
-                        <strong className="font-mono text-ink">
-                          {routeBRecordField(relationship, "factStatus", "UNKNOWN")}
-                        </strong>
-                      </span>
-                      <span>
-                        scope{" "}
-                        <strong className="font-mono text-ink">
-                          {routeBRecordField(relationship, "visibilityScope", "SCENE")}
-                        </strong>
-                      </span>
-                      <span>
-                        sources{" "}
-                        <strong className="font-mono text-ink">
-                          {routeBSourceCount(relationship)}
-                        </strong>
-                      </span>
-                      <span>
-                        mode <strong className="font-mono text-ink">stage</strong>
-                      </span>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <p className="rounded-lg border border-dashed border-hairline bg-background p-3 text-sm leading-6 text-muted-foreground">
-                  目前交接包沒有可渲染的關係證據；劇場仍保留未知與旁白補問欄位。
-                </p>
-              )}
-            </div>
-          </aside>
-        </div>
-      </CardContent>
-    </Card>
+    <div className="min-h-0 flex-1 p-4">
+      <RouteBStageGraph
+        focusCharacterId={focusCharacterId}
+        onSelect={onPrivateFocus}
+        characters={snapshot.characters.map((character) => ({
+          id: character.routeBCharacterId,
+          displayName: character.displayName,
+          roleLabel: ROUTE_B_ROLE_LABEL[character.role] ?? character.role,
+          isFocus: character.isFocus,
+          knownCount: routeBRecords(character.knownFacts).length,
+          inferenceCount: routeBRecords(character.personaHints).length,
+          unknownCount: routeBRecords(character.unknowns).length,
+          statePatchCount: character.statePatchCount,
+          isLatestSpeaker:
+            latestTurn?.speakerRouteBCharacterId === character.routeBCharacterId,
+          isLatestAddressee:
+            latestTurn?.addresseeRouteBCharacterId === character.routeBCharacterId,
+        }))}
+      />
+    </div>
   );
 }
 
@@ -1724,7 +1823,7 @@ function RouteBGameChatHud({
       data-ai-usage-log-written="false"
       data-writes-confirmed-crm-fact="false"
     >
-      <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+      <div className="grid gap-3">
         <div className="flex min-w-0 items-start gap-3">
           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-hairline bg-background text-ink">
             <Gamepad2 className="h-4 w-4" />
@@ -1735,11 +1834,11 @@ function RouteBGameChatHud({
               {modeLabel}・目前聚焦 {focusName}・最新發話 {latestActor}。Comment 只標記情境與待確認狀態，不觸發 provider、不寫 CRM confirmed fact。
             </p>
             <p className="mt-1 text-[11px] leading-5 text-muted-foreground">
-              callAttempted={String(snapshot.session.provider.callAttempted)}・Owner read {String(snapshot.visibilityProof.ownerOnlyRead)}・Scoped turn columns {String(snapshot.visibilityProof.scopedTurnColumnsPersisted)}
+              角色 AI 回覆目前鎖定，由工具列的範圍證明確認 provider guard、可見範圍與寫入邊界。
             </p>
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:min-w-[30rem]">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           <RouteBMiniCount label="回合" value={snapshot.turns.length} />
           <RouteBMiniCount label="角色" value={snapshot.characters.length} />
           <RouteBMiniCount label="狀態提案" value={snapshot.scene.statePatchCount} />
