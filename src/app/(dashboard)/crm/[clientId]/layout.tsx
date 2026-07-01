@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import {
   Briefcase,
@@ -8,14 +9,15 @@ import {
   FileText,
   Mail,
   Mic,
+  Pencil,
   Phone,
-  ShieldCheck,
   Users,
   Loader2,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { EditClientDialog } from "@/components/crm/edit-client-dialog";
 import { useClientRecord } from "@/components/crm/use-client-record";
 import { type Client, type ClientStatus } from "@/domains/client/types";
 import { STRINGS } from "@/lib/i18n/strings";
@@ -59,7 +61,6 @@ export default function Client360Layout({
   }
 
   const tabs = [
-    { name: "總覽", href: `/crm/${clientId}` },
     { name: "關係圖", href: `/crm/${clientId}/relationships` },
     { name: "活動時間軸", href: `/crm/${clientId}/timeline` },
     { name: "報告歷史", href: `/crm/${clientId}/reports` },
@@ -111,6 +112,7 @@ export default function Client360Layout({
 
 function IdentityRail({ client, mounted }: { client: Client; mounted: boolean }) {
   const compliance = getComplianceSignal(client);
+  const [editOpen, setEditOpen] = useState(false);
 
   return (
     <aside className="lg:sticky lg:top-20 lg:self-start">
@@ -180,17 +182,21 @@ function IdentityRail({ client, mounted }: { client: Client; mounted: boolean })
             </div>
           </div>
 
-          <div className="rounded-md border border-dashed border-hairline bg-paper-2/40 p-3">
-            <div className="mb-1 flex items-center gap-2 text-[12px] font-semibold text-foreground">
-              <ShieldCheck className="h-3.5 w-3.5 text-primary" strokeWidth={1.5} />
-              編輯資料
-            </div>
-            <p className="text-[12px] leading-5 text-muted-foreground">
-              長表單編輯將於後續 CRM 卡改為 right sheet；本卡先保留資料檢視與下一步主流程。
-            </p>
+          <div className="border-t border-hairline pt-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setEditOpen(true)}
+              className="h-10 w-full justify-center gap-2 rounded-full"
+            >
+              <Pencil className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
+              編輯基礎資料
+            </Button>
           </div>
         </CardContent>
       </Card>
+
+      <EditClientDialog client={client} open={editOpen} onOpenChange={setEditOpen} />
     </aside>
   );
 }
