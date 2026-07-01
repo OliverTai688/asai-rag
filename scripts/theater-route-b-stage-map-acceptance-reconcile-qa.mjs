@@ -64,6 +64,8 @@ function checkStageMapSourceMarkers() {
     "Relationship Stage Map",
     "客戶關係舞台",
     "data-route-b-stage-workspace=\"single-surface\"",
+    "data-route-b-advanced-tabs=\"true\"",
+    "data-route-b-advanced-provider-strip=\"true\"",
     "function RouteBRelationshipEvidencePopover",
     "function RouteBProviderProofPopover",
     "label=\"providerCallAttempted\" value={String(provider.callAttempted)}",

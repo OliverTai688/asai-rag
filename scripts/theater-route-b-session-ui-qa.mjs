@@ -156,6 +156,21 @@ async function assertStageViewport(browser, viewportName, viewport) {
     push(!(await hasHorizontalOverflow(page)), `${viewportName} next-turn preview popover has no horizontal overflow`);
     await page.keyboard.press("Escape");
 
+    await page.getByRole("button", { name: "進階" }).click();
+    const advancedDrawer = page.locator('[data-theater-advanced-drawer="true"]');
+    await advancedDrawer.waitFor({ state: "visible", timeout: 10000 });
+    const advancedText = await advancedDrawer.innerText();
+    push(
+      advancedText.includes("進階面板") && Boolean(await page.locator('[data-route-b-advanced-tabs="true"]').count()),
+      `${viewportName} advanced sheet opens icon-tab focused panel`,
+    );
+    for (const tabLabel of ["來源證據", "質化回饋", "合規紅線", "舞台脈絡"]) {
+      await page.getByRole("tab", { name: tabLabel }).click();
+      push(!(await hasHorizontalOverflow(page)), `${viewportName} advanced ${tabLabel} tab has no horizontal overflow`);
+    }
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(200);
+
     await page.getByRole("button", { name: /與 林太太 私聊/ }).click();
     const scopeSelect = page.getByLabel("選擇 Route B 發話範圍");
     const addresseeSelect = page.getByLabel("選擇 Route B 私聊對象");

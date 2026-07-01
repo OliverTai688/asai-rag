@@ -37,6 +37,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { clientService } from "@/domains/client/service";
@@ -1092,77 +1093,77 @@ function RouteBSessionStage({
               來源證據、五視角回饋、合規紅線與 provider 保護狀態都收在這裡，需要時再展開。
             </SheetDescription>
           </SheetHeader>
-          <aside className="mt-4 space-y-3">
-          {meetingSignalGrounding ? <RouteBMeetingSignalGroundingPanel grounding={meetingSignalGrounding} /> : null}
-          {familyProfileGrounding ? <RouteBFamilyProfileGroundingPanel grounding={familyProfileGrounding} /> : null}
-          {relationshipEdgeShadowGrounding ? (
-            <RouteBRelationshipEdgeShadowGroundingPanel grounding={relationshipEdgeShadowGrounding} />
-          ) : null}
+          <Tabs defaultValue="sources" className="mt-4 gap-4" data-route-b-advanced-tabs="true">
+            <TabsList
+              aria-label="劇場進階面板分類"
+              className="grid h-12 w-full grid-cols-4 rounded-full border border-hairline bg-paper p-1"
+            >
+              <TabsTrigger value="sources" aria-label="來源證據" title="來源證據" className="h-10 rounded-full p-0">
+                <BrainCircuit className="h-4 w-4" />
+                <span className="sr-only">來源證據</span>
+              </TabsTrigger>
+              <TabsTrigger value="review" aria-label="質化回饋" title="質化回饋" className="h-10 rounded-full p-0">
+                <Trophy className="h-4 w-4" />
+                <span className="sr-only">質化回饋</span>
+              </TabsTrigger>
+              <TabsTrigger value="risk" aria-label="合規紅線" title="合規紅線" className="h-10 rounded-full p-0">
+                <CircleAlert className="h-4 w-4" />
+                <span className="sr-only">合規紅線</span>
+              </TabsTrigger>
+              <TabsTrigger value="context" aria-label="舞台脈絡" title="舞台脈絡" className="h-10 rounded-full p-0">
+                <ShieldCheck className="h-4 w-4" />
+                <span className="sr-only">舞台脈絡</span>
+              </TabsTrigger>
+            </TabsList>
 
-          <RouteBFeedbackReviewPanel
-            error={feedbackReviewError}
-            onGenerate={generateFeedbackReview}
-            onRefresh={fetchFeedbackReview}
-            review={feedbackReview}
-            status={feedbackReviewStatus}
-          />
+            <TabsContent value="sources" className="space-y-3">
+              {meetingSignalGrounding ? <RouteBMeetingSignalGroundingPanel grounding={meetingSignalGrounding} /> : null}
+              {familyProfileGrounding ? <RouteBFamilyProfileGroundingPanel grounding={familyProfileGrounding} /> : null}
+              {relationshipEdgeShadowGrounding ? (
+                <RouteBRelationshipEdgeShadowGroundingPanel grounding={relationshipEdgeShadowGrounding} />
+              ) : null}
+            </TabsContent>
 
-          <RouteBComplianceReviewIntakePanel
-            error={complianceReviewIntakeError}
-            intake={complianceReviewIntake}
-            onRefresh={fetchComplianceReviewIntake}
-            status={complianceReviewIntakeStatus}
-          />
+            <TabsContent value="review" className="space-y-3">
+              <RouteBFeedbackReviewPanel
+                error={feedbackReviewError}
+                onGenerate={generateFeedbackReview}
+                onRefresh={fetchFeedbackReview}
+                review={feedbackReview}
+                status={feedbackReviewStatus}
+              />
+              <RouteBComplianceReviewIntakePanel
+                error={complianceReviewIntakeError}
+                intake={complianceReviewIntake}
+                onRefresh={fetchComplianceReviewIntake}
+                status={complianceReviewIntakeStatus}
+              />
+            </TabsContent>
 
-          <RouteBSevereRedLineWarningPanel
-            actionWorkflow={severeRedLineActionWorkflow}
-            actionPersistence={redLineActionPersistence}
-            actionStates={redLineActionStates}
-            error={redLineActionPersistenceError}
-            onActionStateChange={(ruleId, state) => {
-              setRedLineActionStates((current) => ({ ...current, [ruleId]: state }));
-            }}
-            onRefresh={fetchRedLineActionPersistence}
-            onSave={saveRedLineActionPersistence}
-            status={redLineActionPersistenceStatus}
-            warningPreview={severeRedLineWarningPreview}
-          />
+            <TabsContent value="risk">
+              <RouteBSevereRedLineWarningPanel
+                actionWorkflow={severeRedLineActionWorkflow}
+                actionPersistence={redLineActionPersistence}
+                actionStates={redLineActionStates}
+                error={redLineActionPersistenceError}
+                onActionStateChange={(ruleId, state) => {
+                  setRedLineActionStates((current) => ({ ...current, [ruleId]: state }));
+                }}
+                onRefresh={fetchRedLineActionPersistence}
+                onSave={saveRedLineActionPersistence}
+                status={redLineActionPersistenceStatus}
+                warningPreview={severeRedLineWarningPreview}
+              />
+            </TabsContent>
 
-          <Card className="border-hairline shadow-none">
-            <CardContent className="p-5">
-              <div className="flex items-start gap-3">
-                <CircleAlert className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-                <div>
-                  <h2 className="text-sm font-semibold text-ink">Provider guard</h2>
-                  <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                    callsEnabled={String(provider.callsEnabled)}・callAttempted={String(provider.callAttempted)}・usageLogWritten={String(provider.usageLogWritten)}
-                  </p>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {provider.usageLogRequiredFor.map((kind) => (
-                      <Badge key={kind} variant="outline" className="rounded-full">
-                        {kind}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <RouteBDetails title={`導演開場・${directorTurns.length}`} items={directorTurns.map((turn) => turn.content)} />
-          <RouteBDetails title={`關係脈絡・${relationships.length}`} items={relationships.map(routeBRecordText)} />
-          <RouteBDetails title={`旁白補問・${narratorQuestions.length}`} items={narratorQuestions.map(routeBRecordText)} />
-          <RouteBDetails title={`可見性規則・${visibilityRules.length}`} items={visibilityRules.map(routeBVisibilityText)} />
-
-          <Card className="border-hairline shadow-none">
-            <CardContent className="space-y-3 p-5">
-              <h2 className="text-sm font-semibold text-ink">範圍證明</h2>
-              <ContextLine label="Owner read" value={snapshot.visibilityProof.ownerOnlyRead ? "true" : "false"} />
-              <ContextLine label="Scoped turn columns" value={snapshot.visibilityProof.scopedTurnColumnsPersisted ? "true" : "false"} />
-              <ContextLine label="Raw provider payload" value={provider.storesProviderBody ? "需查" : "false"} />
-            </CardContent>
-          </Card>
-          </aside>
+            <TabsContent value="context" className="space-y-3">
+              <RouteBProviderGuardStrip provider={provider} snapshot={snapshot} />
+              <RouteBDetails title={`導演開場・${directorTurns.length}`} items={directorTurns.map((turn) => turn.content)} />
+              <RouteBDetails title={`關係脈絡・${relationships.length}`} items={relationships.map(routeBRecordText)} />
+              <RouteBDetails title={`旁白補問・${narratorQuestions.length}`} items={narratorQuestions.map(routeBRecordText)} />
+              <RouteBDetails title={`可見性規則・${visibilityRules.length}`} items={visibilityRules.map(routeBVisibilityText)} />
+            </TabsContent>
+          </Tabs>
         </SheetContent>
       </Sheet>
     </div>
@@ -1783,6 +1784,42 @@ function RouteBRelationshipStageMap({
         }))}
       />
     </div>
+  );
+}
+
+function RouteBProviderGuardStrip({
+  provider,
+  snapshot,
+}: {
+  provider: RouteBSessionSnapshot["session"]["provider"];
+  snapshot: RouteBSessionSnapshot;
+}) {
+  return (
+    <section className="rounded-lg border border-hairline bg-background p-3" data-route-b-advanced-provider-strip="true">
+      <div className="flex items-start gap-3">
+        <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-hairline bg-paper text-muted-foreground">
+          <ShieldCheck className="h-4 w-4" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold text-ink">Provider guard</p>
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">
+            callsEnabled={String(provider.callsEnabled)}・callAttempted={String(provider.callAttempted)}・usageLogWritten={String(provider.usageLogWritten)}
+          </p>
+          <div className="mt-3 grid gap-2 text-xs text-muted-foreground">
+            <ContextLine label="Owner read" value={String(snapshot.visibilityProof.ownerOnlyRead)} />
+            <ContextLine label="Scoped turn columns" value={String(snapshot.visibilityProof.scopedTurnColumnsPersisted)} />
+            <ContextLine label="Raw provider payload" value={String(provider.storesProviderBody)} />
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {provider.usageLogRequiredFor.map((kind) => (
+              <Badge key={kind} variant="outline" className="rounded-full">
+                {kind}
+              </Badge>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
   );
 }
 
