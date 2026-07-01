@@ -200,6 +200,20 @@ async function assertStageViewport(browser, viewportName, viewport) {
           push(!(await hasHorizontalOverflow(page)), `${viewportName} red-line browser first rule view has no horizontal overflow`);
         }
       }
+      if (tabLabel === "舞台脈絡") {
+        const contextBrowser = page.locator('[data-route-b-context-browser="true"]');
+        await contextBrowser.waitFor({ state: "visible", timeout: 10000 });
+        push(await contextBrowser.isVisible(), `${viewportName} context tab renders single context browser`);
+        let visibleContextTabCount = 0;
+        for (const contextLabel of ["Provider guard", "導演開場", "關係脈絡", "旁白補問", "可見性規則"]) {
+          const contextTab = contextBrowser.getByRole("tab", { name: contextLabel });
+          if ((await contextTab.count()) === 0) continue;
+          visibleContextTabCount += 1;
+          await contextTab.click();
+          push(!(await hasHorizontalOverflow(page)), `${viewportName} context browser ${contextLabel} view has no horizontal overflow`);
+        }
+        push(visibleContextTabCount > 0, `${viewportName} context browser exposes icon tabs`);
+      }
     }
     await page.keyboard.press("Escape");
     await page.waitForTimeout(200);

@@ -87,6 +87,7 @@ type RouteBProviderCandidateStatus = "idle" | "generating" | "ready" | "error";
 type RouteBStageMode = "CONVERSE" | "OBSERVE" | "COMMENT";
 type RouteBSourceEvidenceMode = "meeting" | "family" | "edge";
 type RouteBReviewMode = "feedback" | "compliance";
+type RouteBContextMode = "guard" | "director" | "relationships" | "narrator" | "visibility";
 type RouteBMeetingSignalGrounding = NonNullable<
   NonNullable<RouteBSessionSnapshot["scene"]["sourceGrounding"]>["meetingRelationshipSignals"]
 >;
@@ -1156,12 +1157,15 @@ function RouteBSessionStage({
               />
             </TabsContent>
 
-            <TabsContent value="context" className="space-y-3">
-              <RouteBProviderGuardStrip provider={provider} snapshot={snapshot} />
-              <RouteBDetails title={`導演開場・${directorTurns.length}`} items={directorTurns.map((turn) => turn.content)} />
-              <RouteBDetails title={`關係脈絡・${relationships.length}`} items={relationships.map(routeBRecordText)} />
-              <RouteBDetails title={`旁白補問・${narratorQuestions.length}`} items={narratorQuestions.map(routeBRecordText)} />
-              <RouteBDetails title={`可見性規則・${visibilityRules.length}`} items={visibilityRules.map(routeBVisibilityText)} />
+            <TabsContent value="context">
+              <RouteBContextBrowser
+                directorItems={directorTurns.map((turn) => turn.content)}
+                narratorItems={narratorQuestions.map(routeBRecordText)}
+                provider={provider}
+                relationshipItems={relationships.map(routeBRecordText)}
+                snapshot={snapshot}
+                visibilityItems={visibilityRules.map(routeBVisibilityText)}
+              />
             </TabsContent>
           </Tabs>
         </SheetContent>
@@ -1957,6 +1961,146 @@ function RouteBRelationshipStageMap({
   );
 }
 
+function RouteBContextBrowser({
+  directorItems,
+  narratorItems,
+  provider,
+  relationshipItems,
+  snapshot,
+  visibilityItems,
+}: {
+  directorItems: string[];
+  narratorItems: string[];
+  provider: RouteBSessionSnapshot["session"]["provider"];
+  relationshipItems: string[];
+  snapshot: RouteBSessionSnapshot;
+  visibilityItems: string[];
+}) {
+  const contexts: Array<{
+    id: RouteBContextMode;
+    icon: React.ReactNode;
+    items?: string[];
+    label: string;
+    summary: string;
+  }> = [
+    {
+      id: "guard",
+      icon: <ShieldCheck className="h-4 w-4" />,
+      label: "Provider guard",
+      summary: `callAttempted=${String(provider.callAttempted)}・usageLogWritten=${String(provider.usageLogWritten)}`,
+    },
+    {
+      id: "director",
+      icon: <MessageSquare className="h-4 w-4" />,
+      items: directorItems,
+      label: "導演開場",
+      summary: `${directorItems.length} 則導演指令`,
+    },
+    {
+      id: "relationships",
+      icon: <Users className="h-4 w-4" />,
+      items: relationshipItems,
+      label: "關係脈絡",
+      summary: `${relationshipItems.length} 條舞台關係`,
+    },
+    {
+      id: "narrator",
+      icon: <BrainCircuit className="h-4 w-4" />,
+      items: narratorItems,
+      label: "旁白補問",
+      summary: `${narratorItems.length} 題待追問`,
+    },
+    {
+      id: "visibility",
+      icon: <Eye className="h-4 w-4" />,
+      items: visibilityItems,
+      label: "可見性規則",
+      summary: `${visibilityItems.length} 條 scope rule`,
+    },
+  ];
+  const [activeContext, setActiveContext] = useState<RouteBContextMode>("guard");
+  const selectedContext =
+    contexts.find((context) => context.id === activeContext) ?? contexts[0];
+
+  return (
+    <section
+      className="overflow-hidden rounded-lg border border-hairline bg-background"
+      data-route-b-context-browser="true"
+      data-route-b-context-browser-active={selectedContext.id}
+    >
+      <div className="border-b border-hairline p-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+              Context Browser
+            </p>
+            <h3 className="mt-1 truncate text-sm font-semibold text-ink">{selectedContext.label}</h3>
+            <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">
+              {selectedContext.summary}
+            </p>
+          </div>
+          <div className="flex shrink-0 gap-1" role="tablist" aria-label="Route B 舞台脈絡分類">
+            {contexts.map((context) => (
+              <Tooltip key={context.id}>
+                <TooltipTrigger
+                  aria-label={context.label}
+                  aria-selected={selectedContext.id === context.id}
+                  className={cn(
+                    "inline-flex h-9 w-9 items-center justify-center rounded-full border border-hairline transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                    selectedContext.id === context.id
+                      ? "bg-ink text-paper"
+                      : "bg-paper text-muted-foreground hover:text-ink",
+                  )}
+                  onClick={() => setActiveContext(context.id)}
+                  role="tab"
+                  type="button"
+                >
+                  {context.icon}
+                </TooltipTrigger>
+                <TooltipContent>{context.label}</TooltipContent>
+              </Tooltip>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="p-3" data-route-b-context-view={selectedContext.id}>
+        {selectedContext.id === "guard" ? (
+          <RouteBProviderGuardStrip provider={provider} snapshot={snapshot} />
+        ) : (
+          <RouteBContextListView
+            items={selectedContext.items ?? []}
+            label={selectedContext.label}
+          />
+        )}
+      </div>
+    </section>
+  );
+}
+
+function RouteBContextListView({ items, label }: { items: string[]; label: string }) {
+  if (!items.length) {
+    return (
+      <div className="border-y border-dashed border-hairline bg-paper/40 py-6 text-center text-sm leading-6 text-muted-foreground">
+        {label}目前沒有資料。
+      </div>
+    );
+  }
+
+  return (
+    <div className="divide-y divide-hairline border-y border-hairline">
+      {items.map((item, index) => (
+        <article key={`${label}-${index}`} className="grid gap-2 py-3 sm:grid-cols-[7rem_1fr] sm:gap-4">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+            {label} {index + 1}
+          </p>
+          <p className="min-w-0 text-sm leading-6 text-muted-foreground">{item}</p>
+        </article>
+      ))}
+    </div>
+  );
+}
+
 function RouteBProviderGuardStrip({
   provider,
   snapshot,
@@ -1965,7 +2109,7 @@ function RouteBProviderGuardStrip({
   snapshot: RouteBSessionSnapshot;
 }) {
   return (
-    <section className="rounded-lg border border-hairline bg-background p-3" data-route-b-advanced-provider-strip="true">
+    <section className="border-y border-hairline bg-paper/40 p-3" data-route-b-advanced-provider-strip="true">
       <div className="flex items-start gap-3">
         <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-hairline bg-paper text-muted-foreground">
           <ShieldCheck className="h-4 w-4" />
@@ -3304,28 +3448,6 @@ function RouteBEmptyLane({ body, title }: { body: string; title: string }) {
       <p className="text-sm font-semibold text-ink">{title}</p>
       <p className="mt-2 text-sm leading-6 text-muted-foreground">{body}</p>
     </div>
-  );
-}
-
-function RouteBDetails({ items, title }: { items: string[]; title: string }) {
-  return (
-    <details className="group rounded-lg border border-hairline bg-card" open={items.length <= 1}>
-      <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between px-3 text-sm font-medium text-ink [&::-webkit-details-marker]:hidden">
-        <span>{title}</span>
-        <ChevronDown className="h-4 w-4 text-muted-foreground transition group-open:rotate-180" />
-      </summary>
-      <div className="space-y-2 border-t border-hairline p-3">
-        {items.length ? (
-          items.map((item, index) => (
-            <p key={`${title}-${index}`} className="text-sm leading-6 text-muted-foreground">
-              {item}
-            </p>
-          ))
-        ) : (
-          <p className="text-sm leading-6 text-muted-foreground">目前沒有資料。</p>
-        )}
-      </div>
-    </details>
   );
 }
 
