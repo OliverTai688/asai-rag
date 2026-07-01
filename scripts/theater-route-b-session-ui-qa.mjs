@@ -268,10 +268,34 @@ async function assertStageViewport(browser, viewportName, viewport) {
         const redLineBrowser = page.locator('[data-route-b-red-line-browser="true"]');
         await redLineBrowser.waitFor({ state: "visible", timeout: 10000 });
         push(await redLineBrowser.isVisible(), `${viewportName} risk tab renders single red-line browser`);
-        const firstRuleTab = redLineBrowser.getByRole("tab").first();
-        if ((await firstRuleTab.count()) > 0) {
+        push(
+          (await redLineBrowser.locator('[data-route-b-inline-metrics="true"]').count()) === 1,
+          `${viewportName} red-line browser uses one inline metric rail`,
+        );
+        const ruleTabCount = await redLineBrowser.getByRole("tab").count();
+        push(ruleTabCount > 0, `${viewportName} red-line browser exposes rule tabs`);
+        if (ruleTabCount > 0) {
+          const firstRuleTab = redLineBrowser.getByRole("tab").first();
           await firstRuleTab.click();
+          const actionPopover = redLineBrowser.locator('[data-route-b-red-line-action-popover="true"]');
+          await actionPopover.waitFor({ state: "visible", timeout: 10000 });
+          push(await actionPopover.isVisible(), `${viewportName} red-line action controls stay in one icon popover trigger`);
+          await actionPopover.getByRole("button").click();
+          const actionPopoverContent = page.locator('[data-route-b-red-line-action-popover-content="true"]');
+          await actionPopoverContent.waitFor({ state: "visible", timeout: 10000 });
+          push(await actionPopoverContent.isVisible(), `${viewportName} red-line action popover opens scoped controls`);
+          push(
+            (await actionPopoverContent.locator("button[aria-pressed]").count()) > 0,
+            `${viewportName} red-line action popover exposes pressed choices`,
+          );
           push(!(await hasHorizontalOverflow(page)), `${viewportName} red-line browser first rule view has no horizontal overflow`);
+          await clearPointerState(page);
+          await page.screenshot({
+            path: resolve(screenshotDir, `route-b-session-stage-red-line-action-popover-${viewportName}.png`),
+            fullPage: true,
+          });
+          await actionPopover.getByRole("button").click();
+          await actionPopoverContent.waitFor({ state: "hidden", timeout: 10000 });
         }
       }
       if (tabLabel === "舞台脈絡") {

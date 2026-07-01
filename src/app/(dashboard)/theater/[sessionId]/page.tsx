@@ -1574,11 +1574,13 @@ function RouteBSevereRedLineWarningPanel({
           <CircleAlert className="mt-1 h-4 w-4 shrink-0 text-muted-foreground" />
         </div>
 
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-          <RouteBMiniCount label="嚴重即時" value={warningPreview.warningCount} />
-          <RouteBMiniCount label="待佐證" value={evidenceNeededCount} />
-          <RouteBMiniCount label="升級審閱" value={escalateCount} />
-        </div>
+        <RouteBInlineMetricRail
+          metrics={[
+            { label: "嚴重即時", value: warningPreview.warningCount },
+            { label: "待佐證", value: evidenceNeededCount },
+            { label: "升級審閱", value: escalateCount },
+          ]}
+        />
 
         <div className="grid gap-2 sm:grid-cols-2">
           <Button
@@ -1643,7 +1645,7 @@ function RouteBSevereRedLineWarningPanel({
             </div>
 
             {selectedWarning ? (
-              <div className="rounded-lg border border-hairline bg-background p-3">
+              <article className="border-y border-hairline py-3">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
@@ -1669,31 +1671,63 @@ function RouteBSevereRedLineWarningPanel({
                 </p>
 
                 {selectedActionCard ? (
-                  <div className="mt-3 grid grid-cols-2 gap-1.5">
-                    {selectedActionCard.options.map((option) => (
-                      <button
-                        key={`${selectedWarning.id}-${option.state}`}
+                  <div
+                    className="mt-3 flex flex-wrap items-center justify-between gap-3 border-y border-hairline py-2"
+                    data-route-b-red-line-action-popover="true"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                        Action State
+                      </p>
+                      <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                        {selectedOption?.label ?? selectedState}・{selectedOption?.state ?? selectedState}
+                      </p>
+                    </div>
+                    <Popover>
+                      <PopoverTrigger
+                        aria-label={`調整 ${selectedWarning.label} 紅線處置狀態`}
+                        className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-hairline bg-background text-muted-foreground transition-colors hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        title="調整紅線處置"
                         type="button"
-                        aria-label={`${selectedWarning.label}：${option.label}`}
-                        aria-pressed={selectedState === option.state}
-                        onClick={() => onActionStateChange(selectedWarning.id, option.state)}
-                        className={cn(
-                          "min-h-9 rounded-full border border-hairline px-2.5 text-xs font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                          selectedState === option.state
-                            ? "bg-ink text-paper"
-                            : "bg-paper text-muted-foreground hover:bg-muted/40",
-                        )}
                       >
-                        {option.label}
-                      </button>
-                    ))}
+                        <SlidersHorizontal className="h-4 w-4" />
+                      </PopoverTrigger>
+                      <PopoverContent
+                        align="end"
+                        className="max-h-[min(70vh,520px)] w-80 max-w-[calc(100vw-2rem)] overflow-y-auto border border-hairline bg-popover p-3 shadow-none"
+                        data-route-b-red-line-action-popover-content="true"
+                      >
+                        <div className="space-y-3">
+                          <div>
+                            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                              Red-line action
+                            </p>
+                            <h4 className="mt-1 text-sm font-semibold text-ink">{selectedWarning.label}</h4>
+                          </div>
+                          <div className="divide-y divide-hairline border-y border-hairline" aria-label="Route B 紅線處置狀態">
+                            {selectedActionCard.options.map((option) => (
+                              <button
+                                key={`${selectedWarning.id}-${option.state}`}
+                                type="button"
+                                aria-label={`${selectedWarning.label}：${option.label}`}
+                                aria-pressed={selectedState === option.state}
+                                onClick={() => onActionStateChange(selectedWarning.id, option.state)}
+                                className={cn(
+                                  "w-full px-2 py-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                                  selectedState === option.state
+                                    ? "bg-ink text-paper"
+                                    : "bg-paper text-muted-foreground hover:bg-muted/40 hover:text-ink",
+                                )}
+                              >
+                                <span className="block text-xs font-semibold">{option.label}</span>
+                                <span className="mt-1 block text-[11px] leading-5 opacity-80">{option.summary}</span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </PopoverContent>
+                    </Popover>
                   </div>
-                ) : null}
-
-                {selectedOption ? (
-                  <p className="mt-3 border-t border-hairline pt-3 text-xs leading-5 text-muted-foreground">
-                    {selectedOption.summary}
-                  </p>
                 ) : null}
 
                 <div className="mt-3 grid gap-2 text-xs text-muted-foreground">
@@ -1705,7 +1739,7 @@ function RouteBSevereRedLineWarningPanel({
                   <ContextLine label="Legal advice" value={String(selectedWarning.legalAdviceIncluded)} />
                   <ContextLine label="Writes CRM fact" value={String(selectedWarning.writesConfirmedCrmFact)} />
                 </div>
-              </div>
+              </article>
             ) : null}
           </div>
         ) : (
