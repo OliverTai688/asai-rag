@@ -197,10 +197,50 @@ async function assertStageViewport(browser, viewportName, viewport) {
         const reviewBrowser = page.locator('[data-route-b-review-browser="true"]');
         await reviewBrowser.waitFor({ state: "visible", timeout: 10000 });
         push(await reviewBrowser.isVisible(), `${viewportName} review tab renders single review browser`);
-        for (const reviewLabel of ["五視角回顧", "待審閱候選"]) {
-          await page.getByRole("tab", { name: reviewLabel }).click();
+        await reviewBrowser.getByRole("tab", { name: "五視角回顧" }).click();
+        const feedbackInnerBrowser = reviewBrowser.locator('[data-route-b-feedback-inner-browser="true"]');
+        await feedbackInnerBrowser.waitFor({ state: "visible", timeout: 10000 });
+        push(await feedbackInnerBrowser.isVisible(), `${viewportName} review tab renders focused feedback browser`);
+        for (const [reviewLabel, reviewState] of [
+          ["回顧總覽", "overview"],
+          ["五視角", "perspectives"],
+          ["紅線", "redLines"],
+        ]) {
+          await feedbackInnerBrowser.getByRole("tab", { name: reviewLabel, exact: true }).click();
+          push(
+            (await feedbackInnerBrowser.getAttribute("data-route-b-feedback-inner-browser-active")) === reviewState,
+            `${viewportName} feedback inner browser active marker switches to ${reviewState}`,
+          );
           push(!(await hasHorizontalOverflow(page)), `${viewportName} review browser ${reviewLabel} view has no horizontal overflow`);
         }
+        await feedbackInnerBrowser.getByRole("tab", { name: "五視角", exact: true }).click();
+        await clearPointerState(page);
+        await page.screenshot({
+          path: resolve(screenshotDir, `route-b-session-stage-feedback-browser-${viewportName}.png`),
+          fullPage: true,
+        });
+        await reviewBrowser.getByRole("tab", { name: "待審閱候選" }).click();
+        const complianceInnerBrowser = reviewBrowser.locator('[data-route-b-compliance-inner-browser="true"]');
+        await complianceInnerBrowser.waitFor({ state: "visible", timeout: 10000 });
+        push(await complianceInnerBrowser.isVisible(), `${viewportName} review tab renders focused compliance browser`);
+        for (const [complianceLabel, complianceState] of [
+          ["候選總覽", "overview"],
+          ["候選", "candidate"],
+          ["邊界", "boundary"],
+        ]) {
+          await complianceInnerBrowser.getByRole("tab", { name: complianceLabel, exact: true }).click();
+          push(
+            (await complianceInnerBrowser.getAttribute("data-route-b-compliance-inner-browser-active")) === complianceState,
+            `${viewportName} compliance inner browser active marker switches to ${complianceState}`,
+          );
+          push(!(await hasHorizontalOverflow(page)), `${viewportName} compliance browser ${complianceLabel} view has no horizontal overflow`);
+        }
+        await complianceInnerBrowser.getByRole("tab", { name: "候選", exact: true }).click();
+        await clearPointerState(page);
+        await page.screenshot({
+          path: resolve(screenshotDir, `route-b-session-stage-compliance-browser-${viewportName}.png`),
+          fullPage: true,
+        });
       }
       if (tabLabel === "合規紅線") {
         const redLineBrowser = page.locator('[data-route-b-red-line-browser="true"]');
@@ -275,6 +315,16 @@ async function assertStageViewport(browser, viewportName, viewport) {
 
 async function hasHorizontalOverflow(page) {
   return page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1);
+}
+
+async function clearPointerState(page) {
+  await page.mouse.move(8, 8);
+  await page.evaluate(() => {
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+  });
+  await page.waitForTimeout(150);
 }
 
 async function memberPost(path, body) {

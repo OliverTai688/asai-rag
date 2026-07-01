@@ -87,6 +87,8 @@ type RouteBProviderCandidateStatus = "idle" | "generating" | "ready" | "error";
 type RouteBStageMode = "CONVERSE" | "OBSERVE" | "COMMENT";
 type RouteBSourceEvidenceMode = "meeting" | "family" | "edge";
 type RouteBReviewMode = "feedback" | "compliance";
+type RouteBFeedbackBrowserMode = "overview" | "perspectives" | "redLines";
+type RouteBComplianceBrowserMode = "overview" | "candidate" | "boundary";
 type RouteBContextMode = "guard" | "director" | "relationships" | "narrator" | "visibility";
 type RouteBNextTurnBrowserMode = "preview" | "sources" | "provider" | "guard";
 type RouteBMeetingSignalGrounding = NonNullable<
@@ -2782,9 +2784,52 @@ function RouteBFeedbackReviewPanel({
   const redLineEvidenceNeeded = review?.redLineActionState.evidenceNeededCount ?? 0;
   const edgeShadowGrounding = review?.relationshipEdgeShadowGrounding;
   const familyProfileGrounding = review?.familyProfileGrounding;
+  const [activeFeedbackView, setActiveFeedbackView] = useState<RouteBFeedbackBrowserMode>("overview");
+  const [activePerspectiveId, setActivePerspectiveId] = useState(review?.sections[0]?.perspectiveId ?? "");
+  const [activeRedLineId, setActiveRedLineId] = useState(review?.redLineFindings[0]?.redLineId ?? "");
+  const selectedPerspective =
+    review?.sections.find((section) => section.perspectiveId === activePerspectiveId) ??
+    review?.sections[0] ??
+    null;
+  const selectedRedLine =
+    review?.redLineFindings.find((finding) => finding.redLineId === activeRedLineId) ??
+    review?.redLineFindings[0] ??
+    null;
+  const feedbackViews: Array<{
+    id: RouteBFeedbackBrowserMode;
+    icon: React.ReactNode;
+    label: string;
+    summary: string;
+  }> = [
+    {
+      id: "overview",
+      icon: <BrainCircuit className="h-4 w-4" />,
+      label: "回顧總覽",
+      summary: review ? `${review.sections.length} 視角・${review.redLineFindings.length} 紅線` : routeBReviewStatusText(status),
+    },
+    {
+      id: "perspectives",
+      icon: <Trophy className="h-4 w-4" />,
+      label: "五視角",
+      summary: selectedPerspective?.label ?? "等待回顧",
+    },
+    {
+      id: "redLines",
+      icon: <CircleAlert className="h-4 w-4" />,
+      label: "紅線",
+      summary: selectedRedLine ? `${selectedRedLine.label}・${selectedRedLine.status}` : "等待紅線",
+    },
+  ];
+  const selectedFeedbackView =
+    feedbackViews.find((view) => view.id === activeFeedbackView) ?? feedbackViews[0];
 
   return (
-    <div className="space-y-4" data-route-b-compliance-review-view="true">
+    <div
+      className="space-y-4"
+      data-route-b-compliance-review-view="true"
+      data-route-b-feedback-inner-browser="true"
+      data-route-b-feedback-inner-browser-active={selectedFeedbackView.id}
+    >
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
@@ -2823,6 +2868,32 @@ function RouteBFeedbackReviewPanel({
           </Button>
         </div>
 
+        <div className="flex flex-wrap gap-1" role="tablist" aria-label="Route B 五視角回顧內層分類">
+          {feedbackViews.map((view) => (
+            <Tooltip key={view.id}>
+              <TooltipTrigger
+                aria-label={view.label}
+                aria-selected={selectedFeedbackView.id === view.id}
+                className={cn(
+                  "inline-flex h-9 w-9 items-center justify-center rounded-full border border-hairline transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  selectedFeedbackView.id === view.id
+                    ? "bg-ink text-paper"
+                    : "bg-paper text-muted-foreground hover:text-ink",
+                )}
+                onClick={() => setActiveFeedbackView(view.id)}
+                role="tab"
+                type="button"
+              >
+                {view.icon}
+              </TooltipTrigger>
+              <TooltipContent>{view.label}</TooltipContent>
+            </Tooltip>
+          ))}
+          <p className="min-w-0 flex-1 px-2 py-2 text-xs leading-5 text-muted-foreground">
+            {selectedFeedbackView.summary}
+          </p>
+        </div>
+
         {status === "error" ? (
           <p className="rounded-lg border border-hairline bg-paper px-3 py-2 text-sm leading-6 text-muted-foreground">
             {error ?? "Route B feedback review failed."}
@@ -2836,172 +2907,164 @@ function RouteBFeedbackReviewPanel({
         ) : null}
 
         {review ? (
-          <div className="space-y-3">
-            <div className="grid gap-2 text-sm text-muted-foreground">
-              <ContextLine label="Provider call" value={String(review.providerBoundary.providerCallAttempted)} />
-              <ContextLine label="AiUsageLog" value={String(review.providerBoundary.aiUsageLogWritten)} />
-              <ContextLine label="Writes CRM fact" value={String(review.persistenceEnvelope.writesConfirmedCrmFact)} />
-              <ContextLine label="Total score" value={String(review.outputContract.totalScoreAllowed)} />
-              <ContextLine
-                label="Red-line action source"
-                value={review.redLineActionState.consumedByFeedbackReview ? "sceneState.redLineActionState" : "none"}
-              />
-              <ContextLine
-                label="Edge shadow source"
-                value={edgeShadowGrounding?.usedInFeedbackReview ? "scene.sourceGrounding.relationshipEdgeShadow" : "none"}
-              />
-              <ContextLine
-                label="Family profile source"
-                value={familyProfileGrounding?.usedInFeedbackReview ? "scene.sourceGrounding.familyProfiles" : "none"}
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-2">
-              <RouteBMiniCount label="紅線待查" value={redLineNeedsReview} />
-              <RouteBMiniCount label="本輪不適用" value={redLineNotApplicable} />
-              <RouteBMiniCount label="升級審閱" value={redLineEscalate} />
-              <RouteBMiniCount label="需要佐證" value={redLineEvidenceNeeded} />
-            </div>
-
-            {edgeShadowGrounding ? (
-              <div
-                className="rounded-lg border border-hairline bg-paper px-3 py-3"
-                data-route-b-feedback-edge-shadow-grounding="true"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-xs font-semibold text-ink">關係邊候選回顧</p>
-                    <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                      回顧可引用 edge readiness 作為劇場脈絡，但不讀草稿邊、不改 schema、不寫回關係圖或 CRM 事實。
-                    </p>
+          <div className="space-y-3" data-route-b-feedback-view={selectedFeedbackView.id}>
+            {selectedFeedbackView.id === "overview" ? (
+              <>
+                <div className="grid gap-2 border-y border-hairline py-3 text-sm text-muted-foreground">
+                  <ContextLine label="Provider call" value={String(review.providerBoundary.providerCallAttempted)} />
+                  <ContextLine label="AiUsageLog" value={String(review.providerBoundary.aiUsageLogWritten)} />
+                  <ContextLine label="Writes CRM fact" value={String(review.persistenceEnvelope.writesConfirmedCrmFact)} />
+                  <ContextLine label="Total score" value={String(review.outputContract.totalScoreAllowed)} />
+                  <ContextLine
+                    label="Red-line action source"
+                    value={review.redLineActionState.consumedByFeedbackReview ? "sceneState.redLineActionState" : "none"}
+                  />
+                  <ContextLine
+                    label="Edge shadow source"
+                    value={edgeShadowGrounding?.usedInFeedbackReview ? "scene.sourceGrounding.relationshipEdgeShadow" : "none"}
+                  />
+                  <ContextLine
+                    label="Family profile source"
+                    value={familyProfileGrounding?.usedInFeedbackReview ? "scene.sourceGrounding.familyProfiles" : "none"}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <RouteBMiniCount label="紅線待查" value={redLineNeedsReview} />
+                  <RouteBMiniCount label="本輪不適用" value={redLineNotApplicable} />
+                  <RouteBMiniCount label="升級審閱" value={redLineEscalate} />
+                  <RouteBMiniCount label="需要佐證" value={redLineEvidenceNeeded} />
+                </div>
+                {edgeShadowGrounding ? (
+                  <div className="border-y border-hairline py-3" data-route-b-feedback-edge-shadow-grounding="true">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-xs font-semibold text-ink">關係邊候選回顧</p>
+                      <Badge variant="outline" className="rounded-full">
+                        {edgeShadowGrounding.candidateEdgeCount} edges
+                      </Badge>
+                    </div>
+                    <div className="mt-2 grid gap-1 text-xs leading-5 text-muted-foreground">
+                      <ContextLine label="Formal schema" value={String(edgeShadowGrounding.boundary.formalSchemaApproved)} />
+                      <ContextLine label="Raw draft edges" value={String(edgeShadowGrounding.boundary.rawDraftEdgesIncluded)} />
+                      <ContextLine label="Graph write" value={String(edgeShadowGrounding.boundary.writesRelationshipGraph)} />
+                      <ContextLine label="DB write" value={String(edgeShadowGrounding.boundary.databaseWriteAttempted)} />
+                    </div>
                   </div>
-                  <Badge variant="outline" className="rounded-full">
-                    {edgeShadowGrounding.candidateEdgeCount} edges
-                  </Badge>
-                </div>
-                <div className="mt-3 grid grid-cols-2 gap-2">
-                  <RouteBMiniCount label="來源人物" value={edgeShadowGrounding.sourceMemberCount} />
-                  <RouteBMiniCount label="候選邊" value={edgeShadowGrounding.candidateEdgeCount} />
-                  <RouteBMiniCount label="未支援關係" value={edgeShadowGrounding.unsupportedRelationCount} />
-                  <RouteBMiniCount label="warning" value={edgeShadowGrounding.warningCodes.length} />
-                </div>
-                <div className="mt-2 grid gap-1 text-xs leading-5 text-muted-foreground">
-                  <ContextLine label="Formal schema" value={String(edgeShadowGrounding.boundary.formalSchemaApproved)} />
-                  <ContextLine label="Raw draft edges" value={String(edgeShadowGrounding.boundary.rawDraftEdgesIncluded)} />
-                  <ContextLine label="Graph write" value={String(edgeShadowGrounding.boundary.writesRelationshipGraph)} />
-                  <ContextLine label="DB write" value={String(edgeShadowGrounding.boundary.databaseWriteAttempted)} />
-                </div>
-              </div>
+                ) : null}
+                {familyProfileGrounding ? (
+                  <div className="border-y border-hairline py-3" data-route-b-feedback-family-profile-grounding="true">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-xs font-semibold text-ink">人物資料回顧脈絡</p>
+                      <Badge variant="outline" className="rounded-full">
+                        {familyProfileGrounding.fieldCount} fields
+                      </Badge>
+                    </div>
+                    <div className="mt-2 grid gap-1 text-xs leading-5 text-muted-foreground">
+                      <ContextLine label="Raw metadata" value={String(familyProfileGrounding.boundary.rawMetadataIncluded)} />
+                      <ContextLine label="Source refs" value={String(familyProfileGrounding.boundary.sourceReferenceIdsIncluded)} />
+                      <ContextLine label="Provider call" value={String(familyProfileGrounding.boundary.providerCallAttempted)} />
+                      <ContextLine label="CRM fact write" value={String(familyProfileGrounding.boundary.writesConfirmedCrmFact)} />
+                    </div>
+                  </div>
+                ) : null}
+                <p className="border-y border-hairline py-3 text-xs leading-5 text-muted-foreground">
+                  {review.complianceReminder}
+                </p>
+              </>
             ) : null}
 
-            {familyProfileGrounding ? (
-              <div
-                className="rounded-lg border border-hairline bg-paper px-3 py-3"
-                data-route-b-feedback-family-profile-grounding="true"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-xs font-semibold text-ink">人物資料回顧脈絡</p>
-                    <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                      回顧可引用人物 profile 欄位作為劇場脈絡；推論與未知仍只作問題依據，不寫回人物檔、保單或 CRM 事實。
-                    </p>
-                  </div>
-                  <Badge variant="outline" className="rounded-full">
-                    {familyProfileGrounding.fieldCount} fields
-                  </Badge>
-                </div>
-                <div className="mt-3 grid grid-cols-2 gap-2">
-                  <RouteBMiniCount label="人物" value={familyProfileGrounding.profiledMemberCount} />
-                  <RouteBMiniCount label="欄位" value={familyProfileGrounding.fieldCount} />
-                  <RouteBMiniCount label="已知" value={familyProfileGrounding.knownFieldCount} />
-                  <RouteBMiniCount label="未知" value={familyProfileGrounding.unknownFieldCount} />
-                </div>
-                <div className="mt-3 space-y-2">
-                  {familyProfileGrounding.fields.slice(0, 3).map((field) => (
-                    <p
-                      key={`${field.memberLabel}-${field.fieldLabel}`}
-                      className="rounded-md border border-hairline bg-background px-3 py-2 text-xs leading-5 text-muted-foreground"
+            {selectedFeedbackView.id === "perspectives" ? (
+              <div className="space-y-3">
+                <div className="flex flex-wrap gap-1" role="tablist" aria-label="Route B 五視角項目">
+                  {review.sections.map((section) => (
+                    <button
+                      key={section.perspectiveId}
+                      type="button"
+                      role="tab"
+                      aria-label={section.label}
+                      aria-selected={selectedPerspective?.perspectiveId === section.perspectiveId}
+                      className={cn(
+                        "rounded-full border border-hairline px-3 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                        selectedPerspective?.perspectiveId === section.perspectiveId
+                          ? "bg-ink text-paper"
+                          : "bg-paper text-muted-foreground hover:text-ink",
+                      )}
+                      onClick={() => setActivePerspectiveId(section.perspectiveId)}
                     >
-                      {field.memberLabel} / {field.fieldLabel}: {field.valueSummary}
-                    </p>
+                      {section.label}
+                    </button>
                   ))}
                 </div>
-                <div className="mt-2 grid gap-1 text-xs leading-5 text-muted-foreground">
-                  <ContextLine label="Raw metadata" value={String(familyProfileGrounding.boundary.rawMetadataIncluded)} />
-                  <ContextLine label="Source refs" value={String(familyProfileGrounding.boundary.sourceReferenceIdsIncluded)} />
-                  <ContextLine label="Provider call" value={String(familyProfileGrounding.boundary.providerCallAttempted)} />
-                  <ContextLine label="DB write" value={String(familyProfileGrounding.boundary.databaseWriteAttempted)} />
-                  <ContextLine label="Graph write" value={String(familyProfileGrounding.boundary.writesRelationshipGraph)} />
-                  <ContextLine label="VisitPlan write" value={String(familyProfileGrounding.boundary.writesVisitPlan)} />
-                  <ContextLine label="Client profile write" value={String(familyProfileGrounding.boundary.writesClientProfile)} />
-                  <ContextLine label="Policy write" value={String(familyProfileGrounding.boundary.writesPolicy)} />
-                  <ContextLine label="CRM fact write" value={String(familyProfileGrounding.boundary.writesConfirmedCrmFact)} />
-                </div>
-              </div>
-            ) : null}
-
-            <div className="space-y-2">
-              {review.sections.map((section, index) => (
-                <details
-                  key={section.perspectiveId}
-                  className="group rounded-lg border border-hairline bg-paper"
-                  open={index === 0}
-                >
-                  <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 px-3 text-sm font-medium text-ink [&::-webkit-details-marker]:hidden">
-                    <span>{section.label}</span>
-                    <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition group-open:rotate-180" />
-                  </summary>
-                  <div className="space-y-3 border-t border-hairline p-3">
-                    <p className="text-sm leading-6 text-muted-foreground">{section.observation}</p>
-                    <p className="rounded-md border border-hairline bg-background px-3 py-2 text-xs leading-5 text-muted-foreground">
-                      move: {section.advisorMove}
-                    </p>
-                    <p className="rounded-md border border-hairline bg-background px-3 py-2 text-xs leading-5 text-muted-foreground">
-                      risk: {section.riskOrUnknown}
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      {section.evidenceBasis.map((item) => (
-                        <Badge key={`${section.perspectiveId}-${item.source}-${item.label}`} variant="outline" className="rounded-full">
+                {selectedPerspective ? (
+                  <article className="border-y border-hairline py-3">
+                    <h4 className="text-sm font-semibold text-ink">{selectedPerspective.label}</h4>
+                    <p className="mt-2 text-sm leading-6 text-muted-foreground">{selectedPerspective.observation}</p>
+                    <div className="mt-3 grid gap-2 text-xs leading-5 text-muted-foreground">
+                      <ContextLine label="move" value={selectedPerspective.advisorMove} />
+                      <ContextLine label="risk" value={selectedPerspective.riskOrUnknown} />
+                    </div>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {selectedPerspective.evidenceBasis.map((item) => (
+                        <Badge key={`${selectedPerspective.perspectiveId}-${item.source}-${item.label}`} variant="outline" className="rounded-full">
                           {item.label}:{item.count}
                         </Badge>
                       ))}
                     </div>
-                  </div>
-                </details>
-              ))}
-            </div>
+                  </article>
+                ) : (
+                  <p className="border-y border-dashed border-hairline py-3 text-sm leading-6 text-muted-foreground">
+                    目前沒有可顯示的視角。
+                  </p>
+                )}
+              </div>
+            ) : null}
 
-            <details className="group rounded-lg border border-hairline bg-card">
-              <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 px-3 text-sm font-medium text-ink [&::-webkit-details-marker]:hidden">
-                <span>紅線檢查・{review.redLineFindings.length}</span>
-                <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition group-open:rotate-180" />
-              </summary>
-              <div className="space-y-2 border-t border-hairline p-3">
-                {review.redLineFindings.map((finding) => (
-                  <div key={finding.redLineId} className="rounded-md border border-hairline bg-background px-3 py-2">
-                    <div className="flex items-center justify-between gap-3">
-                      <p className="text-xs font-semibold text-ink">{finding.label}</p>
-                      <Badge variant="outline" className="rounded-full">
-                        {finding.severity}・{finding.status}
+            {selectedFeedbackView.id === "redLines" ? (
+              <div className="space-y-3">
+                <div className="flex flex-wrap gap-1" role="tablist" aria-label="Route B 紅線項目">
+                  {review.redLineFindings.map((finding) => (
+                    <button
+                      key={finding.redLineId}
+                      type="button"
+                      role="tab"
+                      aria-label={finding.label}
+                      aria-selected={selectedRedLine?.redLineId === finding.redLineId}
+                      className={cn(
+                        "rounded-full border border-hairline px-3 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                        selectedRedLine?.redLineId === finding.redLineId
+                          ? "bg-ink text-paper"
+                          : "bg-paper text-muted-foreground hover:text-ink",
+                      )}
+                      onClick={() => setActiveRedLineId(finding.redLineId)}
+                    >
+                      {finding.label}
+                    </button>
+                  ))}
+                </div>
+                {selectedRedLine ? (
+                  <article className="border-y border-hairline py-3">
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <h4 className="min-w-0 text-sm font-semibold text-ink break-words">{selectedRedLine.label}</h4>
+                      <Badge variant="outline" className="max-w-full shrink-0 rounded-full whitespace-normal text-left leading-5">
+                        {selectedRedLine.severity}・{selectedRedLine.status}
                       </Badge>
                     </div>
                     <p className="mt-2 text-xs leading-5 text-muted-foreground">
-                      {finding.notApplicableReason ?? finding.evidenceBasis}
+                      {selectedRedLine.notApplicableReason ?? selectedRedLine.evidenceBasis}
                     </p>
-                    {finding.actionContext ? (
-                      <p className="mt-2 rounded-md border border-hairline bg-paper px-2 py-1.5 text-xs leading-5 text-muted-foreground">
-                        advisor action: {finding.actionContext.state} / {finding.actionContext.advisorReasonCode};
+                    {selectedRedLine.actionContext ? (
+                      <p className="mt-3 border-y border-hairline py-2 text-xs leading-5 text-muted-foreground">
+                        advisor action: {selectedRedLine.actionContext.state} / {selectedRedLine.actionContext.advisorReasonCode};
                         no legal advice, no formal finding, no CRM fact, no notification.
                       </p>
                     ) : null}
-                  </div>
-                ))}
+                  </article>
+                ) : (
+                  <p className="border-y border-dashed border-hairline py-3 text-sm leading-6 text-muted-foreground">
+                    目前沒有紅線 findings。
+                  </p>
+                )}
               </div>
-            </details>
-
-            <p className="rounded-lg border border-hairline bg-paper px-3 py-3 text-xs leading-5 text-muted-foreground">
-              {review.complianceReminder}
-            </p>
+            ) : null}
           </div>
         ) : null}
     </div>
@@ -3022,10 +3085,46 @@ function RouteBComplianceReviewIntakePanel({
   const isBusy = status === "loading";
   const needsEvidenceCount = intake?.candidates.filter((candidate) => candidate.reviewStatus === "NEEDS_EVIDENCE").length ?? 0;
   const reviewRequiredCount = intake?.candidates.filter((candidate) => candidate.reviewStatus === "CANDIDATE_REVIEW_REQUIRED").length ?? 0;
+  const [activeComplianceView, setActiveComplianceView] = useState<RouteBComplianceBrowserMode>("overview");
+  const [activeCandidateId, setActiveCandidateId] = useState(intake?.candidates[0]?.id ?? "");
+  const selectedCandidate =
+    intake?.candidates.find((candidate) => candidate.id === activeCandidateId) ??
+    intake?.candidates[0] ??
+    null;
+  const complianceViews: Array<{
+    id: RouteBComplianceBrowserMode;
+    icon: React.ReactNode;
+    label: string;
+    summary: string;
+  }> = [
+    {
+      id: "overview",
+      icon: <BrainCircuit className="h-4 w-4" />,
+      label: "候選總覽",
+      summary: intake ? `${intake.candidateCount} 個候選` : routeBReviewStatusText(status),
+    },
+    {
+      id: "candidate",
+      icon: <CircleAlert className="h-4 w-4" />,
+      label: "候選",
+      summary: selectedCandidate ? `${selectedCandidate.label}・${selectedCandidate.reviewStatus}` : "等待候選",
+    },
+    {
+      id: "boundary",
+      icon: <ShieldCheck className="h-4 w-4" />,
+      label: "邊界",
+      summary: intake ? `notification=${String(intake.reviewBoundary.triggersExternalNotification)}` : "no-provider",
+    },
+  ];
+  const selectedComplianceView =
+    complianceViews.find((view) => view.id === activeComplianceView) ?? complianceViews[0];
 
   return (
-    <Card className="border-hairline shadow-none">
-      <CardContent className="space-y-4 p-5">
+    <section
+      className="space-y-4"
+      data-route-b-compliance-inner-browser="true"
+      data-route-b-compliance-inner-browser-active={selectedComplianceView.id}
+    >
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
@@ -3051,6 +3150,32 @@ function RouteBComplianceReviewIntakePanel({
           讀取候選
         </Button>
 
+        <div className="flex flex-wrap gap-1" role="tablist" aria-label="Route B 待審閱候選內層分類">
+          {complianceViews.map((view) => (
+            <Tooltip key={view.id}>
+              <TooltipTrigger
+                aria-label={view.label}
+                aria-selected={selectedComplianceView.id === view.id}
+                className={cn(
+                  "inline-flex h-9 w-9 items-center justify-center rounded-full border border-hairline transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  selectedComplianceView.id === view.id
+                    ? "bg-ink text-paper"
+                    : "bg-paper text-muted-foreground hover:text-ink",
+                )}
+                onClick={() => setActiveComplianceView(view.id)}
+                role="tab"
+                type="button"
+              >
+                {view.icon}
+              </TooltipTrigger>
+              <TooltipContent>{view.label}</TooltipContent>
+            </Tooltip>
+          ))}
+          <p className="min-w-0 flex-1 px-2 py-2 text-xs leading-5 text-muted-foreground">
+            {selectedComplianceView.summary}
+          </p>
+        </div>
+
         {status === "error" ? (
           <p className="rounded-lg border border-hairline bg-paper px-3 py-2 text-sm leading-6 text-muted-foreground">
             {error ?? "Route B compliance-review intake failed."}
@@ -3064,68 +3189,95 @@ function RouteBComplianceReviewIntakePanel({
         ) : null}
 
         {intake ? (
-          <div className="space-y-3">
-            <div className="grid grid-cols-3 gap-2">
-              <RouteBMiniCount label="候選" value={intake.candidateCount} />
-              <RouteBMiniCount label="需要佐證" value={needsEvidenceCount} />
-              <RouteBMiniCount label="升級候選" value={reviewRequiredCount} />
-            </div>
+          <div className="space-y-3" data-route-b-compliance-view={selectedComplianceView.id}>
+            {selectedComplianceView.id === "overview" ? (
+              <>
+                <div className="grid grid-cols-3 gap-2">
+                  <RouteBMiniCount label="候選" value={intake.candidateCount} />
+                  <RouteBMiniCount label="需要佐證" value={needsEvidenceCount} />
+                  <RouteBMiniCount label="升級候選" value={reviewRequiredCount} />
+                </div>
+                <div className="grid gap-2 border-y border-hairline py-3 text-sm text-muted-foreground">
+                  <ContextLine label="Source" value={intake.sourceSurface} />
+                  <ContextLine label="Provider call" value={String(intake.providerBoundary.providerCallAttempted)} />
+                  <ContextLine label="AiUsageLog" value={String(intake.providerBoundary.aiUsageLogWritten)} />
+                </div>
+              </>
+            ) : null}
 
-            <div className="grid gap-2 text-sm text-muted-foreground">
-              <ContextLine label="Source" value={intake.sourceSurface} />
-              <ContextLine label="Provider call" value={String(intake.providerBoundary.providerCallAttempted)} />
-              <ContextLine label="AiUsageLog" value={String(intake.providerBoundary.aiUsageLogWritten)} />
-              <ContextLine label="Formal finding" value={String(intake.reviewBoundary.createsFormalFinding)} />
-              <ContextLine label="Real notification" value={String(intake.reviewBoundary.triggersExternalNotification)} />
-              <ContextLine label="Writes CRM fact" value={String(intake.reviewBoundary.writesConfirmedCrmFact)} />
-            </div>
-
-            <div className="space-y-2">
-              {intake.candidates.length ? (
-                intake.candidates.map((candidate) => (
-                  <details key={candidate.id} className="group rounded-lg border border-hairline bg-paper">
-                    <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 px-3 text-sm font-medium text-ink [&::-webkit-details-marker]:hidden">
-                      <span>{candidate.label}</span>
-                      <Badge variant={candidate.actionState === "ESCALATE" ? "destructive" : "outline"} className="shrink-0 rounded-full">
-                        {candidate.reviewStatus}
+            {selectedComplianceView.id === "candidate" ? (
+              <div className="space-y-3">
+                <div className="flex flex-wrap gap-1" role="tablist" aria-label="Route B 待審閱候選項目">
+                  {intake.candidates.map((candidate) => (
+                    <button
+                      key={candidate.id}
+                      type="button"
+                      role="tab"
+                      aria-label={candidate.label}
+                      aria-selected={selectedCandidate?.id === candidate.id}
+                      className={cn(
+                        "rounded-full border border-hairline px-3 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                        selectedCandidate?.id === candidate.id
+                          ? "bg-ink text-paper"
+                          : "bg-paper text-muted-foreground hover:text-ink",
+                      )}
+                      onClick={() => setActiveCandidateId(candidate.id)}
+                    >
+                      {candidate.label}
+                    </button>
+                  ))}
+                </div>
+                {selectedCandidate ? (
+                  <article className="border-y border-hairline py-3">
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <h4 className="min-w-0 text-sm font-semibold text-ink break-words">{selectedCandidate.label}</h4>
+                      <Badge
+                        variant={selectedCandidate.actionState === "ESCALATE" ? "destructive" : "outline"}
+                        className="max-w-full shrink-0 rounded-full whitespace-normal text-left leading-5"
+                      >
+                        {selectedCandidate.reviewStatus}
                       </Badge>
-                    </summary>
-                    <div className="space-y-3 border-t border-hairline p-3">
-                      <p className="text-xs leading-5 text-muted-foreground">
-                        {candidate.safeSummary}
-                      </p>
-                      <div className="grid gap-2 text-xs text-muted-foreground">
-                        <ContextLine label="Rule" value={candidate.ruleId} />
-                        <ContextLine label="Action state" value={candidate.actionState} />
-                        <ContextLine label="Reason" value={candidate.advisorReasonCode} />
-                        <ContextLine label="Updated" value={candidate.updatedAt} />
-                        <ContextLine label="Formal finding" value={String(!candidate.proof.noFormalFinding)} />
-                        <ContextLine label="Notification" value={String(candidate.proof.triggersExternalNotification)} />
-                      </div>
-                      <div className="flex flex-wrap gap-1.5">
-                        {candidate.evidenceRefs.map((evidence) => (
-                          <Badge key={evidence.id} variant="outline" className="rounded-full">
-                            {evidence.label}
-                          </Badge>
-                        ))}
-                      </div>
                     </div>
-                  </details>
-                ))
-              ) : (
-                <p className="rounded-lg border border-dashed border-hairline bg-paper px-3 py-3 text-sm leading-6 text-muted-foreground">
-                  目前沒有 `ESCALATE` 或 `EVIDENCE_NEEDED` 的候選；觀察中與不適用狀態不送入審閱候選。
-                </p>
-              )}
-            </div>
+                    <p className="mt-2 text-xs leading-5 text-muted-foreground">{selectedCandidate.safeSummary}</p>
+                    <div className="mt-3 grid gap-2 text-xs text-muted-foreground">
+                      <ContextLine label="Rule" value={selectedCandidate.ruleId} />
+                      <ContextLine label="Action state" value={selectedCandidate.actionState} />
+                      <ContextLine label="Reason" value={selectedCandidate.advisorReasonCode} />
+                      <ContextLine label="Updated" value={selectedCandidate.updatedAt} />
+                      <ContextLine label="Formal finding" value={String(!selectedCandidate.proof.noFormalFinding)} />
+                      <ContextLine label="Notification" value={String(selectedCandidate.proof.triggersExternalNotification)} />
+                    </div>
+                    <div className="mt-3 flex flex-wrap gap-1.5">
+                      {selectedCandidate.evidenceRefs.map((evidence) => (
+                        <Badge key={evidence.id} variant="outline" className="max-w-full rounded-full whitespace-normal text-left leading-5">
+                          {evidence.label}
+                        </Badge>
+                      ))}
+                    </div>
+                  </article>
+                ) : (
+                  <p className="border-y border-dashed border-hairline py-3 text-sm leading-6 text-muted-foreground">
+                    目前沒有 `ESCALATE` 或 `EVIDENCE_NEEDED` 的候選；觀察中與不適用狀態不送入審閱候選。
+                  </p>
+                )}
+              </div>
+            ) : null}
 
-            <p className="rounded-lg border border-hairline bg-paper px-3 py-3 text-xs leading-5 text-muted-foreground">
-              此區只建立 disabled/no-provider intake candidate；後續正式法遵 finding、通知、審閱 routing 或 CRM 寫回都需要另行授權與驗收。
-            </p>
+            {selectedComplianceView.id === "boundary" ? (
+              <>
+                <div className="grid gap-2 border-y border-hairline py-3 text-sm text-muted-foreground">
+                  <ContextLine label="Formal finding" value={String(intake.reviewBoundary.createsFormalFinding)} />
+                  <ContextLine label="Real notification" value={String(intake.reviewBoundary.triggersExternalNotification)} />
+                  <ContextLine label="Writes CRM fact" value={String(intake.reviewBoundary.writesConfirmedCrmFact)} />
+                </div>
+                <p className="border-y border-hairline py-3 text-xs leading-5 text-muted-foreground">
+                  此區只建立 disabled/no-provider intake candidate；後續正式法遵 finding、通知、審閱 routing 或 CRM 寫回都需要另行授權與驗收。
+                </p>
+              </>
+            ) : null}
           </div>
         ) : null}
-      </CardContent>
-    </Card>
+    </section>
   );
 }
 
