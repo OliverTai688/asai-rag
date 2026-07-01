@@ -1198,7 +1198,7 @@ function RouteBSourceEvidenceBrowser({
       id: "meeting",
       icon: <BrainCircuit className="h-4 w-4" />,
       label: "會議訊號",
-      summary: `${meetingSignalGrounding.cardCount} 張 stage card`,
+      summary: `${meetingSignalGrounding.cardCount} 則會議訊號`,
     });
   }
 
@@ -1305,57 +1305,55 @@ function RouteBMeetingSignalGroundingPanel({ grounding }: { grounding: RouteBMee
           <div className="min-w-0">
             <h2 className="text-sm font-semibold text-ink">會議訊號來源</h2>
             <p className="mt-2 text-sm leading-6 text-muted-foreground">
-              {renderModel.cardCount} 張 stage card・{renderModel.unknownCount} 個待確認・{renderModel.narratorQuestionCount} 個旁白補問
+              {renderModel.cardCount} 則會議訊號・{renderModel.unknownCount} 個待確認・{renderModel.narratorQuestionCount} 個旁白補問
             </p>
           </div>
         </div>
 
         {renderModel.sourceTypeChips.length ? (
-          <div className="flex flex-wrap gap-1.5" data-route-b-meeting-signal-source-types="true">
+          <dl
+            aria-label="會議訊號來源類型指標"
+            className="flex flex-wrap items-center gap-x-5 gap-y-2 border-y border-hairline py-2 text-xs text-muted-foreground"
+            data-route-b-inline-metrics="true"
+            data-route-b-meeting-signal-source-types="true"
+          >
             {renderModel.sourceTypeChips.map((chip) => (
-              <span
+              <div
                 key={chip.sourceType}
-                className="rounded-full border border-hairline bg-paper px-2 py-1 text-[10px] font-medium text-ink"
+                className="inline-flex min-w-0 items-baseline gap-1.5"
                 data-route-b-meeting-signal-source-type-chip={chip.sourceType}
               >
-                來源類型：{chip.sourceType}・{chip.count}
-              </span>
+                <dt className="order-2 min-w-0 break-words">來源類型：{chip.sourceType}</dt>
+                <dd className="order-1 text-sm font-semibold tabular-nums text-ink">{chip.count}</dd>
+              </div>
             ))}
-          </div>
+          </dl>
         ) : null}
 
-        <div className="space-y-2">
+        <div className="divide-y divide-hairline" data-route-b-meeting-signal-row-list="true">
           {renderModel.cards.slice(0, 3).map((card) => (
-            <div key={card.stageCardId} className="border-b border-hairline py-3 last:border-b-0">
-              <div className="flex flex-wrap items-center gap-1.5">
-                <Badge variant="outline" className="text-[10px]">
-                  {routeBMeetingSignalStatusLabel(card.status)}
-                </Badge>
-                <span className="rounded-full border border-hairline bg-background px-2 py-0.5 text-[10px] text-muted-foreground">
-                  {routeBMeetingSignalPriorityLabel(card.priority)}
-                </span>
-              </div>
-              <p className="mt-2 line-clamp-2 text-sm font-medium leading-5 text-ink">{card.summary || "會議訊號待補摘要"}</p>
-              <div className="mt-2 flex flex-wrap gap-1.5 text-[10px] text-muted-foreground">
-                <span className="rounded-full border border-hairline bg-background px-2 py-0.5">
-                  來源：{card.sourceLabel || "AI Meeting"}
-                </span>
-                {card.sourceType ? (
-                  <span
-                    className="rounded-full border border-hairline bg-background px-2 py-0.5"
-                    data-route-b-meeting-signal-card-source-type={card.sourceType}
-                  >
-                    類型：{card.sourceType}
-                  </span>
-                ) : null}
-                <span className="rounded-full border border-hairline bg-background px-2 py-0.5">
-                  動作：{routeBMeetingSignalActionLabel(card.action)}
-                </span>
-              </div>
+            <article
+              key={card.stageCardId}
+              className="py-3 first:pt-0 last:pb-0"
+              {...(card.sourceType ? { "data-route-b-meeting-signal-card-source-type": card.sourceType } : {})}
+              data-route-b-meeting-signal-row="true"
+            >
+              <p className="line-clamp-2 text-sm font-medium leading-5 text-ink">{card.summary || "會議訊號待補摘要"}</p>
+              <RouteBInlineMetricRail
+                ariaLabel="會議訊號狀態指標"
+                className="mt-2"
+                metrics={[
+                  { label: "status", value: routeBMeetingSignalStatusLabel(card.status) },
+                  { label: "priority", value: routeBMeetingSignalPriorityLabel(card.priority) },
+                  { label: "source", value: card.sourceLabel || "AI Meeting" },
+                  { label: "sourceType", value: card.sourceType ?? "none" },
+                  { label: "action", value: routeBMeetingSignalActionLabel(card.action) },
+                ]}
+              />
               {card.narratorQuestion ? (
                 <p className="mt-2 line-clamp-2 text-xs leading-5 text-muted-foreground">旁白補問：{card.narratorQuestion}</p>
               ) : null}
-            </div>
+            </article>
           ))}
         </div>
 
@@ -1372,12 +1370,15 @@ function RouteBMeetingSignalGroundingPanel({ grounding }: { grounding: RouteBMee
           </div>
         ) : null}
 
-        <div className="grid gap-2 text-[11px] text-muted-foreground">
-          <ContextLine label="Owner visit scope" value={String(renderModel.boundary.ownerScopedVisitPlanRequired)} />
-          <ContextLine label="Browser session id" value={String(renderModel.boundary.browserSuppliedSessionId)} />
-          <ContextLine label="Provider call" value={String(renderModel.boundary.providerCallAttempted)} />
-          <ContextLine label="CRM fact write" value={String(renderModel.boundary.writesConfirmedCrmFact)} />
-        </div>
+        <RouteBInlineMetricRail
+          ariaLabel="會議訊號來源邊界"
+          metrics={[
+            { label: "Owner visit scope", value: String(renderModel.boundary.ownerScopedVisitPlanRequired) },
+            { label: "Browser session id", value: String(renderModel.boundary.browserSuppliedSessionId) },
+            { label: "Provider call", value: String(renderModel.boundary.providerCallAttempted) },
+            { label: "CRM fact write", value: String(renderModel.boundary.writesConfirmedCrmFact) },
+          ]}
+        />
     </div>
   );
 }
@@ -3821,7 +3822,7 @@ function RouteBInlineMetricRail({
       {metrics.map((metric) => (
         <div key={metric.label} className="inline-flex min-w-0 items-baseline gap-1.5">
           <dt className="order-2 min-w-0 break-words">{metric.label}</dt>
-          <dd className="order-1 text-sm font-semibold tabular-nums text-ink">{metric.value}</dd>
+          <dd className="order-1 min-w-0 break-words text-sm font-semibold tabular-nums text-ink">{metric.value}</dd>
         </div>
       ))}
     </dl>

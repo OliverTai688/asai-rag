@@ -270,6 +270,54 @@ async function assertStageViewport(browser, viewportName, viewport) {
           if ((await sourceTab.count()) === 0) continue;
           visibleSourceTabCount += 1;
           await sourceTab.click();
+          if (sourceLabel === "會議訊號") {
+            const meetingSignalSource = sourceBrowser.locator('[data-route-b-meeting-signal-source-grounding="true"]');
+            await meetingSignalSource.waitFor({ state: "visible", timeout: 10000 });
+            const meetingSourceTypes = meetingSignalSource.locator('[data-route-b-meeting-signal-source-types="true"]');
+            const meetingSignalRowList = meetingSignalSource.locator('[data-route-b-meeting-signal-row-list="true"]');
+            const meetingSignalRows = meetingSignalRowList.locator('[data-route-b-meeting-signal-row="true"]');
+            const meetingSignalRowCount = await meetingSignalRows.count();
+            const meetingSourceTypeRailCount = await meetingSourceTypes.count();
+            push(
+              meetingSourceTypeRailCount <= 1 &&
+                (meetingSourceTypeRailCount === 0 ||
+                  (await meetingSourceTypes.locator('[data-route-b-meeting-signal-source-type-chip]').count()) >= 1),
+              `${viewportName} source browser meeting source types stay in optional inline metric rail`,
+            );
+            push(meetingSignalRowCount >= 1, `${viewportName} source browser meeting signals render compact row list`);
+            push(
+              (await meetingSignalRowList.locator('[data-route-b-inline-metrics="true"]').count()) ===
+                meetingSignalRowCount,
+              `${viewportName} source browser meeting signal rows use inline metric rails`,
+            );
+            const meetingSignalCardSourceTypeCount = await meetingSignalRowList
+              .locator('[data-route-b-meeting-signal-card-source-type]')
+              .count();
+            push(
+              meetingSignalCardSourceTypeCount <= meetingSignalRowCount &&
+                (meetingSourceTypeRailCount === 0 || meetingSignalCardSourceTypeCount >= 1),
+              `${viewportName} source browser preserves optional card-level source type markers`,
+            );
+            const meetingSignalSourceText = await meetingSignalSource.innerText({ timeout: 10000 });
+            push(
+              meetingSignalSourceText.includes("則會議訊號") && !/stage card/i.test(meetingSignalSourceText),
+              `${viewportName} source browser meeting signal copy avoids card language`,
+            );
+            push(
+              (await meetingSignalSource.locator('[class*="rounded-full"][class*="border"]').count()) === 0,
+              `${viewportName} source browser meeting signal view avoids pill clusters`,
+            );
+            push(
+              (meetingSourceTypeRailCount === 0 || !(await hasElementHorizontalOverflow(meetingSourceTypes))) &&
+                !(await hasElementHorizontalOverflow(meetingSignalRowList)),
+              `${viewportName} source browser meeting signal rows have no internal horizontal overflow`,
+            );
+            await clearPointerState(page);
+            await page.screenshot({
+              path: resolve(screenshotDir, `route-b-session-stage-source-signal-rows-${viewportName}.png`),
+              fullPage: true,
+            });
+          }
           push(!(await hasHorizontalOverflow(page)), `${viewportName} source browser ${sourceLabel} view has no horizontal overflow`);
         }
         push(visibleSourceTabCount > 0, `${viewportName} source browser exposes at least one source tab`);
