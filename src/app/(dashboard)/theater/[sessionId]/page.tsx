@@ -2906,6 +2906,17 @@ function RouteBFeedbackReviewPanel({
           </p>
         ) : null}
 
+        {selectedFeedbackView.id === "overview" ? (
+          <RouteBInlineMetricRail
+            metrics={[
+              { label: "紅線待查", value: redLineNeedsReview },
+              { label: "本輪不適用", value: redLineNotApplicable },
+              { label: "升級審閱", value: redLineEscalate },
+              { label: "需要佐證", value: redLineEvidenceNeeded },
+            ]}
+          />
+        ) : null}
+
         {review ? (
           <div className="space-y-3" data-route-b-feedback-view={selectedFeedbackView.id}>
             {selectedFeedbackView.id === "overview" ? (
@@ -2927,12 +2938,6 @@ function RouteBFeedbackReviewPanel({
                     label="Family profile source"
                     value={familyProfileGrounding?.usedInFeedbackReview ? "scene.sourceGrounding.familyProfiles" : "none"}
                   />
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <RouteBMiniCount label="紅線待查" value={redLineNeedsReview} />
-                  <RouteBMiniCount label="本輪不適用" value={redLineNotApplicable} />
-                  <RouteBMiniCount label="升級審閱" value={redLineEscalate} />
-                  <RouteBMiniCount label="需要佐證" value={redLineEvidenceNeeded} />
                 </div>
                 {edgeShadowGrounding ? (
                   <div className="border-y border-hairline py-3" data-route-b-feedback-edge-shadow-grounding="true">
@@ -3188,15 +3193,20 @@ function RouteBComplianceReviewIntakePanel({
           </p>
         ) : null}
 
+        {selectedComplianceView.id === "overview" ? (
+          <RouteBInlineMetricRail
+            metrics={[
+              { label: "候選", value: intake?.candidateCount ?? 0 },
+              { label: "需要佐證", value: needsEvidenceCount },
+              { label: "升級候選", value: reviewRequiredCount },
+            ]}
+          />
+        ) : null}
+
         {intake ? (
           <div className="space-y-3" data-route-b-compliance-view={selectedComplianceView.id}>
             {selectedComplianceView.id === "overview" ? (
               <>
-                <div className="grid grid-cols-3 gap-2">
-                  <RouteBMiniCount label="候選" value={intake.candidateCount} />
-                  <RouteBMiniCount label="需要佐證" value={needsEvidenceCount} />
-                  <RouteBMiniCount label="升級候選" value={reviewRequiredCount} />
-                </div>
                 <div className="grid gap-2 border-y border-hairline py-3 text-sm text-muted-foreground">
                   <ContextLine label="Source" value={intake.sourceSurface} />
                   <ContextLine label="Provider call" value={String(intake.providerBoundary.providerCallAttempted)} />
@@ -3746,6 +3756,22 @@ function RouteBMiniCount({ label, value }: { label: string; value: number | stri
       <p className="text-sm font-semibold tabular-nums text-ink">{value}</p>
       <p className="text-[10px] text-muted-foreground">{label}</p>
     </div>
+  );
+}
+
+function RouteBInlineMetricRail({ metrics }: { metrics: Array<{ label: string; value: number | string }> }) {
+  return (
+    <dl
+      className="flex flex-wrap items-center gap-x-5 gap-y-2 border-y border-hairline py-2 text-xs text-muted-foreground"
+      data-route-b-inline-metrics="true"
+    >
+      {metrics.map((metric) => (
+        <div key={metric.label} className="inline-flex min-w-0 items-baseline gap-1.5">
+          <dt className="order-2 min-w-0 break-words">{metric.label}</dt>
+          <dd className="order-1 text-sm font-semibold tabular-nums text-ink">{metric.value}</dd>
+        </div>
+      ))}
+    </dl>
   );
 }
 

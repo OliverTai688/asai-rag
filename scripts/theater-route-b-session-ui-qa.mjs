@@ -211,6 +211,17 @@ async function assertStageViewport(browser, viewportName, viewport) {
             (await feedbackInnerBrowser.getAttribute("data-route-b-feedback-inner-browser-active")) === reviewState,
             `${viewportName} feedback inner browser active marker switches to ${reviewState}`,
           );
+          if (reviewState === "overview") {
+            push(
+              (await feedbackInnerBrowser.locator('[data-route-b-inline-metrics="true"]').count()) === 1,
+              `${viewportName} feedback overview uses one inline metric rail`,
+            );
+            await clearPointerState(page);
+            await page.screenshot({
+              path: resolve(screenshotDir, `route-b-session-stage-feedback-metrics-${viewportName}.png`),
+              fullPage: true,
+            });
+          }
           push(!(await hasHorizontalOverflow(page)), `${viewportName} review browser ${reviewLabel} view has no horizontal overflow`);
         }
         await feedbackInnerBrowser.getByRole("tab", { name: "五視角", exact: true }).click();
@@ -233,6 +244,17 @@ async function assertStageViewport(browser, viewportName, viewport) {
             (await complianceInnerBrowser.getAttribute("data-route-b-compliance-inner-browser-active")) === complianceState,
             `${viewportName} compliance inner browser active marker switches to ${complianceState}`,
           );
+          if (complianceState === "overview") {
+            push(
+              (await complianceInnerBrowser.locator('[data-route-b-inline-metrics="true"]').count()) === 1,
+              `${viewportName} compliance overview uses one inline metric rail`,
+            );
+            await clearPointerState(page);
+            await page.screenshot({
+              path: resolve(screenshotDir, `route-b-session-stage-compliance-metrics-${viewportName}.png`),
+              fullPage: true,
+            });
+          }
           push(!(await hasHorizontalOverflow(page)), `${viewportName} compliance browser ${complianceLabel} view has no horizontal overflow`);
         }
         await complianceInnerBrowser.getByRole("tab", { name: "候選", exact: true }).click();
