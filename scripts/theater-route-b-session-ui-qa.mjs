@@ -153,6 +153,18 @@ async function assertStageViewport(browser, viewportName, viewport) {
     await page.getByRole("button", { name: "下一回合預覽" }).click();
     const nextTurnPreviewText = await openPopover.innerText({ timeout: 10000 });
     push(nextTurnPreviewText.includes("下一回合預覽"), `${viewportName} next-turn preview opens from icon popover`);
+    const nextTurnBrowser = page.locator('[data-route-b-next-turn-browser="true"]');
+    await nextTurnBrowser.waitFor({ state: "visible", timeout: 10000 });
+    push(await nextTurnBrowser.isVisible(), `${viewportName} next-turn preview renders single browser`);
+    let nextTurnTabCount = 0;
+    for (const nextTurnLabel of ["預覽", "來源", "Provider", "Guard"]) {
+      const nextTurnTab = nextTurnBrowser.getByRole("tab", { name: nextTurnLabel });
+      if ((await nextTurnTab.count()) === 0) continue;
+      nextTurnTabCount += 1;
+      await nextTurnTab.click();
+      push(!(await hasHorizontalOverflow(page)), `${viewportName} next-turn browser ${nextTurnLabel} view has no horizontal overflow`);
+    }
+    push(nextTurnTabCount === 4, `${viewportName} next-turn browser exposes four icon tabs`);
     push(!(await hasHorizontalOverflow(page)), `${viewportName} next-turn preview popover has no horizontal overflow`);
     await page.keyboard.press("Escape");
 

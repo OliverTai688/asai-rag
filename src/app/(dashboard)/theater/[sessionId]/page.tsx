@@ -88,6 +88,7 @@ type RouteBStageMode = "CONVERSE" | "OBSERVE" | "COMMENT";
 type RouteBSourceEvidenceMode = "meeting" | "family" | "edge";
 type RouteBReviewMode = "feedback" | "compliance";
 type RouteBContextMode = "guard" | "director" | "relationships" | "narrator" | "visibility";
+type RouteBNextTurnBrowserMode = "preview" | "sources" | "provider" | "guard";
 type RouteBMeetingSignalGrounding = NonNullable<
   NonNullable<RouteBSessionSnapshot["scene"]["sourceGrounding"]>["meetingRelationshipSignals"]
 >;
@@ -3168,144 +3169,225 @@ function RouteBNextTurnPreviewPanel({
   const familyProfileRuntimeGrounding = draft?.inputSummary.familyProfileGrounding;
   const canConfirmAppend = Boolean(appendCandidate && appendUsageLogId && draft?.status === "READY");
   const canGenerateProviderCandidate = Boolean(draft?.status === "READY" && !isGeneratingProviderCandidate);
+  const runtimeSourceCount = [
+    meetingSignalRuntimeGrounding?.usedInNextTurnRuntime,
+    relationshipEdgeShadowRuntimeGrounding?.usedInNextTurnRuntime,
+    familyProfileRuntimeGrounding?.usedInNextTurnRuntime,
+  ].filter(Boolean).length;
+  const guardCount = guardLines.length + (draft?.nextTurn.rationale.length ?? 0);
+  const views: Array<{
+    id: RouteBNextTurnBrowserMode;
+    icon: React.ReactNode;
+    label: string;
+    summary: string;
+  }> = [
+    {
+      id: "preview",
+      icon: <MessageSquare className="h-4 w-4" />,
+      label: "預覽",
+      summary: draft ? `${speakerName}・${nextTurnStatusLabel(draft.status)}` : "尚未讀取 draft",
+    },
+    {
+      id: "sources",
+      icon: <BrainCircuit className="h-4 w-4" />,
+      label: "來源",
+      summary: draft ? `${runtimeSourceCount} 組 runtime source` : "等待 draft",
+    },
+    {
+      id: "provider",
+      icon: <Sparkles className="h-4 w-4" />,
+      label: "Provider",
+      summary: draft ? `callAttempted=${String(draft.providerBoundary.providerCallAttempted)}` : "provider locked",
+    },
+    {
+      id: "guard",
+      icon: <ShieldCheck className="h-4 w-4" />,
+      label: "Guard",
+      summary: draft ? `${guardCount} 條 guard / rationale` : "等待 proof",
+    },
+  ];
+  const [activeView, setActiveView] = useState<RouteBNextTurnBrowserMode>("preview");
+  const selectedView = views.find((view) => view.id === activeView) ?? views[0];
 
   return (
-    <div className="mx-auto max-w-3xl rounded-lg border border-hairline bg-background p-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="space-y-1">
-          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-            Next-turn preview
-          </p>
-          <h3 className="text-base font-semibold text-ink">下一回合預覽</h3>
-          <p className="max-w-xl text-sm leading-6 text-muted-foreground">
-            只讀取 no-provider draft：顯示誰該回應、可見範圍與 guard evidence；角色台詞與自動 append 仍等 provider success/error `AiUsageLog` proof。
-          </p>
+    <section
+      className="mx-auto max-w-3xl overflow-hidden rounded-lg border border-hairline bg-background"
+      data-route-b-next-turn-browser="true"
+      data-route-b-next-turn-browser-active={selectedView.id}
+    >
+      <div className="border-b border-hairline p-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+              Next-turn Browser
+            </p>
+            <h3 className="mt-1 text-sm font-semibold text-ink">下一回合預覽</h3>
+            <p className="mt-1 max-w-xl text-xs leading-5 text-muted-foreground">
+              只讀取 no-provider draft；角色台詞與自動 append 仍等 provider success/error `AiUsageLog` proof。
+            </p>
+          </div>
+          <div className="flex items-center gap-1">
+            <div className="flex shrink-0 gap-1" role="tablist" aria-label="Route B 下一回合預覽分類">
+              {views.map((view) => (
+                <Tooltip key={view.id}>
+                  <TooltipTrigger
+                    aria-label={view.label}
+                    aria-selected={selectedView.id === view.id}
+                    className={cn(
+                      "inline-flex h-9 w-9 items-center justify-center rounded-full border border-hairline transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                      selectedView.id === view.id
+                        ? "bg-ink text-paper"
+                        : "bg-paper text-muted-foreground hover:text-ink",
+                    )}
+                    onClick={() => setActiveView(view.id)}
+                    role="tab"
+                    type="button"
+                  >
+                    {view.icon}
+                  </TooltipTrigger>
+                  <TooltipContent>{view.label}</TooltipContent>
+                </Tooltip>
+              ))}
+            </div>
+            <Tooltip>
+              <TooltipTrigger
+                aria-label="讀取 Route B 下一回合預覽"
+                className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-hairline bg-paper text-muted-foreground transition-colors hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
+                disabled={isLoading}
+                onClick={() => void onRefresh()}
+                type="button"
+              >
+                {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+              </TooltipTrigger>
+              <TooltipContent>{isLoading ? "讀取中" : "讀取預覽"}</TooltipContent>
+            </Tooltip>
+          </div>
         </div>
-        <Button
-          type="button"
-          variant="outline"
-          className="h-10 rounded-full"
-          onClick={() => void onRefresh()}
-          disabled={isLoading}
-          aria-label="讀取 Route B 下一回合預覽"
-        >
-          {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-          {isLoading ? "讀取中" : "讀取預覽"}
-        </Button>
+        <p className="mt-2 text-xs leading-5 text-muted-foreground">{selectedView.summary}</p>
       </div>
 
       {status === "error" ? (
-        <p className="mt-3 rounded-lg border border-hairline bg-paper px-3 py-2 text-sm leading-6 text-muted-foreground">
+        <p className="m-3 rounded-lg border border-hairline bg-paper px-3 py-2 text-sm leading-6 text-muted-foreground">
           {error ?? "Route B next-turn preview failed."}
         </p>
       ) : null}
 
-      {draft ? (
-        <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_220px]">
-          <div className="rounded-lg border border-hairline bg-paper p-3">
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge variant={draft.status === "READY" ? "default" : "outline"} className="rounded-full">
-                {nextTurnStatusLabel(draft.status)}
-              </Badge>
-              <Badge variant="outline" className="rounded-full">
-                {draft.nextTurn.visibilityScope ? ROUTE_B_SCOPE_LABEL[draft.nextTurn.visibilityScope] : "旁白"}
-              </Badge>
-              <Badge variant="outline" className="rounded-full">
-                generatedTextAllowed={String(draft.nextTurn.generatedTextAllowed)}
-              </Badge>
-            </div>
-
-            <div className="mt-3 grid gap-2 text-sm text-muted-foreground sm:grid-cols-2">
-              <ContextLine label="下一位" value={speakerName} />
-              <ContextLine label="對象" value={addresseeName ?? "群聊／未指定"} />
-              <ContextLine label="State proposals" value={String(draft.persistenceEnvelope.statePatchCount)} />
-              <ContextLine label="Writes CRM fact" value={String(draft.persistenceEnvelope.writesConfirmedCrmFact)} />
-            </div>
-
-            <p className="mt-3 rounded-md border border-hairline bg-background px-3 py-2 text-sm leading-6 text-muted-foreground">
-              {draft.nextTurn.contentPreview}
-            </p>
-
-            {meetingSignalRuntimeGrounding?.usedInNextTurnRuntime ? (
-              <RouteBNextTurnMeetingSignalRuntimeGroundingPanel grounding={meetingSignalRuntimeGrounding} />
+      <div className="p-3" data-route-b-next-turn-view={selectedView.id}>
+        {draft ? (
+          <>
+            {selectedView.id === "preview" ? (
+              <div className="space-y-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge variant={draft.status === "READY" ? "default" : "outline"} className="rounded-full">
+                    {nextTurnStatusLabel(draft.status)}
+                  </Badge>
+                  <Badge variant="outline" className="rounded-full">
+                    {draft.nextTurn.visibilityScope ? ROUTE_B_SCOPE_LABEL[draft.nextTurn.visibilityScope] : "旁白"}
+                  </Badge>
+                  <Badge variant="outline" className="rounded-full">
+                    generatedTextAllowed={String(draft.nextTurn.generatedTextAllowed)}
+                  </Badge>
+                </div>
+                <div className="grid gap-2 border-y border-hairline py-3 text-sm text-muted-foreground sm:grid-cols-2">
+                  <ContextLine label="下一位" value={speakerName} />
+                  <ContextLine label="對象" value={addresseeName ?? "群聊／未指定"} />
+                  <ContextLine label="State proposals" value={String(draft.persistenceEnvelope.statePatchCount)} />
+                  <ContextLine label="Writes CRM fact" value={String(draft.persistenceEnvelope.writesConfirmedCrmFact)} />
+                </div>
+                <p className="text-sm leading-6 text-muted-foreground">{draft.nextTurn.contentPreview}</p>
+              </div>
             ) : null}
 
-            {relationshipEdgeShadowRuntimeGrounding?.usedInNextTurnRuntime ? (
-              <RouteBNextTurnRelationshipEdgeShadowRuntimeGroundingPanel grounding={relationshipEdgeShadowRuntimeGrounding} />
+            {selectedView.id === "sources" ? (
+              <div className="space-y-3">
+                {meetingSignalRuntimeGrounding?.usedInNextTurnRuntime ? (
+                  <RouteBNextTurnMeetingSignalRuntimeGroundingPanel grounding={meetingSignalRuntimeGrounding} />
+                ) : null}
+                {relationshipEdgeShadowRuntimeGrounding?.usedInNextTurnRuntime ? (
+                  <RouteBNextTurnRelationshipEdgeShadowRuntimeGroundingPanel grounding={relationshipEdgeShadowRuntimeGrounding} />
+                ) : null}
+                {familyProfileRuntimeGrounding?.usedInNextTurnRuntime ? (
+                  <RouteBNextTurnFamilyProfileRuntimeGroundingPanel grounding={familyProfileRuntimeGrounding} />
+                ) : null}
+                {!runtimeSourceCount ? (
+                  <p className="rounded-lg border border-dashed border-hairline bg-paper px-3 py-3 text-sm leading-6 text-muted-foreground">
+                    此 draft 尚未帶入 runtime source grounding。
+                  </p>
+                ) : null}
+              </div>
             ) : null}
 
-            {familyProfileRuntimeGrounding?.usedInNextTurnRuntime ? (
-              <RouteBNextTurnFamilyProfileRuntimeGroundingPanel grounding={familyProfileRuntimeGrounding} />
-            ) : null}
-
-            <div className="mt-3 space-y-2">
-              {guardLines.map((line) => (
-                <p key={line} className="rounded-md border border-hairline bg-background px-3 py-2 text-xs leading-5 text-muted-foreground">
-                  {line}
+            {selectedView.id === "provider" ? (
+              <div className="space-y-3">
+                <div className="grid gap-2 border-y border-hairline py-3 text-sm text-muted-foreground">
+                  <ContextLine label="Call attempted" value={String(draft.providerBoundary.providerCallAttempted)} />
+                  <ContextLine label="AiUsageLog" value={String(draft.providerBoundary.aiUsageLogWritten)} />
+                  <ContextLine label="Raw provider" value={String(draft.providerBoundary.storesRawProviderPayload)} />
+                  <ContextLine label="Private dialog" value={String(draft.privacyProof.directPrivateDialogReturned)} />
+                </div>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <Button
+                    type="button"
+                    variant="mono"
+                    className="rounded-full"
+                    disabled={!canGenerateProviderCandidate}
+                    aria-disabled={!canGenerateProviderCandidate}
+                    onClick={() => void onGenerateProviderCandidate()}
+                  >
+                    {isGeneratingProviderCandidate ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                    {isGeneratingProviderCandidate ? "產生中" : appendCandidate ? "重新產生候選" : "產生角色候選"}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="rounded-full"
+                    disabled={!canConfirmAppend || isAppending}
+                    aria-disabled={!canConfirmAppend || isAppending}
+                    onClick={() => {
+                      if (!appendCandidate || !appendUsageLogId) return;
+                      void onConfirmAppend(appendCandidate, appendUsageLogId);
+                    }}
+                  >
+                    {isAppending ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
+                    確認並寫入回合
+                  </Button>
+                </div>
+                <p className="text-xs leading-5 text-muted-foreground">
+                  Provider candidate 必須已寫入 success `AiUsageLog` 並附 usageLogId；append 本身不呼叫 provider、不儲存 raw provider payload、不寫 CRM confirmed fact。
                 </p>
-              ))}
-              {draft.nextTurn.rationale.map((line) => (
-                <p key={line} className="rounded-md border border-hairline bg-background px-3 py-2 text-xs leading-5 text-muted-foreground">
-                  rationale: {line}
-                </p>
-              ))}
-            </div>
-          </div>
+                {appendUsageLogId && appendCandidate ? (
+                  <p className="border-y border-hairline py-2 text-xs leading-5 text-muted-foreground">
+                    usageLogId 已取得；requiresAdvisorConfirmation={String(appendCandidate.requiresAdvisorConfirmation)}・storesRawProviderPayload={String(appendCandidate.storesRawProviderPayload)}
+                  </p>
+                ) : null}
+                {providerCandidateStatus === "error" ? (
+                  <p className="border-y border-hairline py-2 text-xs leading-5 text-muted-foreground">
+                    {providerCandidateError ?? "Route B provider candidate generation failed."}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
 
-          <div className="rounded-lg border border-hairline bg-paper p-3">
-            <h4 className="text-sm font-semibold text-ink">Provider boundary</h4>
-            <div className="mt-3 space-y-2">
-              <ContextLine label="Call attempted" value={String(draft.providerBoundary.providerCallAttempted)} />
-              <ContextLine label="AiUsageLog" value={String(draft.providerBoundary.aiUsageLogWritten)} />
-              <ContextLine label="Raw provider" value={String(draft.providerBoundary.storesRawProviderPayload)} />
-              <ContextLine label="Private dialog" value={String(draft.privacyProof.directPrivateDialogReturned)} />
-            </div>
-            <Button
-              type="button"
-              variant="mono"
-              className="mt-4 w-full rounded-full"
-              disabled={!canGenerateProviderCandidate}
-              aria-disabled={!canGenerateProviderCandidate}
-              onClick={() => void onGenerateProviderCandidate()}
-            >
-              {isGeneratingProviderCandidate ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-              {isGeneratingProviderCandidate ? "產生中" : appendCandidate ? "重新產生候選" : "產生角色候選"}
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              className="mt-2 w-full rounded-full"
-              disabled={!canConfirmAppend || isAppending}
-              aria-disabled={!canConfirmAppend || isAppending}
-              onClick={() => {
-                if (!appendCandidate || !appendUsageLogId) return;
-                void onConfirmAppend(appendCandidate, appendUsageLogId);
-              }}
-            >
-              {isAppending ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
-              確認並寫入回合
-            </Button>
-            <p className="mt-2 text-xs leading-5 text-muted-foreground">
-              Provider candidate 必須已寫入 success `AiUsageLog` 並附 usageLogId；append 本身不呼叫 provider、不儲存 raw provider payload、不寫 CRM confirmed fact。
-            </p>
-            {appendUsageLogId && appendCandidate ? (
-              <p className="mt-2 rounded-md border border-hairline bg-background px-3 py-2 text-xs leading-5 text-muted-foreground">
-                usageLogId 已取得；requiresAdvisorConfirmation={String(appendCandidate.requiresAdvisorConfirmation)}・storesRawProviderPayload={String(appendCandidate.storesRawProviderPayload)}
-              </p>
+            {selectedView.id === "guard" ? (
+              <div className="divide-y divide-hairline border-y border-hairline">
+                {[...guardLines.map((line) => `guard: ${line}`), ...draft.nextTurn.rationale.map((line) => `rationale: ${line}`)].map((line, index) => (
+                  <p key={`${line}-${index}`} className="py-2 text-xs leading-5 text-muted-foreground">
+                    {line}
+                  </p>
+                ))}
+                {!guardCount ? (
+                  <p className="py-3 text-sm leading-6 text-muted-foreground">目前沒有 guard 或 rationale。</p>
+                ) : null}
+              </div>
             ) : null}
-            {providerCandidateStatus === "error" ? (
-              <p className="mt-2 rounded-md border border-hairline bg-background px-3 py-2 text-xs leading-5 text-muted-foreground">
-                {providerCandidateError ?? "Route B provider candidate generation failed."}
-              </p>
-            ) : null}
-          </div>
-        </div>
-      ) : (
-        <p className="mt-3 rounded-lg border border-dashed border-hairline bg-paper px-3 py-3 text-sm leading-6 text-muted-foreground">
-          尚未讀取下一回合。顧問寫入群聊或私聊後會自動嘗試讀取，也可以手動按「讀取預覽」。
-        </p>
-      )}
-    </div>
+          </>
+        ) : (
+          <p className="rounded-lg border border-dashed border-hairline bg-paper px-3 py-3 text-sm leading-6 text-muted-foreground">
+            尚未讀取下一回合。顧問寫入群聊或私聊後會自動嘗試讀取，也可以手動按「讀取預覽」。
+          </p>
+        )}
+      </div>
+    </section>
   );
 }
 
