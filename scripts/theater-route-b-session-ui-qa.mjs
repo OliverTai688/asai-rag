@@ -142,19 +142,78 @@ async function assertStageViewport(browser, viewportName, viewport) {
       fullPage: true,
     });
 
+    await page.getByRole("button", { name: "舞台角色" }).click();
+    const characterPopover = page.locator('[data-route-b-character-popover="true"][data-open]');
+    await characterPopover.waitFor({ state: "visible", timeout: 10000 });
+    const characterRowList = characterPopover.locator('[data-route-b-character-row-list="true"]');
+    const characterRows = characterRowList.locator('[data-route-b-character-row="true"]');
+    const characterRowCount = await characterRows.count();
+    push(characterRowCount >= 2, `${viewportName} character popover renders compact row list`);
+    push(
+      (await characterPopover.locator('[data-route-b-inline-metrics="true"]').count()) === characterRowCount,
+      `${viewportName} character rows use inline metric rails`,
+    );
+    const characterPopoverText = await characterPopover.innerText({ timeout: 10000 });
+    push(
+      ["舞台角色", "事實", "推論", "未知"].every((label) => characterPopoverText.includes(label)),
+      `${viewportName} character row metrics keep expected labels`,
+    );
+    push(
+      (await characterRowList.locator('[class*="rounded-lg"][class*="border"]').count()) === 0,
+      `${viewportName} character popover avoids nested card rows`,
+    );
+    push(
+      !(await hasElementHorizontalOverflow(characterRowList)),
+      `${viewportName} character row list has no internal horizontal overflow`,
+    );
+    await clearPointerState(page);
+    await page.screenshot({
+      path: resolve(screenshotDir, `route-b-session-stage-character-rows-${viewportName}.png`),
+      fullPage: true,
+    });
+    await page.keyboard.press("Escape");
+
     await page.getByRole("button", { name: "關係證據" }).click();
-    const openPopover = page.locator('[data-slot="popover-content"][data-open]');
-    const relationshipEvidenceText = await openPopover.innerText({ timeout: 10000 });
+    const relationshipEvidencePopover = page.locator('[data-route-b-relationship-evidence-popover="true"][data-open]');
+    await relationshipEvidencePopover.waitFor({ state: "visible", timeout: 10000 });
+    const relationshipEvidenceText = await relationshipEvidencePopover.innerText({ timeout: 10000 });
     const hasRelationshipEvidence =
       relationshipEvidenceText.includes("關係證據") &&
       relationshipEvidenceText.includes("林先生與林太太是共同決策關係。") &&
       relationshipEvidenceText.includes("factStatus") &&
       relationshipEvidenceText.includes("visibilityScope");
     push(hasRelationshipEvidence, `${viewportName} stage renders relationship evidence in icon popover`);
+    const relationshipEvidenceRowList = relationshipEvidencePopover.locator(
+      '[data-route-b-relationship-evidence-row-list="true"]',
+    );
+    const relationshipEvidenceRows = relationshipEvidenceRowList.locator(
+      '[data-route-b-relationship-evidence-row="true"]',
+    );
+    const relationshipEvidenceRowCount = await relationshipEvidenceRows.count();
+    push(relationshipEvidenceRowCount >= 1, `${viewportName} relationship evidence renders compact row list`);
+    push(
+      (await relationshipEvidencePopover.locator('[data-route-b-inline-metrics="true"]').count()) ===
+        relationshipEvidenceRowCount,
+      `${viewportName} relationship evidence rows use inline metric rails`,
+    );
+    push(
+      (await relationshipEvidenceRowList.locator('[class*="rounded-lg"][class*="border"]').count()) === 0,
+      `${viewportName} relationship evidence popover avoids nested card rows`,
+    );
+    push(
+      !(await hasElementHorizontalOverflow(relationshipEvidenceRowList)),
+      `${viewportName} relationship evidence row list has no internal horizontal overflow`,
+    );
     push(!(await hasHorizontalOverflow(page)), `${viewportName} relationship evidence popover has no horizontal overflow`);
+    await clearPointerState(page);
+    await page.screenshot({
+      path: resolve(screenshotDir, `route-b-session-stage-relationship-evidence-rows-${viewportName}.png`),
+      fullPage: true,
+    });
     await page.keyboard.press("Escape");
 
     await page.getByRole("button", { name: "Provider guard" }).first().click();
+    const openPopover = page.locator('[data-slot="popover-content"][data-open]');
     const providerProofText = await openPopover.innerText({ timeout: 10000 });
     const hasNoFakeUsage = /usageLogWritten\s+false/.test(providerProofText);
     const hasProviderCallProof = /providerCallAttempted\s+false/.test(providerProofText);

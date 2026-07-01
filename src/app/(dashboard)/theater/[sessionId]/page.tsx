@@ -1826,15 +1826,21 @@ function RouteBCharacterPopover({ snapshot }: { snapshot: RouteBSessionSnapshot 
       >
         <Users className="h-4 w-4" />
       </PopoverTrigger>
-      <PopoverContent align="end" className="max-h-[70vh] w-80 max-w-[calc(100vw-2rem)] overflow-y-auto p-3">
+      <PopoverContent
+        align="end"
+        className="max-h-[70vh] w-80 max-w-[calc(100vw-2rem)] overflow-y-auto p-3"
+        data-route-b-character-popover="true"
+      >
         <div className="space-y-3">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Characters</p>
             <h3 className="mt-1 text-sm font-semibold text-ink">舞台角色</h3>
           </div>
-          {snapshot.characters.map((character) => (
-            <RouteBCharacterCard key={character.id} character={character} />
-          ))}
+          <div className="divide-y divide-hairline" data-route-b-character-row-list="true">
+            {snapshot.characters.map((character) => (
+              <RouteBCharacterRow key={character.id} character={character} />
+            ))}
+          </div>
         </div>
       </PopoverContent>
     </Popover>
@@ -1851,7 +1857,11 @@ function RouteBRelationshipEvidencePopover({ relationships }: { relationships: A
       >
         <BrainCircuit className="h-4 w-4" />
       </PopoverTrigger>
-      <PopoverContent align="end" className="max-h-[70vh] w-80 max-w-[calc(100vw-2rem)] overflow-y-auto p-3">
+      <PopoverContent
+        align="end"
+        className="max-h-[70vh] w-80 max-w-[calc(100vw-2rem)] overflow-y-auto p-3"
+        data-route-b-relationship-evidence-popover="true"
+      >
         <div className="space-y-3">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
@@ -1860,41 +1870,37 @@ function RouteBRelationshipEvidencePopover({ relationships }: { relationships: A
             <h3 className="mt-1 text-sm font-semibold text-ink">關係證據</h3>
           </div>
           {relationships.length ? (
-            relationships.map((relationship, index) => (
-              <div
-                key={`route-b-stage-relationship-${index}`}
-                className="rounded-lg border border-hairline bg-background p-3"
-              >
-                <p className="text-sm font-medium leading-6 text-ink">
-                  {routeBRecordText(relationship)}
-                </p>
-                <div className="mt-2 grid grid-cols-2 gap-2 text-[11px] text-muted-foreground">
-                  <span>
-                    factStatus{" "}
-                    <strong className="font-mono text-ink">
-                      {routeBRecordField(relationship, "factStatus", "UNKNOWN")}
-                    </strong>
-                  </span>
-                  <span>
-                    visibilityScope{" "}
-                    <strong className="font-mono text-ink">
-                      {routeBRecordField(relationship, "visibilityScope", "SCENE")}
-                    </strong>
-                  </span>
-                  <span>
-                    sources{" "}
-                    <strong className="font-mono text-ink">
-                      {routeBSourceCount(relationship)}
-                    </strong>
-                  </span>
-                  <span>
-                    mode <strong className="font-mono text-ink">stage</strong>
-                  </span>
+            <div className="divide-y divide-hairline" data-route-b-relationship-evidence-row-list="true">
+              {relationships.map((relationship, index) => (
+                <div
+                  key={`route-b-stage-relationship-${index}`}
+                  className="py-3 first:pt-0 last:pb-0"
+                  data-route-b-relationship-evidence-row="true"
+                >
+                  <p className="text-sm font-medium leading-6 text-ink">
+                    {routeBRecordText(relationship)}
+                  </p>
+                  <RouteBInlineMetricRail
+                    ariaLabel={`關係證據 ${index + 1} 狀態指標`}
+                    className="mt-2"
+                    metrics={[
+                      {
+                        label: "factStatus",
+                        value: routeBRecordField(relationship, "factStatus", "UNKNOWN"),
+                      },
+                      {
+                        label: "visibilityScope",
+                        value: routeBRecordField(relationship, "visibilityScope", "SCENE"),
+                      },
+                      { label: "sources", value: routeBSourceCount(relationship) },
+                      { label: "mode", value: "stage" },
+                    ]}
+                  />
                 </div>
-              </div>
-            ))
+              ))}
+            </div>
           ) : (
-            <p className="rounded-lg border border-dashed border-hairline bg-background p-3 text-sm leading-6 text-muted-foreground">
+            <p className="border-y border-dashed border-hairline py-3 text-sm leading-6 text-muted-foreground">
               無關係證據。
             </p>
           )}
@@ -3759,26 +3765,34 @@ function routeBFamilyProfileRuntimeStatusLabel(status: RouteBFamilyProfileRuntim
   return "unknown";
 }
 
-function RouteBCharacterCard({ character }: { character: RouteBSessionSnapshot["characters"][number] }) {
+function RouteBCharacterRow({ character }: { character: RouteBSessionSnapshot["characters"][number] }) {
   const knownFacts = routeBRecords(character.knownFacts);
   const unknowns = routeBRecords(character.unknowns);
   const personaHints = routeBRecords(character.personaHints);
 
   return (
-    <div className="rounded-lg border border-hairline bg-paper p-3">
+    <div className="py-3 first:pt-0 last:pb-0" data-route-b-character-row="true">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="truncate text-sm font-semibold text-ink">{character.displayName}</p>
           <p className="mt-1 text-xs text-muted-foreground">{ROUTE_B_ROLE_LABEL[character.role] ?? character.role}</p>
         </div>
-        {character.isFocus ? <Badge className="rounded-full">焦點</Badge> : <Badge variant="outline" className="rounded-full">NPC</Badge>}
+        {character.isFocus ? (
+          <Badge className="rounded-full">焦點</Badge>
+        ) : (
+          <Badge variant="outline" className="rounded-full">NPC</Badge>
+        )}
       </div>
-      <p className="mt-3 line-clamp-3 text-xs leading-5 text-muted-foreground">{character.publicBrief}</p>
-      <div className="mt-3 grid grid-cols-3 gap-2 text-center">
-        <RouteBMiniCount label="事實" value={knownFacts.length} />
-        <RouteBMiniCount label="推論" value={personaHints.length} />
-        <RouteBMiniCount label="未知" value={unknowns.length} />
-      </div>
+      <p className="mt-2 line-clamp-3 text-xs leading-5 text-muted-foreground">{character.publicBrief}</p>
+      <RouteBInlineMetricRail
+        ariaLabel={`${character.displayName} 舞台角色指標`}
+        className="mt-2"
+        metrics={[
+          { label: "事實", value: knownFacts.length },
+          { label: "推論", value: personaHints.length },
+          { label: "未知", value: unknowns.length },
+        ]}
+      />
       {character.statePatchCount ? (
         <p className="mt-2 text-xs font-medium text-muted-foreground">狀態更新 {character.statePatchCount}</p>
       ) : null}
@@ -3786,19 +3800,22 @@ function RouteBCharacterCard({ character }: { character: RouteBSessionSnapshot["
   );
 }
 
-function RouteBMiniCount({ label, value }: { label: string; value: number | string }) {
-  return (
-    <div className="rounded-md border border-hairline bg-background px-2 py-1.5">
-      <p className="text-sm font-semibold tabular-nums text-ink">{value}</p>
-      <p className="text-[10px] text-muted-foreground">{label}</p>
-    </div>
-  );
-}
-
-function RouteBInlineMetricRail({ metrics }: { metrics: Array<{ label: string; value: number | string }> }) {
+function RouteBInlineMetricRail({
+  ariaLabel,
+  className,
+  metrics,
+}: {
+  ariaLabel?: string;
+  className?: string;
+  metrics: Array<{ label: string; value: number | string }>;
+}) {
   return (
     <dl
-      className="flex flex-wrap items-center gap-x-5 gap-y-2 border-y border-hairline py-2 text-xs text-muted-foreground"
+      className={cn(
+        "flex flex-wrap items-center gap-x-5 gap-y-2 border-y border-hairline py-2 text-xs text-muted-foreground",
+        className,
+      )}
+      aria-label={ariaLabel}
       data-route-b-inline-metrics="true"
     >
       {metrics.map((metric) => (
