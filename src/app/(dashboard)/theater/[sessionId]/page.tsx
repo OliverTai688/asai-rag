@@ -2226,12 +2226,14 @@ function RouteBGameChatHud({
             </p>
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-          <RouteBMiniCount label="回合" value={snapshot.turns.length} />
-          <RouteBMiniCount label="角色" value={snapshot.characters.length} />
-          <RouteBMiniCount label="狀態提案" value={snapshot.scene.statePatchCount} />
-          <RouteBMiniCount label="AI 回覆" value={snapshot.session.provider.callsEnabled ? "on" : "locked"} />
-        </div>
+        <RouteBInlineMetricRail
+          metrics={[
+            { label: "回合", value: snapshot.turns.length },
+            { label: "角色", value: snapshot.characters.length },
+            { label: "狀態提案", value: snapshot.scene.statePatchCount },
+            { label: "AI 回覆", value: snapshot.session.provider.callsEnabled ? "on" : "locked" },
+          ]}
+        />
       </div>
     </div>
   );

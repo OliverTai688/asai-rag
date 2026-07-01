@@ -119,6 +119,28 @@ async function assertStageViewport(browser, viewportName, viewport) {
     push(checksFromDom.hasFocusCharacter && checksFromDom.hasDecisionMaker, `${viewportName} stage renders focus and decision-maker characters`);
     push(checksFromDom.hasProviderGuard, `${viewportName} stage renders guarded-disabled provider proof`);
     push(!checksFromDom.hasHorizontalOverflow, `${viewportName} stage has no horizontal overflow`);
+    const gameChatHud = page.locator('[data-route-b-game-chat-hud="true"]');
+    await gameChatHud.waitFor({ state: "visible", timeout: 10000 });
+    const gameChatHudMetricRail = gameChatHud.locator('[data-route-b-inline-metrics="true"]');
+    push(
+      (await gameChatHudMetricRail.count()) === 1,
+      `${viewportName} game chat HUD uses one inline metric rail`,
+    );
+    const gameChatHudMetricsText = await gameChatHudMetricRail.innerText({ timeout: 10000 });
+    push(
+      ["回合", "角色", "狀態提案", "AI 回覆"].every((label) => gameChatHudMetricsText.includes(label)) &&
+        /locked|on/.test(gameChatHudMetricsText),
+      `${viewportName} game chat HUD metric rail has expected labels`,
+    );
+    push(
+      !(await hasElementHorizontalOverflow(gameChatHudMetricRail)),
+      `${viewportName} game chat HUD metric rail has no internal horizontal overflow`,
+    );
+    await clearPointerState(page);
+    await page.screenshot({
+      path: resolve(screenshotDir, `route-b-session-stage-runtime-metrics-${viewportName}.png`),
+      fullPage: true,
+    });
 
     await page.getByRole("button", { name: "關係證據" }).click();
     const openPopover = page.locator('[data-slot="popover-content"][data-open]');
@@ -361,6 +383,10 @@ async function assertStageViewport(browser, viewportName, viewport) {
 
 async function hasHorizontalOverflow(page) {
   return page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1);
+}
+
+async function hasElementHorizontalOverflow(locator) {
+  return locator.evaluate((element) => element.scrollWidth > element.clientWidth + 1);
 }
 
 async function clearPointerState(page) {
