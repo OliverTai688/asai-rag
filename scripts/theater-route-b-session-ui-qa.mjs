@@ -219,11 +219,31 @@ async function assertStageViewport(browser, viewportName, viewport) {
     await page.waitForTimeout(200);
 
     await page.getByRole("button", { name: /與 林太太 私聊/ }).click();
-    const scopeSelect = page.getByLabel("選擇 Route B 發話範圍");
-    const addresseeSelect = page.getByLabel("選擇 Route B 私聊對象");
+    await page.getByRole("button", { name: "Route B 發話設定" }).click();
+    const advisorSettings = page.locator('[data-route-b-composer-settings="advisor"]');
+    await advisorSettings.waitFor({ state: "visible", timeout: 10000 });
+    push(await advisorSettings.isVisible(), `${viewportName} composer settings opens scoped controls popover`);
+    const scopeSelect = advisorSettings.getByLabel("選擇 Route B 發話範圍");
+    const addresseeSelect = advisorSettings.getByLabel("選擇 Route B 私聊對象");
     await addresseeSelect.waitFor({ state: "visible", timeout: 10000 });
     push((await scopeSelect.inputValue()) === "PRIVATE", `${viewportName} stage-map character click switches composer to private`);
     push((await addresseeSelect.inputValue()) === "character_spouse", `${viewportName} stage-map character click selects decision-maker addressee`);
+    push(!(await hasHorizontalOverflow(page)), `${viewportName} composer settings popover has no horizontal overflow`);
+    await page.keyboard.press("Escape");
+
+    await page.getByRole("button", { name: "Comment" }).click();
+    await page.getByRole("button", { name: "Route B comment 設定" }).click();
+    const commentSettings = page.locator('[data-route-b-composer-settings="comment"]');
+    await commentSettings.waitFor({ state: "visible", timeout: 10000 });
+    push(await commentSettings.isVisible(), `${viewportName} comment settings opens scoped controls popover`);
+    push(
+      (await commentSettings.getByLabel("選擇 Route B comment 注記範圍").count()) === 1 &&
+        (await commentSettings.getByLabel("選擇 Route B comment 注記對象").count()) === 1,
+      `${viewportName} comment settings keeps annotation controls in popover`,
+    );
+    push(!(await hasHorizontalOverflow(page)), `${viewportName} comment settings popover has no horizontal overflow`);
+    await page.keyboard.press("Escape");
+    await page.getByRole("button", { name: "對話模式" }).click();
 
     const guardedButton = page.getByRole("button", { name: /待 provider proof/ }).first();
     push(await guardedButton.isDisabled(), `${viewportName} provider action is disabled until usage-log proof exists`);

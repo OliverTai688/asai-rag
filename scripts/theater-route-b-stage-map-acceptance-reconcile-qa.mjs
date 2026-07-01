@@ -86,8 +86,14 @@ function checkStageMapSourceMarkers() {
     "選擇 Route B 發話範圍",
     "選擇 Route B 私聊對象",
     "選擇 Route B 狀態更新對象",
+    "data-route-b-composer-settings=\"advisor\"",
+    "data-route-b-composer-settings-trigger=\"advisor\"",
+    "Route B 發話設定",
     "data-route-b-game-chat-hud=\"true\"",
     "data-route-b-comment-mode=\"true\"",
+    "data-route-b-composer-settings=\"comment\"",
+    "data-route-b-composer-settings-trigger=\"comment\"",
+    "Route B comment 設定",
     "選擇 Route B comment 注記範圍",
     "保存 Route B 情境注記",
     "data-route-b-comment-turn",
@@ -142,6 +148,8 @@ function checkSessionUiProofCommand() {
     "hasHorizontalOverflow",
     "stage-map character click switches composer to private",
     "stage-map character click selects decision-maker addressee",
+    "composer settings opens scoped controls popover",
+    "comment settings opens scoped controls popover",
     "Route B session UI proof writes no fake AiUsageLog",
   ];
 

@@ -2275,32 +2275,134 @@ function RouteBAdvisorComposer({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="mx-auto grid max-w-3xl gap-3">
-      <div className="grid gap-2 sm:grid-cols-[140px_minmax(0,1fr)_auto] sm:items-end">
-        <label className="grid gap-1 text-xs font-medium text-muted-foreground">
-          發話範圍
-          <select
-            value={visibilityScope}
-            onChange={(event) => onVisibilityScopeChange(event.target.value === "PRIVATE" ? "PRIVATE" : "GROUP")}
-            className="h-10 rounded-lg border border-hairline bg-background px-3 text-sm font-medium text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            aria-label="選擇 Route B 發話範圍"
-          >
-            <option value="GROUP">群聊</option>
-            <option value="PRIVATE">私聊</option>
-          </select>
-        </label>
+    <form onSubmit={handleSubmit} className="mx-auto grid max-w-3xl gap-2" data-route-b-advisor-composer="true">
+      <div className="flex items-end gap-2">
+        <Textarea
+          value={content}
+          onChange={(event) => setContent(event.target.value)}
+          placeholder="輸入顧問要放進群聊或私聊的訊息"
+          className="min-h-20 flex-1 resize-y rounded-lg border-hairline bg-background text-sm leading-6 focus-visible:ring-ring"
+          disabled={isSubmitting}
+          aria-label="Route B 顧問訊息"
+        />
+        <RouteBAdvisorComposerSettingsPopover
+          addresseeRouteBCharacterId={selectedAddresseeId}
+          onAddresseeRouteBCharacterIdChange={onAddresseeRouteBCharacterIdChange}
+          onStatePatchSummaryChange={setStatePatchSummary}
+          onStatePatchTargetRouteBCharacterIdChange={onStatePatchTargetRouteBCharacterIdChange}
+          onVisibilityScopeChange={onVisibilityScopeChange}
+          snapshot={snapshot}
+          statePatchSummary={statePatchSummary}
+          statePatchTargetRouteBCharacterId={selectedStatePatchTargetId}
+          visibilityScope={visibilityScope}
+        />
+        <Button
+          type="submit"
+          variant="mono"
+          className="h-10 w-10 shrink-0 rounded-full p-0"
+          disabled={!content.trim() || !defaultCharacterId || isSubmitting}
+          aria-label="寫入 Route B 顧問互動"
+        >
+          {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+          <span className="sr-only">寫入舞台</span>
+        </Button>
+      </div>
+      <div className="flex flex-wrap items-center gap-2 px-1 text-xs leading-5 text-muted-foreground">
+        <span>{visibilityScope === "PRIVATE" ? `私聊：${routeBCharacterDisplayName(snapshot, selectedAddresseeId) ?? "未選定"}` : "群聊"}</span>
+        <span>狀態對象：{routeBCharacterDisplayName(snapshot, selectedStatePatchTargetId) ?? "未選定"}</span>
+        {statePatchSummary.trim() ? <span>含待確認狀態筆記</span> : null}
+      </div>
+    </form>
+  );
+}
 
-        {visibilityScope === "PRIVATE" ? (
+function RouteBAdvisorComposerSettingsPopover({
+  addresseeRouteBCharacterId,
+  onAddresseeRouteBCharacterIdChange,
+  onStatePatchSummaryChange,
+  onStatePatchTargetRouteBCharacterIdChange,
+  onVisibilityScopeChange,
+  snapshot,
+  statePatchSummary,
+  statePatchTargetRouteBCharacterId,
+  visibilityScope,
+}: {
+  addresseeRouteBCharacterId: string;
+  onAddresseeRouteBCharacterIdChange: (value: string) => void;
+  onStatePatchSummaryChange: (value: string) => void;
+  onStatePatchTargetRouteBCharacterIdChange: (value: string) => void;
+  onVisibilityScopeChange: (value: "GROUP" | "PRIVATE") => void;
+  snapshot: RouteBSessionSnapshot;
+  statePatchSummary: string;
+  statePatchTargetRouteBCharacterId: string;
+  visibilityScope: "GROUP" | "PRIVATE";
+}) {
+  return (
+    <Popover>
+      <PopoverTrigger
+        type="button"
+        className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-hairline bg-background text-muted-foreground transition-colors hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        aria-label="Route B 發話設定"
+        data-route-b-composer-settings-trigger="advisor"
+      >
+        <SlidersHorizontal className="h-4 w-4" />
+      </PopoverTrigger>
+      <PopoverContent
+        align="end"
+        className="max-h-[min(70vh,540px)] w-[min(360px,calc(100vw-2rem))] overflow-y-auto border border-hairline bg-popover p-3 opacity-100 shadow-none ring-0 [animation:none]"
+        data-route-b-composer-settings="advisor"
+        style={{ backgroundColor: "var(--popover)", opacity: 1 }}
+      >
+        <div className="space-y-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Speak Settings</p>
+            <h3 className="mt-1 text-sm font-semibold text-ink">發話設定</h3>
+            <p className="mt-1 text-xs leading-5 text-muted-foreground">
+              範圍、私聊對象與待確認狀態都在這裡設定，主舞台只保留輸入節奏。
+            </p>
+          </div>
+
           <label className="grid gap-1 text-xs font-medium text-muted-foreground">
-            私聊對象
+            發話範圍
             <select
-              value={selectedAddresseeId}
-              onChange={(event) => {
-                onAddresseeRouteBCharacterIdChange(event.target.value);
-                onStatePatchTargetRouteBCharacterIdChange(event.target.value);
-              }}
+              value={visibilityScope}
+              onChange={(event) => onVisibilityScopeChange(event.target.value === "PRIVATE" ? "PRIVATE" : "GROUP")}
               className="h-10 rounded-lg border border-hairline bg-background px-3 text-sm font-medium text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              aria-label="選擇 Route B 私聊對象"
+              aria-label="選擇 Route B 發話範圍"
+            >
+              <option value="GROUP">群聊</option>
+              <option value="PRIVATE">私聊</option>
+            </select>
+          </label>
+
+          {visibilityScope === "PRIVATE" ? (
+            <label className="grid gap-1 text-xs font-medium text-muted-foreground">
+              私聊對象
+              <select
+                value={addresseeRouteBCharacterId}
+                onChange={(event) => {
+                  onAddresseeRouteBCharacterIdChange(event.target.value);
+                  onStatePatchTargetRouteBCharacterIdChange(event.target.value);
+                }}
+                className="h-10 rounded-lg border border-hairline bg-background px-3 text-sm font-medium text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                aria-label="選擇 Route B 私聊對象"
+              >
+                {snapshot.characters.map((character) => (
+                  <option key={character.id} value={character.routeBCharacterId}>
+                    {character.displayName}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
+
+          <label className="grid gap-1 text-xs font-medium text-muted-foreground">
+            狀態對象
+            <select
+              value={statePatchTargetRouteBCharacterId}
+              onChange={(event) => onStatePatchTargetRouteBCharacterIdChange(event.target.value)}
+              className="h-10 rounded-lg border border-hairline bg-background px-3 text-sm font-medium text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              aria-label="選擇 Route B 狀態更新對象"
             >
               {snapshot.characters.map((character) => (
                 <option key={character.id} value={character.routeBCharacterId}>
@@ -2309,57 +2411,22 @@ function RouteBAdvisorComposer({
               ))}
             </select>
           </label>
-        ) : (
-          <div className="hidden sm:block" />
-        )}
 
-        <Button
-          type="submit"
-          variant="mono"
-          className="h-10 rounded-full"
-          disabled={!content.trim() || !defaultCharacterId || isSubmitting}
-          aria-label="寫入 Route B 顧問互動"
-        >
-          {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-          寫入舞台
-        </Button>
-      </div>
+          <Textarea
+            value={statePatchSummary}
+            onChange={(event) => onStatePatchSummaryChange(event.target.value)}
+            placeholder="新增待確認狀態筆記；留空則只寫入對話"
+            className="min-h-20 resize-y rounded-lg border-hairline bg-background text-sm leading-6 focus-visible:ring-ring"
+            aria-label="Route B 待確認狀態筆記"
+          />
 
-      <Textarea
-        value={content}
-        onChange={(event) => setContent(event.target.value)}
-        placeholder="輸入顧問要放進群聊或私聊的訊息"
-        className="min-h-20 resize-y rounded-lg border-hairline bg-background text-sm leading-6 focus-visible:ring-ring"
-        disabled={isSubmitting}
-        aria-label="Route B 顧問訊息"
-      />
-
-      <div className="grid gap-2 sm:grid-cols-[180px_minmax(0,1fr)] sm:items-start">
-        <label className="grid gap-1 text-xs font-medium text-muted-foreground">
-          狀態對象
-          <select
-            value={selectedStatePatchTargetId}
-            onChange={(event) => onStatePatchTargetRouteBCharacterIdChange(event.target.value)}
-            className="h-10 rounded-lg border border-hairline bg-background px-3 text-sm font-medium text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            aria-label="選擇 Route B 狀態更新對象"
-          >
-            {snapshot.characters.map((character) => (
-              <option key={character.id} value={character.routeBCharacterId}>
-                {character.displayName}
-              </option>
-            ))}
-          </select>
-        </label>
-        <Textarea
-          value={statePatchSummary}
-          onChange={(event) => setStatePatchSummary(event.target.value)}
-          placeholder="新增待確認狀態筆記；留空則只寫入對話"
-          className="min-h-10 resize-y rounded-lg border-hairline bg-background text-sm leading-6 focus-visible:ring-ring"
-          disabled={isSubmitting}
-          aria-label="Route B 待確認狀態筆記"
-        />
-      </div>
-    </form>
+          <div className="grid gap-2 text-[11px] text-muted-foreground">
+            <ContextLine label="requiresConfirmation" value="true" />
+            <ContextLine label="writesConfirmedCrmFact" value="false" />
+          </div>
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -2433,96 +2500,159 @@ function RouteBCommentComposer({
   return (
     <form
       onSubmit={handleSubmit}
-      className="mx-auto grid max-w-3xl gap-3 rounded-lg border border-hairline bg-background p-3"
+      className="mx-auto grid max-w-3xl gap-2"
       data-route-b-comment-mode="true"
       data-provider-call-attempted="false"
       data-ai-usage-log-written="false"
       data-writes-confirmed-crm-fact="false"
     >
-      <div className="grid gap-2 sm:grid-cols-[140px_1fr_auto] sm:items-end">
-        <label className="grid gap-1 text-xs font-medium text-muted-foreground">
-          注記範圍
-          <select
-            value={visibilityScope}
-            onChange={(event) => onVisibilityScopeChange(event.target.value === "PRIVATE" ? "PRIVATE" : "GROUP")}
-            className="h-10 rounded-lg border border-hairline bg-background px-3 text-sm font-medium text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            aria-label="選擇 Route B comment 注記範圍"
-          >
-            <option value="GROUP">群聊情境</option>
-            <option value="PRIVATE">指定人物</option>
-          </select>
-        </label>
-
-        <label className="grid gap-1 text-xs font-medium text-muted-foreground">
-          注記對象
-          <select
-            value={selectedStatePatchTargetId}
-            onChange={(event) => {
-              onStatePatchTargetRouteBCharacterIdChange(event.target.value);
-              if (visibilityScope === "PRIVATE") {
-                onAddresseeRouteBCharacterIdChange(event.target.value);
-              }
-            }}
-            className="h-10 rounded-lg border border-hairline bg-background px-3 text-sm font-medium text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            aria-label="選擇 Route B comment 注記對象"
-          >
-            {snapshot.characters.map((character) => (
-              <option key={character.id} value={character.routeBCharacterId}>
-                {character.displayName}
-              </option>
-            ))}
-          </select>
-        </label>
-
+      <div className="flex items-end gap-2">
+        <Textarea
+          value={comment}
+          onChange={(event) => setComment(event.target.value)}
+          placeholder="注記此刻情境、顧問觀察或稍後要追問的線索"
+          maxLength={480}
+          className="min-h-24 flex-1 resize-y rounded-lg border-hairline bg-background text-sm leading-6 focus-visible:ring-ring"
+          disabled={isSubmitting}
+          aria-label="Route B 情境注記"
+        />
+        <RouteBCommentComposerSettingsPopover
+          addresseeRouteBCharacterId={selectedAddresseeId}
+          onAddresseeRouteBCharacterIdChange={onAddresseeRouteBCharacterIdChange}
+          onStatePatchTargetRouteBCharacterIdChange={onStatePatchTargetRouteBCharacterIdChange}
+          onVisibilityScopeChange={onVisibilityScopeChange}
+          snapshot={snapshot}
+          statePatchTargetRouteBCharacterId={selectedStatePatchTargetId}
+          visibilityScope={visibilityScope}
+        />
         <Button
           type="submit"
           variant="mono"
-          className="h-10 rounded-full"
+          className="h-10 w-10 shrink-0 rounded-full p-0"
           disabled={!trimmedComment || trimmedComment.length < 3 || isCommentTooLong || !defaultCharacterId || isSubmitting}
           aria-label="保存 Route B 情境注記"
         >
           {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <StickyNote className="h-4 w-4" />}
-          保存注記
+          <span className="sr-only">保存注記</span>
         </Button>
       </div>
-
-      {visibilityScope === "PRIVATE" ? (
-        <label className="grid gap-1 text-xs font-medium text-muted-foreground">
-          私聊可見對象
-          <select
-            value={selectedAddresseeId}
-            onChange={(event) => {
-              onAddresseeRouteBCharacterIdChange(event.target.value);
-              onStatePatchTargetRouteBCharacterIdChange(event.target.value);
-            }}
-            className="h-10 rounded-lg border border-hairline bg-background px-3 text-sm font-medium text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            aria-label="選擇 Route B comment 私聊可見對象"
-          >
-            {snapshot.characters.map((character) => (
-              <option key={character.id} value={character.routeBCharacterId}>
-                {character.displayName}
-              </option>
-            ))}
-          </select>
-        </label>
-      ) : null}
-
-      <Textarea
-        value={comment}
-        onChange={(event) => setComment(event.target.value)}
-        placeholder="注記此刻情境、顧問觀察或稍後要追問的線索"
-        maxLength={480}
-        className="min-h-24 resize-y rounded-lg border-hairline bg-paper text-sm leading-6 focus-visible:ring-ring"
-        disabled={isSubmitting}
-        aria-label="Route B 情境注記"
-      />
       <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
-        <span>注記會成為待確認狀態 proposal；requiresConfirmation=true、writesConfirmedCrmFact=false。</span>
+        <span>
+          {visibilityScope === "PRIVATE" ? `私聊注記：${routeBCharacterDisplayName(snapshot, selectedAddresseeId) ?? "未選定"}` : "群聊情境注記"}
+          ・狀態對象：{routeBCharacterDisplayName(snapshot, selectedStatePatchTargetId) ?? "未選定"}
+        </span>
         <span className={cn("tabular-nums", isCommentTooLong && "text-destructive")}>
           {persistedComment.length}/500
         </span>
       </div>
     </form>
+  );
+}
+
+function RouteBCommentComposerSettingsPopover({
+  addresseeRouteBCharacterId,
+  onAddresseeRouteBCharacterIdChange,
+  onStatePatchTargetRouteBCharacterIdChange,
+  onVisibilityScopeChange,
+  snapshot,
+  statePatchTargetRouteBCharacterId,
+  visibilityScope,
+}: {
+  addresseeRouteBCharacterId: string;
+  onAddresseeRouteBCharacterIdChange: (value: string) => void;
+  onStatePatchTargetRouteBCharacterIdChange: (value: string) => void;
+  onVisibilityScopeChange: (value: "GROUP" | "PRIVATE") => void;
+  snapshot: RouteBSessionSnapshot;
+  statePatchTargetRouteBCharacterId: string;
+  visibilityScope: "GROUP" | "PRIVATE";
+}) {
+  return (
+    <Popover>
+      <PopoverTrigger
+        type="button"
+        className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-hairline bg-background text-muted-foreground transition-colors hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        aria-label="Route B comment 設定"
+        data-route-b-composer-settings-trigger="comment"
+      >
+        <SlidersHorizontal className="h-4 w-4" />
+      </PopoverTrigger>
+      <PopoverContent
+        align="end"
+        className="max-h-[min(70vh,540px)] w-[min(360px,calc(100vw-2rem))] overflow-y-auto border border-hairline bg-popover p-3 opacity-100 shadow-none ring-0 [animation:none]"
+        data-route-b-composer-settings="comment"
+        style={{ backgroundColor: "var(--popover)", opacity: 1 }}
+      >
+        <div className="space-y-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Comment Settings</p>
+            <h3 className="mt-1 text-sm font-semibold text-ink">注記設定</h3>
+            <p className="mt-1 text-xs leading-5 text-muted-foreground">
+              Comment mode 只保存情境與待確認狀態，不觸發 provider、不寫 CRM confirmed fact。
+            </p>
+          </div>
+
+          <label className="grid gap-1 text-xs font-medium text-muted-foreground">
+            注記範圍
+            <select
+              value={visibilityScope}
+              onChange={(event) => onVisibilityScopeChange(event.target.value === "PRIVATE" ? "PRIVATE" : "GROUP")}
+              className="h-10 rounded-lg border border-hairline bg-background px-3 text-sm font-medium text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              aria-label="選擇 Route B comment 注記範圍"
+            >
+              <option value="GROUP">群聊情境</option>
+              <option value="PRIVATE">指定人物</option>
+            </select>
+          </label>
+
+          <label className="grid gap-1 text-xs font-medium text-muted-foreground">
+            注記對象
+            <select
+              value={statePatchTargetRouteBCharacterId}
+              onChange={(event) => {
+                onStatePatchTargetRouteBCharacterIdChange(event.target.value);
+                if (visibilityScope === "PRIVATE") {
+                  onAddresseeRouteBCharacterIdChange(event.target.value);
+                }
+              }}
+              className="h-10 rounded-lg border border-hairline bg-background px-3 text-sm font-medium text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              aria-label="選擇 Route B comment 注記對象"
+            >
+              {snapshot.characters.map((character) => (
+                <option key={character.id} value={character.routeBCharacterId}>
+                  {character.displayName}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          {visibilityScope === "PRIVATE" ? (
+            <label className="grid gap-1 text-xs font-medium text-muted-foreground">
+              私聊可見對象
+              <select
+                value={addresseeRouteBCharacterId}
+                onChange={(event) => {
+                  onAddresseeRouteBCharacterIdChange(event.target.value);
+                  onStatePatchTargetRouteBCharacterIdChange(event.target.value);
+                }}
+                className="h-10 rounded-lg border border-hairline bg-background px-3 text-sm font-medium text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                aria-label="選擇 Route B comment 私聊可見對象"
+              >
+                {snapshot.characters.map((character) => (
+                  <option key={character.id} value={character.routeBCharacterId}>
+                    {character.displayName}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
+
+          <div className="grid gap-2 text-[11px] text-muted-foreground">
+            <ContextLine label="requiresConfirmation" value="true" />
+            <ContextLine label="writesConfirmedCrmFact" value="false" />
+          </div>
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }
 
