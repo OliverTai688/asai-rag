@@ -167,6 +167,20 @@ async function assertStageViewport(browser, viewportName, viewport) {
     for (const tabLabel of ["來源證據", "質化回饋", "合規紅線", "舞台脈絡"]) {
       await page.getByRole("tab", { name: tabLabel }).click();
       push(!(await hasHorizontalOverflow(page)), `${viewportName} advanced ${tabLabel} tab has no horizontal overflow`);
+      if (tabLabel === "來源證據") {
+        const sourceBrowser = page.locator('[data-route-b-source-browser="true"]');
+        await sourceBrowser.waitFor({ state: "visible", timeout: 10000 });
+        push(await sourceBrowser.isVisible(), `${viewportName} source evidence tab renders single source browser`);
+        let visibleSourceTabCount = 0;
+        for (const sourceLabel of ["會議訊號", "人物 profile", "關係邊"]) {
+          const sourceTab = page.getByRole("tab", { name: sourceLabel });
+          if ((await sourceTab.count()) === 0) continue;
+          visibleSourceTabCount += 1;
+          await sourceTab.click();
+          push(!(await hasHorizontalOverflow(page)), `${viewportName} source browser ${sourceLabel} view has no horizontal overflow`);
+        }
+        push(visibleSourceTabCount > 0, `${viewportName} source browser exposes at least one source tab`);
+      }
     }
     await page.keyboard.press("Escape");
     await page.waitForTimeout(200);

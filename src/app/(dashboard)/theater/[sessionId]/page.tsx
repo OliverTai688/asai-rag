@@ -85,6 +85,7 @@ type RouteBFeedbackReviewStatus = "idle" | "loading" | "ready" | "empty" | "erro
 type RouteBComplianceReviewIntakeStatus = "idle" | "loading" | "ready" | "empty" | "error";
 type RouteBProviderCandidateStatus = "idle" | "generating" | "ready" | "error";
 type RouteBStageMode = "CONVERSE" | "OBSERVE" | "COMMENT";
+type RouteBSourceEvidenceMode = "meeting" | "family" | "edge";
 type RouteBMeetingSignalGrounding = NonNullable<
   NonNullable<RouteBSessionSnapshot["scene"]["sourceGrounding"]>["meetingRelationshipSignals"]
 >;
@@ -1116,12 +1117,12 @@ function RouteBSessionStage({
               </TabsTrigger>
             </TabsList>
 
-            <TabsContent value="sources" className="space-y-3">
-              {meetingSignalGrounding ? <RouteBMeetingSignalGroundingPanel grounding={meetingSignalGrounding} /> : null}
-              {familyProfileGrounding ? <RouteBFamilyProfileGroundingPanel grounding={familyProfileGrounding} /> : null}
-              {relationshipEdgeShadowGrounding ? (
-                <RouteBRelationshipEdgeShadowGroundingPanel grounding={relationshipEdgeShadowGrounding} />
-              ) : null}
+            <TabsContent value="sources">
+              <RouteBSourceEvidenceBrowser
+                familyProfileGrounding={familyProfileGrounding}
+                meetingSignalGrounding={meetingSignalGrounding}
+                relationshipEdgeShadowGrounding={relationshipEdgeShadowGrounding}
+              />
             </TabsContent>
 
             <TabsContent value="review" className="space-y-3">
@@ -1170,16 +1171,129 @@ function RouteBSessionStage({
   );
 }
 
+function RouteBSourceEvidenceBrowser({
+  familyProfileGrounding,
+  meetingSignalGrounding,
+  relationshipEdgeShadowGrounding,
+}: {
+  familyProfileGrounding: RouteBFamilyProfileGrounding | null;
+  meetingSignalGrounding: RouteBMeetingSignalGrounding | null;
+  relationshipEdgeShadowGrounding: RouteBRelationshipEdgeShadowGrounding | null;
+}) {
+  const availableSources: Array<{
+    id: RouteBSourceEvidenceMode;
+    icon: React.ReactNode;
+    label: string;
+    summary: string;
+  }> = [];
+
+  if (meetingSignalGrounding) {
+    availableSources.push({
+      id: "meeting",
+      icon: <BrainCircuit className="h-4 w-4" />,
+      label: "會議訊號",
+      summary: `${meetingSignalGrounding.cardCount} 張 stage card`,
+    });
+  }
+
+  if (familyProfileGrounding) {
+    availableSources.push({
+      id: "family",
+      icon: <UserRound className="h-4 w-4" />,
+      label: "人物 profile",
+      summary: `${familyProfileGrounding.fieldCount} 個欄位`,
+    });
+  }
+
+  if (relationshipEdgeShadowGrounding) {
+    availableSources.push({
+      id: "edge",
+      icon: <ShieldCheck className="h-4 w-4" />,
+      label: "關係邊",
+      summary: `${relationshipEdgeShadowGrounding.candidateEdgeCount} 條 edge shadow`,
+    });
+  }
+
+  const [activeSource, setActiveSource] = useState<RouteBSourceEvidenceMode>(
+    availableSources[0]?.id ?? "meeting",
+  );
+  const selectedSource = availableSources.find((source) => source.id === activeSource) ?? availableSources[0];
+
+  if (!selectedSource) {
+    return (
+      <section
+        className="rounded-lg border border-dashed border-hairline bg-background p-4 text-sm leading-6 text-muted-foreground"
+        data-route-b-source-browser="empty"
+      >
+        尚無來源證據。
+      </section>
+    );
+  }
+
+  return (
+    <section
+      className="rounded-lg border border-hairline bg-background"
+      data-route-b-source-browser="true"
+      data-route-b-source-browser-active={selectedSource.id}
+    >
+      <div className="border-b border-hairline p-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+              Source Browser
+            </p>
+            <h3 className="mt-1 text-sm font-semibold text-ink">{selectedSource.label}</h3>
+            <p className="mt-1 text-xs leading-5 text-muted-foreground">{selectedSource.summary}</p>
+          </div>
+          <div className="flex shrink-0 gap-1" role="tablist" aria-label="Route B 來源證據分類">
+            {availableSources.map((source) => (
+              <Tooltip key={source.id}>
+                <TooltipTrigger
+                  aria-label={source.label}
+                  aria-selected={selectedSource.id === source.id}
+                  className={cn(
+                    "inline-flex h-9 w-9 items-center justify-center rounded-full border border-hairline transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                    selectedSource.id === source.id
+                      ? "bg-ink text-paper"
+                      : "bg-paper text-muted-foreground hover:text-ink",
+                  )}
+                  onClick={() => setActiveSource(source.id)}
+                  role="tab"
+                  type="button"
+                >
+                  {source.icon}
+                </TooltipTrigger>
+                <TooltipContent>{source.label}</TooltipContent>
+              </Tooltip>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="p-3">
+        {selectedSource.id === "meeting" && meetingSignalGrounding ? (
+          <RouteBMeetingSignalGroundingPanel grounding={meetingSignalGrounding} />
+        ) : null}
+        {selectedSource.id === "family" && familyProfileGrounding ? (
+          <RouteBFamilyProfileGroundingPanel grounding={familyProfileGrounding} />
+        ) : null}
+        {selectedSource.id === "edge" && relationshipEdgeShadowGrounding ? (
+          <RouteBRelationshipEdgeShadowGroundingPanel grounding={relationshipEdgeShadowGrounding} />
+        ) : null}
+      </div>
+    </section>
+  );
+}
+
 function RouteBMeetingSignalGroundingPanel({ grounding }: { grounding: RouteBMeetingSignalGrounding }) {
   const renderModel = buildRouteBMeetingSignalSourceRenderModel(grounding);
 
   return (
-    <Card
-      className="border-hairline shadow-none"
+    <div
+      className="space-y-4"
       data-route-b-meeting-signal-source-grounding="true"
       data-route-b-meeting-signal-source-type-summary={renderModel.sourceTypeChips.length ? "visible" : "empty"}
     >
-      <CardContent className="space-y-4 p-5">
         <div className="flex items-start gap-3">
           <BrainCircuit className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
           <div className="min-w-0">
@@ -1206,7 +1320,7 @@ function RouteBMeetingSignalGroundingPanel({ grounding }: { grounding: RouteBMee
 
         <div className="space-y-2">
           {renderModel.cards.slice(0, 3).map((card) => (
-            <div key={card.stageCardId} className="rounded-lg border border-hairline bg-paper px-3 py-2">
+            <div key={card.stageCardId} className="border-b border-hairline py-3 last:border-b-0">
               <div className="flex flex-wrap items-center gap-1.5">
                 <Badge variant="outline" className="text-[10px]">
                   {routeBMeetingSignalStatusLabel(card.status)}
@@ -1240,7 +1354,7 @@ function RouteBMeetingSignalGroundingPanel({ grounding }: { grounding: RouteBMee
         </div>
 
         {renderModel.narratorQuestions.length ? (
-          <div className="rounded-lg border border-hairline bg-paper px-3 py-2">
+          <div className="border-t border-hairline pt-3">
             <p className="text-xs font-semibold text-ink">補問 preview</p>
             <ul className="mt-1 space-y-1">
               {renderModel.narratorQuestions.slice(0, 2).map((question, index) => (
@@ -1258,8 +1372,7 @@ function RouteBMeetingSignalGroundingPanel({ grounding }: { grounding: RouteBMee
           <ContextLine label="Provider call" value={String(renderModel.boundary.providerCallAttempted)} />
           <ContextLine label="CRM fact write" value={String(renderModel.boundary.writesConfirmedCrmFact)} />
         </div>
-      </CardContent>
-    </Card>
+    </div>
   );
 }
 
@@ -1267,8 +1380,7 @@ function RouteBFamilyProfileGroundingPanel({ grounding }: { grounding: RouteBFam
   const statusText = routeBCountMapText(grounding.byFactStatus, "none");
 
   return (
-    <Card className="border-hairline shadow-none" data-route-b-family-profile-source-grounding="true">
-      <CardContent className="space-y-4 p-5">
+    <div className="space-y-4" data-route-b-family-profile-source-grounding="true">
         <div className="flex items-start gap-3">
           <UserRound className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
           <div className="min-w-0">
@@ -1279,7 +1391,7 @@ function RouteBFamilyProfileGroundingPanel({ grounding }: { grounding: RouteBFam
           </div>
         </div>
 
-        <div className="rounded-lg border border-hairline bg-paper px-3 py-2 text-xs leading-5 text-muted-foreground">
+        <div className="border-y border-hairline py-2 text-xs leading-5 text-muted-foreground">
           <p>
             <span className="font-semibold text-ink">Fact status：</span>
             {statusText}
@@ -1292,7 +1404,7 @@ function RouteBFamilyProfileGroundingPanel({ grounding }: { grounding: RouteBFam
 
         <div className="space-y-2">
           {grounding.fields.slice(0, 4).map((field) => (
-            <div key={field.stageFieldId} className="rounded-lg border border-hairline bg-paper px-3 py-2">
+            <div key={field.stageFieldId} className="border-b border-hairline py-3 last:border-b-0">
               <div className="flex flex-wrap items-center gap-1.5">
                 <Badge variant="outline" className="text-[10px]">
                   {routeBFamilyProfileStatusLabel(field.factStatus)}
@@ -1321,8 +1433,7 @@ function RouteBFamilyProfileGroundingPanel({ grounding }: { grounding: RouteBFam
           <ContextLine label="VisitPlan write" value={String(grounding.boundary.writesVisitPlan)} />
           <ContextLine label="CRM fact write" value={String(grounding.boundary.writesConfirmedCrmFact)} />
         </div>
-      </CardContent>
-    </Card>
+    </div>
   );
 }
 
@@ -1331,8 +1442,7 @@ function RouteBRelationshipEdgeShadowGroundingPanel({ grounding }: { grounding: 
   const statusText = routeBCountMapText(grounding.factStatusCounts, "none");
 
   return (
-    <Card className="border-hairline shadow-none" data-route-b-edge-shadow-source-grounding="true">
-      <CardContent className="space-y-4 p-5">
+    <div className="space-y-4" data-route-b-edge-shadow-source-grounding="true">
         <div className="flex items-start gap-3">
           <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
           <div className="min-w-0">
@@ -1343,7 +1453,7 @@ function RouteBRelationshipEdgeShadowGroundingPanel({ grounding }: { grounding: 
           </div>
         </div>
 
-        <div className="rounded-lg border border-hairline bg-paper px-3 py-2 text-xs leading-5 text-muted-foreground">
+        <div className="border-y border-hairline py-2 text-xs leading-5 text-muted-foreground">
           <p>
             <span className="font-semibold text-ink">Edge types：</span>
             {edgeTypeText}
@@ -1369,8 +1479,7 @@ function RouteBRelationshipEdgeShadowGroundingPanel({ grounding }: { grounding: 
           <ContextLine label="VisitPlan write" value={String(grounding.boundary.writesVisitPlan)} />
           <ContextLine label="CRM fact write" value={String(grounding.boundary.writesConfirmedCrmFact)} />
         </div>
-      </CardContent>
-    </Card>
+    </div>
   );
 }
 
