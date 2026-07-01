@@ -68,6 +68,8 @@ function checkStageMapSourceMarkers() {
     "data-route-b-advanced-provider-strip=\"true\"",
     "data-route-b-source-browser=\"true\"",
     "data-route-b-source-browser-active={selectedSource.id}",
+    "data-route-b-review-browser=\"true\"",
+    "data-route-b-review-browser-active={selectedView.id}",
     "function RouteBRelationshipEvidencePopover",
     "function RouteBProviderProofPopover",
     "label=\"providerCallAttempted\" value={String(provider.callAttempted)}",

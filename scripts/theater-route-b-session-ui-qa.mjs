@@ -181,6 +181,15 @@ async function assertStageViewport(browser, viewportName, viewport) {
         }
         push(visibleSourceTabCount > 0, `${viewportName} source browser exposes at least one source tab`);
       }
+      if (tabLabel === "質化回饋") {
+        const reviewBrowser = page.locator('[data-route-b-review-browser="true"]');
+        await reviewBrowser.waitFor({ state: "visible", timeout: 10000 });
+        push(await reviewBrowser.isVisible(), `${viewportName} review tab renders single review browser`);
+        for (const reviewLabel of ["五視角回顧", "待審閱候選"]) {
+          await page.getByRole("tab", { name: reviewLabel }).click();
+          push(!(await hasHorizontalOverflow(page)), `${viewportName} review browser ${reviewLabel} view has no horizontal overflow`);
+        }
+      }
     }
     await page.keyboard.press("Escape");
     await page.waitForTimeout(200);

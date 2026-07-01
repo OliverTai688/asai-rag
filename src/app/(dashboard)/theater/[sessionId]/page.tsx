@@ -86,6 +86,7 @@ type RouteBComplianceReviewIntakeStatus = "idle" | "loading" | "ready" | "empty"
 type RouteBProviderCandidateStatus = "idle" | "generating" | "ready" | "error";
 type RouteBStageMode = "CONVERSE" | "OBSERVE" | "COMMENT";
 type RouteBSourceEvidenceMode = "meeting" | "family" | "edge";
+type RouteBReviewMode = "feedback" | "compliance";
 type RouteBMeetingSignalGrounding = NonNullable<
   NonNullable<RouteBSessionSnapshot["scene"]["sourceGrounding"]>["meetingRelationshipSignals"]
 >;
@@ -1125,19 +1126,17 @@ function RouteBSessionStage({
               />
             </TabsContent>
 
-            <TabsContent value="review" className="space-y-3">
-              <RouteBFeedbackReviewPanel
+            <TabsContent value="review">
+              <RouteBReviewBrowser
+                complianceError={complianceReviewIntakeError}
+                complianceIntake={complianceReviewIntake}
+                complianceOnRefresh={fetchComplianceReviewIntake}
+                complianceStatus={complianceReviewIntakeStatus}
                 error={feedbackReviewError}
                 onGenerate={generateFeedbackReview}
                 onRefresh={fetchFeedbackReview}
                 review={feedbackReview}
                 status={feedbackReviewStatus}
-              />
-              <RouteBComplianceReviewIntakePanel
-                error={complianceReviewIntakeError}
-                intake={complianceReviewIntake}
-                onRefresh={fetchComplianceReviewIntake}
-                status={complianceReviewIntakeStatus}
               />
             </TabsContent>
 
@@ -1497,6 +1496,15 @@ function routeBFamilyProfileStatusLabel(status: string): string {
   return "UNKNOWN 待確認";
 }
 
+function routeBReviewStatusText(status: RouteBFeedbackReviewStatus | RouteBComplianceReviewIntakeStatus): string {
+  if (status === "loading") return "讀取中";
+  if (status === "generating") return "生成中";
+  if (status === "ready") return "已就緒";
+  if (status === "empty") return "尚無資料";
+  if (status === "error") return "需要重試";
+  return "尚未讀取";
+}
+
 function RouteBSevereRedLineWarningPanel({
   actionPersistence,
   actionStates,
@@ -1527,8 +1535,7 @@ function RouteBSevereRedLineWarningPanel({
     .at(-1);
 
   return (
-    <Card className="border-hairline shadow-none">
-      <CardContent className="space-y-4 p-5">
+    <div className="space-y-4" data-route-b-feedback-review-view="true">
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
@@ -1655,8 +1662,7 @@ function RouteBSevereRedLineWarningPanel({
           <ContextLine label="Auto block" value={String(!warningPreview.displayRules.doNotBlockConversationAutomatically)} />
           <ContextLine label="Formal finding" value={String(!warningPreview.displayRules.doNotTreatAsComplianceFindingWithoutEvidence)} />
         </div>
-      </CardContent>
-    </Card>
+    </div>
   );
 }
 
@@ -2321,6 +2327,111 @@ function RouteBCommentComposer({
   );
 }
 
+function RouteBReviewBrowser({
+  complianceError,
+  complianceIntake,
+  complianceOnRefresh,
+  complianceStatus,
+  error,
+  onGenerate,
+  onRefresh,
+  review,
+  status,
+}: {
+  complianceError: string | null;
+  complianceIntake: RouteBComplianceReviewIntake | null;
+  complianceOnRefresh: () => Promise<void>;
+  complianceStatus: RouteBComplianceReviewIntakeStatus;
+  error: string | null;
+  onGenerate: () => Promise<void>;
+  onRefresh: () => Promise<void>;
+  review: TheaterRouteBFeedbackReview | null;
+  status: RouteBFeedbackReviewStatus;
+}) {
+  const [activeReview, setActiveReview] = useState<RouteBReviewMode>("feedback");
+  const views: Array<{
+    id: RouteBReviewMode;
+    icon: React.ReactNode;
+    label: string;
+    summary: string;
+  }> = [
+    {
+      id: "feedback",
+      icon: <Trophy className="h-4 w-4" />,
+      label: "五視角回顧",
+      summary: review ? `${review.sections.length} 個視角` : routeBReviewStatusText(status),
+    },
+    {
+      id: "compliance",
+      icon: <ShieldCheck className="h-4 w-4" />,
+      label: "待審閱候選",
+      summary: complianceIntake ? `${complianceIntake.candidateCount} 個候選` : routeBReviewStatusText(complianceStatus),
+    },
+  ];
+  const selectedView = views.find((view) => view.id === activeReview) ?? views[0];
+
+  return (
+    <section
+      className="rounded-lg border border-hairline bg-background"
+      data-route-b-review-browser="true"
+      data-route-b-review-browser-active={selectedView.id}
+    >
+      <div className="border-b border-hairline p-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+              Review Browser
+            </p>
+            <h3 className="mt-1 text-sm font-semibold text-ink">{selectedView.label}</h3>
+            <p className="mt-1 text-xs leading-5 text-muted-foreground">{selectedView.summary}</p>
+          </div>
+          <div className="flex shrink-0 gap-1" role="tablist" aria-label="Route B 質化回顧分類">
+            {views.map((view) => (
+              <Tooltip key={view.id}>
+                <TooltipTrigger
+                  aria-label={view.label}
+                  aria-selected={selectedView.id === view.id}
+                  className={cn(
+                    "inline-flex h-9 w-9 items-center justify-center rounded-full border border-hairline transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                    selectedView.id === view.id
+                      ? "bg-ink text-paper"
+                      : "bg-paper text-muted-foreground hover:text-ink",
+                  )}
+                  onClick={() => setActiveReview(view.id)}
+                  role="tab"
+                  type="button"
+                >
+                  {view.icon}
+                </TooltipTrigger>
+                <TooltipContent>{view.label}</TooltipContent>
+              </Tooltip>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="p-3">
+        {selectedView.id === "feedback" ? (
+          <RouteBFeedbackReviewPanel
+            error={error}
+            onGenerate={onGenerate}
+            onRefresh={onRefresh}
+            review={review}
+            status={status}
+          />
+        ) : (
+          <RouteBComplianceReviewIntakePanel
+            error={complianceError}
+            intake={complianceIntake}
+            onRefresh={complianceOnRefresh}
+            status={complianceStatus}
+          />
+        )}
+      </div>
+    </section>
+  );
+}
+
 function RouteBFeedbackReviewPanel({
   error,
   onGenerate,
@@ -2343,8 +2454,7 @@ function RouteBFeedbackReviewPanel({
   const familyProfileGrounding = review?.familyProfileGrounding;
 
   return (
-    <Card className="border-hairline shadow-none">
-      <CardContent className="space-y-4 p-5">
+    <div className="space-y-4" data-route-b-compliance-review-view="true">
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
@@ -2564,8 +2674,7 @@ function RouteBFeedbackReviewPanel({
             </p>
           </div>
         ) : null}
-      </CardContent>
-    </Card>
+    </div>
   );
 }
 
