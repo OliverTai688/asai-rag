@@ -2,17 +2,21 @@
 
 import Link from "next/link";
 import { Suspense, useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
-import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
   BrainCircuit,
   ChevronDown,
   CircleAlert,
+  Eye,
+  Gamepad2,
   Loader2,
   MessageSquare,
   Send,
   ShieldCheck,
+  SlidersHorizontal,
   Sparkles,
+  StickyNote,
   Trophy,
   UserRound,
   Users,
@@ -25,6 +29,13 @@ import { Badge } from "@/components/ui/badge";
 import { RouteBStageGraph } from "@/components/theater/route-b-stage-graph";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
 import { clientService } from "@/domains/client/service";
 import {
@@ -70,6 +81,7 @@ const EMPTY_TURNS: TheaterTurn[] = [];
 type RouteBFeedbackReviewStatus = "idle" | "loading" | "ready" | "empty" | "error" | "generating";
 type RouteBComplianceReviewIntakeStatus = "idle" | "loading" | "ready" | "empty" | "error";
 type RouteBProviderCandidateStatus = "idle" | "generating" | "ready" | "error";
+type RouteBStageMode = "CONVERSE" | "OBSERVE" | "COMMENT";
 type RouteBMeetingSignalGrounding = NonNullable<
   NonNullable<RouteBSessionSnapshot["scene"]["sourceGrounding"]>["meetingRelationshipSignals"]
 >;
@@ -108,6 +120,11 @@ function normalizeParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
 }
 
+function readTheaterSessionIdFromPath(pathname: string) {
+  const match = pathname.match(/\/theater\/([^/?#]+)/);
+  return match ? decodeURIComponent(match[1]) : undefined;
+}
+
 export default function TheaterSimulationPage() {
   return (
     <Suspense fallback={<TheaterSessionLoading />}>
@@ -118,9 +135,10 @@ export default function TheaterSimulationPage() {
 
 function TheaterSimulationContent() {
   const params = useParams();
+  const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const sessionId = normalizeParam(params.sessionId);
+  const sessionId = normalizeParam(params.sessionId) ?? readTheaterSessionIdFromPath(pathname);
   const scrollRef = useRef<HTMLDivElement>(null);
   const session = useTheaterStore((state) => state.sessions.find((item) => item.id === sessionId));
   const storedTurns = useTheaterStore((state) => (sessionId ? state.turnsBySession[sessionId] ?? EMPTY_TURNS : EMPTY_TURNS));
@@ -476,6 +494,7 @@ const ROUTE_B_SCOPE_LABEL: Record<string, string> = {
   NARRATOR: "旁白",
 };
 
+const ROUTE_B_COMMENT_PREFIX = "【情境注記】";
 const ROUTE_B_SEVERE_RED_LINE_WARNING_PREVIEW = buildRouteBSevereRedLineWarningPreview();
 const ROUTE_B_SEVERE_RED_LINE_ACTION_WORKFLOW = buildRouteBSevereRedLineActionWorkflow(
   ROUTE_B_SEVERE_RED_LINE_WARNING_PREVIEW,
@@ -489,6 +508,9 @@ function RouteBSessionStage({
   snapshot: RouteBSessionSnapshot;
 }) {
   const focusCharacter = snapshot.characters.find((character) => character.isFocus) ?? snapshot.characters[0];
+  const latestTurn = latestRouteBTurn(snapshot.turns);
+  const [stageMode, setStageMode] = useState<RouteBStageMode>("CONVERSE");
+  const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
   const [privateFocusCharacterId, setPrivateFocusCharacterId] = useState<string | null>(null);
   const [composerVisibilityScope, setComposerVisibilityScope] = useState<"GROUP" | "PRIVATE">("GROUP");
   const [composerAddresseeRouteBCharacterId, setComposerAddresseeRouteBCharacterId] = useState("");
@@ -849,17 +871,63 @@ function RouteBSessionStage({
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-2 text-center sm:min-w-[36rem] sm:grid-cols-6">
-          <RouteBMetric label="角色" value={snapshot.characters.length} />
-          <RouteBMetric label="旁白補問" value={narratorQuestions.length} />
-          <RouteBMetric label="會議訊號" value={meetingSignalGrounding?.cardCount ?? 0} />
-          <RouteBMetric label="人物欄位" value={familyProfileGrounding?.fieldCount ?? 0} />
-          <RouteBMetric label="Edge ready" value={relationshipEdgeShadowGrounding?.candidateEdgeCount ?? 0} />
-          <RouteBMetric label="私聊外洩" value={snapshot.visibilityProof.thirdPartyVisibleForDirectMessage ? "需查" : "0"} />
+        <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+          <div
+            className="inline-flex rounded-full border border-hairline bg-paper p-1"
+            role="group"
+            aria-label="劇場模式"
+          >
+            <button
+              type="button"
+              onClick={() => setStageMode("CONVERSE")}
+              aria-pressed={stageMode === "CONVERSE"}
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                stageMode === "CONVERSE" ? "bg-ink text-paper" : "text-muted-foreground hover:text-ink",
+              )}
+            >
+              <MessageSquare className="h-4 w-4" />
+              對話模式
+            </button>
+            <button
+              type="button"
+              onClick={() => setStageMode("OBSERVE")}
+              aria-pressed={stageMode === "OBSERVE"}
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                stageMode === "OBSERVE" ? "bg-ink text-paper" : "text-muted-foreground hover:text-ink",
+              )}
+            >
+              <Eye className="h-4 w-4" />
+              觀察模式
+            </button>
+            <button
+              type="button"
+              onClick={() => setStageMode("COMMENT")}
+              aria-pressed={stageMode === "COMMENT"}
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                stageMode === "COMMENT" ? "bg-ink text-paper" : "text-muted-foreground hover:text-ink",
+              )}
+            >
+              <StickyNote className="h-4 w-4" />
+              Comment
+            </button>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            className="rounded-full"
+            onClick={() => setIsAdvancedOpen(true)}
+            aria-label="開啟進階面板"
+          >
+            <SlidersHorizontal className="h-4 w-4" />
+            進階
+          </Button>
         </div>
       </header>
 
-      <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
+      <div className="grid min-h-0 flex-1 gap-4">
         <main className="grid min-h-0 gap-4 xl:grid-cols-[320px_minmax(0,1fr)]">
           <section className="xl:col-span-2">
             <RouteBRelationshipStageMap
@@ -895,6 +963,13 @@ function RouteBSessionStage({
                 {snapshot.session.status}
               </Badge>
             </div>
+
+            <RouteBGameChatHud
+              latestTurn={latestTurn}
+              privateFocusCharacterId={privateFocusCharacterId}
+              snapshot={snapshot}
+              stageMode={stageMode}
+            />
 
             <div className="grid flex-1 gap-0 md:grid-cols-2">
               <div className="flex min-h-0 flex-col border-b border-hairline md:border-b-0 md:border-r">
@@ -949,17 +1024,37 @@ function RouteBSessionStage({
             </div>
 
             <div className="space-y-3 border-t border-hairline bg-paper p-3">
-              <RouteBAdvisorComposer
-                snapshot={snapshot}
-                onSnapshotUpdate={onSnapshotUpdate}
-                onAdvisorTurnCommitted={fetchNextTurnDraft}
-                visibilityScope={composerVisibilityScope}
-                onVisibilityScopeChange={setComposerVisibilityScope}
-                addresseeRouteBCharacterId={composerAddresseeRouteBCharacterId}
-                onAddresseeRouteBCharacterIdChange={setComposerAddresseeRouteBCharacterId}
-                statePatchTargetRouteBCharacterId={composerStatePatchTargetRouteBCharacterId}
-                onStatePatchTargetRouteBCharacterIdChange={setComposerStatePatchTargetRouteBCharacterId}
-              />
+              {stageMode === "CONVERSE" ? (
+                <RouteBAdvisorComposer
+                  snapshot={snapshot}
+                  onSnapshotUpdate={onSnapshotUpdate}
+                  onAdvisorTurnCommitted={fetchNextTurnDraft}
+                  visibilityScope={composerVisibilityScope}
+                  onVisibilityScopeChange={setComposerVisibilityScope}
+                  addresseeRouteBCharacterId={composerAddresseeRouteBCharacterId}
+                  onAddresseeRouteBCharacterIdChange={setComposerAddresseeRouteBCharacterId}
+                  statePatchTargetRouteBCharacterId={composerStatePatchTargetRouteBCharacterId}
+                  onStatePatchTargetRouteBCharacterIdChange={setComposerStatePatchTargetRouteBCharacterId}
+                />
+              ) : stageMode === "COMMENT" ? (
+                <RouteBCommentComposer
+                  snapshot={snapshot}
+                  onSnapshotUpdate={onSnapshotUpdate}
+                  visibilityScope={composerVisibilityScope}
+                  onVisibilityScopeChange={setComposerVisibilityScope}
+                  addresseeRouteBCharacterId={composerAddresseeRouteBCharacterId}
+                  onAddresseeRouteBCharacterIdChange={setComposerAddresseeRouteBCharacterId}
+                  statePatchTargetRouteBCharacterId={composerStatePatchTargetRouteBCharacterId}
+                  onStatePatchTargetRouteBCharacterIdChange={setComposerStatePatchTargetRouteBCharacterId}
+                />
+              ) : (
+                <div className="mx-auto max-w-3xl rounded-lg border border-hairline bg-background px-4 py-4 text-sm leading-6 text-muted-foreground">
+                  <p className="font-medium text-ink">觀察模式</p>
+                  <p className="mt-1">
+                    由導演挑選下一位發言者、產生角色之間的自然對話，你在旁觀察互動。啟用 provider 後才會實際生成角色台詞；目前只顯示導演的下一步規劃。
+                  </p>
+                </div>
+              )}
               <RouteBNextTurnPreviewPanel
                 appendCandidate={pendingAppendCandidate}
                 appendUsageLogId={pendingAppendUsageLogId}
@@ -980,14 +1075,31 @@ function RouteBSessionStage({
                 </div>
                 <Button type="button" variant="mono" className="rounded-full" disabled>
                   <Sparkles className="h-4 w-4" />
-                  待 provider proof
+                  {stageMode === "OBSERVE"
+                    ? "讓角色自然互動（待 provider）"
+                    : stageMode === "COMMENT"
+                      ? "Comment 不觸發 provider"
+                      : "待 provider proof"}
                 </Button>
               </div>
             </div>
           </section>
         </main>
+      </div>
 
-        <aside className="space-y-3">
+      <Sheet open={isAdvancedOpen} onOpenChange={setIsAdvancedOpen}>
+        <SheetContent
+          side="right"
+          className="w-full overflow-y-auto sm:max-w-md"
+          data-theater-advanced-drawer="true"
+        >
+          <SheetHeader>
+            <SheetTitle>進階面板</SheetTitle>
+            <SheetDescription>
+              來源證據、五視角回饋、合規紅線與 provider 保護狀態都收在這裡，需要時再展開。
+            </SheetDescription>
+          </SheetHeader>
+          <aside className="mt-4 space-y-3">
           {meetingSignalGrounding ? <RouteBMeetingSignalGroundingPanel grounding={meetingSignalGrounding} /> : null}
           {familyProfileGrounding ? <RouteBFamilyProfileGroundingPanel grounding={familyProfileGrounding} /> : null}
           {relationshipEdgeShadowGrounding ? (
@@ -1057,8 +1169,9 @@ function RouteBSessionStage({
               <ContextLine label="Raw provider payload" value={provider.storesProviderBody ? "需查" : "false"} />
             </CardContent>
           </Card>
-        </aside>
-      </div>
+          </aside>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
@@ -1574,6 +1687,69 @@ function RouteBRelationshipStageMap({
   );
 }
 
+function RouteBGameChatHud({
+  latestTurn,
+  privateFocusCharacterId,
+  snapshot,
+  stageMode,
+}: {
+  latestTurn: RouteBSessionSnapshot["turns"][number] | undefined;
+  privateFocusCharacterId: string | null;
+  snapshot: RouteBSessionSnapshot;
+  stageMode: RouteBStageMode;
+}) {
+  const modeLabel =
+    stageMode === "COMMENT" ? "Comment 注記" : stageMode === "OBSERVE" ? "觀察回合" : "遊戲對話";
+  const focusName =
+    routeBCharacterDisplayName(snapshot, privateFocusCharacterId ?? latestTurn?.addresseeRouteBCharacterId ?? undefined) ??
+    routeBCharacterDisplayName(snapshot, latestTurn?.speakerRouteBCharacterId ?? undefined) ??
+    snapshot.characters.find((character) => character.isFocus)?.displayName ??
+    "未選定";
+  const latestActor =
+    routeBCharacterDisplayName(snapshot, latestTurn?.speakerRouteBCharacterId ?? undefined) ??
+    (latestTurn?.role === "ADVISOR" || latestTurn?.role === "AGENT"
+      ? "顧問"
+      : latestTurn?.role === "DIRECTOR" || latestTurn?.role === "SYSTEM"
+        ? "導演"
+        : latestTurn?.role === "NARRATOR"
+          ? "旁白"
+          : "尚未開始");
+
+  return (
+    <div
+      className="border-b border-hairline bg-paper px-4 py-3"
+      data-route-b-game-chat-hud="true"
+      data-route-b-stage-mode={stageMode}
+      data-provider-call-attempted="false"
+      data-ai-usage-log-written="false"
+      data-writes-confirmed-crm-fact="false"
+    >
+      <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+        <div className="flex min-w-0 items-start gap-3">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-hairline bg-background text-ink">
+            <Gamepad2 className="h-4 w-4" />
+          </span>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-ink">演練回合台</p>
+            <p className="mt-1 text-xs leading-5 text-muted-foreground">
+              {modeLabel}・目前聚焦 {focusName}・最新發話 {latestActor}。Comment 只標記情境與待確認狀態，不觸發 provider、不寫 CRM confirmed fact。
+            </p>
+            <p className="mt-1 text-[11px] leading-5 text-muted-foreground">
+              callAttempted={String(snapshot.session.provider.callAttempted)}・Owner read {String(snapshot.visibilityProof.ownerOnlyRead)}・Scoped turn columns {String(snapshot.visibilityProof.scopedTurnColumnsPersisted)}
+            </p>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:min-w-[30rem]">
+          <RouteBMiniCount label="回合" value={snapshot.turns.length} />
+          <RouteBMiniCount label="角色" value={snapshot.characters.length} />
+          <RouteBMiniCount label="狀態提案" value={snapshot.scene.statePatchCount} />
+          <RouteBMiniCount label="AI 回覆" value={snapshot.session.provider.callsEnabled ? "on" : "locked"} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function RouteBAdvisorComposer({
   addresseeRouteBCharacterId,
   onAddresseeRouteBCharacterIdChange,
@@ -1732,6 +1908,169 @@ function RouteBAdvisorComposer({
           disabled={isSubmitting}
           aria-label="Route B 待確認狀態筆記"
         />
+      </div>
+    </form>
+  );
+}
+
+function RouteBCommentComposer({
+  addresseeRouteBCharacterId,
+  onAddresseeRouteBCharacterIdChange,
+  onSnapshotUpdate,
+  onStatePatchTargetRouteBCharacterIdChange,
+  onVisibilityScopeChange,
+  snapshot,
+  statePatchTargetRouteBCharacterId,
+  visibilityScope,
+}: {
+  addresseeRouteBCharacterId: string;
+  onAddresseeRouteBCharacterIdChange: (value: string) => void;
+  onSnapshotUpdate: (snapshot: RouteBSessionSnapshot) => void;
+  onStatePatchTargetRouteBCharacterIdChange: (value: string) => void;
+  onVisibilityScopeChange: (value: "GROUP" | "PRIVATE") => void;
+  snapshot: RouteBSessionSnapshot;
+  statePatchTargetRouteBCharacterId: string;
+  visibilityScope: "GROUP" | "PRIVATE";
+}) {
+  const defaultCharacterId = snapshot.characters[0]?.routeBCharacterId ?? "";
+  const [comment, setComment] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const selectedAddresseeId = addresseeRouteBCharacterId || defaultCharacterId;
+  const selectedStatePatchTargetId = statePatchTargetRouteBCharacterId || selectedAddresseeId || defaultCharacterId;
+  const trimmedComment = comment.trim();
+  const persistedComment = `${ROUTE_B_COMMENT_PREFIX} ${trimmedComment}`;
+  const isCommentTooLong = persistedComment.length > 500;
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (!trimmedComment || trimmedComment.length < 3 || isCommentTooLong || !defaultCharacterId || isSubmitting) return;
+
+    setIsSubmitting(true);
+
+    try {
+      const response = await fetch(`/api/theater/route-b/sessions/${encodeURIComponent(snapshot.session.id)}/turns`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          content: persistedComment,
+          visibilityScope,
+          addresseeRouteBCharacterId: visibilityScope === "PRIVATE" ? selectedAddresseeId : undefined,
+          statePatch: {
+            targetRouteBCharacterId: selectedStatePatchTargetId,
+            summary: persistedComment,
+          },
+        }),
+      });
+
+      const payload = (await response.json().catch(() => null)) as RouteBSessionSnapshot | { error?: string; message?: string } | null;
+
+      if (!response.ok || !payload || !("session" in payload)) {
+        const message = payload && "message" in payload && payload.message ? payload.message : "Route B comment write failed.";
+        throw new Error(message);
+      }
+
+      onSnapshotUpdate(payload);
+      setComment("");
+      toast.success("已保存情境注記");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Route B comment write failed.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <form
+      onSubmit={handleSubmit}
+      className="mx-auto grid max-w-3xl gap-3 rounded-lg border border-hairline bg-background p-3"
+      data-route-b-comment-mode="true"
+      data-provider-call-attempted="false"
+      data-ai-usage-log-written="false"
+      data-writes-confirmed-crm-fact="false"
+    >
+      <div className="grid gap-2 sm:grid-cols-[140px_1fr_auto] sm:items-end">
+        <label className="grid gap-1 text-xs font-medium text-muted-foreground">
+          注記範圍
+          <select
+            value={visibilityScope}
+            onChange={(event) => onVisibilityScopeChange(event.target.value === "PRIVATE" ? "PRIVATE" : "GROUP")}
+            className="h-10 rounded-lg border border-hairline bg-background px-3 text-sm font-medium text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            aria-label="選擇 Route B comment 注記範圍"
+          >
+            <option value="GROUP">群聊情境</option>
+            <option value="PRIVATE">指定人物</option>
+          </select>
+        </label>
+
+        <label className="grid gap-1 text-xs font-medium text-muted-foreground">
+          注記對象
+          <select
+            value={selectedStatePatchTargetId}
+            onChange={(event) => {
+              onStatePatchTargetRouteBCharacterIdChange(event.target.value);
+              if (visibilityScope === "PRIVATE") {
+                onAddresseeRouteBCharacterIdChange(event.target.value);
+              }
+            }}
+            className="h-10 rounded-lg border border-hairline bg-background px-3 text-sm font-medium text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            aria-label="選擇 Route B comment 注記對象"
+          >
+            {snapshot.characters.map((character) => (
+              <option key={character.id} value={character.routeBCharacterId}>
+                {character.displayName}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <Button
+          type="submit"
+          variant="mono"
+          className="h-10 rounded-full"
+          disabled={!trimmedComment || trimmedComment.length < 3 || isCommentTooLong || !defaultCharacterId || isSubmitting}
+          aria-label="保存 Route B 情境注記"
+        >
+          {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <StickyNote className="h-4 w-4" />}
+          保存注記
+        </Button>
+      </div>
+
+      {visibilityScope === "PRIVATE" ? (
+        <label className="grid gap-1 text-xs font-medium text-muted-foreground">
+          私聊可見對象
+          <select
+            value={selectedAddresseeId}
+            onChange={(event) => {
+              onAddresseeRouteBCharacterIdChange(event.target.value);
+              onStatePatchTargetRouteBCharacterIdChange(event.target.value);
+            }}
+            className="h-10 rounded-lg border border-hairline bg-background px-3 text-sm font-medium text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            aria-label="選擇 Route B comment 私聊可見對象"
+          >
+            {snapshot.characters.map((character) => (
+              <option key={character.id} value={character.routeBCharacterId}>
+                {character.displayName}
+              </option>
+            ))}
+          </select>
+        </label>
+      ) : null}
+
+      <Textarea
+        value={comment}
+        onChange={(event) => setComment(event.target.value)}
+        placeholder="注記此刻情境、顧問觀察或稍後要追問的線索"
+        maxLength={480}
+        className="min-h-24 resize-y rounded-lg border-hairline bg-paper text-sm leading-6 focus-visible:ring-ring"
+        disabled={isSubmitting}
+        aria-label="Route B 情境注記"
+      />
+      <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+        <span>注記會成為待確認狀態 proposal；requiresConfirmation=true、writesConfirmedCrmFact=false。</span>
+        <span className={cn("tabular-nums", isCommentTooLong && "text-destructive")}>
+          {persistedComment.length}/500
+        </span>
       </div>
     </form>
   );
@@ -2457,15 +2796,6 @@ function routeBFamilyProfileRuntimeStatusLabel(status: RouteBFamilyProfileRuntim
   return "unknown";
 }
 
-function RouteBMetric({ label, value }: { label: string; value: number | string }) {
-  return (
-    <div className="rounded-lg border border-hairline bg-background px-3 py-2">
-      <p className="text-lg font-semibold tabular-nums text-ink">{value}</p>
-      <p className="text-[11px] text-muted-foreground">{label}</p>
-    </div>
-  );
-}
-
 function RouteBCharacterCard({ character }: { character: RouteBSessionSnapshot["characters"][number] }) {
   const knownFacts = routeBRecords(character.knownFacts);
   const unknowns = routeBRecords(character.unknowns);
@@ -2493,7 +2823,7 @@ function RouteBCharacterCard({ character }: { character: RouteBSessionSnapshot["
   );
 }
 
-function RouteBMiniCount({ label, value }: { label: string; value: number }) {
+function RouteBMiniCount({ label, value }: { label: string; value: number | string }) {
   return (
     <div className="rounded-md border border-hairline bg-background px-2 py-1.5">
       <p className="text-sm font-semibold tabular-nums text-ink">{value}</p>
@@ -2517,7 +2847,10 @@ function RouteBLaneHeader({ icon, subtitle, title }: { icon: React.ReactNode; su
 }
 
 function RouteBTurnBubble({ snapshot, turn }: { snapshot: RouteBSessionSnapshot; turn: RouteBSessionSnapshot["turns"][number] }) {
+  const isComment = isRouteBCommentTurn(turn);
+  const content = isComment ? turn.content.replace(ROUTE_B_COMMENT_PREFIX, "").trim() : turn.content;
   const speaker =
+    (isComment ? "情境注記" : null) ??
     snapshot.characters.find((character) => character.routeBCharacterId === turn.speakerRouteBCharacterId)?.displayName ??
     (turn.role === "ADVISOR" || turn.role === "AGENT"
       ? "顧問"
@@ -2528,14 +2861,30 @@ function RouteBTurnBubble({ snapshot, turn }: { snapshot: RouteBSessionSnapshot;
           : turn.role);
 
   return (
-    <div className="rounded-lg border border-hairline bg-paper px-3 py-3">
+    <div
+      className={cn(
+        "rounded-lg border border-hairline bg-paper px-3 py-3",
+        isComment && "border-dashed bg-background",
+      )}
+      data-route-b-comment-turn={isComment ? "true" : undefined}
+      data-provider-call-attempted="false"
+      data-writes-confirmed-crm-fact="false"
+    >
       <div className="flex items-center justify-between gap-3">
-        <p className="text-sm font-semibold text-ink">{speaker}</p>
+        <p className="flex items-center gap-2 text-sm font-semibold text-ink">
+          {isComment ? <StickyNote className="h-3.5 w-3.5" /> : null}
+          {speaker}
+        </p>
         <Badge variant="outline" className="rounded-full">
           {turn.visibilityScope ? ROUTE_B_SCOPE_LABEL[turn.visibilityScope] ?? turn.visibilityScope : "群聊"}
         </Badge>
       </div>
-      <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-muted-foreground">{turn.content}</p>
+      <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-muted-foreground">{content}</p>
+      {isComment ? (
+        <p className="mt-2 text-[11px] leading-5 text-muted-foreground">
+          Comment mode：只作情境注記與待確認 state proposal，不觸發 provider、不寫 CRM confirmed fact。
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -2605,6 +2954,10 @@ function latestRouteBTurn(turns: RouteBSessionSnapshot["turns"]) {
         turn.role !== "DIRECTOR" &&
         (turn.speakerRouteBCharacterId || turn.addresseeRouteBCharacterId),
     );
+}
+
+function isRouteBCommentTurn(turn: RouteBSessionSnapshot["turns"][number]) {
+  return turn.content.trim().startsWith(ROUTE_B_COMMENT_PREFIX);
 }
 
 function routeBVisibilityText(record: Record<string, unknown>): string {

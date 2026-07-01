@@ -73,6 +73,12 @@ function checkStageMapSourceMarkers() {
     "選擇 Route B 發話範圍",
     "選擇 Route B 私聊對象",
     "選擇 Route B 狀態更新對象",
+    "data-route-b-game-chat-hud=\"true\"",
+    "data-route-b-comment-mode=\"true\"",
+    "選擇 Route B comment 注記範圍",
+    "保存 Route B 情境注記",
+    "data-route-b-comment-turn",
+    "Comment mode：只作情境注記",
   ];
 
   for (const marker of requiredPageMarkers) {
