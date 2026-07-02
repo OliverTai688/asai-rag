@@ -10,6 +10,7 @@ import {
   CircleAlert,
   Eye,
   Gamepad2,
+  Info,
   Loader2,
   MessageSquare,
   Send,
@@ -980,29 +981,34 @@ function RouteBSessionStage({
 
                     return (
                       <div key={character.id} className="border-b border-hairline last:border-b-0">
-                        <button
-                          type="button"
-                          className="flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
-                          onClick={() => handlePrivateFocus(character.routeBCharacterId)}
-                        >
-                          <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-hairline bg-background text-muted-foreground">
-                            <UserRound className="h-4 w-4" />
-                          </span>
-                          <span className="min-w-0 flex-1">
-                            <span className="flex items-center gap-2">
-                              <span className="truncate text-sm font-semibold text-ink">{character.displayName}</span>
-                              <span className="rounded-full border border-hairline px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-                                私聊
-                              </span>
+                        <div className="flex items-center gap-2 px-4 py-2.5">
+                          <button
+                            type="button"
+                            className="flex min-w-0 flex-1 items-center gap-2.5 rounded-md text-left transition-colors hover:bg-muted/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+                            onClick={() => handlePrivateFocus(character.routeBCharacterId)}
+                          >
+                            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-hairline bg-background text-muted-foreground">
+                              <UserRound className="h-4 w-4" />
                             </span>
-                            <span className="mt-1 block text-xs text-muted-foreground">
-                              {ROUTE_B_ROLE_LABEL[character.role] ?? character.role}
+                            <span className="truncate text-sm font-semibold text-ink">{character.displayName}</span>
+                            <span className="shrink-0 rounded-full border border-hairline px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                              私聊
                             </span>
-                            <span className="mt-1 line-clamp-2 block text-xs leading-5 text-muted-foreground">
-                              {firstRouteBText(character.personaHints) ?? firstRouteBText(character.unknowns) ?? "尚無私聊提示。"}
-                            </span>
-                          </span>
-                        </button>
+                          </button>
+                          <Tooltip>
+                            <TooltipTrigger
+                              type="button"
+                              aria-label={`${character.displayName} 角色提示`}
+                              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-hairline bg-background text-muted-foreground transition-colors hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                            >
+                              <Info className="h-3.5 w-3.5" />
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-56 text-xs leading-5">
+                              <span className="font-semibold">{ROUTE_B_ROLE_LABEL[character.role] ?? character.role}</span>
+                              ・{firstRouteBText(character.personaHints) ?? firstRouteBText(character.unknowns) ?? "尚無私聊提示。"}
+                            </TooltipContent>
+                          </Tooltip>
+                        </div>
                         {privateTurns.length ? (
                           <div className="space-y-2 px-4 pb-3">
                             {privateTurns.map((turn) => (
@@ -1102,23 +1108,23 @@ function RouteBSessionStage({
           <Tabs defaultValue="sources" className="mt-4 gap-4" data-route-b-advanced-tabs="true">
             <TabsList
               aria-label="劇場進階面板分類"
-              className="grid h-12 w-full grid-cols-4 rounded-full border border-hairline bg-paper p-1"
+              className="grid h-11 w-full grid-cols-4 rounded-lg border border-hairline bg-paper p-1"
             >
-              <TabsTrigger value="sources" aria-label="來源證據" title="來源證據" className="h-10 rounded-full p-0">
+              <TabsTrigger value="sources" aria-label="來源證據" className="h-9 flex-col gap-0.5 rounded-md px-1 text-[11px] font-medium">
                 <BrainCircuit className="h-4 w-4" />
-                <span className="sr-only">來源證據</span>
+                來源證據
               </TabsTrigger>
-              <TabsTrigger value="review" aria-label="質化回饋" title="質化回饋" className="h-10 rounded-full p-0">
+              <TabsTrigger value="review" aria-label="質化回饋" className="h-9 flex-col gap-0.5 rounded-md px-1 text-[11px] font-medium">
                 <Trophy className="h-4 w-4" />
-                <span className="sr-only">質化回饋</span>
+                質化回饋
               </TabsTrigger>
-              <TabsTrigger value="risk" aria-label="合規紅線" title="合規紅線" className="h-10 rounded-full p-0">
+              <TabsTrigger value="risk" aria-label="合規紅線" className="h-9 flex-col gap-0.5 rounded-md px-1 text-[11px] font-medium">
                 <CircleAlert className="h-4 w-4" />
-                <span className="sr-only">合規紅線</span>
+                合規紅線
               </TabsTrigger>
-              <TabsTrigger value="context" aria-label="舞台脈絡" title="舞台脈絡" className="h-10 rounded-full p-0">
+              <TabsTrigger value="context" aria-label="舞台脈絡" className="h-9 flex-col gap-0.5 rounded-md px-1 text-[11px] font-medium">
                 <ShieldCheck className="h-4 w-4" />
-                <span className="sr-only">舞台脈絡</span>
+                舞台脈絡
               </TabsTrigger>
             </TabsList>
 
@@ -1384,7 +1390,7 @@ function RouteBMeetingSignalGroundingPanel({ grounding }: { grounding: RouteBMee
 }
 
 function RouteBFamilyProfileGroundingPanel({ grounding }: { grounding: RouteBFamilyProfileGrounding }) {
-  const statusText = routeBCountMapText(grounding.byFactStatus, "none");
+  const statusText = routeBCountMapText(grounding.byFactStatus, "none", routeBFactStatusLabels);
 
   return (
     <div className="space-y-4" data-route-b-family-profile-source-grounding="true">
@@ -2265,20 +2271,26 @@ function RouteBGameChatHud({
       data-ai-usage-log-written="false"
       data-writes-confirmed-crm-fact="false"
     >
-      <div className="grid gap-3">
-        <div className="flex min-w-0 items-start gap-3">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-hairline bg-background text-ink">
-            <Gamepad2 className="h-4 w-4" />
+      <div className="grid gap-2">
+        <div className="flex min-w-0 items-center gap-2">
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-hairline bg-background text-ink">
+            <Gamepad2 className="h-3.5 w-3.5" />
           </span>
-          <div className="min-w-0">
-            <p className="text-sm font-semibold text-ink">演練回合台</p>
-            <p className="mt-1 text-xs leading-5 text-muted-foreground">
-              {modeLabel}・目前聚焦 {focusName}・最新發話 {latestActor}。Comment 只標記情境與待確認狀態，不觸發 provider、不寫 CRM confirmed fact。
-            </p>
-            <p className="mt-1 text-[11px] leading-5 text-muted-foreground">
-              角色 AI 回覆目前鎖定，由工具列的範圍證明確認 provider guard、可見範圍與寫入邊界。
-            </p>
-          </div>
+          <p className="min-w-0 truncate text-xs text-muted-foreground">
+            <span className="font-semibold text-ink">{modeLabel}</span>・聚焦 {focusName}・最新 {latestActor}
+          </p>
+          <Tooltip>
+            <TooltipTrigger
+              type="button"
+              aria-label="演練回合台說明"
+              className="ml-auto flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-hairline bg-background text-muted-foreground transition-colors hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <Info className="h-3.5 w-3.5" />
+            </TooltipTrigger>
+            <TooltipContent className="max-w-64 text-xs leading-5">
+              Comment 只標記情境與待確認狀態，不觸發 provider、不寫 CRM confirmed fact。角色 AI 回覆目前鎖定，由工具列的範圍證明確認 provider guard、可見範圍與寫入邊界。
+            </TooltipContent>
+          </Tooltip>
         </div>
         <RouteBInlineMetricRail
           metrics={[

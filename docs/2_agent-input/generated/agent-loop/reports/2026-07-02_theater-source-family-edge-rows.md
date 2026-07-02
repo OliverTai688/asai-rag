@@ -3,27 +3,27 @@
 ## Strategic review gate
 - Main goal: continue Route B theater UI simplification by removing multi-card source evidence layouts and moving secondary proof into icon-tab source browser rows, popovers, and inline metric rails.
 - Recent loop context: the previous theater loops simplified the advanced sheet, source browser, runtime metric rail, character/relationship popovers, review browsers, red-line browser, and meeting signal source rows.
-- This round is not a repeat documentation/proof-only loop: it converts the remaining `familyProfiles` and `relationshipEdgeShadow` source evidence bodies from card/grid proof into compact row lists with shared inline metric rails, and strengthens the browser QA fixture to render all three source tabs.
+- This round is not a repeat documentation/proof-only loop: it converts the remaining `familyProfiles` and `relationshipEdgeShadow` source evidence bodies from card/grid proof into compact row lists with shared inline metric rails, and strengthens browser QA around all three source tabs.
 - Acceptance anchor: Route B stage-map/browser QA from `scripts/theater-route-b-session-ui-qa.mjs` plus reconciliation coverage in `scripts/theater-route-b-stage-map-acceptance-reconcile-qa.mjs`.
 
 ## Scope completed
 - Updated `src/app/(dashboard)/theater/[sessionId]/page.tsx`.
   - `RouteBFamilyProfileGroundingPanel` now uses a summary metric rail, compact `data-route-b-family-profile-row-list` rows, and a boundary metric rail instead of badge/pill/card-style proof clusters.
   - `RouteBRelationshipEdgeShadowGroundingPanel` now uses `data-route-b-edge-shadow-row-list` rows for candidate summary and distribution/warnings, with boundary proof in one inline rail.
-  - Edge type, fact status, and warning values are now human-readable summaries instead of raw-ish enum/code walls.
+  - Edge type, fact status, warning, and family profile status values are now human-readable summaries instead of raw-ish enum/code walls.
   - `RouteBInlineMetricRail` keeps labels on one line while allowing values to wrap, improving mobile source browser readability.
-- Updated `scripts/fixtures/route-b-handoff-fixture.mjs`.
-  - Added safe `sourceGrounding.familyProfiles` and `sourceGrounding.relationshipEdgeShadow` fixture data so browser QA covers all source tabs instead of only meeting signals.
+- Verified the existing `scripts/fixtures/route-b-handoff-fixture.mjs` safe source grounding data is present in `HEAD`.
+  - `sourceGrounding.familyProfiles` and `sourceGrounding.relationshipEdgeShadow` let browser QA cover all source tabs instead of only meeting signals.
 - Updated `scripts/theater-route-b-session-ui-qa.mjs`.
   - Requires `會議訊號`, `人物 profile`, and `關係邊` source tabs.
-  - Adds browser assertions for family profile row lists, edge shadow row lists, inline rails, source boundary labels, no pill clusters, and no internal overflow.
+  - Adds browser assertions for family profile row lists, edge shadow row lists, inline rails, source boundary labels, false boundary values, raw source identifier absence, no pill clusters, and no internal overflow.
   - Adds desktop/mobile screenshots for family and edge source views.
 - Updated `scripts/theater-route-b-stage-map-acceptance-reconcile-qa.mjs`.
   - Reconciles new page markers and browser-QA proof markers for all three source tabs plus family/edge row-list assertions.
 
 ## SubAgent review
 - Earlier subAgent review found two blocking gaps before finalizing: the browser QA fixture did not force all three source tabs to exist, and edge shadow source evidence had become rail-only instead of a row list. Both were fixed in this loop.
-- Final sanity review: pending at report creation time.
+- Final sanity review found no UI simplification blocker. It flagged three polish/QA gaps: family summary still looked enum-ish, source tab locators were page-scoped, and least-disclosure browser proof only checked labels rather than false values/raw-id absence. All three were fixed before commit.
 
 ## Validation
 - `pnpm exec tsc --noEmit --pretty false` attempted first, but local pnpm dependency-status install was blocked by ignored build scripts for Prisma/sharp/msw. Fallback typecheck used the repo binary instead.

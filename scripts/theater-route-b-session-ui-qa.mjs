@@ -272,7 +272,7 @@ async function assertStageViewport(browser, viewportName, viewport) {
           關係邊: "source browser exposes 關係邊 source tab",
         };
         for (const sourceLabel of expectedSourceLabels) {
-          const sourceTab = page.getByRole("tab", { name: sourceLabel });
+          const sourceTab = sourceBrowser.getByRole("tab", { name: sourceLabel });
           const sourceTabExists = (await sourceTab.count()) > 0;
           push(sourceTabExists, `${viewportName} ${sourceTabProofLabels[sourceLabel]}`);
           if (!sourceTabExists) continue;
@@ -351,6 +351,16 @@ async function assertStageViewport(browser, viewportName, viewport) {
               `${viewportName} source browser family profile keeps source boundary labels`,
             );
             push(
+              ["Browser session id", "Browser person id", "Provider call", "Raw metadata", "Source reference ids", "DB write", "Relationship graph write", "VisitPlan write", "CRM fact write"].every(
+                (label) => includesMetricValue(familyProfileSourceText, label, "false"),
+              ),
+              `${viewportName} source browser family profile boundary false values stay visible`,
+            );
+            push(
+              hasNoRawSourceIdentifiers(familyProfileSourceText),
+              `${viewportName} source browser family profile hides raw source identifiers`,
+            );
+            push(
               (await familyProfileSource.locator('[class*="rounded-full"][class*="border"]').count()) === 0,
               `${viewportName} source browser family profile view avoids pill clusters`,
             );
@@ -387,6 +397,16 @@ async function assertStageViewport(browser, viewportName, viewport) {
                 edgeShadowText.includes(label),
               ),
               `${viewportName} source browser edge shadow keeps source boundary labels`,
+            );
+            push(
+              ["Browser session id", "Provider call", "DB write", "Draft edges returned", "Formal schema approved", "Relationship graph write", "VisitPlan write", "CRM fact write"].every(
+                (label) => includesMetricValue(edgeShadowText, label, "false"),
+              ),
+              `${viewportName} source browser edge shadow boundary false values stay visible`,
+            );
+            push(
+              hasNoRawSourceIdentifiers(edgeShadowText),
+              `${viewportName} source browser edge shadow hides raw source identifiers`,
             );
             push(
               (await edgeShadowSource.locator('[class*="rounded-full"][class*="border"]').count()) === 0,
@@ -582,6 +602,21 @@ async function hasHorizontalOverflow(page) {
 
 async function hasElementHorizontalOverflow(locator) {
   return locator.evaluate((element) => element.scrollWidth > element.clientWidth + 1);
+}
+
+function includesMetricValue(text, label, value) {
+  const normalized = text.replace(/\s+/g, " ");
+  const labelIndex = normalized.indexOf(label);
+  if (labelIndex === -1) return false;
+
+  const metricWindow = normalized.slice(Math.max(0, labelIndex - 32), labelIndex + label.length + 48);
+  return metricWindow.includes(String(value));
+}
+
+function hasNoRawSourceIdentifiers(text) {
+  return !/route_b_family_profile_|stageFieldId|sourceReferenceId|rawProviderPayload|rawPrivateTranscript|providerPayload|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i.test(
+    text,
+  );
 }
 
 async function clearPointerState(page) {
