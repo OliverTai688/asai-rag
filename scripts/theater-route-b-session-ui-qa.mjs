@@ -103,8 +103,8 @@ async function assertStageViewport(browser, viewportName, viewport) {
       return {
         hasRouteB: text.includes("Route B"),
         hasRelationshipStageMap: text.includes("客戶關係舞台") && /relationship\s+stage\s+map/i.test(text),
-        hasGroupLane: text.includes("群聊"),
-        hasPrivateLane: text.includes("私聊"),
+        hasGroupLane: document.querySelector('[data-route-b-stage-lane-browser="true"]')?.getAttribute("data-route-b-stage-lane") === "group",
+        hasPrivateLane: Boolean(document.querySelector('[data-route-b-stage-lane-tabs="true"] [aria-label="私聊"]')),
         hasFocusCharacter: text.includes("林先生"),
         hasDecisionMaker: text.includes("林太太"),
         hasProviderGuard: text.includes("guarded-disabled"),
@@ -114,8 +114,8 @@ async function assertStageViewport(browser, viewportName, viewport) {
 
     push(checksFromDom.hasRouteB, `${viewportName} stage renders Route B label`);
     push(checksFromDom.hasRelationshipStageMap, `${viewportName} stage renders relationship stage map`);
-    push(checksFromDom.hasGroupLane, `${viewportName} stage renders group-chat lane`);
-    push(checksFromDom.hasPrivateLane, `${viewportName} stage renders private-chat lane`);
+    push(checksFromDom.hasGroupLane, `${viewportName} stage lane switcher defaults to group`);
+    push(checksFromDom.hasPrivateLane, `${viewportName} stage lane switcher exposes private icon`);
     push(checksFromDom.hasFocusCharacter && checksFromDom.hasDecisionMaker, `${viewportName} stage renders focus and decision-maker characters`);
     push(checksFromDom.hasProviderGuard, `${viewportName} stage renders guarded-disabled provider proof`);
     push(!checksFromDom.hasHorizontalOverflow, `${viewportName} stage has no horizontal overflow`);
@@ -135,6 +135,44 @@ async function assertStageViewport(browser, viewportName, viewport) {
     push(
       !(await hasElementHorizontalOverflow(gameChatHudMetricRail)),
       `${viewportName} game chat HUD metric rail has no internal horizontal overflow`,
+    );
+    const stageLaneBrowser = page.locator('[data-route-b-stage-lane-browser="true"]');
+    await stageLaneBrowser.waitFor({ state: "visible", timeout: 10000 });
+    push(
+      (await stageLaneBrowser.getAttribute("data-route-b-stage-lane")) === "group",
+      `${viewportName} stage lane browser starts in group lane`,
+    );
+    push(
+      (await stageLaneBrowser.locator('[data-route-b-stage-lane-panel="group"]').count()) === 1,
+      `${viewportName} stage lane browser renders one group panel`,
+    );
+    push(
+      (await stageLaneBrowser.locator('[data-route-b-stage-lane-panel]').count()) === 1,
+      `${viewportName} stage lane browser renders only one active panel`,
+    );
+    await stageLaneBrowser.getByRole("button", { name: "私聊", exact: true }).click();
+    push(
+      (await stageLaneBrowser.getAttribute("data-route-b-stage-lane")) === "private",
+      `${viewportName} stage lane switcher opens private lane`,
+    );
+    push(
+      (await stageLaneBrowser.locator('[data-route-b-stage-lane-panel="private"]').count()) === 1,
+      `${viewportName} stage lane browser renders one private panel`,
+    );
+    push(
+      (await stageLaneBrowser.locator('[data-route-b-stage-lane-panel]').count()) === 1,
+      `${viewportName} stage lane browser keeps only one active panel after switch`,
+    );
+    push(!(await hasElementHorizontalOverflow(stageLaneBrowser)), `${viewportName} stage lane browser has no internal horizontal overflow`);
+    await clearPointerState(page);
+    await page.screenshot({
+      path: resolve(screenshotDir, `route-b-session-stage-lane-switcher-${viewportName}.png`),
+      fullPage: true,
+    });
+    await stageLaneBrowser.getByRole("button", { name: "群聊", exact: true }).click();
+    push(
+      (await stageLaneBrowser.getAttribute("data-route-b-stage-lane")) === "group",
+      `${viewportName} stage lane switcher returns to group lane`,
     );
     await clearPointerState(page);
     await page.screenshot({
@@ -554,6 +592,18 @@ async function assertStageViewport(browser, viewportName, viewport) {
     await page.waitForTimeout(200);
 
     await page.getByRole("button", { name: /與 林太太 私聊/ }).click();
+    push(
+      (await stageLaneBrowser.getAttribute("data-route-b-stage-lane")) === "private",
+      `${viewportName} stage-map character click opens private lane browser`,
+    );
+    push(
+      (await stageLaneBrowser.locator('[data-route-b-stage-lane-panel="private"]').count()) === 1,
+      `${viewportName} stage-map character click keeps one private lane panel`,
+    );
+    push(
+      (await stageLaneBrowser.locator('[data-route-b-stage-lane-panel]').count()) === 1,
+      `${viewportName} stage-map character click keeps only one active lane panel`,
+    );
     await page.getByRole("button", { name: "Route B 發話設定" }).click();
     const advisorSettings = page.locator('[data-route-b-composer-settings="advisor"]');
     await advisorSettings.waitFor({ state: "visible", timeout: 10000 });

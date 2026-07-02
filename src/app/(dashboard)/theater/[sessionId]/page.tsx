@@ -522,6 +522,7 @@ function RouteBSessionStage({
   const [stageMode, setStageMode] = useState<RouteBStageMode>("CONVERSE");
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
   const [privateFocusCharacterId, setPrivateFocusCharacterId] = useState<string | null>(null);
+  const [stageLane, setStageLane] = useState<"GROUP" | "PRIVATE">("GROUP");
   const [composerVisibilityScope, setComposerVisibilityScope] = useState<"GROUP" | "PRIVATE">("GROUP");
   const [composerAddresseeRouteBCharacterId, setComposerAddresseeRouteBCharacterId] = useState("");
   const [composerStatePatchTargetRouteBCharacterId, setComposerStatePatchTargetRouteBCharacterId] = useState("");
@@ -558,6 +559,7 @@ function RouteBSessionStage({
   const provider = snapshot.session.provider;
   const handlePrivateFocus = (routeBCharacterId: string) => {
     setPrivateFocusCharacterId(routeBCharacterId);
+    setStageLane("PRIVATE");
     setComposerVisibilityScope("PRIVATE");
     setComposerAddresseeRouteBCharacterId(routeBCharacterId);
     setComposerStatePatchTargetRouteBCharacterId(routeBCharacterId);
@@ -957,21 +959,52 @@ function RouteBSessionStage({
               stageMode={stageMode}
             />
 
-            <div className="grid flex-1 gap-0 md:grid-cols-2">
-              <div className="flex min-h-0 flex-col border-b border-hairline md:border-b-0 md:border-r">
-                <RouteBLaneHeader icon={<MessageSquare className="h-4 w-4" />} title="群聊" subtitle="所有角色可見" />
-                <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
+            <div
+              className="flex min-h-0 flex-1 flex-col"
+              data-route-b-stage-lane-browser="true"
+              data-route-b-stage-lane={stageLane.toLowerCase()}
+            >
+              <div className="flex items-center justify-between gap-3 border-b border-hairline px-4 py-3">
+                <div>
+                  <h3 className="flex items-center gap-2 text-sm font-semibold text-ink">
+                    {stageLane === "GROUP" ? <MessageSquare className="h-4 w-4" /> : <ShieldCheck className="h-4 w-4" />}
+                    {stageLane === "GROUP" ? "群聊" : "私聊"}
+                  </h3>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {stageLane === "GROUP" ? "所有角色可見" : "只對指定角色可見"}
+                  </p>
+                </div>
+                <div
+                  className="inline-flex shrink-0 items-center gap-1 rounded-full border border-hairline bg-background p-1"
+                  role="group"
+                  aria-label="切換群聊／私聊"
+                  data-route-b-stage-lane-tabs="true"
+                >
+                  <RouteBModeIconButton
+                    active={stageLane === "GROUP"}
+                    icon={<MessageSquare className="h-4 w-4" />}
+                    label="群聊"
+                    onClick={() => setStageLane("GROUP")}
+                  />
+                  <RouteBModeIconButton
+                    active={stageLane === "PRIVATE"}
+                    icon={<ShieldCheck className="h-4 w-4" />}
+                    label="私聊"
+                    onClick={() => setStageLane("PRIVATE")}
+                  />
+                </div>
+              </div>
+
+              {stageLane === "GROUP" ? (
+                <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4" data-route-b-stage-lane-panel="group">
                   {groupTurns.length ? (
                     groupTurns.map((turn) => <RouteBTurnBubble key={turn.id} snapshot={snapshot} turn={turn} />)
                   ) : (
                     <RouteBEmptyLane title="群聊尚未開場" body="已建立舞台與角色，provider proof 完成後才會允許角色回覆。" />
                   )}
                 </div>
-              </div>
-
-              <div className="flex min-h-0 flex-col">
-                <RouteBLaneHeader icon={<ShieldCheck className="h-4 w-4" />} title="私聊" subtitle="只對指定角色可見" />
-                <div className="min-h-0 flex-1 overflow-y-auto">
+              ) : (
+                <div className="min-h-0 flex-1 overflow-y-auto" data-route-b-stage-lane-panel="private">
                   {snapshot.characters.map((character) => {
                     const privateTurns = snapshot.turns.filter(
                       (turn) =>
@@ -1020,7 +1053,7 @@ function RouteBSessionStage({
                     );
                   })}
                 </div>
-              </div>
+              )}
             </div>
 
             <div className="space-y-3 border-t border-hairline bg-paper p-3">
@@ -3885,20 +3918,6 @@ function RouteBInlineMetricRail({
         </div>
       ))}
     </dl>
-  );
-}
-
-function RouteBLaneHeader({ icon, subtitle, title }: { icon: React.ReactNode; subtitle: string; title: string }) {
-  return (
-    <div className="flex items-center justify-between gap-3 border-b border-hairline px-4 py-3">
-      <div>
-        <h3 className="flex items-center gap-2 text-sm font-semibold text-ink">
-          {icon}
-          {title}
-        </h3>
-        <p className="mt-1 text-xs text-muted-foreground">{subtitle}</p>
-      </div>
-    </div>
   );
 }
 
