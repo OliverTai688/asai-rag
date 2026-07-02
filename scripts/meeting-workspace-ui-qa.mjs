@@ -91,6 +91,7 @@ async function runDesktopProof(visitPlanId) {
     const sessionId = await page.getByTestId("meeting-session-id").getAttribute("data-session-id");
     push(Boolean(sessionId), "desktop entrypoint creates meeting session without raw ID input", sessionId ? "session-created" : "missing");
 
+    await page.getByRole("tab", { name: "隨筆" }).click();
     await page.getByTestId("meeting-note-input").fill(
       `AMM-005a：客戶確認想先補退休缺口；待確認是否邀請配偶一起評估 ${runId}`,
     );
@@ -99,6 +100,7 @@ async function runDesktopProof(visitPlanId) {
     const noteResponse = await noteResponsePromise;
     push(noteResponse.status() === 201, "desktop appends manual meeting note via BFF", `status=${noteResponse.status()}`);
 
+    await page.getByRole("tab", { name: "會議" }).click();
     await page.getByTestId("meeting-transcript-input").fill(
       `AMM-005a final transcript：客戶確認每月可增加保費約一萬元，仍不確定醫療與退休優先順序 ${runId}`,
     );

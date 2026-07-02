@@ -533,6 +533,7 @@ async function appendTurn(sessionId, body) {
 }
 
 async function appendManualNote(page, text) {
+  await page.getByRole("tab", { name: "隨筆" }).click();
   await page.getByTestId("meeting-note-input").fill(text);
   const responsePromise = waitForMeetingTurnResponse(page);
   await page.getByRole("button", { name: "加入筆記" }).click();
@@ -540,6 +541,7 @@ async function appendManualNote(page, text) {
 }
 
 async function appendFinalTranscript(page, text) {
+  await page.getByRole("tab", { name: "會議" }).click();
   await page.getByTestId("meeting-transcript-input").fill(text);
   const responsePromise = waitForMeetingTurnResponse(page);
   await page.getByRole("button", { name: "加入 final transcript" }).click();

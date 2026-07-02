@@ -2,7 +2,7 @@ export type DashboardSource = "database";
 export type DashboardVisibility = "member-scoped";
 
 export type DashboardPriority = "HIGH" | "MEDIUM" | "LOW";
-export type DashboardTaskKind = "ISSUE" | "VISIT" | "REPORT" | "COMPLIANCE";
+export type DashboardTaskKind = "FOLLOW_UP" | "VISIT" | "REPORT" | "COMPLIANCE";
 export type DashboardActivityKind =
   | "SPIN"
   | "THEATER"
@@ -43,7 +43,7 @@ export interface DashboardTodayMainlineDto {
 }
 
 export interface DashboardKpiDto {
-  id: "readyVisits" | "activeClients" | "openIssues" | "sharedReports";
+  id: "readyVisits" | "activeClients" | "followUps" | "sharedReports";
   title: string;
   value: number;
   unit: string;

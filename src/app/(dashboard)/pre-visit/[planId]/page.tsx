@@ -8,15 +8,18 @@ import {
   BadgeCheck,
   Brain,
   Check,
+  ChevronDown,
   CircleAlert,
   CircleHelp,
   Clock3,
   FileCheck2,
   FileText,
+  Info,
   Lightbulb,
   Loader2,
   MessageSquare,
   Mic,
+  MoreHorizontal,
   Network,
   NotebookPen,
   PackageCheck,
@@ -29,13 +32,27 @@ import {
   Theater,
   Users,
 } from "lucide-react";
+import { motion, useReducedMotion } from "motion/react";
 import { toast } from "sonner";
 
 import { QuickstartGuide } from "@/components/demo/quickstart-guide";
 import { SpotlightTour } from "@/components/demo/spotlight-tour";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { FormattedTime } from "@/components/ui/formatted-time";
+import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import type { Client, FamilyMember } from "@/domains/client/types";
 import { resolveClientFromList, resolveClientIdAlias } from "@/domains/client/id-aliases";
 import { useClientStore } from "@/domains/client/store";
@@ -361,6 +378,8 @@ function VisitPlanDetailContent() {
   const isQuickstart = searchParams.get("demo") === "quickstart";
   const seededRef = useRef(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [showGoalDialog, setShowGoalDialog] = useState(false);
+  const [visitGoal, setVisitGoal] = useState("");
   const [isLoadingPlan, setIsLoadingPlan] = useState(!isQuickstart);
   const [planLoadError, setPlanLoadError] = useState<string | null>(null);
   const [generationError, setGenerationError] = useState<string | null>(null);
@@ -668,7 +687,7 @@ function VisitPlanDetailContent() {
   const totalMinutes = TIMELINE_SEGMENTS.reduce((sum, segment) => sum + segment.minutes, 0);
   const apiClientId = resolveClientIdAlias(plan.clientId);
   const nextHref = `/spin?clientId=${apiClientId}&autoCreate=true${isQuickstart ? "&demo=quickstart" : ""}`;
-  const theaterHref = `/theater/build?clientId=${encodeURIComponent(apiClientId)}&visitPlanId=${encodeURIComponent(plan.id)}&source=previsit${isQuickstart ? "&demo=quickstart" : ""}`;
+  const theaterHref = `/theater?surface=enter&clientId=${encodeURIComponent(apiClientId)}&visitPlanId=${encodeURIComponent(plan.id)}&source=previsit${isQuickstart ? "&demo=quickstart" : ""}`;
   const objectiveLead = plan.objectives[0];
   const firstQuestion = plan.spinQuestions[0];
   const openEvidenceItems = evidenceBuckets.find((bucket) => bucket.status === "unknown")?.items.length ?? 0;
@@ -693,7 +712,21 @@ function VisitPlanDetailContent() {
     });
   };
 
-  const handleGenerate = async () => {
+  const openGenerateDialog = () => {
+    if (isGenerating) {
+      return;
+    }
+
+    if (isQuickstart) {
+      void handleGenerate();
+      return;
+    }
+
+    setVisitGoal("");
+    setShowGoalDialog(true);
+  };
+
+  const handleGenerate = async (goal?: string) => {
     setGenerationError(null);
 
     if (isQuickstart) {
@@ -702,12 +735,18 @@ function VisitPlanDetailContent() {
       return;
     }
 
+    setShowGoalDialog(false);
     setIsGenerating(true);
     try {
+      const trimmedGoal = goal?.trim();
       const response = await fetch("/api/ai/visit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ purpose: plan.purpose, clientId: apiClientId }),
+        body: JSON.stringify({
+          purpose: plan.purpose,
+          clientId: apiClientId,
+          ...(trimmedGoal ? { goal: trimmedGoal } : {}),
+        }),
       });
       const payload = (await response.json().catch(() => null)) as unknown;
 
@@ -799,20 +838,13 @@ function VisitPlanDetailContent() {
     }
 
     if (!isReady) {
-      void handleGenerate();
+      openGenerateDialog();
       return;
     }
 
     if (theaterBlocked) {
       toast.error("此客戶為高敏感資料，需先補上建場理由與風險接受。");
       return;
-    }
-
-    if (!activeRelationshipStateBoundary) {
-      const boundaryReady = await validateRelationshipConfirmationStateBoundary();
-      if (!boundaryReady) {
-        return;
-      }
     }
 
     router.push(theaterHref);
@@ -835,6 +867,34 @@ function VisitPlanDetailContent() {
       toast.error("材料狀態同步失敗", { description: message });
     });
   };
+
+  const advancedSignals = [
+    activeRouteBFeedbackAdvisorContext?.status === "READY",
+    activeRouteBStateProposalContext?.status === "READY",
+    activeRouteBContext?.status === "READY",
+    activeMeetingRelationshipSignals?.status === "READY",
+    (relationshipConfirmationDeck?.summary.cardCount ?? 0) > 0,
+  ].filter(Boolean).length;
+  const contextPanelReadyCount = [
+    activeRouteBFeedbackAdvisorContext?.status === "READY",
+    activeRouteBStateProposalContext?.status === "READY",
+    activeRouteBContext?.status === "READY",
+    activeMeetingRelationshipSignals?.status === "READY",
+  ].filter(Boolean).length;
+  const hasContextPanels = Boolean(
+    activeRouteBFeedbackAdvisorContext ||
+      activeRouteBFeedbackAdvisorContextError ||
+      activeRouteBFeedbackAdvisorContextLoading ||
+      activeRouteBStateProposalContext ||
+      activeRouteBStateProposalContextError ||
+      activeRouteBStateProposalContextLoading ||
+      activeRouteBContext ||
+      activeRouteBContextError ||
+      activeRouteBContextLoading ||
+      activeMeetingRelationshipSignals ||
+      activeMeetingRelationshipSignalError ||
+      activeMeetingRelationshipSignalLoading,
+  );
 
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8">
@@ -877,7 +937,7 @@ function VisitPlanDetailContent() {
             {client.name} 的專案情境、決策地圖、核心問題、推論依據與劇場建場資料集中在這裡。
           </p>
         </div>
-        <div className="flex flex-wrap gap-2 lg:justify-end">
+        <div className="flex flex-wrap items-center gap-2 lg:justify-end">
           <Button
             type="button"
             variant="outline"
@@ -887,26 +947,45 @@ function VisitPlanDetailContent() {
             <Mic className="mr-2 h-4 w-4" />
             AI 會議
           </Button>
-          <Button
-            type="button"
-            variant="outline"
-            className="h-10 rounded-lg"
-            onClick={() => router.push(`/pre-visit/${plan.id}/notes${isQuickstart ? "?demo=quickstart" : ""}`)}
-          >
-            <NotebookPen className="mr-2 h-4 w-4" />
-            拜訪筆記
-          </Button>
-          <Button type="button" variant="outline" className="h-10 rounded-lg" onClick={() => window.print()}>
-            <Printer className="mr-2 h-4 w-4" />
-            列印
-          </Button>
-          <Button type="button" variant="outline" className="h-10 rounded-lg" onClick={() => router.push(nextHref)} disabled={isGenerating}>
-            <MessageSquare className="mr-2 h-4 w-4" />
-            SPIN 澄清
-          </Button>
+          <Popover>
+            <PopoverTrigger
+              aria-label="更多動作"
+              className="inline-flex h-10 items-center gap-2 rounded-lg border border-hairline bg-background px-3 text-sm font-medium text-ink transition hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
+              更多
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-52 p-1.5">
+              <button
+                type="button"
+                className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-ink transition hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                onClick={() => router.push(`/pre-visit/${plan.id}/notes${isQuickstart ? "?demo=quickstart" : ""}`)}
+              >
+                <NotebookPen className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                拜訪筆記
+              </button>
+              <button
+                type="button"
+                className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-ink transition hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
+                onClick={() => router.push(nextHref)}
+                disabled={isGenerating}
+              >
+                <MessageSquare className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                SPIN 澄清
+              </button>
+              <button
+                type="button"
+                className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-ink transition hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                onClick={() => window.print()}
+              >
+                <Printer className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                列印
+              </button>
+            </PopoverContent>
+          </Popover>
           <Button type="button" variant="mono" className="h-10 rounded-lg" onClick={() => void handlePrimaryAction()} disabled={isPrimaryActionBusy}>
             {isPrimaryActionBusy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : isReady ? <Theater className="mr-2 h-4 w-4" /> : <Sparkles className="mr-2 h-4 w-4" />}
-            {isValidatingRelationshipStateBoundary ? "檢查關係狀態" : isReady ? "建立劇場舞台" : "生成準備包"}
+            {isValidatingRelationshipStateBoundary ? "檢查關係狀態" : isReady ? "進入劇場" : "生成準備包"}
           </Button>
         </div>
       </header>
@@ -924,7 +1003,7 @@ function VisitPlanDetailContent() {
               </p>
             </div>
           </div>
-          <Button type="button" variant="mono" className="h-10 rounded-lg" onClick={handleGenerate} disabled={isGenerating}>
+          <Button type="button" variant="mono" className="h-10 rounded-lg" onClick={openGenerateDialog} disabled={isGenerating}>
             {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
             {plan.objectives.length ? "重新生成準備包" : "生成準備包"}
           </Button>
@@ -948,132 +1027,261 @@ function VisitPlanDetailContent() {
             <BriefFact icon={<BadgeCheck className="h-4 w-4" />} label="成功判準" value={objectiveLead?.successCriteria ?? "生成後補齊"} />
             <BriefFact icon={<Users className="h-4 w-4" />} label="決策地圖" value={relationshipFocus} />
             <BriefFact icon={<CircleHelp className="h-4 w-4" />} label="第一個問題" value={firstQuestion?.question ?? "尚未建立 SPIN 題組"} />
-            <BriefFact icon={<PanelRightOpen className="h-4 w-4" />} label="下一步" value={isReady ? "建立劇場舞台或進 SPIN 澄清" : "先生成準備包"} />
+            <BriefFact icon={<PanelRightOpen className="h-4 w-4" />} label="下一步" value={isReady ? "進入劇場或進 SPIN 澄清" : "先生成準備包"} />
           </div>
         </section>
 
-        <TheaterLaunchPanel
+        <PrepHud
+          checkedMaterials={checkedMaterials}
+          evidenceCount={countQuestionEvidence(plan.spinQuestions)}
+          familyCount={client.family.length}
           handoffStatus={handoffStatus}
           isLaunching={isPrimaryActionBusy}
           isReady={isReady}
+          materialsTotal={plan.materials.length}
           missingCount={theaterHandoff?.missing.length ?? 0}
           npcCount={theaterHandoff?.packet.routeBCompatibility.npcCount ?? 0}
           onLaunch={() => void handlePrimaryAction()}
           openEvidenceItems={openEvidenceItems}
+          readyCount={readyCount}
           theaterBlocked={theaterBlocked}
           unknownCount={theaterHandoff?.packet.unknowns.length ?? 0}
         />
       </section>
 
-      <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-        <PrepMetric icon={<FileCheck2 className="h-4 w-4" />} label="準備完整度" value={`${readyCount}/4`} helper={isReady ? "目標、提問、異議、材料可用" : "仍需生成或補齊"} />
-        <PrepMetric icon={<Network className="h-4 w-4" />} label="關係節點" value={String(client.family.length)} helper={client.family.length ? "可轉入劇場人物" : "尚無關係資料"} />
-        <PrepMetric icon={<Brain className="h-4 w-4" />} label="推論依據" value={String(countQuestionEvidence(plan.spinQuestions))} helper={`${openEvidenceItems} 項待確認`} />
-        <PrepMetric icon={<Check className="h-4 w-4" />} label="材料完成" value={`${checkedMaterials}/${plan.materials.length || 0}`} helper="拜訪前確認" />
-      </section>
+      <Tabs defaultValue="overview" className="w-full gap-4">
+        <TabsList className="w-full">
+          <TabsTrigger value="overview">作戰總覽</TabsTrigger>
+          <TabsTrigger value="questions">問題異議</TabsTrigger>
+          <TabsTrigger value="materials">材料節奏</TabsTrigger>
+          <TabsTrigger value="advanced">
+            劇場會議
+            {advancedSignals ? (
+              <Badge className="ml-1 h-4 rounded px-1 text-[10px] leading-none tabular-nums">{advancedSignals}</Badge>
+            ) : null}
+          </TabsTrigger>
+        </TabsList>
 
-      <section className="grid gap-5 xl:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
-        <PriorityQuestionBoard questions={priorityQuestions} />
-        <DecisionMapPanel client={client} signals={decisionSignals} />
-      </section>
+        <TabsContent value="overview">
+          <MotionPanel>
+            <section className="grid gap-5 xl:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
+              <PriorityQuestionBoard questions={priorityQuestions} />
+              <div className="space-y-5">
+                <DecisionMapPanel client={client} signals={decisionSignals} />
+                <EvidenceBoard buckets={evidenceBuckets} />
+              </div>
+            </section>
+          </MotionPanel>
+        </TabsContent>
 
-      <main className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
-        <div className="space-y-5">
-          <section data-tour="plan-spin" className="rounded-lg border border-hairline bg-card">
-            <SectionHeader icon={<MessageSquare className="h-4 w-4" />} title="完整 SPIN 問題庫" summary={`${plan.spinQuestions.length} 題・按 S/P/I/N 進場`} />
-            {plan.spinQuestions.length ? (
-              <div className="space-y-5 border-t border-hairline p-4">
-                {groupedQuestions.map(({ type, questions }) =>
-                  questions.length ? (
-                    <div key={type} className="grid gap-3 md:grid-cols-[132px_minmax(0,1fr)]">
-                      <div className="flex items-start gap-3">
-                        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-ink text-xs font-semibold text-paper">{type}</span>
-                        <div>
-                          <p className="text-sm font-semibold text-ink">{SPIN_LABELS[type]}</p>
-                          <p className="mt-1 text-xs text-muted-foreground">{questions.length} 題</p>
+        <TabsContent value="questions">
+          <MotionPanel>
+            <div className="grid gap-5">
+              <section data-tour="plan-spin" className="rounded-lg border border-hairline bg-card">
+                <SectionHeader icon={<MessageSquare className="h-4 w-4" />} title="完整 SPIN 問題庫" summary={`${plan.spinQuestions.length} 題・按 S/P/I/N 進場`} />
+                {plan.spinQuestions.length ? (
+                  <div className="space-y-5 border-t border-hairline p-4">
+                    {groupedQuestions.map(({ type, questions }) =>
+                      questions.length ? (
+                        <div key={type} className="grid gap-3 md:grid-cols-[132px_minmax(0,1fr)]">
+                          <div className="flex items-start gap-3">
+                            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-ink text-xs font-semibold text-paper">{type}</span>
+                            <div>
+                              <p className="text-sm font-semibold text-ink">{SPIN_LABELS[type]}</p>
+                              <p className="mt-1 text-xs text-muted-foreground">{questions.length} 題</p>
+                            </div>
+                          </div>
+                          <div className="grid gap-3">
+                            {questions.map((question) => (
+                              <QuestionCard key={question.id} question={question} />
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                      <div className="grid gap-3">
-                        {questions.map((question) => (
-                          <QuestionCard key={question.id} question={question} />
-                        ))}
-                      </div>
-                    </div>
-                  ) : null,
+                      ) : null,
+                    )}
+                  </div>
+                ) : (
+                  <div className="border-t border-hairline p-4">
+                    <EmptyPrepCopy copy="生成準備包後，這裡會出現可帶入會談與劇場的 SPIN 題組。" />
+                  </div>
                 )}
+              </section>
+
+              <section data-tour="plan-objections">
+                <PrepBlock icon={<ShieldQuestion className="h-4 w-4" />} title="可能異議" summary={`${plan.objections.length} 則`}>
+                  {plan.objections.length ? (
+                    <div className="grid gap-3 md:grid-cols-2">
+                      {plan.objections.map((objection) => (
+                        <ObjectionCard key={objection.id} objection={objection} />
+                      ))}
+                    </div>
+                  ) : (
+                    <EmptyPrepCopy copy="生成後整理客戶可能提出的疑問與回應方向。" />
+                  )}
+                </PrepBlock>
+              </section>
+            </div>
+          </MotionPanel>
+        </TabsContent>
+
+        <TabsContent value="materials">
+          <MotionPanel>
+            <div className="grid gap-5 lg:grid-cols-2">
+              <PrepBlock icon={<FileText className="h-4 w-4" />} title="拜訪材料" summary={`${checkedMaterials}/${plan.materials.length || 0} 已確認`}>
+                {plan.materials.length ? (
+                  <div className="grid gap-2">
+                    {plan.materials.map((material) => (
+                      <MaterialCheckRow key={material.id} material={material} onToggle={() => toggleMaterial(material.id)} />
+                    ))}
+                  </div>
+                ) : (
+                  <EmptyPrepCopy copy="生成後列出拜訪前需要確認或攜帶的材料。" />
+                )}
+              </PrepBlock>
+              <div className="space-y-5">
+                <TimeBox totalMinutes={totalMinutes} />
+                <NotesBox notes={plan.postVisitNotes} onOpen={() => router.push(`/pre-visit/${plan.id}/notes${isQuickstart ? "?demo=quickstart" : ""}`)} />
               </div>
-            ) : (
-              <div className="border-t border-hairline p-4">
-                <EmptyPrepCopy copy="生成準備包後，這裡會出現可帶入會談與劇場的 SPIN 題組。" />
-              </div>
-            )}
-          </section>
+            </div>
+          </MotionPanel>
+        </TabsContent>
 
-          <section data-tour="plan-objections" className="grid gap-4 md:grid-cols-2">
-            <PrepBlock icon={<ShieldQuestion className="h-4 w-4" />} title="可能異議" summary={`${plan.objections.length} 則`}>
-              {plan.objections.length ? (
-                <div className="grid gap-3">
-                  {plan.objections.map((objection) => (
-                    <ObjectionCard key={objection.id} objection={objection} />
-                  ))}
-                </div>
-              ) : (
-                <EmptyPrepCopy copy="生成後整理客戶可能提出的疑問與回應方向。" />
-              )}
-            </PrepBlock>
+        <TabsContent value="advanced">
+          <MotionPanel>
+            <div className="space-y-4">
+              <p className="text-sm leading-6 text-muted-foreground">
+                同一準備包建立的劇場回饋、狀態、紅線、會議訊號與關係確認會彙整在這裡；標記僅供顧問檢核，不寫入 CRM 事實。
+              </p>
+              <RelationshipConfirmationPanel
+                boundary={activeRelationshipStateBoundary}
+                boundaryError={relationshipStateBoundaryError}
+                deck={relationshipConfirmationDeck}
+                isQuickstart={isQuickstart}
+                isValidatingBoundary={isValidatingRelationshipStateBoundary}
+                onStateChange={handleRelationshipConfirmationCardStateChange}
+                onValidateBoundary={() => void validateRelationshipConfirmationStateBoundary()}
+                states={relationshipConfirmationCardStates}
+              />
+              {hasContextPanels ? (
+                <Disclosure
+                  icon={<Theater className="h-4 w-4" />}
+                  title="劇場與會議回帶明細"
+                  summary={contextPanelReadyCount ? `${contextPanelReadyCount} 項來源有內容` : "尚無可回帶內容"}
+                  badge={
+                    contextPanelReadyCount ? (
+                      <Badge className="rounded-md tabular-nums">{contextPanelReadyCount}</Badge>
+                    ) : (
+                      <Badge variant="outline" className="rounded-md">
+                        待建立
+                      </Badge>
+                    )
+                  }
+                  defaultOpen={contextPanelReadyCount > 0}
+                >
+                  <div className="grid gap-4 lg:grid-cols-2">
+                    <RouteBFeedbackAdvisorContextPanel
+                      context={activeRouteBFeedbackAdvisorContext}
+                      error={activeRouteBFeedbackAdvisorContextError}
+                      isLoading={activeRouteBFeedbackAdvisorContextLoading}
+                    />
+                    <RouteBStateProposalContextPanel
+                      context={activeRouteBStateProposalContext}
+                      error={activeRouteBStateProposalContextError}
+                      isLoading={activeRouteBStateProposalContextLoading}
+                    />
+                    <RouteBRedLineContextPanel
+                      context={activeRouteBContext}
+                      error={activeRouteBContextError}
+                      isLoading={activeRouteBContextLoading}
+                    />
+                    <MeetingRelationshipSignalPanel
+                      error={activeMeetingRelationshipSignalError}
+                      isLoading={activeMeetingRelationshipSignalLoading}
+                      response={activeMeetingRelationshipSignals}
+                      onOpenMeeting={() => router.push(`/pre-visit/${plan.id}/meeting${isQuickstart ? "?demo=quickstart" : ""}`)}
+                    />
+                  </div>
+                </Disclosure>
+              ) : null}
+            </div>
+          </MotionPanel>
+        </TabsContent>
+      </Tabs>
 
-            <PrepBlock icon={<FileText className="h-4 w-4" />} title="拜訪材料" summary={`${checkedMaterials}/${plan.materials.length || 0} 已確認`}>
-              {plan.materials.length ? (
-                <div className="grid gap-2">
-                  {plan.materials.map((material) => (
-                    <MaterialCheckRow key={material.id} material={material} onToggle={() => toggleMaterial(material.id)} />
-                  ))}
-                </div>
-              ) : (
-                <EmptyPrepCopy copy="生成後列出拜訪前需要確認或攜帶的材料。" />
-              )}
-            </PrepBlock>
-          </section>
-        </div>
-
-        <aside className="space-y-4">
-          <RouteBFeedbackAdvisorContextPanel
-            context={activeRouteBFeedbackAdvisorContext}
-            error={activeRouteBFeedbackAdvisorContextError}
-            isLoading={activeRouteBFeedbackAdvisorContextLoading}
-          />
-          <RouteBStateProposalContextPanel
-            context={activeRouteBStateProposalContext}
-            error={activeRouteBStateProposalContextError}
-            isLoading={activeRouteBStateProposalContextLoading}
-          />
-          <RouteBRedLineContextPanel
-            context={activeRouteBContext}
-            error={activeRouteBContextError}
-            isLoading={activeRouteBContextLoading}
-          />
-          <MeetingRelationshipSignalPanel
-            error={activeMeetingRelationshipSignalError}
-            isLoading={activeMeetingRelationshipSignalLoading}
-            response={activeMeetingRelationshipSignals}
-            onOpenMeeting={() => router.push(`/pre-visit/${plan.id}/meeting${isQuickstart ? "?demo=quickstart" : ""}`)}
-          />
-          <RelationshipConfirmationPanel
-            boundary={activeRelationshipStateBoundary}
-            boundaryError={relationshipStateBoundaryError}
-            deck={relationshipConfirmationDeck}
-            isQuickstart={isQuickstart}
-            isValidatingBoundary={isValidatingRelationshipStateBoundary}
-            onStateChange={handleRelationshipConfirmationCardStateChange}
-            onValidateBoundary={() => void validateRelationshipConfirmationStateBoundary()}
-            states={relationshipConfirmationCardStates}
-          />
-          <EvidenceBoard buckets={evidenceBuckets} />
-          <TimeBox totalMinutes={totalMinutes} />
-          <NotesBox notes={plan.postVisitNotes} onOpen={() => router.push(`/pre-visit/${plan.id}/notes${isQuickstart ? "?demo=quickstart" : ""}`)} />
-        </aside>
-      </main>
+      <Dialog open={showGoalDialog} onOpenChange={setShowGoalDialog}>
+        <DialogContent className="sm:max-w-[520px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-lg">
+              <Target className="h-5 w-5 text-ink" strokeWidth={1.5} />
+              這次的拜訪目標
+            </DialogTitle>
+            <DialogDescription>
+              先描述本次拜訪想達成什麼，AI 會以此為重心生成 {client.name} 的專案目標、SPIN 題組與劇場建場素材。
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 py-2">
+            <Label htmlFor="visitGoal" className="text-sm font-semibold">
+              拜訪目標（可留空）
+            </Label>
+            <Textarea
+              id="visitGoal"
+              autoFocus
+              placeholder="例如：了解近期家庭責任變化，切入重大傷病與醫療缺口，爭取下次帶建議書回訪。"
+              className="min-h-[128px]"
+              value={visitGoal}
+              onChange={(event) => setVisitGoal(event.target.value)}
+            />
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setShowGoalDialog(false)}>
+              取消
+            </Button>
+            <Button
+              type="button"
+              variant="mono"
+              className="min-w-[120px]"
+              disabled={isGenerating}
+              onClick={() => void handleGenerate(visitGoal)}
+            >
+              {isGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : "生成準備包"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
+  );
+}
+
+function InfoHint({ children, label }: { children: React.ReactNode; label: string }) {
+  return (
+    <TooltipProvider delay={120}>
+      <Tooltip>
+        <TooltipTrigger
+          aria-label={label}
+          className="inline-flex h-5 w-5 items-center justify-center rounded-md text-muted-foreground transition hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <Info className="h-3.5 w-3.5" aria-hidden="true" />
+        </TooltipTrigger>
+        <TooltipContent className="max-w-[240px] text-left leading-5">{children}</TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
+
+function SafetyNote({ children, label = "資料邊界" }: { children: React.ReactNode; label?: string }) {
+  return (
+    <Popover>
+      <PopoverTrigger
+        aria-label={`${label}說明`}
+        className="inline-flex h-7 items-center gap-1.5 rounded-md border border-hairline bg-background px-2 text-[11px] font-medium text-muted-foreground transition hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        <ShieldQuestion className="h-3.5 w-3.5" aria-hidden="true" />
+        {label}
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-72 text-xs leading-5 text-muted-foreground">
+        {children}
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -1116,7 +1324,7 @@ function TheaterLaunchPanel({
         <div>
           <div className="flex items-center gap-2 text-sm font-semibold text-ink">
             <Theater className="h-4 w-4" />
-            劇場建場
+            劇場入口
           </div>
           <p className="mt-2 text-sm leading-6 text-muted-foreground">{getHandoffStatusCopy(handoffStatus, isReady)}</p>
         </div>
@@ -1136,22 +1344,174 @@ function TheaterLaunchPanel({
       ) : null}
       <Button type="button" variant="mono" className="mt-5 h-10 w-full rounded-lg" onClick={onLaunch} disabled={isLaunching}>
         {isLaunching ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : isReady ? <ArrowRight className="mr-2 h-4 w-4" /> : <Sparkles className="mr-2 h-4 w-4" />}
-        {isLaunching ? "檢查建場資料" : isReady ? "帶入劇場建場" : "先生成準備包"}
+        {isLaunching ? "檢查劇場資料" : isReady ? "進入劇場" : "先生成準備包"}
       </Button>
     </section>
   );
 }
 
-function PrepMetric({ helper, icon, label, value }: { helper: string; icon: React.ReactNode; label: string; value: string }) {
+function MotionPanel({ children }: { children: React.ReactNode }) {
+  const reduceMotion = useReducedMotion();
+
   return (
-    <section className="rounded-lg border border-hairline bg-card p-4">
-      <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-        {icon}
-        <span>{label}</span>
-      </div>
-      <p className="mt-3 text-2xl font-semibold tabular-nums text-ink">{value}</p>
-      <p className="mt-1 text-xs leading-5 text-muted-foreground">{helper}</p>
+    <motion.div
+      initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: reduceMotion ? 0 : 0.28, ease: "easeOut" }}
+    >
+      {children}
+    </motion.div>
+  );
+}
+
+function Disclosure({
+  badge,
+  children,
+  defaultOpen = false,
+  icon,
+  summary,
+  title,
+}: {
+  badge?: React.ReactNode;
+  children: React.ReactNode;
+  defaultOpen?: boolean;
+  icon: React.ReactNode;
+  summary?: string;
+  title: string;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+
+  return (
+    <section className="rounded-lg border border-hairline bg-card">
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen((value) => !value)}
+        className="flex min-h-12 w-full items-center justify-between gap-3 rounded-lg px-4 py-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        <span className="flex min-w-0 items-center gap-2.5 text-sm font-semibold text-ink">
+          <span className="text-muted-foreground">{icon}</span>
+          <span className="truncate">{title}</span>
+          {summary ? <span className="truncate text-xs font-normal text-muted-foreground">{summary}</span> : null}
+        </span>
+        <span className="flex shrink-0 items-center gap-2">
+          {badge}
+          <ChevronDown
+            aria-hidden="true"
+            className={cn(
+              "h-4 w-4 text-muted-foreground transition-transform motion-reduce:transition-none",
+              open && "rotate-180",
+            )}
+          />
+        </span>
+      </button>
+      {open ? <div className="border-t border-hairline p-4">{children}</div> : null}
     </section>
+  );
+}
+
+function ProgressRing({ max, value }: { max: number; value: number }) {
+  const reduceMotion = useReducedMotion();
+  const safeMax = max > 0 ? max : 1;
+  const ratio = Math.min(1, Math.max(0, value / safeMax));
+  const radius = 26;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference * (1 - ratio);
+
+  return (
+    <div className="relative flex h-16 w-16 shrink-0 items-center justify-center">
+      <svg className="h-16 w-16 -rotate-90" viewBox="0 0 64 64" aria-hidden="true">
+        <circle cx="32" cy="32" r={radius} fill="none" strokeWidth="5" stroke="currentColor" className="text-muted-foreground/25" />
+        <motion.circle
+          cx="32"
+          cy="32"
+          r={radius}
+          fill="none"
+          strokeWidth="5"
+          strokeLinecap="round"
+          stroke="currentColor"
+          className="text-ink"
+          strokeDasharray={circumference}
+          initial={{ strokeDashoffset: reduceMotion ? offset : circumference }}
+          animate={{ strokeDashoffset: offset }}
+          transition={{ duration: reduceMotion ? 0 : 0.9, ease: "easeOut" }}
+        />
+      </svg>
+      <span className="absolute text-sm font-semibold tabular-nums text-ink">
+        {value}/{max}
+      </span>
+    </div>
+  );
+}
+
+function PrepHud({
+  checkedMaterials,
+  evidenceCount,
+  familyCount,
+  handoffStatus,
+  isLaunching,
+  isReady,
+  materialsTotal,
+  missingCount,
+  npcCount,
+  onLaunch,
+  openEvidenceItems,
+  readyCount,
+  theaterBlocked,
+  unknownCount,
+}: {
+  checkedMaterials: number;
+  evidenceCount: number;
+  familyCount: number;
+  handoffStatus: VisitTheaterUiStatus;
+  isLaunching: boolean;
+  isReady: boolean;
+  materialsTotal: number;
+  missingCount: number;
+  npcCount: number;
+  onLaunch: () => void;
+  openEvidenceItems: number;
+  readyCount: number;
+  theaterBlocked: boolean;
+  unknownCount: number;
+}) {
+  return (
+    <div className="flex flex-col gap-4">
+      <section className="rounded-lg border border-hairline bg-card p-5">
+        <div className="flex items-center gap-4">
+          <ProgressRing max={4} value={readyCount} />
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 text-sm font-semibold text-ink">
+              <FileCheck2 className="h-4 w-4" />
+              準備完整度
+            </div>
+            <p className="mt-1 text-xs leading-5 text-muted-foreground">
+              {isReady ? "目標、提問、異議、材料可用" : "仍需生成或補齊"}
+            </p>
+          </div>
+        </div>
+        <div className="mt-4 grid grid-cols-3 gap-2">
+          <MiniStat label="關係節點" value={String(familyCount)} />
+          <MiniStat label="推論依據" value={String(evidenceCount)} />
+          <MiniStat label="材料" value={`${checkedMaterials}/${materialsTotal || 0}`} />
+        </div>
+        {openEvidenceItems ? (
+          <p className="mt-3 text-xs leading-5 text-muted-foreground">推論依據仍有 {openEvidenceItems} 項待現場確認。</p>
+        ) : null}
+      </section>
+
+      <TheaterLaunchPanel
+        handoffStatus={handoffStatus}
+        isLaunching={isLaunching}
+        isReady={isReady}
+        missingCount={missingCount}
+        npcCount={npcCount}
+        onLaunch={onLaunch}
+        openEvidenceItems={openEvidenceItems}
+        theaterBlocked={theaterBlocked}
+        unknownCount={unknownCount}
+      />
+    </div>
   );
 }
 
@@ -1294,7 +1654,17 @@ function PrepBlock({ children, icon, summary, title }: { children: React.ReactNo
   );
 }
 
-function SectionHeader({ icon, summary, title }: { icon: React.ReactNode; summary: string; title: string }) {
+function SectionHeader({
+  action,
+  icon,
+  summary,
+  title,
+}: {
+  action?: React.ReactNode;
+  icon: React.ReactNode;
+  summary: string;
+  title: string;
+}) {
   return (
     <div className="flex min-h-14 items-center justify-between gap-3 px-4 py-3">
       <span className="flex min-w-0 items-center gap-3">
@@ -1306,6 +1676,7 @@ function SectionHeader({ icon, summary, title }: { icon: React.ReactNode; summar
           <span className="block truncate text-xs text-muted-foreground">{summary}</span>
         </span>
       </span>
+      {action ? <span className="flex shrink-0 items-center gap-1">{action}</span> : null}
     </div>
   );
 }
@@ -1412,9 +1783,9 @@ function RouteBRedLineContextPanel({
         </>
       ) : null}
 
-      <p className="mt-4 border-t border-hairline pt-3 text-xs leading-5 text-muted-foreground">
-        由此準備包自動比對 Route B source packet；不需輸入 session/person id，也不建立正式法遵結論。
-      </p>
+      <div className="mt-4 flex justify-end border-t border-hairline pt-3">
+        <SafetyNote>由此準備包自動比對 Route B source packet；不需輸入 session/person id，也不建立正式法遵結論。</SafetyNote>
+      </div>
     </section>
   );
 }
@@ -1495,9 +1866,11 @@ function RouteBFeedbackAdvisorContextPanel({
         </>
       ) : null}
 
-      <p className="mt-4 border-t border-hairline pt-3 text-xs leading-5 text-muted-foreground">
-        來源為 Route B feedback review 的 safe family profile grounding；不需輸入 session/person id，不寫 relationship graph、VisitPlan、client profile、policy 或 confirmed CRM fact。
-      </p>
+      <div className="mt-4 flex justify-end border-t border-hairline pt-3">
+        <SafetyNote>
+          來源為 Route B feedback review 的 safe family profile grounding；不需輸入 session/person id，不寫 relationship graph、VisitPlan、client profile、policy 或 confirmed CRM fact。
+        </SafetyNote>
+      </div>
     </section>
   );
 }
@@ -1510,7 +1883,7 @@ function RouteBFeedbackAdvisorContextRow({ item }: { item: VisitRouteBFeedbackAd
           {getEvidenceStatusLabel(item.status)}
         </Badge>
         <Badge variant="outline" className="rounded-md">
-          requiresConfirmation=true
+          待確認再寫回
         </Badge>
       </div>
       <p className="mt-2 text-xs font-semibold leading-5 text-ink">{item.label}</p>
@@ -1581,9 +1954,11 @@ function RouteBStateProposalContextPanel({
         </>
       ) : null}
 
-      <p className="mt-4 border-t border-hairline pt-3 text-xs leading-5 text-muted-foreground">
-        來源為 theater state proposal，requiresConfirmation=true；不需輸入 session/person id，不寫 relationship graph、VisitPlan 或 confirmed CRM fact。
-      </p>
+      <div className="mt-4 flex justify-end border-t border-hairline pt-3">
+        <SafetyNote>
+          來源為 theater state proposal，requiresConfirmation=true；不需輸入 session/person id，不寫 relationship graph、VisitPlan 或 confirmed CRM fact。
+        </SafetyNote>
+      </div>
     </section>
   );
 }
@@ -1669,10 +2044,10 @@ function MeetingRelationshipSignalPanel({
       )}
 
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-hairline pt-3">
-        <p className="text-xs leading-5 text-muted-foreground">
+        <SafetyNote>
           Proof：owner-scoped visitPlanId、no browser session/person id、no provider call、no AiUsageLog required、
           no relationship graph write、no confirmed CRM fact write。
-        </p>
+        </SafetyNote>
         <Button type="button" variant="outline" className="h-8 rounded-lg px-2 text-xs" onClick={onOpenMeeting}>
           <Mic className="mr-2 h-3.5 w-3.5" />
           開啟 AI 會議
@@ -1748,67 +2123,27 @@ function RelationshipConfirmationPanel({
     <section
       data-relationship-confirmation-cards
       data-relationship-confirmation-state-boundary
-      className="rounded-lg border border-hairline bg-card p-4"
+      className="rounded-lg border border-hairline bg-card"
     >
-      <div className="flex items-start justify-between gap-3">
-        <div>
+      <div className="flex items-start justify-between gap-3 p-4">
+        <div className="min-w-0">
           <div className="flex items-center gap-2 text-sm font-semibold text-ink">
             <Network className="h-4 w-4" />
             關係圖確認卡
           </div>
-          <p className="mt-2 text-xs leading-5 text-muted-foreground">
-            從關係圖挑出職位、年薪、狀態、關係脈絡中的待確認點；本頁標記只作顧問檢核，不寫入 CRM 事實。
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">
+            推論 {deck.summary.inferenceCount}・待確認 {deck.summary.unknownCount}・節點 {deck.summary.sourceNodeCount}；標記僅供顧問檢核，不寫入 CRM 事實。
           </p>
         </div>
         <Badge
           variant={boundaryError ? "destructive" : boundary ? "default" : "outline"}
-          className="rounded-md"
+          className="shrink-0 rounded-md"
         >
           {boundaryStatusLabel}
         </Badge>
       </div>
 
-      <div className="mt-4 grid grid-cols-3 gap-2 text-center">
-        <MiniStat label="推論" value={String(deck.summary.inferenceCount)} />
-        <MiniStat label="待確認" value={String(deck.summary.unknownCount)} />
-        <MiniStat label="節點" value={String(deck.summary.sourceNodeCount)} />
-      </div>
-
-      <div className="mt-4 rounded-lg border border-hairline bg-paper p-3">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <p className="text-xs font-semibold text-ink">Transient boundary</p>
-            <p className="mt-1 text-xs leading-5 text-muted-foreground">
-              建劇場前會先送 `/relationship-confirmation-state` 驗證 envelope；currentPersistence=
-              {storageDecision?.currentPersistence ?? "local-only-ui-state"}，requiresProductDecision=
-              {String(storageDecision?.requiresProductDecision ?? true)}，persistedToDatabase=
-              {String(proof?.persistedToDatabase ?? false)}。
-            </p>
-          </div>
-          <Button
-            type="button"
-            variant="outline"
-            className="h-8 rounded-lg px-2 text-xs"
-            onClick={onValidateBoundary}
-            disabled={isQuickstart || isValidatingBoundary}
-          >
-            {isValidatingBoundary ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <ShieldQuestion className="mr-2 h-3.5 w-3.5" />}
-            檢查狀態邊界
-          </Button>
-        </div>
-        <div className="mt-3 grid grid-cols-3 gap-2 text-center">
-          <MiniStat label="已驗證" value={String(boundarySummary?.acceptedRecordCount ?? deck.summary.cardCount)} />
-          <MiniStat label="已確認" value={String(boundarySummary?.confirmedCount ?? localConfirmedCount)} />
-          <MiniStat label="轉追問" value={String(boundarySummary?.askInInterviewCount ?? localAskInInterviewCount)} />
-        </div>
-        {boundaryError ? (
-          <p className="mt-3 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs leading-5 text-destructive">
-            {boundaryError}
-          </p>
-        ) : null}
-      </div>
-
-      <div className="mt-4 grid gap-2">
+      <div className="grid gap-2 border-t border-hairline p-4">
         {deck.cards.slice(0, 5).map((card) => (
           <RelationshipConfirmationCardRow
             key={card.id}
@@ -1819,11 +2154,118 @@ function RelationshipConfirmationPanel({
         ))}
       </div>
 
-      <p className="mt-4 border-t border-hairline pt-3 text-xs leading-5 text-muted-foreground">
-        Proof：no provider call、no AiUsageLog required、no raw transcript、no confirmed CRM write、no DB
-        persistence；若要寫回客戶資料，需改走訪談/客戶資料的明確確認流程。
-      </p>
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-hairline p-4">
+        <p className="text-xs tabular-nums text-muted-foreground">
+          已確認 {boundarySummary?.confirmedCount ?? localConfirmedCount}・轉追問{" "}
+          {boundarySummary?.askInInterviewCount ?? localAskInInterviewCount}・已驗證{" "}
+          {boundarySummary?.acceptedRecordCount ?? deck.summary.cardCount}
+        </p>
+        <div className="flex items-center gap-2">
+          <SafetyNote label="邊界">
+            建劇場前會先送 `/relationship-confirmation-state` 驗證 envelope；currentPersistence=
+            {storageDecision?.currentPersistence ?? "local-only-ui-state"}，requiresProductDecision=
+            {String(storageDecision?.requiresProductDecision ?? true)}，persistedToDatabase=
+            {String(proof?.persistedToDatabase ?? false)}。
+          </SafetyNote>
+          <SafetyNote>
+            Proof：no provider call、no AiUsageLog required、no raw transcript、no confirmed CRM write、no DB
+            persistence；若要寫回客戶資料，需改走訪談/客戶資料的明確確認流程。
+          </SafetyNote>
+          <Button
+            type="button"
+            variant="outline"
+            className="h-8 rounded-lg px-2.5 text-xs"
+            onClick={onValidateBoundary}
+            disabled={isQuickstart || isValidatingBoundary}
+          >
+            {isValidatingBoundary ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <ShieldQuestion className="mr-2 h-3.5 w-3.5" />}
+            檢查狀態邊界
+          </Button>
+        </div>
+        {boundaryError ? (
+          <p className="w-full rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs leading-5 text-destructive">
+            {boundaryError}
+          </p>
+        ) : null}
+      </div>
     </section>
+  );
+}
+
+function ConfirmationStateControl({
+  onStateChange,
+  state,
+}: {
+  onStateChange: (state: AdvisorConfirmationState) => void;
+  state: AdvisorConfirmationState;
+}) {
+  const baseClass =
+    "h-7 rounded-md px-2.5 text-xs font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+
+  return (
+    <div
+      role="group"
+      aria-label="關係確認狀態"
+      className="inline-flex shrink-0 items-center gap-0.5 rounded-lg border border-hairline bg-background p-0.5"
+    >
+      <button
+        type="button"
+        aria-pressed={state === "needs_confirmation"}
+        onClick={() => onStateChange("needs_confirmation")}
+        className={cn(baseClass, state === "needs_confirmation" ? "bg-ink text-paper" : "text-muted-foreground hover:text-ink")}
+      >
+        待確認
+      </button>
+      <button
+        type="button"
+        aria-pressed={state === "confirmed_in_meeting"}
+        onClick={() => onStateChange("confirmed_in_meeting")}
+        className={cn(baseClass, state === "confirmed_in_meeting" ? "bg-ink text-paper" : "text-muted-foreground hover:text-ink")}
+      >
+        已確認
+      </button>
+      <button
+        type="button"
+        aria-pressed={state === "ask_in_interview"}
+        onClick={() => onStateChange("ask_in_interview")}
+        className={cn(baseClass, state === "ask_in_interview" ? "bg-ink text-paper" : "text-muted-foreground hover:text-ink")}
+      >
+        轉追問
+      </button>
+    </div>
+  );
+}
+
+function ConfirmationDetailPopover({
+  card,
+  state,
+}: {
+  card: VisitRelationshipConfirmationCard;
+  state: AdvisorConfirmationState;
+}) {
+  return (
+    <Popover>
+      <PopoverTrigger
+        aria-label="關係確認明細"
+        className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-muted-foreground transition hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        <Info className="h-3.5 w-3.5" aria-hidden="true" />
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-72 space-y-2 text-xs leading-5 text-muted-foreground">
+        <div className="flex flex-wrap gap-1.5">
+          <Badge variant={card.priority === "HIGH" ? "default" : "outline"} className="rounded-md">
+            {getRelationshipCardPriorityLabel(card.priority)}
+          </Badge>
+          <Badge variant="outline" className="rounded-md">
+            {getRelationshipCardKindLabel(card.kind)}
+          </Badge>
+        </div>
+        <p className="text-sm font-semibold text-ink">{card.title}</p>
+        <p>{card.evidenceDetail}</p>
+        <p className="border-l border-hairline pl-3">{card.confirmationPrompt}</p>
+        <p className="text-[11px]">目前狀態：{getAdvisorConfirmationStateLabel(state)}；資料來源：{card.sourceLabel}</p>
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -1836,56 +2278,31 @@ function RelationshipConfirmationCardRow({
   onStateChange: (state: AdvisorConfirmationState) => void;
   state: AdvisorConfirmationState;
 }) {
+  const statusTone =
+    card.evidenceStatus === "confirmed"
+      ? "bg-ink"
+      : card.evidenceStatus === "inference"
+        ? "bg-muted-foreground/60"
+        : "border border-muted-foreground/50 bg-transparent";
+
   return (
-    <div className="rounded-lg border border-hairline bg-background p-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <Badge variant={card.priority === "HIGH" ? "default" : "outline"} className="rounded-md">
-          {getRelationshipCardPriorityLabel(card.priority)}
-        </Badge>
-        <Badge variant="outline" className="rounded-md">
-          {getEvidenceStatusLabel(card.evidenceStatus)}
-        </Badge>
-        <Badge variant="outline" className="rounded-md">
-          {getRelationshipCardKindLabel(card.kind)}
-        </Badge>
+    <div className="flex flex-col gap-2 rounded-lg border border-hairline bg-background p-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex min-w-0 items-start gap-2">
+        <span className={cn("mt-1 h-2 w-2 shrink-0 rounded-full", statusTone)} aria-hidden="true" />
+        <div className="min-w-0">
+          <div className="flex items-center gap-1.5">
+            {card.priority === "HIGH" ? (
+              <Badge className="h-4 shrink-0 rounded px-1 text-[10px] leading-none">高</Badge>
+            ) : null}
+            <p className="truncate text-xs font-semibold text-ink">{card.title}</p>
+            <ConfirmationDetailPopover card={card} state={state} />
+          </div>
+          <p className="mt-0.5 truncate text-[11px] leading-5 text-muted-foreground">
+            {getRelationshipCardKindLabel(card.kind)}・{getEvidenceStatusLabel(card.evidenceStatus)}
+          </p>
+        </div>
       </div>
-      <p className="mt-2 text-xs font-semibold leading-5 text-ink">{card.title}</p>
-      <p className="mt-1 line-clamp-3 text-xs leading-5 text-muted-foreground">{card.evidenceDetail}</p>
-      <p className="mt-2 border-l border-hairline pl-3 text-xs leading-5 text-muted-foreground">
-        {card.confirmationPrompt}
-      </p>
-      <div className="mt-3 grid gap-2 sm:grid-cols-3">
-        <Button
-          type="button"
-          variant={state === "needs_confirmation" ? "mono" : "outline"}
-          className="h-8 rounded-lg px-2 text-xs"
-          aria-pressed={state === "needs_confirmation"}
-          onClick={() => onStateChange("needs_confirmation")}
-        >
-          待確認
-        </Button>
-        <Button
-          type="button"
-          variant={state === "confirmed_in_meeting" ? "mono" : "outline"}
-          className="h-8 rounded-lg px-2 text-xs"
-          aria-pressed={state === "confirmed_in_meeting"}
-          onClick={() => onStateChange("confirmed_in_meeting")}
-        >
-          已確認
-        </Button>
-        <Button
-          type="button"
-          variant={state === "ask_in_interview" ? "mono" : "outline"}
-          className="h-8 rounded-lg px-2 text-xs"
-          aria-pressed={state === "ask_in_interview"}
-          onClick={() => onStateChange("ask_in_interview")}
-        >
-          轉追問
-        </Button>
-      </div>
-      <p className="mt-2 text-[11px] leading-5 text-muted-foreground">
-        目前狀態：{getAdvisorConfirmationStateLabel(state)}；資料來源：{card.sourceLabel}
-      </p>
+      <ConfirmationStateControl state={state} onStateChange={onStateChange} />
     </div>
   );
 }
@@ -1893,7 +2310,16 @@ function RelationshipConfirmationCardRow({
 function EvidenceBoard({ buckets }: { buckets: EvidenceBucket[] }) {
   return (
     <section className="rounded-lg border border-hairline bg-card">
-      <SectionHeader icon={<Brain className="h-4 w-4" />} title="推論證據" summary="已知、推論、待確認" />
+      <SectionHeader
+        icon={<Brain className="h-4 w-4" />}
+        title="推論證據"
+        summary="已知、推論、待確認"
+        action={
+          <InfoHint label="推論證據說明">
+            已知＝可直接引用；推論＝需現場觀察驗證；待確認＝需開放式提問。
+          </InfoHint>
+        }
+      />
       <div className="space-y-4 border-t border-hairline p-4">
         {buckets.map((bucket) => (
           <div key={bucket.status}>

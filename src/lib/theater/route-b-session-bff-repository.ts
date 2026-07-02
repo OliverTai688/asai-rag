@@ -214,6 +214,50 @@ export async function createRouteBSessionForMember(
   return { status: "CREATED", data };
 }
 
+export type RouteBSessionListItem = {
+  id: string;
+  focusName: string;
+  clientName: string | null;
+  characterCount: number;
+  status: string;
+  isDemo: boolean;
+  updatedAt: string;
+};
+
+export async function listRouteBSessionsForMember(
+  session: AppSession,
+): Promise<RouteBSessionListItem[]> {
+  const records = await prisma.theaterSession.findMany({
+    where: {
+      organizationId: session.organization.id,
+      ownerId: session.user.id,
+      routeBEnabled: true,
+    },
+    select: {
+      id: true,
+      status: true,
+      isDemo: true,
+      updatedAt: true,
+      client: { select: { name: true } },
+      characters: { select: { displayName: true, isFocus: true } },
+    },
+    orderBy: { updatedAt: "desc" },
+  });
+
+  return records.map((record) => {
+    const focus = record.characters.find((character) => character.isFocus);
+    return {
+      id: record.id,
+      focusName: focus?.displayName ?? record.client?.name ?? "未命名劇場",
+      clientName: record.client?.name ?? null,
+      characterCount: record.characters.length,
+      status: record.status,
+      isDemo: record.isDemo,
+      updatedAt: record.updatedAt.toISOString(),
+    };
+  });
+}
+
 export async function getRouteBSessionForMember(
   session: AppSession,
   sessionId: string,

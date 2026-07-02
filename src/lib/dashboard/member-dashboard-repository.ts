@@ -1,8 +1,6 @@
 import type { Prisma } from "@/generated/prisma/client";
 import {
   ClientStatus,
-  IssuePriority,
-  IssueStatus,
   ReportStatus,
   VisitPlanStatus,
 } from "@/generated/prisma/enums";
@@ -21,6 +19,9 @@ import type {
 } from "@/domains/dashboard/types";
 import type { AppSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
+
+// 客戶超過此天數未互動即視為「待跟進」，作為業務員的下一步行動訊號。
+const FOLLOW_UP_STALE_DAYS = 30;
 
 const dashboardClientSelect = {
   id: true,
@@ -88,18 +89,6 @@ const dashboardReportSelect = {
   },
 } as const;
 
-const dashboardIssueSelect = {
-  id: true,
-  title: true,
-  category: true,
-  status: true,
-  priority: true,
-  feedback: true,
-  updatedAt: true,
-  assigneeId: true,
-  reporterId: true,
-} as const;
-
 const dashboardActivitySelect = {
   id: true,
   type: true,
@@ -125,7 +114,6 @@ const dashboardAiUsageSelect = {
 type DashboardClientRecord = Prisma.ClientGetPayload<{ select: typeof dashboardClientSelect }>;
 type DashboardVisitRecord = Prisma.VisitPlanGetPayload<{ select: typeof dashboardVisitSelect }>;
 type DashboardReportRecord = Prisma.ReportGetPayload<{ select: typeof dashboardReportSelect }>;
-type DashboardIssueRecord = Prisma.IssueGetPayload<{ select: typeof dashboardIssueSelect }>;
 type DashboardActivityRecord = Prisma.InteractionEventGetPayload<{ select: typeof dashboardActivitySelect }>;
 type DashboardAiUsageRecord = Prisma.AiUsageLogGetPayload<{ select: typeof dashboardAiUsageSelect }>;
 
@@ -134,13 +122,6 @@ const VISIT_STATUS_LABELS: Record<VisitPlanStatus, string> = {
   READY: "可拜訪",
   COMPLETED: "已完成",
   ARCHIVED: "已封存",
-};
-
-const ISSUE_PRIORITY_LABELS: Record<IssuePriority, string> = {
-  LOW: "低優先",
-  MEDIUM: "中優先",
-  HIGH: "高優先",
-  URGENT: "緊急",
 };
 
 export async function getMemberDashboardForSession(session: AppSession): Promise<MemberDashboardDto> {
@@ -152,7 +133,7 @@ export async function getMemberDashboardForSession(session: AppSession): Promise
     status: { not: ClientStatus.ARCHIVED },
   } satisfies Prisma.ClientWhereInput;
 
-  const [clients, visits, reports, issues, recentEvents, aiUsageRows] = await prisma.$transaction([
+  const [clients, visits, reports, recentEvents, aiUsageRows] = await prisma.$transaction([
     prisma.client.findMany({
       where: clientWhere,
       select: dashboardClientSelect,
@@ -177,19 +158,6 @@ export async function getMemberDashboardForSession(session: AppSession): Promise
       },
       select: dashboardReportSelect,
       orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }],
-      take: 100,
-    }),
-    prisma.issue.findMany({
-      where: {
-        organizationId: session.organization.id,
-        OR: [
-          { reporterId: session.user.id },
-          { assigneeId: session.user.id },
-          { reporterId: null, assigneeId: null },
-        ],
-      },
-      select: dashboardIssueSelect,
-      orderBy: [{ updatedAt: "desc" }],
       take: 100,
     }),
     prisma.interactionEvent.findMany({
@@ -222,7 +190,7 @@ export async function getMemberDashboardForSession(session: AppSession): Promise
     }),
   ]);
 
-  const tasks = buildTaskQueue(clients, visits, reports, issues);
+  const tasks = buildTaskQueue(now, clients, visits, reports);
   const aiQuota = buildAiQuotaSummary(session, now, aiUsageRows);
 
   return {
@@ -234,9 +202,9 @@ export async function getMemberDashboardForSession(session: AppSession): Promise
       role: session.membership.role,
       organizationName: session.organization.name,
     },
-    today: buildTodayMainline(tasks, clients, visits, issues),
-    kpis: buildKpis(clients, visits, reports, issues),
-    scans: buildScans(clients, visits, reports, issues),
+    today: buildTodayMainline(now, tasks, clients, visits),
+    kpis: buildKpis(now, clients, visits, reports),
+    scans: buildScans(now, clients, visits, reports),
     tasks,
     recentActivity: recentEvents.map(toActivityDto),
     agenda: buildAgenda(visits),
@@ -246,17 +214,16 @@ export async function getMemberDashboardForSession(session: AppSession): Promise
 }
 
 function buildKpis(
+  now: Date,
   clients: DashboardClientRecord[],
   visits: DashboardVisitRecord[],
   reports: DashboardReportRecord[],
-  issues: DashboardIssueRecord[],
 ): DashboardKpiDto[] {
   const activeClients = clients.filter((client) => client.status === ClientStatus.ACTIVE).length;
   const prospectClients = clients.filter((client) => client.status === ClientStatus.PROSPECT).length;
   const readyVisits = visits.filter((visit) => visit.status === VisitPlanStatus.READY).length;
   const draftVisits = visits.filter((visit) => visit.status === VisitPlanStatus.DRAFT).length;
-  const openIssues = issues.filter((issue) => issue.status === IssueStatus.OPEN || issue.status === IssueStatus.IN_PROGRESS).length;
-  const urgentIssues = issues.filter((issue) => issue.priority === IssuePriority.URGENT || issue.priority === IssuePriority.HIGH).length;
+  const followUpClients = clients.filter((client) => isStaleFollowUp(client, now)).length;
   const sharedReports = reports.filter((report) => report.status === ReportStatus.SHARED).length;
   const draftReports = reports.filter((report) => report.status === ReportStatus.DRAFT).length;
 
@@ -280,13 +247,13 @@ function buildKpis(
       href: "/crm",
     },
     {
-      id: "openIssues",
-      title: "待處理",
-      value: openIssues,
-      unit: "件",
-      detail: `${urgentIssues} 件高優先`,
-      trend: openIssues > 0 ? "需跟進" : "清爽",
-      href: "/issues",
+      id: "followUps",
+      title: "待跟進",
+      value: followUpClients,
+      unit: "人",
+      detail: `逾 ${FOLLOW_UP_STALE_DAYS} 天未聯繫`,
+      trend: followUpClients > 0 ? "需接觸" : "都在追蹤",
+      href: "/crm",
     },
     {
       id: "sharedReports",
@@ -300,38 +267,32 @@ function buildKpis(
   ];
 }
 
+// 同一位客戶只保留第一筆（呼叫端已先排序），避免累積的重複 demo 資料
+// 讓首頁任務列出現多筆相同客戶、相同標題的雜訊。
+function dedupeByClient<T>(items: T[], keyOf: (item: T) => string): T[] {
+  const seen = new Set<string>();
+  const result: T[] = [];
+
+  for (const item of items) {
+    const key = keyOf(item);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    result.push(item);
+  }
+
+  return result;
+}
+
 function buildTaskQueue(
+  now: Date,
   clients: DashboardClientRecord[],
   visits: DashboardVisitRecord[],
   reports: DashboardReportRecord[],
-  issues: DashboardIssueRecord[],
 ): DashboardTaskDto[] {
-  const issueTasks = issues
-    .filter((issue) => issue.status === IssueStatus.OPEN || issue.status === IssueStatus.IN_PROGRESS)
-    .slice(0, 4)
-    .map((issue): DashboardTaskDto => ({
-      id: `issue:${issue.id}`,
-      kind: "ISSUE",
-      title: issue.title,
-      dueLabel: issue.status === IssueStatus.OPEN ? "待分派" : "處理中",
-      priority: toDashboardPriority(issue.priority),
-      href: "/issues",
-      sourceReferences: [
-        {
-          label: "議題狀態",
-          text: `${issue.status} / ${ISSUE_PRIORITY_LABELS[issue.priority]}`,
-          source: "Issue.status / Issue.priority",
-        },
-        {
-          label: "推論邊界",
-          text: issue.feedback ? "已有處理回覆，可驗證是否結案。" : "尚無處理回覆，不可視為已完成。",
-          source: "Issue.feedback",
-        },
-      ],
-    }));
-
-  const visitTasks = visits
-    .filter((visit) => visit.status === VisitPlanStatus.DRAFT || visit.status === VisitPlanStatus.READY)
+  const visitTasks = dedupeByClient(
+    visits.filter((visit) => visit.status === VisitPlanStatus.DRAFT || visit.status === VisitPlanStatus.READY),
+    (visit) => visit.clientId,
+  )
     .slice(0, 5)
     .map((visit): DashboardTaskDto => {
       const spinQuestionCount = Array.isArray(visit.spinQuestions) ? visit.spinQuestions.length : 0;
@@ -361,8 +322,10 @@ function buildTaskQueue(
       };
     });
 
-  const reportTasks = reports
-    .filter((report) => report.status === ReportStatus.DRAFT || report.status === ReportStatus.SHARED)
+  const reportTasks = dedupeByClient(
+    reports.filter((report) => report.status === ReportStatus.DRAFT || report.status === ReportStatus.SHARED),
+    (report) => report.clientId,
+  )
     .slice(0, 4)
     .map((report): DashboardTaskDto => ({
       id: `report:${report.id}`,
@@ -410,16 +373,47 @@ function buildTaskQueue(
       ],
     }));
 
-  return [...issueTasks, ...visitTasks, ...reportTasks, ...complianceTasks]
+  const followUpTasks = clients
+    .filter((client) => isStaleFollowUp(client, now))
+    .slice(0, 4)
+    .map((client): DashboardTaskDto => {
+      const days = daysSinceInteraction(client, now);
+      const contactedLabel = days === null ? "尚未有互動紀錄" : `已 ${days} 天未聯繫`;
+
+      return {
+        id: `follow-up:${client.id}`,
+        kind: "FOLLOW_UP",
+        title: `${client.name} ${contactedLabel}，安排下一次接觸`,
+        clientId: client.id,
+        clientName: client.name,
+        dueLabel: "待跟進",
+        priority: client.status === ClientStatus.ACTIVE ? "MEDIUM" : "LOW",
+        href: `/crm/${client.id}`,
+        sourceReferences: [
+          {
+            label: "最近互動",
+            text: contactedLabel,
+            source: "Client.lastInteractionAt",
+          },
+          {
+            label: "客戶狀態",
+            text: `${client.status} / ${client._count.policies} 張保單`,
+            source: "Client.status / Client._count",
+          },
+        ],
+      };
+    });
+
+  return [...visitTasks, ...reportTasks, ...complianceTasks, ...followUpTasks]
     .sort((a, b) => priorityWeight(b.priority) - priorityWeight(a.priority))
     .slice(0, 8);
 }
 
 function buildTodayMainline(
+  now: Date,
   tasks: DashboardTaskDto[],
   clients: DashboardClientRecord[],
   visits: DashboardVisitRecord[],
-  issues: DashboardIssueRecord[],
 ): DashboardTodayMainlineDto {
   const topTask = tasks[0];
 
@@ -457,7 +451,7 @@ function buildTodayMainline(
 
   const activeClient = clients.find((client) => client.status === ClientStatus.ACTIVE) ?? clients[0];
   const readyVisitCount = visits.filter((visit) => visit.status === VisitPlanStatus.READY).length;
-  const openIssueCount = issues.filter((issue) => issue.status !== IssueStatus.RESOLVED && issue.status !== IssueStatus.CLOSED).length;
+  const followUpCount = clients.filter((client) => isStaleFollowUp(client, now)).length;
 
   return {
     label: "今日主線",
@@ -471,7 +465,7 @@ function buildTodayMainline(
       : { label: "新增客戶", href: "/crm" },
     supportItems: [
       { label: "準備包", value: `${readyVisitCount} 份可用`, kind: "signal" },
-      { label: "待處理", value: `${openIssueCount} 件`, kind: "gap" },
+      { label: "待跟進", value: `${followUpCount} 人`, kind: "gap" },
       { label: "客戶池", value: `${clients.length} 人`, kind: "signal" },
     ],
     reasoning: {
@@ -501,29 +495,31 @@ function buildTodayMainline(
 }
 
 function buildScans(
+  now: Date,
   clients: DashboardClientRecord[],
   visits: DashboardVisitRecord[],
   reports: DashboardReportRecord[],
-  issues: DashboardIssueRecord[],
 ): DashboardScanDto[] {
   const relationshipGaps = clients.filter((client) => client._count.familyMembers === 0).length;
   const readyVisits = visits.filter((visit) => visit.status === VisitPlanStatus.READY).length;
   const sharedReports = reports.filter((report) => report.status === ReportStatus.SHARED).length;
-  const openIssues = issues.filter((issue) => issue.status === IssueStatus.OPEN || issue.status === IssueStatus.IN_PROGRESS).length;
+  const followUpClients = clients.filter((client) => isStaleFollowUp(client, now)).length;
 
   return [
     { label: "關係圖", value: `${relationshipGaps} 位客戶尚未建立關係圖`, href: "/crm" },
     { label: "拜訪準備", value: `${readyVisits} 份準備包可直接使用`, href: "/pre-visit" },
     { label: "報告追蹤", value: `${sharedReports} 份報告已分享`, href: "/reports" },
-    { label: "內部議題", value: `${openIssues} 件待處理`, href: "/issues" },
+    { label: "待跟進客戶", value: `${followUpClients} 位逾 ${FOLLOW_UP_STALE_DAYS} 天未聯繫`, href: "/crm" },
   ];
 }
 
 function buildAgenda(visits: DashboardVisitRecord[]): DashboardAgendaItemDto[] {
-  return visits
+  const sorted = visits
     .filter((visit) => visit.status !== VisitPlanStatus.COMPLETED)
     .slice()
-    .sort((a, b) => nullableDateTime(a.scheduledAt) - nullableDateTime(b.scheduledAt))
+    .sort((a, b) => nullableDateTime(a.scheduledAt) - nullableDateTime(b.scheduledAt));
+
+  return dedupeByClient(sorted, (visit) => visit.clientId)
     .slice(0, 5)
     .map((visit) => ({
       id: visit.id,
@@ -563,7 +559,10 @@ function buildInsights(
     {
       id: "quota",
       label: "AI 額度",
-      text: `本月已使用 ${quota.used}/${quota.quota}，剩餘 ${quota.remaining}。`,
+      text:
+        quota.percentUsed >= 80
+          ? `本月已使用 ${quota.used}/${quota.quota}，剩餘 ${quota.remaining}（低於 20%），建議購買加值以免中斷。`
+          : `本月已使用 ${quota.used}/${quota.quota}，剩餘 ${quota.remaining}。`,
       href: "/settings",
       priority: quota.percentUsed >= 80 ? "HIGH" : "LOW",
     },
@@ -608,12 +607,6 @@ function toActivityDto(record: DashboardActivityRecord): DashboardActivityDto {
   };
 }
 
-function toDashboardPriority(priority: IssuePriority): DashboardPriority {
-  if (priority === IssuePriority.URGENT || priority === IssuePriority.HIGH) return "HIGH";
-  if (priority === IssuePriority.MEDIUM) return "MEDIUM";
-  return "LOW";
-}
-
 function priorityWeight(priority: DashboardPriority): number {
   if (priority === "HIGH") return 3;
   if (priority === "MEDIUM") return 2;
@@ -627,14 +620,14 @@ function toPriorityLabel(priority: DashboardPriority): string {
 }
 
 function toTaskKindLabel(kind: DashboardTaskDto["kind"]): string {
-  if (kind === "ISSUE") return "議題";
+  if (kind === "FOLLOW_UP") return "跟進";
   if (kind === "VISIT") return "準備包";
   if (kind === "REPORT") return "報告";
   return "合規";
 }
 
 function toPrimaryActionLabel(kind: DashboardTaskDto["kind"]): string {
-  if (kind === "ISSUE") return "處理議題";
+  if (kind === "FOLLOW_UP") return "安排接觸";
   if (kind === "VISIT") return "打開準備包";
   if (kind === "REPORT") return "查看報告";
   return "補齊資料";
@@ -645,6 +638,20 @@ function buildMainlineSummary(task: DashboardTaskDto): string {
   return references
     ? `${references}。先完成這一步，再決定是否進拜訪準備或劇場演練。`
     : "此項目來自 server-owned task queue，先處理可降低今日工作風險。";
+}
+
+function daysSinceInteraction(client: DashboardClientRecord, now: Date): number | null {
+  if (!client.lastInteractionAt) return null;
+
+  const diff = now.getTime() - client.lastInteractionAt.getTime();
+  return Math.max(0, Math.floor(diff / 86_400_000));
+}
+
+function isStaleFollowUp(client: DashboardClientRecord, now: Date): boolean {
+  if (client.status === ClientStatus.ARCHIVED) return false;
+
+  const days = daysSinceInteraction(client, now);
+  return days === null || days >= FOLLOW_UP_STALE_DAYS;
 }
 
 function hasComplianceGap(client: DashboardClientRecord): boolean {

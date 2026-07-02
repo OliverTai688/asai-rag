@@ -106,6 +106,7 @@ async function runDesktopNotesProof(visitPlanId) {
     const sessionId = await page.getByTestId("meeting-session-id").getAttribute("data-session-id");
     push(Boolean(sessionId), "notes page creates meeting session without raw session ID input", sessionId ? "session-ready" : "missing");
 
+    await page.getByRole("tab", { name: "隨筆" }).click();
     const noteDraft = await page.getByTestId("meeting-note-input").inputValue();
     push(noteDraft.includes("AMM-005c notes compatibility proof"), "meeting manual note draft reflects saved notes context");
 

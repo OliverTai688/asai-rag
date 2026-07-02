@@ -72,7 +72,7 @@ export function PricingSection({ pricing, status, onSelectPlan }: PricingSection
             選擇最適合您團隊的方案
           </h2>
           <p className="mt-4 text-base leading-7 text-muted-foreground">
-            從個人試用到企業級導入，誠問 AI 提供彈性的方案，隨團隊成長升級。
+            個人用 Starter、帶團隊用 Pro。依 AI 用量與通訊處管理需求選擇，隨團隊成長升級。
           </p>
         </div>
 
@@ -159,7 +159,7 @@ export function PricingSection({ pricing, status, onSelectPlan }: PricingSection
           </form>
         ) : null}
 
-        <div className="mx-auto mt-16 grid max-w-md grid-cols-1 gap-6 sm:max-w-2xl sm:grid-cols-2 lg:max-w-none lg:grid-cols-4 lg:items-stretch">
+        <div className="mx-auto mt-16 grid max-w-md grid-cols-1 gap-6 sm:max-w-3xl sm:grid-cols-2 lg:max-w-3xl lg:grid-cols-2 lg:items-stretch">
           {pricing.plans.map((plan, index) => (
             <motion.div
               key={plan.id}

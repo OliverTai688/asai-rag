@@ -12,10 +12,10 @@ import {
   MessageSquare,
   Mic,
   Phone,
+  PhoneCall,
   ShieldCheck,
   Sparkles,
   Star,
-  TrendingUp,
   Users,
   Zap,
 } from "lucide-react";
@@ -44,7 +44,7 @@ interface DashboardPageClientProps {
 const kpiIconMap: Record<DashboardKpiDto["id"], ElementType> = {
   readyVisits: MessageSquare,
   activeClients: Users,
-  openIssues: TrendingUp,
+  followUps: PhoneCall,
   sharedReports: FileText,
 };
 

@@ -14,6 +14,8 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { VoiceRecordingBar } from "@/components/voice/voice-recording-bar";
+import { useVoiceRecorder } from "@/lib/voice/use-voice-recorder";
 import { useClientStore } from "@/domains/client/store";
 import type { AddNoteInput } from "@/domains/note/store";
 import {
@@ -24,12 +26,6 @@ import {
   type NoteColor,
   type NoteSource,
 } from "@/domains/note/types";
-
-const VOICE_SAMPLES = [
-  "提醒自己：這位客戶很在意小孩的教育金，下次先談這塊。",
-  "備忘：對方說預算有限，先給最精簡的版本再加值。",
-  "想到一個切入點：用家庭責任缺口圖開場會更有感。",
-];
 
 export function QuickNoteComposer({ onAdd }: { onAdd: (input: AddNoteInput) => void }) {
   const clients = useClientStore((state) => state.clients);
@@ -46,12 +42,19 @@ export function QuickNoteComposer({ onAdd }: { onAdd: (input: AddNoteInput) => v
   const [clientMenu, setClientMenu] = useState(false);
   const [client, setClient] = useState<{ id: string; name: string } | null>(null);
   const [source, setSource] = useState<NoteSource>("TEXT");
-  const [listening, setListening] = useState(false);
 
   const rootRef = useRef<HTMLDivElement>(null);
-  const voiceTimer = useRef<number | null>(null);
+
+  const voice = useVoiceRecorder({
+    onTranscript: (text) => {
+      setBody((prev) => (prev ? `${prev} ${text}` : text));
+    },
+  });
+  const { start: startRecording, cancel: cancelRecording } = voice;
+  const listening = voice.isBusy;
 
   const reset = useCallback(() => {
+    cancelRecording();
     setExpanded(false);
     setIsChecklist(false);
     setBody("");
@@ -64,8 +67,7 @@ export function QuickNoteComposer({ onAdd }: { onAdd: (input: AddNoteInput) => v
     setClientMenu(false);
     setClient(null);
     setSource("TEXT");
-    setListening(false);
-  }, []);
+  }, [cancelRecording]);
 
   const hasContent = body.trim().length > 0 || items.some((it) => it.text.trim());
 
@@ -98,23 +100,13 @@ export function QuickNoteComposer({ onAdd }: { onAdd: (input: AddNoteInput) => v
     return () => document.removeEventListener("mousedown", onDown);
   }, [expanded, commit]);
 
-  useEffect(() => {
-    return () => {
-      if (voiceTimer.current) window.clearTimeout(voiceTimer.current);
-    };
-  }, []);
-
   const startVoice = useCallback(() => {
     setExpanded(true);
-    setListening(true);
     setSource("MIC");
-    // UI-first: simulated transcription. Real Web Speech wiring is a follow-up.
-    voiceTimer.current = window.setTimeout(() => {
-      const sample = VOICE_SAMPLES[Math.floor(Math.random() * VOICE_SAMPLES.length)];
-      setBody((prev) => (prev ? `${prev} ${sample}` : sample));
-      setListening(false);
-    }, 1300);
-  }, []);
+    // ChatGPT-style: record the whole note with an animation, then transcribe
+    // the full recording once when the user stops. No raw audio is persisted.
+    void startRecording();
+  }, [startRecording]);
 
   const addItem = useCallback(() => {
     const text = itemDraft.trim();
@@ -221,14 +213,17 @@ export function QuickNoteComposer({ onAdd }: { onAdd: (input: AddNoteInput) => v
         )}
 
         {listening ? (
-          <div className="flex items-center gap-2 px-1 pt-1 text-xs text-muted-foreground">
-            <span className="flex gap-1">
-              <span className="size-1.5 animate-bounce rounded-full bg-[#1A3A6B] [animation-delay:-0.3s]" />
-              <span className="size-1.5 animate-bounce rounded-full bg-[#1A3A6B] [animation-delay:-0.15s]" />
-              <span className="size-1.5 animate-bounce rounded-full bg-[#1A3A6B]" />
-            </span>
-            正在聆聽，請說話…
+          <div className="px-1 pt-2">
+            <VoiceRecordingBar
+              elapsedMs={voice.elapsedMs}
+              transcribing={voice.isTranscribing}
+              onCancel={voice.cancel}
+              onStop={voice.stop}
+            />
           </div>
+        ) : null}
+        {voice.error ? (
+          <p className="px-1 pt-1 text-xs text-destructive">{voice.error}</p>
         ) : null}
 
         {/* Draft chips: labels + client */}

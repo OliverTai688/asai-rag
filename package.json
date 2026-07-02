@@ -11,6 +11,8 @@
     "demo:preflight": "node scripts/demo-preflight.mjs",
     "demo:seed": "node scripts/seed-demo.mjs",
     "demo:seed:reset": "node scripts/seed-demo.mjs --reset",
+    "demo:seed:theater": "npx --yes tsx scripts/seed-theater-route-b-sessions.mts",
+    "demo:seed:reset:full": "node scripts/seed-demo.mjs --reset && npx --yes tsx scripts/seed-theater-route-b-sessions.mts",
     "demo:relogin-qa": "node scripts/demo-relogin-qa.mjs",
     "demo:member-write-qa": "node scripts/demo-member-write-qa.mjs",
     "demo:manager-aggregate-qa": "node scripts/demo-manager-aggregate-qa.mjs",

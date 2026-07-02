@@ -301,6 +301,7 @@ async function waitForMeetingTurnResponse(page) {
 }
 
 async function appendFinalTranscript(page, text) {
+  await page.getByRole("tab", { name: "會議" }).click();
   await page.getByTestId("meeting-transcript-input").fill(text);
   const responsePromise = waitForMeetingTurnResponse(page);
   await page.getByRole("button", { name: "加入 final transcript" }).click();

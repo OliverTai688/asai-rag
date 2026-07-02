@@ -12,7 +12,6 @@ import {
   Mic,
   MicOff,
   PanelRightOpen,
-  Radio,
   RotateCcw,
   Send,
   ShieldCheck,
@@ -29,6 +28,8 @@ import {
 } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { VoiceRecordingBar } from "@/components/voice/voice-recording-bar";
+import { useVoiceRecorder } from "@/lib/voice/use-voice-recorder";
 import { advisorCompanionOutline } from "@/domains/interview/outlines";
 import {
   useInterviewStore,
@@ -41,8 +42,6 @@ import { InterviewMicroPlan, InterviewOutputDraft } from "@/domains/interview/ty
 type ChatMessage = InterviewTranscriptMessage;
 
 type InputMode = "TEXT" | "VOICE";
-
-type VoiceStage = "DISCONNECTED" | "LISTENING" | "THINKING" | "SPEAKING" | "PAUSED" | "PERMISSION_DENIED" | "UNSUPPORTED";
 
 type MaterialBucket = {
   confirmed: string[];
@@ -95,29 +94,6 @@ type WritebackResult = {
   }[];
 };
 
-const VOICE_STAGE_COPY: Record<VoiceStage, { label: string; description: string; tone: "idle" | "live" | "error" }> = {
-  DISCONNECTED: { label: "未連線", description: "尚未請求麥克風。", tone: "idle" },
-  LISTENING: { label: "聽取中", description: "開始說話，轉寫文字會出現在輸入框；不保存 raw audio。", tone: "live" },
-  THINKING: { label: "AI 思考中", description: "正在整理你剛說的內容。", tone: "live" },
-  SPEAKING: { label: "AI 回覆中", description: "AI 正在回應，可隨時插話。", tone: "live" },
-  PAUSED: { label: "已暫停", description: "語音暫停；可繼續用文字輸入。", tone: "idle" },
-  PERMISSION_DENIED: { label: "權限被拒", description: "瀏覽器拒絕麥克風；文字模式仍可使用。", tone: "error" },
-  UNSUPPORTED: { label: "瀏覽器不支援", description: "此環境無法使用麥克風，請改用文字訪談。", tone: "error" },
-};
-
-function appendTranscriptText(base: string, transcript: string) {
-  const cleanTranscript = transcript.trim();
-  if (!cleanTranscript) return base;
-  return base ? `${base}${cleanTranscript}` : cleanTranscript;
-}
-
-function getComposerVoiceLabel(stage: VoiceStage, consentAccepted: boolean) {
-  if (stage === "LISTENING" || stage === "THINKING" || stage === "SPEAKING") return "暫停即時語音轉文字";
-  if (consentAccepted && stage === "PAUSED") return "繼續即時語音轉文字";
-  if (stage === "PERMISSION_DENIED" || stage === "UNSUPPORTED") return "重新啟用麥克風";
-  return "開始即時語音轉文字";
-}
-
 export default function InterviewPage() {
   const router = useRouter();
   const {
@@ -143,22 +119,13 @@ export default function InterviewPage() {
   const [reportSaveError, setReportSaveError] = useState<string | null>(null);
   const [savedReportId, setSavedReportId] = useState<string | null>(null);
   const [inputMode, setInputMode] = useState<InputMode>("TEXT");
-  const [voiceStage, setVoiceStage] = useState<VoiceStage>("DISCONNECTED");
-  const [voiceConsentAccepted, setVoiceConsentAccepted] = useState(false);
-  const [voiceError, setVoiceError] = useState<string | null>(null);
+  const [voiceUsed, setVoiceUsed] = useState(false);
   const [transcriptCorrection, setTranscriptCorrection] = useState("");
-  const [interimTranscript, setInterimTranscript] = useState("");
-  const mediaStreamRef = useRef<MediaStream | null>(null);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const realtimePcRef = useRef<RTCPeerConnection | null>(null);
-  const realtimeChannelRef = useRef<RTCDataChannel | null>(null);
-  const realtimeCommitTimerRef = useRef<number | null>(null);
-  const realtimeFallbackTimerRef = useRef<number | null>(null);
-  const realtimeDraftBaseRef = useRef("");
-  const realtimeInterimRef = useRef("");
-  const realtimeTranscriptReceivedRef = useRef(false);
-  const realtimeActiveRef = useRef(false);
-  const shouldListenRef = useRef(false);
+  const voice = useVoiceRecorder({
+    onTranscript: (text) => {
+      setDraft((prev) => (prev ? `${prev}${text}` : text));
+    },
+  });
   const [correctionDrafts, setCorrectionDrafts] = useState<string[]>([]);
   const isComposingDraftRef = useRef(false);
   const [crmClients, setCrmClients] = useState<ClientOption[]>([]);
@@ -217,8 +184,6 @@ export default function InterviewPage() {
     return activeSession.materials.map((material) => `${material.kind}: ${material.content}`);
   }, [activeSession]);
   const materialBuckets = useMemo(() => bucketMaterials(knownMaterials), [knownMaterials]);
-  const voiceStageCopy = VOICE_STAGE_COPY[voiceStage];
-  const voiceLive = voiceStage === "LISTENING" || voiceStage === "THINKING" || voiceStage === "SPEAKING";
   const selectedClient = crmClients.find((client) => client.id === effectiveClientId);
 
   useEffect(() => {
@@ -247,31 +212,6 @@ export default function InterviewPage() {
 
     return () => {
       ignore = true;
-    };
-  }, []);
-
-  useEffect(() => {
-    const recorderRef = mediaRecorderRef;
-    const streamRef = mediaStreamRef;
-    const pcRef = realtimePcRef;
-    return () => {
-      shouldListenRef.current = false;
-      const recorder = recorderRef.current;
-      if (recorder && recorder.state !== "inactive") {
-        try {
-          recorder.stop();
-        } catch {
-          // ignore stop races on unmount
-        }
-      }
-      try {
-        pcRef.current?.close();
-      } catch {
-        // ignore close races on unmount
-      }
-      pcRef.current = null;
-      streamRef.current?.getTracks().forEach((track) => track.stop());
-      streamRef.current = null;
     };
   }, []);
 
@@ -355,10 +295,7 @@ export default function InterviewPage() {
     if (isComposingDraftRef.current) return;
     const content = draft.trim();
     if (!activeSession || !content || isStreaming) return;
-    if (voiceLive) {
-      stopVoiceCapture();
-      setVoiceStage("PAUSED");
-    }
+    if (voice.isBusy) voice.cancel();
 
     const firstMissingQuestionId = progress?.missingCoreQuestionIds[0]
       ?? currentSegment.coreQuestions[0]?.id
@@ -435,311 +372,17 @@ export default function InterviewPage() {
     }
   }
 
-  async function transcribeChunk(blob: Blob) {
-    if (blob.size < 1200) return;
-    setVoiceStage((stage) => (stage === "LISTENING" ? "THINKING" : stage));
-    try {
-      const formData = new FormData();
-      formData.append("audio", blob, "chunk.webm");
-      const response = await fetch("/api/ai/interview/transcribe", {
-        method: "POST",
-        body: formData,
-      });
-      const payload = await response.json().catch(() => null);
-      if (!response.ok) {
-        setVoiceError(payload?.message ?? payload?.error ?? "語音轉寫暫時無法使用，請改用文字訪談。");
-        return;
-      }
-      const text = typeof payload?.text === "string" ? payload.text.trim() : "";
-      if (text) {
-        setVoiceError(null);
-        setDraft((prev) => (prev ? `${prev}${text}` : text));
-      }
-    } catch {
-      setVoiceError("語音轉寫連線失敗，請改用文字訪談。");
-    } finally {
-      setInterimTranscript("");
-      setVoiceStage((stage) => (stage === "THINKING" ? "LISTENING" : stage));
-    }
-  }
-
-  function pickRecorderMimeType(): string | undefined {
-    if (typeof MediaRecorder === "undefined") return undefined;
-    const candidates = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg"];
-    return candidates.find((type) => MediaRecorder.isTypeSupported(type));
-  }
-
-  // Record audio in self-contained ~6s chunks and transcribe each one server-side.
-  // Each chunk is an independently decodable file, so we stop/restart the recorder
-  // per cycle rather than relying on the (cloud-dependent, flaky) Web Speech API.
-  function recordChunkCycle() {
-    const stream = mediaStreamRef.current;
-    if (!stream || !shouldListenRef.current) return;
-
-    const mimeType = pickRecorderMimeType();
-    const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
-    const chunks: BlobPart[] = [];
-    mediaRecorderRef.current = recorder;
-
-    recorder.ondataavailable = (event) => {
-      if (event.data.size > 0) chunks.push(event.data);
-    };
-    recorder.onstop = () => {
-      const blob = new Blob(chunks, { type: recorder.mimeType || "audio/webm" });
-      void transcribeChunk(blob);
-      if (shouldListenRef.current) {
-        recordChunkCycle();
-      }
-    };
-
-    try {
-      recorder.start();
-      setInterimTranscript("（聆聽中…放開話題後會自動轉寫）");
-      window.setTimeout(() => {
-        if (recorder.state !== "inactive") recorder.stop();
-      }, 6000);
-    } catch {
-      setVoiceError("無法啟動錄音，請改用文字訪談。");
-    }
-  }
-
-  // Live transcript events streamed from the OpenAI Realtime transcription session.
-  function handleRealtimeMessage(raw: unknown) {
-    if (typeof raw !== "string") return;
-    let event: Record<string, unknown>;
-    try {
-      event = JSON.parse(raw) as Record<string, unknown>;
-    } catch {
-      return;
-    }
-    const type = typeof event.type === "string" ? event.type : "";
-    if (type.endsWith("input_audio_transcription.delta")) {
-      const delta = typeof event.delta === "string" ? event.delta : "";
-      if (delta) {
-        realtimeTranscriptReceivedRef.current = true;
-        clearRealtimeFallbackTimer();
-        realtimeInterimRef.current += delta;
-        setVoiceError(null);
-        setDraft(appendTranscriptText(realtimeDraftBaseRef.current, realtimeInterimRef.current));
-        setInterimTranscript(realtimeInterimRef.current);
-      }
-    } else if (type.endsWith("input_audio_transcription.completed")) {
-      const transcript = typeof event.transcript === "string" ? event.transcript.trim() : "";
-      const finalTranscript = transcript || realtimeInterimRef.current;
-      if (finalTranscript) {
-        realtimeTranscriptReceivedRef.current = true;
-        clearRealtimeFallbackTimer();
-        const nextDraft = appendTranscriptText(realtimeDraftBaseRef.current, finalTranscript);
-        realtimeDraftBaseRef.current = nextDraft;
-        realtimeInterimRef.current = "";
-        setVoiceError(null);
-        setDraft(nextDraft);
-      }
-      setInterimTranscript("");
-    } else if (type === "error") {
-      const message = typeof event.message === "string" ? event.message : "";
-      if (message && !message.toLowerCase().includes("empty")) {
-        setVoiceError(message);
-      }
-    }
-  }
-
-  function clearRealtimeCommitTimer() {
-    if (realtimeCommitTimerRef.current !== null) {
-      window.clearInterval(realtimeCommitTimerRef.current);
-      realtimeCommitTimerRef.current = null;
-    }
-  }
-
-  function clearRealtimeFallbackTimer() {
-    if (realtimeFallbackTimerRef.current !== null) {
-      window.clearTimeout(realtimeFallbackTimerRef.current);
-      realtimeFallbackTimerRef.current = null;
-    }
-  }
-
-  function sendRealtimeCommit() {
-    const channel = realtimeChannelRef.current;
-    if (channel?.readyState !== "open") return;
-    try {
-      channel.send(JSON.stringify({ type: "input_audio_buffer.commit" }));
-    } catch {
-      // The connection may close while a timer tick is in flight.
-    }
-  }
-
-  function scheduleRealtimeSilentFallback() {
-    clearRealtimeFallbackTimer();
-    realtimeFallbackTimerRef.current = window.setTimeout(() => {
-      if (!shouldListenRef.current || realtimeTranscriptReceivedRef.current) return;
-      closeRealtime();
-      realtimeActiveRef.current = false;
-      if (typeof MediaRecorder === "undefined") {
-        setVoiceStage("UNSUPPORTED");
-        setVoiceError("此瀏覽器不支援語音錄音，請改用文字訪談。");
-        return;
-      }
-      setVoiceError("即時轉寫暫時沒有回傳文字，已切換為分段轉寫。");
-      recordChunkCycle();
-    }, 5500);
-  }
-
-  function closeRealtime() {
-    realtimeActiveRef.current = false;
-    clearRealtimeCommitTimer();
-    clearRealtimeFallbackTimer();
-    realtimeChannelRef.current = null;
-    const pc = realtimePcRef.current;
-    if (pc) {
-      try {
-        pc.close();
-      } catch {
-        // ignore close races
-      }
-      realtimePcRef.current = null;
-    }
-  }
-
-  // Best-effort WebRTC connection to OpenAI Realtime for true word-by-word streaming.
-  // Returns false on any failure so the caller can fall back to chunked transcription.
-  async function startRealtimeTranscription(stream: MediaStream): Promise<boolean> {
-    if (typeof RTCPeerConnection === "undefined") return false;
-    try {
-      const response = await fetch("/api/ai/interview/transcribe-realtime-session", { method: "POST" });
-      if (!response.ok) return false;
-      const data = await response.json().catch(() => null);
-      const ephemeral = typeof data?.clientSecret?.value === "string" ? data.clientSecret.value : "";
-      const callsUrl = typeof data?.callsUrl === "string" ? data.callsUrl : "";
-      if (!ephemeral || !callsUrl) return false;
-
-      const pc = new RTCPeerConnection();
-      realtimePcRef.current = pc;
-      realtimeDraftBaseRef.current = draft;
-      realtimeInterimRef.current = "";
-      realtimeTranscriptReceivedRef.current = false;
-      stream.getAudioTracks().forEach((track) => pc.addTrack(track, stream));
-      const channel = pc.createDataChannel("oai-events");
-      realtimeChannelRef.current = channel;
-      channel.onopen = () => {
-        sendRealtimeCommit();
-        clearRealtimeCommitTimer();
-        realtimeCommitTimerRef.current = window.setInterval(sendRealtimeCommit, 3000);
-      };
-      channel.onmessage = (event) => handleRealtimeMessage(event.data);
-      channel.onclose = () => clearRealtimeCommitTimer();
-
-      const offer = await pc.createOffer({ offerToReceiveAudio: false });
-      await pc.setLocalDescription(offer);
-
-      const sdpResponse = await fetch(callsUrl, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${ephemeral}`,
-          "Content-Type": "application/sdp",
-        },
-        body: offer.sdp ?? "",
-      });
-      if (!sdpResponse.ok) {
-        closeRealtime();
-        return false;
-      }
-      const answerSdp = await sdpResponse.text();
-      await pc.setRemoteDescription({ type: "answer", sdp: answerSdp });
-      scheduleRealtimeSilentFallback();
-      return true;
-    } catch {
-      closeRealtime();
-      return false;
-    }
-  }
-
-  async function startVoiceCapture(stream: MediaStream) {
-    shouldListenRef.current = true;
-    setVoiceStage("LISTENING");
-
-    const realtimeOk = await startRealtimeTranscription(stream);
-    if (realtimeOk) {
-      realtimeActiveRef.current = true;
-      setInterimTranscript("");
-      return;
-    }
-
-    // Realtime unavailable — fall back to reliable chunked transcription.
-    realtimeActiveRef.current = false;
-    if (typeof MediaRecorder === "undefined") {
-      setVoiceStage("UNSUPPORTED");
-      setVoiceError("此瀏覽器不支援語音錄音，請改用文字訪談。");
-      return;
-    }
-    recordChunkCycle();
-  }
-
-  function stopVoiceCapture() {
-    shouldListenRef.current = false;
-    const recorder = mediaRecorderRef.current;
-    if (recorder && recorder.state !== "inactive") {
-      try {
-        recorder.stop();
-      } catch {
-        // ignore stop races
-      }
-    }
-    closeRealtime();
-    setInterimTranscript("");
-  }
-
   function handleDraftChange(value: string) {
     setDraft(value);
-    if (voiceLive) {
-      realtimeDraftBaseRef.current = value;
-      realtimeInterimRef.current = "";
-      setInterimTranscript("");
-    }
   }
 
-  function handleComposerVoiceClick() {
+  // ChatGPT-style: one click starts recording (with animation); the recording
+  // bar's controls stop-and-transcribe or cancel. Transcription happens once,
+  // over the whole recording, after the user stops.
+  function handleMicClick() {
     setInputMode("VOICE");
-    if (voiceLive || (voiceConsentAccepted && voiceStage === "PAUSED")) {
-      handlePauseVoiceShell();
-      return;
-    }
-    void handleEnableVoiceShell();
-  }
-
-  async function handleEnableVoiceShell() {
-    setInputMode("VOICE");
-    setVoiceConsentAccepted(true);
-    setVoiceError(null);
-
-    if (!navigator.mediaDevices?.getUserMedia) {
-      setVoiceStage("UNSUPPORTED");
-      setVoiceError("此瀏覽器不支援麥克風，請改用文字訪談。");
-      return;
-    }
-
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      mediaStreamRef.current = stream;
-      await startVoiceCapture(stream);
-    } catch (error) {
-      shouldListenRef.current = false;
-      setVoiceStage("PERMISSION_DENIED");
-      setVoiceError(error instanceof Error ? error.message : "麥克風權限被拒絕，請改用文字訪談。");
-    }
-  }
-
-  function handlePauseVoiceShell() {
-    if (voiceStage === "PAUSED") {
-      const stream = mediaStreamRef.current;
-      if (!stream) {
-        void handleEnableVoiceShell();
-        return;
-      }
-      void startVoiceCapture(stream);
-    } else {
-      stopVoiceCapture();
-      setVoiceStage("PAUSED");
-    }
+    setVoiceUsed(true);
+    void voice.start();
   }
 
   function handleSaveTranscriptCorrection() {
@@ -966,8 +609,11 @@ export default function InterviewPage() {
     : inputMode === "VOICE"
       ? "語音轉寫會出現在這裡，可手動修正後送出…"
       : "輸入業務員的回答…";
-  const voiceButtonLabel = getComposerVoiceLabel(voiceStage, voiceConsentAccepted);
-  const showVoiceComposerStatus = inputMode === "VOICE" && (voiceConsentAccepted || Boolean(voiceError) || Boolean(interimTranscript));
+  const voiceButtonLabel = voice.status === "DENIED" || voice.status === "UNSUPPORTED"
+    ? "重新啟用麥克風"
+    : "開始語音錄音";
+  const voiceDisabled = voice.status === "DENIED" || voice.status === "UNSUPPORTED";
+  const showVoiceComposerStatus = inputMode === "VOICE" && (voiceUsed || Boolean(voice.error));
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
@@ -1080,6 +726,14 @@ export default function InterviewPage() {
 
         {/* Composer */}
         <form onSubmit={handleSubmit} className="space-y-2 border-t border-hairline p-4">
+          {voice.isBusy ? (
+            <VoiceRecordingBar
+              elapsedMs={voice.elapsedMs}
+              transcribing={voice.isTranscribing}
+              onCancel={voice.cancel}
+              onStop={voice.stop}
+            />
+          ) : (
           <div className="rounded-xl border border-hairline bg-paper p-2 transition focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/15">
             <Textarea
               value={draft}
@@ -1117,10 +771,10 @@ export default function InterviewPage() {
                   <p
                     className={
                       "truncate text-xs leading-5 " +
-                      (voiceStageCopy.tone === "error" ? "text-destructive" : "text-ink-3")
+                      (voice.error ? "text-destructive" : "text-ink-3")
                     }
                   >
-                    {voiceError ?? (interimTranscript ? `正在轉寫：${interimTranscript}` : voiceStageCopy.description)}
+                    {voice.error ?? "點麥克風開始錄音，說完一次轉成文字；不保存原始語音。"}
                   </p>
                 ) : null}
               </div>
@@ -1130,19 +784,16 @@ export default function InterviewPage() {
                     render={
                       <Button
                         type="button"
-                        variant={voiceLive ? "mono" : "monoOutline"}
+                        variant="monoOutline"
                         size="icon-lg"
                         aria-label={voiceButtonLabel}
-                        aria-pressed={voiceLive}
-                        onClick={handleComposerVoiceClick}
-                        disabled={!activeSession || isStreaming}
+                        onClick={handleMicClick}
+                        disabled={!activeSession || isStreaming || voiceDisabled}
                       />
                     }
                   >
-                    {voiceStage === "PERMISSION_DENIED" || voiceStage === "UNSUPPORTED" ? (
+                    {voiceDisabled ? (
                       <MicOff className="size-4" />
-                    ) : voiceLive ? (
-                      <Radio className="size-4 motion-safe:animate-pulse" />
                     ) : (
                       <Mic className="size-4" />
                     )}
@@ -1168,9 +819,10 @@ export default function InterviewPage() {
               </div>
             </div>
           </div>
+          )}
 
           {/* Voice-only transcript correction (secondary) */}
-          {inputMode === "VOICE" && voiceConsentAccepted ? (
+          {inputMode === "VOICE" && voiceUsed ? (
             <div className="flex flex-col gap-2 rounded-lg border border-hairline bg-paper px-3 py-2 sm:flex-row sm:items-start">
               <input
                 value={transcriptCorrection}

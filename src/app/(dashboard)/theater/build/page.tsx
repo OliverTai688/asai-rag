@@ -15,7 +15,6 @@ import {
   MicOff,
   PanelRightOpen,
   Plus,
-  Radio,
   Send,
   Sparkles,
   Theater,
@@ -32,6 +31,8 @@ import {
 } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { VoiceRecordingBar } from "@/components/voice/voice-recording-bar";
+import { useVoiceRecorder } from "@/lib/voice/use-voice-recorder";
 import { theaterFieldBuildOutline } from "@/domains/interview/outlines";
 import { buildTheaterFieldBuildContext } from "@/domains/interview/theater-build";
 import type { TheaterBuildCharacterSeed, TheaterBuildPacket } from "@/domains/interview/types";
@@ -47,7 +48,6 @@ import type { RouteBSessionSnapshot } from "@/domains/theater/route-b-session";
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
 type InputMode = "TEXT" | "VOICE";
-type VoiceStage = "DISCONNECTED" | "LISTENING" | "PAUSED" | "PERMISSION_DENIED" | "UNSUPPORTED";
 type DataClass = "fact" | "inference" | "unknown";
 type MaterialCategory = "focus" | "scenario" | "role" | "relationship" | "objection" | "sensitive" | "note";
 type VisitTheaterHandoffStatus = "READY" | "NEEDS_MORE_INFO" | "BLOCKED_SENSITIVE";
@@ -121,14 +121,6 @@ const ROLE_LABEL: Record<TheaterBuildCharacterSeed["role"], string> = {
   INFLUENCER: "影響者",
   ADVISOR: "顧問／業務",
   NARRATOR: "旁白",
-};
-
-const VOICE_STAGE_COPY: Record<VoiceStage, { label: string; description: string; tone: "idle" | "live" | "error" }> = {
-  DISCONNECTED: { label: "未連線", description: "尚未啟用麥克風。", tone: "idle" },
-  LISTENING: { label: "聽取中", description: "說話後會自動轉成文字，送出前可修正；不保存原始語音。", tone: "live" },
-  PAUSED: { label: "已暫停", description: "語音暫停；可繼續用文字輸入。", tone: "idle" },
-  PERMISSION_DENIED: { label: "權限被拒", description: "瀏覽器拒絕麥克風；文字模式仍可使用。", tone: "error" },
-  UNSUPPORTED: { label: "瀏覽器不支援", description: "此瀏覽器無法使用語音輸入，請改用文字。建議使用 Chrome。", tone: "error" },
 };
 
 const INTRO_MESSAGE: ChatMessage = {
@@ -301,19 +293,6 @@ function getMeetingSignalNarratorPreviews(questions: string[]) {
   return questions.filter((question) => question.includes(MEETING_SIGNAL_MATERIAL_PREFIX));
 }
 
-function appendTranscriptText(base: string, transcript: string) {
-  const cleanTranscript = transcript.trim();
-  if (!cleanTranscript) return base;
-  return base ? `${base}${cleanTranscript}` : cleanTranscript;
-}
-
-function getComposerVoiceLabel(stage: VoiceStage, consentAccepted: boolean) {
-  if (stage === "LISTENING") return "暫停即時語音轉文字";
-  if (consentAccepted && stage === "PAUSED") return "繼續即時語音轉文字";
-  if (stage === "PERMISSION_DENIED" || stage === "UNSUPPORTED") return "重新啟用麥克風";
-  return "開始即時語音轉文字";
-}
-
 export default function TheaterBuildPage() {
   const router = useRouter();
   const sessionId = `tb_${useId()}`;
@@ -341,23 +320,23 @@ export default function TheaterBuildPage() {
   const [routeBStartError, setRouteBStartError] = useState<string | null>(null);
 
   const [inputMode, setInputMode] = useState<InputMode>("TEXT");
-  const [voiceStage, setVoiceStage] = useState<VoiceStage>("DISCONNECTED");
-  const [voiceConsentAccepted, setVoiceConsentAccepted] = useState(false);
-  const [voiceError, setVoiceError] = useState<string | null>(null);
-  const [interimTranscript, setInterimTranscript] = useState("");
+  const [voiceUsed, setVoiceUsed] = useState(false);
+  const voice = useVoiceRecorder({
+    onTranscript: (text) => {
+      setDraft((prev) => (prev ? `${prev}${text}` : text));
+    },
+  });
 
   const seededRef = useRef(false);
-  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
-  const listeningRef = useRef(false);
-  const voiceDraftBaseRef = useRef("");
   const conversationEndRef = useRef<HTMLDivElement>(null);
 
   const segment = theaterFieldBuildOutline.segments[segmentIndex];
   const segmentLabel = `${segmentIndex + 1}/${theaterFieldBuildOutline.segments.length}`;
-  const voiceStageCopy = VOICE_STAGE_COPY[voiceStage];
-  const voiceLive = voiceStage === "LISTENING";
-  const voiceButtonLabel = getComposerVoiceLabel(voiceStage, voiceConsentAccepted);
-  const showVoiceComposerStatus = inputMode === "VOICE" && (voiceConsentAccepted || Boolean(voiceError) || Boolean(interimTranscript));
+  const voiceButtonLabel = voice.status === "DENIED" || voice.status === "UNSUPPORTED"
+    ? "重新啟用麥克風"
+    : "開始語音錄音";
+  const voiceDisabled = voice.status === "DENIED" || voice.status === "UNSUPPORTED";
+  const showVoiceComposerStatus = inputMode === "VOICE" && (voiceUsed || Boolean(voice.error));
   const localPacket = useMemo<TheaterBuildPacket>(() => {
     return buildTheaterFieldBuildContext({
       organizationId: "local",
@@ -528,28 +507,16 @@ export default function TheaterBuildPage() {
     if (container) container.scrollTop = container.scrollHeight;
   }, [messages]);
 
-  // Stop any active recognition when leaving the page.
-  useEffect(() => {
-    return () => {
-      listeningRef.current = false;
-      recognitionRef.current?.stop();
-    };
-  }, []);
-
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (isComposing) return;
     const trimmed = draft.trim();
     if (!trimmed || isStreaming) return;
-    if (voiceLive) {
-      stopRecognition();
-      setVoiceStage("PAUSED");
-    }
+    if (voice.isBusy) voice.cancel();
 
     const nextMessages: ChatMessage[] = [...messages, { role: "user", content: trimmed }];
     setMessages(nextMessages);
     setDraft("");
-    setInterimTranscript("");
     setError(null);
     setIsStreaming(true);
     // Capture the answer as a material so the draft updates even if the reply is terse.
@@ -623,109 +590,15 @@ export default function TheaterBuildPage() {
 
   function handleDraftChange(value: string) {
     setDraft(value);
-    if (voiceLive) {
-      voiceDraftBaseRef.current = value;
-      setInterimTranscript("");
-    }
   }
 
-  function handleComposerVoiceClick() {
+  // ChatGPT-style: one click starts recording (with animation); the recording
+  // bar stops-and-transcribes or cancels. The whole recording is transcribed
+  // once, after the user stops.
+  function handleMicClick() {
     setInputMode("VOICE");
-    if (voiceLive || (voiceConsentAccepted && voiceStage === "PAUSED")) {
-      handlePauseVoice();
-      return;
-    }
-    handleEnableVoice();
-  }
-
-  function startRecognition() {
-    const Recognition =
-      typeof window === "undefined"
-        ? undefined
-        : window.SpeechRecognition ?? window.webkitSpeechRecognition;
-
-    if (!Recognition) {
-      setVoiceStage("UNSUPPORTED");
-      setVoiceError("此瀏覽器不支援語音輸入 API，請改用文字。建議使用 Chrome。");
-      return;
-    }
-
-    setVoiceError(null);
-    voiceDraftBaseRef.current = draft;
-    const recognition = new Recognition();
-    recognition.lang = "zh-TW";
-    recognition.interimResults = true;
-    recognition.continuous = true;
-
-    recognition.onresult = (event: SpeechRecognitionEventLike) => {
-      let interim = "";
-      let final = "";
-      for (let i = event.resultIndex; i < event.results.length; i += 1) {
-        const result = event.results[i];
-        const text = result[0]?.transcript ?? "";
-        if (result.isFinal) final += text;
-        else interim += text;
-      }
-      if (final) {
-        const nextDraft = appendTranscriptText(voiceDraftBaseRef.current, final);
-        voiceDraftBaseRef.current = nextDraft;
-        setDraft(interim ? appendTranscriptText(nextDraft, interim) : nextDraft);
-        setInterimTranscript("");
-      }
-      if (interim) {
-        setDraft(appendTranscriptText(voiceDraftBaseRef.current, interim));
-        setInterimTranscript(interim);
-      }
-    };
-
-    recognition.onerror = (event: SpeechRecognitionErrorLike) => {
-      if (event.error === "not-allowed" || event.error === "service-not-allowed") {
-        listeningRef.current = false;
-        setVoiceStage("PERMISSION_DENIED");
-        setVoiceError("麥克風權限被拒絕，請改用文字輸入。");
-      }
-    };
-
-    recognition.onend = () => {
-      // Chrome ends recognition after silence; restart while the user is still listening.
-      if (listeningRef.current) {
-        try {
-          recognition.start();
-        } catch {
-          /* already started */
-        }
-      }
-    };
-
-    recognitionRef.current = recognition;
-    listeningRef.current = true;
-    try {
-      recognition.start();
-      setVoiceStage("LISTENING");
-    } catch {
-      setVoiceStage("LISTENING");
-    }
-  }
-
-  function stopRecognition() {
-    listeningRef.current = false;
-    recognitionRef.current?.stop();
-    setInterimTranscript("");
-  }
-
-  function handleEnableVoice() {
-    setInputMode("VOICE");
-    setVoiceConsentAccepted(true);
-    startRecognition();
-  }
-
-  function handlePauseVoice() {
-    if (voiceStage === "PAUSED") {
-      startRecognition();
-      return;
-    }
-    stopRecognition();
-    setVoiceStage("PAUSED");
+    setVoiceUsed(true);
+    void voice.start();
   }
 
   function addMaterial(text: string, dataClass: DataClass, category: MaterialCategory) {
@@ -898,6 +771,14 @@ export default function TheaterBuildPage() {
 
         {/* Composer */}
         <form onSubmit={handleSubmit} className="space-y-2 border-t border-hairline p-4">
+          {voice.isBusy ? (
+            <VoiceRecordingBar
+              elapsedMs={voice.elapsedMs}
+              transcribing={voice.isTranscribing}
+              onCancel={voice.cancel}
+              onStop={voice.stop}
+            />
+          ) : (
           <div className="rounded-xl border border-hairline bg-paper p-2 transition focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/15">
             <Textarea
               value={draft}
@@ -928,10 +809,10 @@ export default function TheaterBuildPage() {
                   <p
                     className={
                       "truncate text-xs leading-5 " +
-                      (voiceStageCopy.tone === "error" ? "text-destructive" : "text-ink-3")
+                      (voice.error ? "text-destructive" : "text-ink-3")
                     }
                   >
-                    {voiceError ?? (interimTranscript ? `正在轉寫：${interimTranscript}` : voiceStageCopy.description)}
+                    {voice.error ?? "點麥克風開始錄音，說完一次轉成文字；不保存原始語音。"}
                   </p>
                 ) : null}
               </div>
@@ -941,19 +822,16 @@ export default function TheaterBuildPage() {
                     render={
                       <Button
                         type="button"
-                        variant={voiceLive ? "mono" : "monoOutline"}
+                        variant="monoOutline"
                         size="icon-lg"
                         aria-label={voiceButtonLabel}
-                        aria-pressed={voiceLive}
-                        onClick={handleComposerVoiceClick}
-                        disabled={isStreaming}
+                        onClick={handleMicClick}
+                        disabled={isStreaming || voiceDisabled}
                       />
                     }
                   >
-                    {voiceStage === "PERMISSION_DENIED" || voiceStage === "UNSUPPORTED" ? (
+                    {voiceDisabled ? (
                       <MicOff className="size-4" />
-                    ) : voiceLive ? (
-                      <Radio className="size-4 motion-safe:animate-pulse" />
                     ) : (
                       <Mic className="size-4" />
                     )}
@@ -979,6 +857,7 @@ export default function TheaterBuildPage() {
               </div>
             </div>
           </div>
+          )}
         </form>
       </section>
 
@@ -1647,29 +1526,4 @@ function getClientBuildNoticeLabel(status: VisitTheaterHandoffStatus) {
   if (status === "READY") return "客戶資料已帶入";
   if (status === "BLOCKED_SENSITIVE") return "敏感資料暫停";
   return "客戶資料需補資料";
-}
-
-/* ---- Minimal Web Speech API typings (not in lib.dom for all targets) ---- */
-type SpeechRecognitionAlternativeLike = { transcript: string };
-type SpeechRecognitionResultLike = { isFinal: boolean; 0: SpeechRecognitionAlternativeLike; length: number };
-type SpeechRecognitionResultListLike = { length: number; [index: number]: SpeechRecognitionResultLike };
-type SpeechRecognitionEventLike = { resultIndex: number; results: SpeechRecognitionResultListLike };
-type SpeechRecognitionErrorLike = { error: string };
-
-interface SpeechRecognitionLike {
-  lang: string;
-  interimResults: boolean;
-  continuous: boolean;
-  onresult: ((event: SpeechRecognitionEventLike) => void) | null;
-  onerror: ((event: SpeechRecognitionErrorLike) => void) | null;
-  onend: (() => void) | null;
-  start: () => void;
-  stop: () => void;
-}
-
-declare global {
-  interface Window {
-    SpeechRecognition?: { new (): SpeechRecognitionLike };
-    webkitSpeechRecognition?: { new (): SpeechRecognitionLike };
-  }
 }

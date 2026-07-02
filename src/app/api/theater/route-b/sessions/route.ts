@@ -6,12 +6,29 @@ import {
   isTheaterRouteBHandoffPacket,
   validateRouteBHandoffBoundary,
 } from "@/lib/theater/route-b-boundary";
-import { createRouteBSessionForMember } from "@/lib/theater/route-b-session-bff-repository";
+import {
+  createRouteBSessionForMember,
+  listRouteBSessionsForMember,
+} from "@/lib/theater/route-b-session-bff-repository";
 
 const routeBHandoffSchema = z.custom<TheaterRouteBHandoffPacket>(
   (value) => isTheaterRouteBHandoffPacket(value),
   "Invalid Route B handoff packet.",
 );
+
+export async function GET() {
+  try {
+    const session = await requireCurrentMember();
+    const sessions = await listRouteBSessionsForMember(session);
+
+    return Response.json(
+      { sessions },
+      { headers: { "Cache-Control": "no-store" } },
+    );
+  } catch (error) {
+    return authErrorResponse(error);
+  }
+}
 
 const routeBSessionCreateSchema = z.object({
   handoff: routeBHandoffSchema,

@@ -11,20 +11,21 @@ import {
   FileText,
   ListTodo,
   MessageSquare,
+  PhoneCall,
   ShieldCheck,
   TriangleAlert,
 } from "lucide-react";
 import type { DashboardTaskDto, DashboardTaskKind } from "@/domains/dashboard/types";
 
 const taskIconMap: Record<DashboardTaskKind, ElementType> = {
-  ISSUE: TriangleAlert,
+  FOLLOW_UP: PhoneCall,
   VISIT: MessageSquare,
   REPORT: FileText,
   COMPLIANCE: ShieldCheck,
 };
 
 const taskKindLabel: Record<DashboardTaskKind, string> = {
-  ISSUE: "議題",
+  FOLLOW_UP: "跟進",
   VISIT: "準備包",
   REPORT: "報告",
   COMPLIANCE: "合規",

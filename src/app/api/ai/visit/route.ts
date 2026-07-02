@@ -10,11 +10,13 @@ import {
   persistAiGenerationFailure,
   persistAiGenerationSuccess,
 } from "@/lib/ai/generation-usage-repository";
-import {
-  buildAiEvidenceSummary,
-  buildProviderSafeClientSnapshot,
-} from "@/domains/visit/ai-evidence-dto";
+import { buildAiEvidenceSummary } from "@/domains/visit/ai-evidence-dto";
 import { enrichSpinQuestionsWithReasoning } from "@/domains/visit/reasoning";
+import {
+  VISIT_SYSTEM_PROMPT,
+  buildVisitPrompt,
+  visitOutputSchema,
+} from "@/lib/ai/generators/visit-package";
 
 const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const MODEL = "gpt-4o-mini";
@@ -25,6 +27,7 @@ const visitPurposeSchema = z.enum(["FIRST_VISIT", "ADD_ON", "RENEWAL", "CARE", "
 const visitRequestSchema = z
   .object({
     purpose: visitPurposeSchema,
+    goal: z.string().trim().max(500).optional(),
     clientId: z.string().trim().min(1).max(120).optional(),
     client: z
       .object({
@@ -36,6 +39,7 @@ const visitRequestSchema = z
   })
   .transform((input) => ({
     purpose: input.purpose,
+    goal: input.goal,
     clientId: input.clientId ?? input.client?.id,
     dryRun: input.dryRun,
   }))
@@ -43,101 +47,6 @@ const visitRequestSchema = z
     message: "clientId is required.",
     path: ["clientId"],
   });
-
-const visitOutputSchema = z.object({
-  objectives: z
-    .array(
-      z.object({
-        id: z.string(),
-        description: z.string(),
-        successCriteria: z.string(),
-      }),
-    )
-    .default([]),
-  spinQuestions: z
-    .array(
-      z.object({
-        id: z.string(),
-        type: z.enum(["S", "P", "I", "N"]),
-        question: z.string(),
-        reasoning: z
-          .object({
-            summary: z.string(),
-            confirmationPrompt: z.string().optional(),
-            evidence: z
-              .array(
-                z.object({
-                  id: z.string(),
-                  source: z.enum(["client_profile", "relationship_graph", "policy", "ai_tag", "visit_purpose", "unknown"]),
-                  status: z.enum(["confirmed", "inference", "unknown"]),
-                  label: z.string(),
-                  detail: z.string(),
-                }),
-              )
-              .default([]),
-          })
-          .optional(),
-      }),
-    )
-    .default([]),
-  objections: z
-    .array(
-      z.object({
-        id: z.string(),
-        expectedObjection: z.string(),
-        suggestedResponse: z.string(),
-      }),
-    )
-    .default([]),
-  timeline: z
-    .array(
-      z.object({
-        label: z.string(),
-        duration: z.coerce.number(),
-      }),
-    )
-    .default([]),
-  materials: z
-    .array(
-      z.object({
-        id: z.string(),
-        name: z.string(),
-        checked: z.boolean().catch(false),
-      }),
-    )
-    .default([]),
-});
-
-const SYSTEM_PROMPT = `你是一位專業的保險銷售顧問與 AI 助手。
-請根據提供的「客戶資訊」與「拜訪目的」，生成一份詳細的「訪前規劃」。
-
-回應必須是純 JSON 格式，且符合以下結構：
-{
-  "objectives": [
-    { "id": "string", "description": "目標描述", "successCriteria": "成功判準" }
-  ],
-  "spinQuestions": [
-    { "id": "string", "type": "S | P | I | N", "question": "問題內容" }
-  ],
-  "objections": [
-    { "id": "string", "expectedObjection": "預期疑問", "suggestedResponse": "建議回應" }
-  ],
-  "timeline": [
-    { "label": "環節名稱", "duration": number }
-  ],
-  "materials": [
-    { "id": "string", "name": "資料名稱", "checked": false }
-  ]
-}
-
-請確保：
-1. SPIN 提問必須符合 S(Situation)、P(Problem)、I(Implication)、N(Need-payoff) 的邏輯，每個類型至少提供 1-2 個問題。
-2. 目標要具體且針對該客戶的狀況。
-3. 預期疑問要貼合客戶目前的保障缺口（aiTags）與其職業背景。
-4. 時間分配總和必須剛好為 60 分鐘。
-5. 所有回應使用繁體中文。
-6. 不要輸出任何 JSON 以外的文字。
-7. 不需要輸出推論依據，系統會在 server 端依已授權的客戶資料補上 evidence。`;
 
 export async function POST(req: Request) {
   const startedAt = Date.now();
@@ -197,12 +106,12 @@ export async function POST(req: Request) {
     }
 
     model = shouldForceProviderErrorForQa(req, body) ? QA_PROVIDER_ERROR_MODEL : MODEL;
-    const userPrompt = buildVisitPrompt(body.purpose, clientData);
+    const userPrompt = buildVisitPrompt(body.purpose, clientData, body.goal);
     providerAttempted = true;
     const response = await client.chat.completions.create({
       model,
       messages: [
-        { role: "system", content: SYSTEM_PROMPT },
+        { role: "system", content: VISIT_SYSTEM_PROMPT },
         { role: "user", content: userPrompt },
       ],
       response_format: { type: "json_object" },
@@ -320,29 +229,6 @@ export async function POST(req: Request) {
 
     return Response.json({ error: "VISIT_AI_GENERATION_FAILED" }, { status: 500 });
   }
-}
-
-function buildVisitPrompt(purpose: z.infer<typeof visitPurposeSchema>, clientData: Awaited<ReturnType<typeof getClientForMember>>) {
-  if (!clientData) {
-    return "";
-  }
-  const safeClient = buildProviderSafeClientSnapshot(clientData);
-
-  return `
-客戶資訊：
-- 姓名：${safeClient.name}
-- 職業：${safeClient.occupation || "未提供"}
-- 年收入：${safeClient.annualIncome}
-- 客戶狀態：${safeClient.status}
-- 敏感等級：${safeClient.sensitivityLevel}
-- KYC 狀態：${safeClient.kycStatus}
-- 家庭/關係圖摘要：${JSON.stringify(safeClient.family)}
-- 現有保單摘要：${JSON.stringify(safeClient.existingPolicies)}
-- 合規待補：${safeClient.complianceChecklist.missingItems.join(", ") || "無"}
-- AI 標籤（需求缺口）：${safeClient.aiTags.join(", ") || "未提供"}
-
-拜訪目的：${purpose}
-`;
 }
 
 function shouldForceQuotaExceededForQa(

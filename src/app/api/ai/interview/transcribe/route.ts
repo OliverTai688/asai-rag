@@ -8,8 +8,9 @@ import { writeAiUsageLogSafely } from "@/lib/ai/usage-log";
 const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const MODEL = "whisper-1";
 
-// Hard cap on accepted audio payload — a single voice chunk, not a file upload.
-const MAX_AUDIO_BYTES = 8 * 1024 * 1024;
+// Hard cap on accepted audio payload — a full voice recording, matching the
+// Whisper API's 25MB per-request limit. Recordings are transcribed once, at end.
+const MAX_AUDIO_BYTES = 25 * 1024 * 1024;
 // Skip near-silent / empty blobs so we do not pay for noise.
 const MIN_AUDIO_BYTES = 1200;
 

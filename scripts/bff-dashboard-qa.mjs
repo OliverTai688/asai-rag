@@ -2,7 +2,6 @@
 import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { resolve } from "node:path";
-import { randomUUID } from "node:crypto";
 import { Client as PgClient } from "pg";
 
 loadEnvFile(".env");
@@ -17,13 +16,8 @@ const screenshotDir = resolve(
   process.env.DEMO_QA_SCREENSHOT_DIR ?? "docs/06_audits-and-reports/screenshots/lv3-member-dashboard-bff",
 );
 const dbUrl = process.env.DIRECT_URL ?? process.env.DATABASE_URL;
-const qaStamp = `BFF-101 Dashboard QA ${new Date().toISOString()}`;
 const checks = [];
 const consoleErrors = [];
-
-let createdIssueId = randomUUID();
-let memberUserId = "";
-let memberOrgId = "";
 
 if (!dbUrl) {
   console.error("Missing DIRECT_URL or DATABASE_URL.");
@@ -36,7 +30,7 @@ const db = new PgClient({ connectionString: dbUrl });
 await db.connect();
 
 try {
-  await seedDashboardEvidence();
+  await verifyDemoAccounts();
   await runApiProof();
   await runBrowserProof();
 } finally {
@@ -59,48 +53,12 @@ if (checks.some((check) => check.status === "fail")) {
   process.exitCode = 1;
 }
 
-async function seedDashboardEvidence() {
+async function verifyDemoAccounts() {
   const member = await getDemoUserWithDefaultOrg(demoMemberEmail);
   const manager = await getDemoUserWithDefaultOrg(demoManagerEmail);
 
   push(Boolean(member?.user_id), "demo member exists for dashboard proof", member?.email ?? "");
   push(Boolean(manager?.user_id), "demo manager exists for cross-role proof", manager?.email ?? "");
-
-  if (!member?.user_id || !member.organization_id) {
-    return;
-  }
-
-  memberUserId = member.user_id;
-  memberOrgId = member.organization_id;
-
-  await db.query(
-    `
-      INSERT INTO issues (
-        id,
-        organization_id,
-        title,
-        description,
-        category,
-        status,
-        priority,
-        images,
-        reporter_id,
-        assignee_id,
-        feedback,
-        created_at,
-        updated_at
-      )
-      VALUES ($1, $2, $3, $4, $5, 'OPEN', 'URGENT', ARRAY[]::text[], $6, $6, NULL, NOW(), NOW())
-    `,
-    [
-      createdIssueId,
-      memberOrgId,
-      `${qaStamp}：首頁任務隊列需要呈現`,
-      `${qaStamp}：這筆 issue 用來證明 dashboard task queue 由 server BFF 聚合，而不是 browser local store。`,
-      "Dashboard BFF",
-      memberUserId,
-    ],
-  );
 }
 
 async function runApiProof() {
@@ -111,17 +69,19 @@ async function runApiProof() {
   const member = await memberGet("/api/member/dashboard");
   const dashboard = member.body?.dashboard;
   const bodyText = JSON.stringify(member.body);
-  const taskIds = dashboard?.tasks?.map((task) => task.id).join(",") ?? "";
-  const seededTask = dashboard?.tasks?.find((task) => task.title?.includes(qaStamp));
+  const kpiIds = dashboard?.kpis?.map((kpi) => kpi.id).join(",") ?? "";
+  const hasIssueKpi = dashboard?.kpis?.some((kpi) => kpi.id === "openIssues") ?? false;
+  const hasIssueTask = dashboard?.tasks?.some((task) => task.kind === "ISSUE") ?? false;
 
   push(member.status === 200, "GET /api/member/dashboard member returns 200", `status=${member.status}`);
   push(hasNoStore(member), "dashboard API uses private no-store");
   push(hasRequestId(member), "dashboard API includes request id");
   push(dashboard?.source === "database", "dashboard declares database source", dashboard?.source ?? "");
   push(dashboard?.visibility === "member-scoped", "dashboard declares member-scoped visibility", dashboard?.visibility ?? "");
-  push(Array.isArray(dashboard?.kpis) && dashboard.kpis.length === 4, "dashboard includes compact KPI DTOs", `kpis=${dashboard?.kpis?.length ?? 0}`);
-  push(Array.isArray(dashboard?.tasks) && dashboard.tasks.length > 0, "dashboard includes task queue", taskIds);
-  push(Boolean(seededTask), "dashboard task queue includes seeded DB issue", createdIssueId);
+  push(Array.isArray(dashboard?.kpis) && dashboard.kpis.length === 4, "dashboard includes compact KPI DTOs", `kpis=${kpiIds}`);
+  push(!hasIssueKpi, "dashboard KPI set no longer surfaces hidden issues", kpiIds);
+  push(Array.isArray(dashboard?.tasks), "dashboard includes task queue array", `tasks=${dashboard?.tasks?.length ?? 0}`);
+  push(!hasIssueTask, "dashboard task queue no longer surfaces hidden issues");
   push(Boolean(dashboard?.today?.primaryAction?.href), "dashboard includes today mainline CTA", dashboard?.today?.primaryAction?.href ?? "");
   push(Array.isArray(dashboard?.today?.reasoning?.facts), "dashboard includes visible reasoning facts");
   push(Array.isArray(dashboard?.today?.reasoning?.inferences), "dashboard includes visible reasoning inferences");
@@ -132,14 +92,14 @@ async function runApiProof() {
 
   const reload = await memberGet("/api/member/dashboard");
   push(
-    reload.body?.dashboard?.tasks?.some((task) => task.title?.includes(qaStamp)),
-    "dashboard API reload keeps seeded task",
+    reload.body?.dashboard?.source === "database",
+    "dashboard API reload stays database-backed",
+    reload.body?.dashboard?.source ?? "",
   );
 
   const manager = await managerGet("/api/member/dashboard");
   const managerText = JSON.stringify(manager.body);
   push(manager.status === 200, "manager dashboard returns own member dashboard", `status=${manager.status}`);
-  push(!managerText.includes(qaStamp), "manager dashboard does not include member-owned seeded issue");
   pushNoRawSentinel(managerText, "manager dashboard response has no raw private sentinel");
 }
 
@@ -156,22 +116,21 @@ async function runBrowserProof() {
   try {
     await page.goto(`${baseUrl}/dashboard`, { waitUntil: "networkidle", timeout: 60000 });
     await page.getByRole("heading", { name: "今日決策台" }).waitFor({ timeout: 30000 });
-    await page.waitForFunction((stamp) => document.body.innerText.includes(stamp), qaStamp, { timeout: 30000 });
 
-    const desktop = await page.evaluate((stamp) => {
+    const desktop = await page.evaluate(() => {
       const text = document.body.innerText;
       return {
         hasMainline: text.includes("今日主線"),
-        hasTask: text.includes(stamp),
-        hasKpis: text.includes("準備包") && text.includes("客戶池") && text.includes("待處理") && text.includes("已分享"),
+        hasKpis: text.includes("準備包") && text.includes("客戶池") && text.includes("待跟進") && text.includes("已分享"),
+        hasIssueNav: text.includes("議題單"),
         hasQuota: text.includes("AI 額度") || text.includes("AI 顧問摘要"),
         horizontalOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
         bodyText: text,
       };
-    }, qaStamp);
+    });
     push(desktop.hasMainline, "browser /dashboard renders today mainline");
-    push(desktop.hasTask, "browser /dashboard renders seeded DB issue task");
-    push(desktop.hasKpis, "browser /dashboard renders server KPI set");
+    push(desktop.hasKpis, "browser /dashboard renders server KPI set with follow-up KPI");
+    push(!desktop.hasIssueNav, "browser /dashboard no longer exposes hidden 議題單 nav");
     push(desktop.hasQuota, "browser /dashboard renders AI quota/insight panel");
     push(!desktop.horizontalOverflow, "dashboard desktop has no horizontal overflow");
     pushNoRawSentinel(desktop.bodyText, "browser dashboard has no raw private sentinel");
@@ -182,14 +141,13 @@ async function runBrowserProof() {
     });
 
     await page.reload({ waitUntil: "networkidle", timeout: 60000 });
-    await page.waitForFunction((stamp) => document.body.innerText.includes(stamp), qaStamp, { timeout: 30000 });
-    push(true, "browser reload keeps dashboard task visible");
+    await page.getByRole("heading", { name: "今日決策台" }).waitFor({ timeout: 30000 });
+    push(true, "browser reload keeps dashboard rendered");
 
     await context.clearCookies();
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(`${baseUrl}/dashboard`, { waitUntil: "networkidle", timeout: 60000 });
     await page.getByRole("heading", { name: "今日決策台" }).waitFor({ timeout: 30000 });
-    await page.waitForFunction((stamp) => document.body.innerText.includes(stamp), qaStamp, { timeout: 30000 });
     const mobileOverflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1);
     push(!mobileOverflow, "dashboard mobile has no horizontal overflow");
 

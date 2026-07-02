@@ -5,7 +5,7 @@ import type { PublicPricingDto, PublicStatusDto } from "@/domains/public/types";
 import { prisma } from "@/lib/prisma";
 import { getPublicStatus, isPublicDatabaseUnavailableError } from "./status-repository";
 
-const planOrder: PlanType[] = ["FREE", "STARTER", "PRO", "ENTERPRISE"];
+const planOrder: PlanType[] = ["STARTER", "PRO"];
 
 type PublicPlanCapabilityConfig = Pick<
   typeof DEFAULT_PLAN_CONFIGS[PlanType],
@@ -21,9 +21,15 @@ type PublicPlanCapabilityConfig = Pick<
 const planMeta: Record<PlanType, { cta: string; highlighted?: boolean; badge?: string }> = {
   FREE: { cta: "免費開始" },
   STARTER: { cta: "選擇 Starter" },
-  PRO: { cta: "選擇 Pro", highlighted: true, badge: "最受歡迎" },
+  PRO: { cta: "選擇 Pro", highlighted: true, badge: "團隊首選" },
   ENTERPRISE: { cta: "聯絡銷售" },
 };
+
+// 個人版（Starter）為單人 AI 用量基準；Pro 為每人獨立用量、且為個人的倍數。
+const PRO_PER_SEAT_AI_MULTIPLIER = Math.max(
+  1,
+  Math.round(DEFAULT_PLAN_CONFIGS.PRO.monthlyAiQuota / Math.max(1, DEFAULT_PLAN_CONFIGS.STARTER.monthlyAiQuota)),
+);
 
 type PublicPlanConfigRow = PublicPlanCapabilityConfig & {
   plan: string;
@@ -118,19 +124,19 @@ function toFeatureList(plan: PlanType, config: PublicPlanCapabilityConfig): stri
 
   if (plan === "STARTER") {
     return [
-      "1 位主要使用者",
-      `最多 ${config.maxCollaborators} 位協作者`,
+      "適合個人使用",
       `每月 ${formatNumber(config.monthlyAiQuota)} 次 AI 互動`,
+      "用量剩餘 20% 時提醒購買",
       "Email 支援",
     ];
   }
 
   if (plan === "PRO") {
     return [
-      `${config.maxMembers} 位成員`,
+      "含通訊處團隊管理功能",
+      `每人獨立 AI 用量，為個人用量的 ${PRO_PER_SEAT_AI_MULTIPLIER} 倍`,
+      "用量剩餘 20% 時提醒購買",
       "團隊績效儀表板",
-      `每月 ${formatNumber(config.monthlyAiQuota)} 次 AI 互動`,
-      config.clientPortalEnabled ? "客戶入口與分享品牌" : "客戶分享頁",
     ];
   }
 

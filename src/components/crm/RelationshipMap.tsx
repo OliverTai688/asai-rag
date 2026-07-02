@@ -22,7 +22,7 @@ import {
   type RelationshipGraphPersonNode,
 } from "@/domains/client/relationship-graph";
 import { Client, getRelationGeneration } from "@/domains/client/types";
-import { ArrowUpRight, Users, User, Heart, Baby, Star, Crown, Smile, UserPlus } from "lucide-react";
+import { ArrowUpRight, Users, User, Heart, Baby, Star, Crown, Smile, UserPlus, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { applyDagreLayout } from "@/lib/graph-layout";
 
@@ -59,8 +59,11 @@ type PersonNodeData = {
   isRoot?: boolean;
   generation: number;
   linkedClient?: RelationshipGraphPersonNode["linkedClient"];
+  roleLabel: string;
+  profileFieldCount: number;
   onAddChild?: (memberId: string) => void;
   onAddParent?: (memberId: string) => void;
+  onOpenProfile?: (memberId: string) => void;
   memberId: string;
 };
 
@@ -106,7 +109,7 @@ const PersonNode = ({
         }
       }}
       className={cn(
-        "flex min-h-[72px] min-w-[190px] flex-col items-stretch gap-3 rounded-xl border px-4 py-3 shadow-none transition-colors motion-reduce:transition-none",
+        "relative flex min-h-[72px] min-w-[200px] flex-col items-stretch gap-3 rounded-xl border px-4 py-3 shadow-none transition-colors motion-reduce:transition-none",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1A3A6B] focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-zinc-950",
         style.bg,
         style.border,
@@ -114,7 +117,22 @@ const PersonNode = ({
       )}
     >
       <Handle type="target" position={Position.Top} className="opacity-0" />
-      <div className="flex items-center gap-3">
+      {data.onOpenProfile && (
+        <button
+          type="button"
+          aria-label={`查看或編輯人物資料：${data.label}`}
+          title="查看或編輯人物資料"
+          onClick={(event) => {
+            event.stopPropagation();
+            data.onOpenProfile!(data.memberId);
+          }}
+          onPointerDown={(event) => event.stopPropagation()}
+          className="absolute right-1.5 top-1.5 z-10 flex h-6 w-6 items-center justify-center rounded-full border border-hairline bg-white/85 text-zinc-500 shadow-none transition-colors hover:border-[#1A3A6B]/40 hover:text-[#1A3A6B] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1A3A6B] focus-visible:ring-offset-1 motion-reduce:transition-none dark:bg-zinc-800/85 dark:text-zinc-300"
+        >
+          <Info className="h-3.5 w-3.5" aria-hidden="true" />
+        </button>
+      )}
+      <div className="flex items-center gap-3 pr-6">
         <div
           className={cn(
             "flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-hairline",
@@ -127,6 +145,19 @@ const PersonNode = ({
           <p className="text-xs font-bold text-zinc-400 uppercase tracking-tight">{data.relation}</p>
           <p className="truncate text-sm font-bold text-zinc-900 dark:text-zinc-100">{data.label}</p>
         </div>
+      </div>
+      <div className="flex items-center gap-1.5 pl-0.5">
+        <span className="rounded-full bg-white/70 px-2 py-0.5 text-[10px] font-semibold text-zinc-600 shadow-none dark:bg-zinc-800/70 dark:text-zinc-300">
+          {data.roleLabel}
+        </span>
+        <span
+          className={cn(
+            "text-[10px] font-medium",
+            data.profileFieldCount > 0 ? "text-zinc-500 dark:text-zinc-400" : "text-amber-600 dark:text-amber-500"
+          )}
+        >
+          {data.profileFieldCount > 0 ? `資料 ${data.profileFieldCount} 欄` : "待補資料"}
+        </span>
       </div>
       {data.linkedClient && <LinkedClientAffordance linkedClient={data.linkedClient} />}
       <Handle type="source" position={Position.Bottom} className="opacity-0" />
@@ -217,13 +248,15 @@ interface RelationshipMapProps {
   graphReview?: ClientRelationshipGraphReview;
   onAddChild?: (parentMemberId: string | null) => void;
   onAddParent?: (childMemberId: string | null) => void;
+  onOpenProfile?: (nodeId: string) => void;
 }
 
 function buildGraph(
   client: Client,
   graphReview?: ClientRelationshipGraphReview,
   onAddChild?: (id: string | null) => void,
-  onAddParent?: (id: string | null) => void
+  onAddParent?: (id: string | null) => void,
+  onOpenProfile?: (id: string) => void
 ) {
   const review = graphReview ?? buildClientRelationshipGraphReview(client);
   const nodes: Node<PersonNodeData>[] = [];
@@ -246,9 +279,12 @@ function buildGraph(
         isRoot,
         generation: reviewNode.generation,
         linkedClient: reviewNode.linkedClient,
+        roleLabel: reviewNode.roleLabel,
+        profileFieldCount: Object.values(reviewNode.fields).filter((item) => item.factStatus !== "UNKNOWN").length,
         memberId: reactFlowNodeId,
         onAddChild: onAddChild ? () => onAddChild(isRoot ? null : reactFlowNodeId) : undefined,
         onAddParent: onAddParent ? () => onAddParent(isRoot ? null : reactFlowNodeId) : undefined,
+        onOpenProfile: onOpenProfile ? () => onOpenProfile(reactFlowNodeId) : undefined,
       },
       position: { x: 0, y: 0 },
     });
@@ -437,9 +473,9 @@ function getSameRankDistance(edge: Edge<RelationshipEdgeData>, offsetIndex: numb
   return baseDistance + Math.floor(offsetIndex / 2) * 160;
 }
 
-export function RelationshipMap({ client, graphReview, onAddChild, onAddParent }: RelationshipMapProps) {
+export function RelationshipMap({ client, graphReview, onAddChild, onAddParent, onOpenProfile }: RelationshipMapProps) {
   const { nodes: initialNodes, edges: initialEdges } = useMemo(
-    () => buildGraph(client, graphReview, onAddChild, onAddParent),
+    () => buildGraph(client, graphReview, onAddChild, onAddParent, onOpenProfile),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [client, graphReview]
   );
@@ -453,7 +489,7 @@ export function RelationshipMap({ client, graphReview, onAddChild, onAddParent }
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
 
   React.useEffect(() => {
-    const { nodes: n, edges: e } = buildGraph(client, graphReview, onAddChild, onAddParent);
+    const { nodes: n, edges: e } = buildGraph(client, graphReview, onAddChild, onAddParent, onOpenProfile);
     setNodes(n);
     setEdges(e);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -502,7 +538,7 @@ export function RelationshipMap({ client, graphReview, onAddChild, onAddParent }
         <h3 className="text-sm font-bold flex items-center gap-2">
           <Users className="w-4 h-4 text-[#1565C0]" /> 人物關係圖
         </h3>
-        <p className="text-[10px] text-zinc-500 mt-1">點選或聚焦節點可新增父/子節點</p>
+        <p className="text-[10px] text-zinc-500 mt-1">點右上 ⓘ 看／編輯人物資料；聚焦節點可新增父/子節點</p>
         <div className="mt-2 space-y-1">
           {[
             { color: "bg-purple-200", label: "祖父母輩" },

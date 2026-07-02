@@ -1398,55 +1398,61 @@ function RouteBFamilyProfileGroundingPanel({ grounding }: { grounding: RouteBFam
           </div>
         </div>
 
-        <div className="border-y border-hairline py-2 text-xs leading-5 text-muted-foreground">
-          <p>
-            <span className="font-semibold text-ink">Fact status：</span>
-            {statusText}
-          </p>
-          <p className="mt-1">
-            <span className="font-semibold text-ink">Source refs：</span>
-            {grounding.sourceReferenceCount} 個安全計數，未輸出 reference id
-          </p>
-        </div>
+        <RouteBInlineMetricRail
+          ariaLabel="人物 profile 來源摘要"
+          metrics={[
+            { label: "Fact status", value: statusText },
+            { label: "Source refs", value: `${grounding.sourceReferenceCount} safe counts` },
+          ]}
+        />
 
-        <div className="space-y-2">
+        <div className="divide-y divide-hairline" data-route-b-family-profile-row-list="true">
           {grounding.fields.slice(0, 4).map((field) => (
-            <div key={field.stageFieldId} className="border-b border-hairline py-3 last:border-b-0">
-              <div className="flex flex-wrap items-center gap-1.5">
-                <Badge variant="outline" className="text-[10px]">
-                  {routeBFamilyProfileStatusLabel(field.factStatus)}
-                </Badge>
-                <span className="rounded-full border border-hairline bg-background px-2 py-0.5 text-[10px] text-muted-foreground">
-                  {field.relation || "關係待補"}
-                </span>
-              </div>
-              <p className="mt-2 line-clamp-2 text-sm font-medium leading-5 text-ink">
+            <article
+              key={field.stageFieldId}
+              className="py-3 first:pt-0 last:pb-0"
+              data-route-b-family-profile-row="true"
+            >
+              <p className="line-clamp-2 text-sm font-medium leading-5 text-ink">
                 {field.person}・{field.label || field.field}
               </p>
               <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">{field.value}</p>
-            </div>
+              <RouteBInlineMetricRail
+                ariaLabel={`${field.person} profile 欄位指標`}
+                className="mt-2"
+                metrics={[
+                  { label: "factStatus", value: routeBFamilyProfileStatusLabel(field.factStatus) },
+                  { label: "relation", value: field.relation || "關係待補" },
+                  { label: "source count", value: field.sourceReferenceCount },
+                ]}
+              />
+            </article>
           ))}
         </div>
 
-        <div className="grid gap-2 text-[11px] text-muted-foreground">
-          <ContextLine label="Owner graph scope" value={String(grounding.boundary.ownerScopedRelationshipGraphRequired)} />
-          <ContextLine label="Browser session id" value={String(grounding.boundary.browserSuppliedSessionId)} />
-          <ContextLine label="Browser person id" value={String(grounding.boundary.browserSuppliedPersonId)} />
-          <ContextLine label="Provider call" value={String(grounding.boundary.providerCallAttempted)} />
-          <ContextLine label="Raw metadata" value={String(grounding.boundary.rawMetadataIncluded)} />
-          <ContextLine label="Source reference ids" value={String(grounding.boundary.sourceReferenceIdsIncluded)} />
-          <ContextLine label="DB write" value={String(grounding.boundary.databaseWriteAttempted)} />
-          <ContextLine label="Relationship graph write" value={String(grounding.boundary.writesRelationshipGraph)} />
-          <ContextLine label="VisitPlan write" value={String(grounding.boundary.writesVisitPlan)} />
-          <ContextLine label="CRM fact write" value={String(grounding.boundary.writesConfirmedCrmFact)} />
-        </div>
+        <RouteBInlineMetricRail
+          ariaLabel="人物 profile 來源邊界"
+          metrics={[
+            { label: "Owner graph scope", value: String(grounding.boundary.ownerScopedRelationshipGraphRequired) },
+            { label: "Browser session id", value: String(grounding.boundary.browserSuppliedSessionId) },
+            { label: "Browser person id", value: String(grounding.boundary.browserSuppliedPersonId) },
+            { label: "Provider call", value: String(grounding.boundary.providerCallAttempted) },
+            { label: "Raw metadata", value: String(grounding.boundary.rawMetadataIncluded) },
+            { label: "Source reference ids", value: String(grounding.boundary.sourceReferenceIdsIncluded) },
+            { label: "DB write", value: String(grounding.boundary.databaseWriteAttempted) },
+            { label: "Relationship graph write", value: String(grounding.boundary.writesRelationshipGraph) },
+            { label: "VisitPlan write", value: String(grounding.boundary.writesVisitPlan) },
+            { label: "CRM fact write", value: String(grounding.boundary.writesConfirmedCrmFact) },
+          ]}
+        />
     </div>
   );
 }
 
 function RouteBRelationshipEdgeShadowGroundingPanel({ grounding }: { grounding: RouteBRelationshipEdgeShadowGrounding }) {
-  const edgeTypeText = routeBCountMapText(grounding.edgeTypeCounts, "none");
-  const statusText = routeBCountMapText(grounding.factStatusCounts, "none");
+  const edgeTypeText = routeBCountMapText(grounding.edgeTypeCounts, "none", routeBEdgeTypeLabels);
+  const statusText = routeBCountMapText(grounding.factStatusCounts, "none", routeBFactStatusLabels);
+  const warningText = routeBWarningSummaryText(grounding.warningCodes);
 
   return (
     <div className="space-y-4" data-route-b-edge-shadow-source-grounding="true">
@@ -1460,42 +1466,83 @@ function RouteBRelationshipEdgeShadowGroundingPanel({ grounding }: { grounding: 
           </div>
         </div>
 
-        <div className="border-y border-hairline py-2 text-xs leading-5 text-muted-foreground">
-          <p>
-            <span className="font-semibold text-ink">Edge types：</span>
-            {edgeTypeText}
-          </p>
-          <p className="mt-1">
-            <span className="font-semibold text-ink">Fact status：</span>
-            {statusText}
-          </p>
-          <p className="mt-1">
-            <span className="font-semibold text-ink">Warnings：</span>
-            {grounding.warningCodes.length ? grounding.warningCodes.join("、") : "none"}
-          </p>
+        <div className="divide-y divide-hairline" data-route-b-edge-shadow-row-list="true">
+          <article className="py-3 first:pt-0 last:pb-0" data-route-b-edge-shadow-row="true">
+            <p className="text-sm font-medium leading-5 text-ink">候選邊摘要</p>
+            <RouteBInlineMetricRail
+              ariaLabel="關係邊候選摘要指標"
+              className="mt-2"
+              metrics={[
+                { label: "sourceMembers", value: grounding.sourceMemberCount },
+                { label: "candidateEdges", value: grounding.candidateEdgeCount },
+                { label: "unsupported", value: grounding.unsupportedRelationCount },
+              ]}
+            />
+          </article>
+          <article className="py-3 first:pt-0 last:pb-0" data-route-b-edge-shadow-row="true">
+            <p className="text-sm font-medium leading-5 text-ink">分布與警示</p>
+            <RouteBInlineMetricRail
+              ariaLabel="關係邊分布與警示指標"
+              className="mt-2"
+              metrics={[
+                { label: "Edge types", value: edgeTypeText },
+                { label: "Fact status", value: statusText },
+                { label: "Warnings", value: warningText },
+              ]}
+            />
+          </article>
         </div>
 
-        <div className="grid gap-2 text-[11px] text-muted-foreground">
-          <ContextLine label="Owner graph scope" value={String(grounding.boundary.ownerScopedRelationshipGraphRequired)} />
-          <ContextLine label="Browser session id" value={String(grounding.boundary.browserSuppliedSessionId)} />
-          <ContextLine label="Provider call" value={String(grounding.boundary.providerCallAttempted)} />
-          <ContextLine label="DB write" value={String(grounding.boundary.databaseWriteAttempted)} />
-          <ContextLine label="Draft edges returned" value={String(grounding.boundary.clientFacingDraftEdgesReturned)} />
-          <ContextLine label="Formal schema approved" value={String(grounding.boundary.formalSchemaApproved)} />
-          <ContextLine label="Relationship graph write" value={String(grounding.boundary.writesRelationshipGraph)} />
-          <ContextLine label="VisitPlan write" value={String(grounding.boundary.writesVisitPlan)} />
-          <ContextLine label="CRM fact write" value={String(grounding.boundary.writesConfirmedCrmFact)} />
-        </div>
+        <RouteBInlineMetricRail
+          ariaLabel="關係邊來源邊界"
+          metrics={[
+            { label: "Owner graph scope", value: String(grounding.boundary.ownerScopedRelationshipGraphRequired) },
+            { label: "Browser session id", value: String(grounding.boundary.browserSuppliedSessionId) },
+            { label: "Provider call", value: String(grounding.boundary.providerCallAttempted) },
+            { label: "DB write", value: String(grounding.boundary.databaseWriteAttempted) },
+            { label: "Draft edges returned", value: String(grounding.boundary.clientFacingDraftEdgesReturned) },
+            { label: "Formal schema approved", value: String(grounding.boundary.formalSchemaApproved) },
+            { label: "Relationship graph write", value: String(grounding.boundary.writesRelationshipGraph) },
+            { label: "VisitPlan write", value: String(grounding.boundary.writesVisitPlan) },
+            { label: "CRM fact write", value: String(grounding.boundary.writesConfirmedCrmFact) },
+          ]}
+        />
     </div>
   );
 }
 
-function routeBCountMapText(counts: Record<string, number>, fallback: string): string {
+const routeBEdgeTypeLabels: Record<string, string> = {
+  SPOUSE: "配偶",
+  PARENT_CHILD: "親子",
+  BUSINESS_PARTNER: "業務夥伴",
+};
+
+const routeBFactStatusLabels: Record<string, string> = {
+  CONFIRMED: "已確認",
+  FACT: "確認事實",
+  INFERENCE: "推論",
+  UNKNOWN: "待確認",
+};
+
+const routeBWarningLabels: Record<string, string> = {
+  RELATIONSHIP_EDGE_SCHEMA_NOT_APPROVED: "schema 待核准",
+  UNSUPPORTED_RELATION_NEEDS_CONFIRMATION: "unsupported 關係需確認",
+};
+
+function routeBCountMapText(counts: Record<string, number>, fallback: string, labels: Record<string, string> = {}): string {
   const entries = Object.entries(counts)
     .filter(([, value]) => value > 0)
     .slice(0, 6);
 
-  return entries.length ? entries.map(([key, value]) => `${key}=${value}`).join("、") : fallback;
+  return entries.length ? entries.map(([key, value]) => `${labels[key] ?? key}=${value}`).join("、") : fallback;
+}
+
+function routeBWarningSummaryText(warningCodes: string[]): string {
+  if (!warningCodes.length) return "none";
+  return warningCodes
+    .slice(0, 3)
+    .map((code) => routeBWarningLabels[code] ?? "待確認")
+    .join("、");
 }
 
 function routeBFamilyProfileStatusLabel(status: string): string {
@@ -3821,8 +3868,8 @@ function RouteBInlineMetricRail({
     >
       {metrics.map((metric) => (
         <div key={metric.label} className="inline-flex min-w-0 items-baseline gap-1.5">
-          <dt className="order-2 min-w-0 break-words">{metric.label}</dt>
-          <dd className="order-1 min-w-0 break-words text-sm font-semibold tabular-nums text-ink">{metric.value}</dd>
+          <dt className="order-2 shrink-0 whitespace-nowrap">{metric.label}</dt>
+          <dd className="order-1 min-w-0 max-w-full break-words text-sm font-semibold tabular-nums text-ink">{metric.value}</dd>
         </div>
       ))}
     </dl>

@@ -11,6 +11,14 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import type {
   FamilyMemberProfile,
   FamilyMemberProfileFactStatus,
@@ -22,8 +30,8 @@ import {
   type ClientRelationshipGraphReview,
 } from "@/domains/client/relationship-graph";
 import { clientService } from "@/domains/client/service";
-import type { FamilyMember } from "@/domains/client/types";
-import { Info, PencilLine, Save, ShieldCheck, Trash2, UserPlus, Users, X } from "lucide-react";
+import type { Client, FamilyMember } from "@/domains/client/types";
+import { Info, PencilLine, Save, ShieldCheck, Trash2, UserPlus, Users } from "lucide-react";
 import { toast } from "sonner";
 import {
   CompactMetric,
@@ -76,7 +84,7 @@ export default function ClientRelationshipsPage() {
   const [dialogMode, setDialogMode] = useState<"child" | "parent">("child");
   const [targetNodeId, setTargetNodeId] = useState<string | null>(null);
   const [deletingMemberId, setDeletingMemberId] = useState<string | null>(null);
-  const [editingProfileMemberId, setEditingProfileMemberId] = useState<string | null>(null);
+  const [profileSheetNodeId, setProfileSheetNodeId] = useState<string | null>(null);
   const [savingProfileMemberId, setSavingProfileMemberId] = useState<string | null>(null);
   const [profileDraftByMemberId, setProfileDraftByMemberId] = useState<Record<string, ProfileDraft>>({});
   const [bffGraphReview, setBffGraphReview] = useState<ClientRelationshipGraphReview | null>(null);
@@ -150,16 +158,19 @@ export default function ClientRelationshipsPage() {
     }
   }
 
-  function openProfileEditor(member: FamilyMember) {
-    setProfileDraftByMemberId((current) => ({
-      ...current,
-      [member.id]: current[member.id] ?? createProfileDraft(member),
-    }));
-    setEditingProfileMemberId(member.id);
+  function openProfileSheet(nodeId: string) {
+    const member = client?.family.find((candidate) => candidate.id === nodeId);
+    if (member) {
+      setProfileDraftByMemberId((current) => ({
+        ...current,
+        [member.id]: createProfileDraft(member),
+      }));
+    }
+    setProfileSheetNodeId(nodeId);
   }
 
-  function closeProfileEditor() {
-    setEditingProfileMemberId(null);
+  function closeProfileSheet() {
+    setProfileSheetNodeId(null);
   }
 
   function updateProfileDraft(
@@ -194,7 +205,7 @@ export default function ClientRelationshipsPage() {
         profile: profilePayload,
       });
       toast.success(`${member.name} 的人物資料已更新`);
-      setEditingProfileMemberId(null);
+      setProfileSheetNodeId(null);
     } catch (error) {
       console.error(error);
       toast.error("人物資料儲存失敗，請檢查欄位內容");
@@ -216,7 +227,7 @@ export default function ClientRelationshipsPage() {
         [member.id]: createEmptyProfileDraft(),
       }));
       toast.success(`${member.name} 的人物資料已清空`);
-      setEditingProfileMemberId(null);
+      setProfileSheetNodeId(null);
     } catch (error) {
       console.error(error);
       toast.error("清空人物資料失敗，請稍後再試");
@@ -274,6 +285,7 @@ export default function ClientRelationshipsPage() {
           graphReview={graphReview}
           onAddChild={openDialogForNodeAsChild}
           onAddParent={openDialogForNodeAsParent}
+          onOpenProfile={openProfileSheet}
         />
       </div>
 
@@ -303,80 +315,59 @@ export default function ClientRelationshipsPage() {
                     : "主客戶";
                 const profileFieldCount = countProfileFields(member.profile);
                 const profileUnknownCount = countProfileFieldsByStatus(member.profile, "UNKNOWN");
-                const isEditingProfile = editingProfileMemberId === member.id;
-                const profileDraft = profileDraftByMemberId[member.id] ?? createProfileDraft(member);
-                const isSavingProfile = savingProfileMemberId === member.id;
 
                 return (
                   <div
                     key={member.id}
-                    className="px-5 py-4 transition-colors hover:bg-paper-2/60"
+                    className="flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-3.5 transition-colors hover:bg-paper-2/60"
                     data-family-profile-editor-row={member.id}
                   >
-                    <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_120px_150px_180px]">
-                      <div className="flex min-w-0 items-center gap-3">
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-hairline bg-paper-2 text-sm font-semibold text-foreground">
-                          {member.name.charAt(0)}
-                        </div>
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-semibold text-foreground">
-                            {member.name}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {member.age ? `${member.age} 歲・` : ""}
-                            連結至 {parentName}
-                            {member.phone ? `・${member.phone}` : ""}
-                          </p>
-                        </div>
+                    <div className="flex min-w-0 flex-1 items-center gap-3">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-hairline bg-paper-2 text-sm font-semibold text-foreground">
+                        {member.name.charAt(0)}
                       </div>
-                      <div className="flex items-center">
-                        <Badge variant="secondary" className="h-6 text-[11px]">
-                          {member.relation}
-                        </Badge>
-                      </div>
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <ShieldCheck className="h-4 w-4 text-primary" strokeWidth={1.5} />
-                        <span>{profileFieldCount > 0 ? `${profileFieldCount} 欄` : "待補資料"}</span>
-                        {profileUnknownCount > 0 ? (
-                          <Badge variant="outline" className="h-5 text-[10px]">
-                            待確認 {profileUnknownCount}
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-foreground">
+                          {member.name}
+                          <Badge variant="secondary" className="ml-2 h-5 align-middle text-[10px]">
+                            {member.relation}
                           </Badge>
-                        ) : null}
-                      </div>
-                      <div className="flex items-center justify-start gap-2 md:justify-end">
-                        <Button
-                          type="button"
-                          variant={isEditingProfile ? "monoOutline" : "outline"}
-                          size="sm"
-                          className="rounded-full"
-                          onClick={() => (isEditingProfile ? closeProfileEditor() : openProfileEditor(member))}
-                        >
-                          {isEditingProfile ? (
-                            <X className="h-4 w-4" strokeWidth={1.5} />
-                          ) : (
-                            <PencilLine className="h-4 w-4" strokeWidth={1.5} />
-                          )}
-                          {isEditingProfile ? "收合" : "人物資料"}
-                        </Button>
-                        <IconAction
-                          label={`刪除 ${member.name}`}
-                          icon={Trash2}
-                          variant="ghost"
-                          disabled={deletingMemberId === member.id}
-                          onClick={() => void handleDeleteMember(member.id, member.name)}
-                        />
+                        </p>
+                        <p className="truncate text-xs text-muted-foreground">
+                          {member.age ? `${member.age} 歲・` : ""}
+                          連結至 {parentName}
+                          {member.phone ? `・${member.phone}` : ""}
+                        </p>
                       </div>
                     </div>
-                    {isEditingProfile ? (
-                      <FamilyProfileEditor
-                        member={member}
-                        draft={profileDraft}
-                        saving={isSavingProfile}
-                        onFieldChange={(fieldKey, patch) => updateProfileDraft(member.id, fieldKey, patch)}
-                        onSave={() => void handleSaveProfile(member)}
-                        onClear={() => void handleClearProfile(member)}
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <ShieldCheck className="h-4 w-4 text-primary" strokeWidth={1.5} />
+                      <span>{profileFieldCount > 0 ? `資料 ${profileFieldCount} 欄` : "待補資料"}</span>
+                      {profileUnknownCount > 0 ? (
+                        <Badge variant="outline" className="h-5 text-[10px]">
+                          待確認 {profileUnknownCount}
+                        </Badge>
+                      ) : null}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="rounded-full"
+                        onClick={() => openProfileSheet(member.id)}
+                      >
+                        <PencilLine className="h-4 w-4" strokeWidth={1.5} />
+                        人物資料
+                      </Button>
+                      <IconAction
+                        label={`刪除 ${member.name}`}
+                        icon={Trash2}
+                        variant="ghost"
+                        disabled={deletingMemberId === member.id}
+                        onClick={() => void handleDeleteMember(member.id, member.name)}
                       />
-                    ) : null}
+                    </div>
                   </div>
                 );
               })}
@@ -384,116 +375,201 @@ export default function ClientRelationshipsPage() {
           </CardContent>
         </Card>
       )}
+
+      <PersonProfileSheet
+        client={client}
+        nodeId={profileSheetNodeId}
+        draftByMemberId={profileDraftByMemberId}
+        savingMemberId={savingProfileMemberId}
+        onOpenChange={(open) => {
+          if (!open) closeProfileSheet();
+        }}
+        onFieldChange={updateProfileDraft}
+        onSave={handleSaveProfile}
+        onClear={handleClearProfile}
+      />
     </div>
   );
 }
 
-function FamilyProfileEditor({
-  member,
-  draft,
-  saving,
+function PersonProfileSheet({
+  client,
+  nodeId,
+  draftByMemberId,
+  savingMemberId,
+  onOpenChange,
   onFieldChange,
   onSave,
   onClear,
 }: {
-  member: FamilyMember;
-  draft: ProfileDraft;
-  saving: boolean;
-  onFieldChange: (fieldKey: ProfileFieldKey, patch: Partial<ProfileFieldDraft>) => void;
-  onSave: () => void;
-  onClear: () => void;
+  client: Client;
+  nodeId: string | null;
+  draftByMemberId: Record<string, ProfileDraft>;
+  savingMemberId: string | null;
+  onOpenChange: (open: boolean) => void;
+  onFieldChange: (memberId: string, fieldKey: ProfileFieldKey, patch: Partial<ProfileFieldDraft>) => void;
+  onSave: (member: FamilyMember) => void;
+  onClear: (member: FamilyMember) => void;
 }) {
+  const isRoot = nodeId !== null && nodeId === client.id;
+  const member = client.family.find((candidate) => candidate.id === nodeId);
+  const draft = member ? draftByMemberId[member.id] ?? createProfileDraft(member) : null;
+  const saving = member ? savingMemberId === member.id : false;
+
   return (
-    <div
-      className="mt-4 rounded-lg border border-hairline bg-paper p-4"
-      data-family-profile-editor="true"
-    >
-      <div className="flex flex-col gap-3 border-b border-hairline pb-3 md:flex-row md:items-start md:justify-between">
-        <div>
-          <p className="text-sm font-semibold text-foreground">{member.name} 的人物資料</p>
-          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-            只保存 allowlisted profile 欄位；來源標記為關係圖顧問輸入，不寫回 CRM confirmed fact。
-          </p>
-        </div>
-        <div className="flex shrink-0 flex-wrap gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="rounded-full"
-            disabled={saving}
-            onClick={onClear}
-          >
-            清空資料
-          </Button>
-          <Button
-            type="button"
-            variant="mono"
-            size="sm"
-            className="rounded-full"
-            disabled={saving}
-            onClick={onSave}
-          >
-            <Save className="h-4 w-4" strokeWidth={1.5} />
-            {saving ? "儲存中" : "儲存"}
-          </Button>
-        </div>
-      </div>
-      <div className="mt-4 grid gap-3">
-        {PROFILE_FIELD_CONFIG.map((field) => (
-          <div
-            key={field.key}
-            className="grid gap-2 rounded-md border border-hairline bg-paper-2 p-3 lg:grid-cols-[180px_minmax(0,1fr)_132px]"
-            data-family-profile-field={field.key}
-          >
-            <label className="text-xs font-semibold text-muted-foreground" htmlFor={`${member.id}-${field.key}`}>
-              {field.label}
-            </label>
-            <Input
-              id={`${member.id}-${field.key}`}
-              value={draft[field.key].value}
-              placeholder={field.placeholder}
-              disabled={saving}
-              onChange={(event) => onFieldChange(field.key, { value: event.target.value })}
-            />
-            <label className="sr-only" htmlFor={`${member.id}-${field.key}-status`}>
-              {field.label} 狀態
-            </label>
-            <select
-              id={`${member.id}-${field.key}-status`}
-              value={draft[field.key].factStatus}
-              disabled={saving}
-              className="h-9 rounded-lg border border-input bg-surface px-3 text-sm text-foreground outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/20 disabled:cursor-not-allowed disabled:bg-muted disabled:opacity-50"
-              onChange={(event) =>
-                onFieldChange(field.key, {
-                  factStatus: event.target.value as FamilyMemberProfileFactStatus,
-                })
-              }
-            >
-              {PROFILE_STATUS_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-            <div className="lg:col-start-2 lg:col-end-4">
-              <label className="sr-only" htmlFor={`${member.id}-${field.key}-rationale`}>
-                {field.label} 推論依據
-              </label>
-              <Textarea
-                id={`${member.id}-${field.key}-rationale`}
-                value={draft[field.key].rationale}
-                placeholder="補一行依據或待確認原因；留空也可以。"
-                disabled={saving}
-                className="min-h-12"
-                onChange={(event) => onFieldChange(field.key, { rationale: event.target.value })}
-              />
+    <Sheet open={nodeId !== null} onOpenChange={onOpenChange}>
+      <SheetContent side="right" className="flex w-full flex-col gap-0 sm:max-w-md">
+        {isRoot ? (
+          <>
+            <SheetHeader className="border-b border-hairline">
+              <SheetTitle>{client.name}・主客戶</SheetTitle>
+              <SheetDescription>主客戶的基本資料以 CRM 檔案為準，可到「總覽」分頁編輯。</SheetDescription>
+            </SheetHeader>
+            <div className="flex-1 overflow-y-auto p-4">
+              <dl className="divide-y divide-hairline" data-person-profile-readonly="root">
+                <ReadonlyProfileRow label="職位 / 職業" value={client.occupation || "待確認"} known={Boolean(client.occupation)} />
+                <ReadonlyProfileRow
+                  label="年收入"
+                  value={client.annualIncome > 0 ? formatTwd(client.annualIncome) : "待確認"}
+                  known={client.annualIncome > 0}
+                />
+                <ReadonlyProfileRow label="客戶狀態" value={CLIENT_STATUS_LABELS[client.status]} known />
+                <ReadonlyProfileRow label="合規 KYC" value={KYC_STATUS_LABELS[client.kycStatus]} known={client.kycStatus === "COMPLETE"} />
+              </dl>
             </div>
-          </div>
-        ))}
-      </div>
+          </>
+        ) : member && draft ? (
+          <>
+            <SheetHeader className="border-b border-hairline">
+              <SheetTitle className="flex items-center gap-2">
+                {member.name}
+                <Badge variant="secondary" className="h-5 text-[10px]">{member.relation}</Badge>
+              </SheetTitle>
+              <SheetDescription>
+                顧問輸入的人物補充，不寫回 CRM 確認事實。
+              </SheetDescription>
+            </SheetHeader>
+            <div
+              className="flex-1 divide-y divide-hairline overflow-y-auto px-4"
+              data-family-profile-editor="true"
+            >
+              {PROFILE_FIELD_CONFIG.map((field) => (
+                <div
+                  key={field.key}
+                  className="space-y-1.5 py-4"
+                  data-family-profile-field={field.key}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <label className="text-xs font-medium text-muted-foreground" htmlFor={`${member.id}-${field.key}`}>
+                      {field.label}
+                    </label>
+                    <label className="sr-only" htmlFor={`${member.id}-${field.key}-status`}>
+                      {field.label} 狀態
+                    </label>
+                    <select
+                      id={`${member.id}-${field.key}-status`}
+                      value={draft[field.key].factStatus}
+                      disabled={saving}
+                      className="h-6 rounded-full border-0 bg-muted px-2.5 text-xs text-muted-foreground outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/20 disabled:cursor-not-allowed disabled:opacity-50"
+                      onChange={(event) =>
+                        onFieldChange(member.id, field.key, {
+                          factStatus: event.target.value as FamilyMemberProfileFactStatus,
+                        })
+                      }
+                    >
+                      {PROFILE_STATUS_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <Input
+                    id={`${member.id}-${field.key}`}
+                    value={draft[field.key].value}
+                    placeholder={field.placeholder}
+                    disabled={saving}
+                    className="h-9 rounded-none border-0 border-b border-hairline bg-transparent px-0 text-sm font-medium shadow-none focus-visible:border-ring focus-visible:ring-0"
+                    onChange={(event) => onFieldChange(member.id, field.key, { value: event.target.value })}
+                  />
+                  <label className="sr-only" htmlFor={`${member.id}-${field.key}-rationale`}>
+                    {field.label} 推論依據
+                  </label>
+                  <Textarea
+                    id={`${member.id}-${field.key}-rationale`}
+                    value={draft[field.key].rationale}
+                    placeholder="補依據（選填）"
+                    disabled={saving}
+                    rows={1}
+                    className="min-h-8 resize-none border-0 bg-transparent px-0 py-1 text-xs leading-5 text-muted-foreground shadow-none placeholder:text-muted-foreground/60 focus-visible:ring-0"
+                    onChange={(event) => onFieldChange(member.id, field.key, { rationale: event.target.value })}
+                  />
+                </div>
+              ))}
+            </div>
+            <SheetFooter className="flex-row justify-end gap-2 border-t border-hairline">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="rounded-full"
+                disabled={saving}
+                onClick={() => onClear(member)}
+              >
+                清空資料
+              </Button>
+              <Button
+                type="button"
+                variant="mono"
+                size="sm"
+                className="rounded-full"
+                disabled={saving}
+                onClick={() => onSave(member)}
+              >
+                <Save className="h-4 w-4" strokeWidth={1.5} />
+                {saving ? "儲存中" : "儲存"}
+              </Button>
+            </SheetFooter>
+          </>
+        ) : null}
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+function ReadonlyProfileRow({ label, value, known }: { label: string; value: string; known: boolean }) {
+  return (
+    <div className="flex items-center justify-between gap-3 py-3">
+      <dt className="text-xs font-medium text-muted-foreground">{label}</dt>
+      <dd className="flex items-center gap-2 text-right">
+        <span className="text-sm font-medium text-foreground">{value}</span>
+        <Badge variant={known ? "success" : "outline"} className="h-5 text-[10px]">
+          {known ? "事實" : "待確認"}
+        </Badge>
+      </dd>
     </div>
   );
+}
+
+const CLIENT_STATUS_LABELS: Record<Client["status"], string> = {
+  PROSPECT: "潛在客戶",
+  ACTIVE: "服務中",
+  CLOSED: "已結案",
+};
+
+const KYC_STATUS_LABELS: Record<Client["kycStatus"], string> = {
+  MISSING: "未補齊",
+  PARTIAL: "部分完成",
+  COMPLETE: "完成",
+  REVIEW_REQUIRED: "需複核",
+};
+
+function formatTwd(value: number): string {
+  return new Intl.NumberFormat("zh-TW", {
+    style: "currency",
+    currency: "TWD",
+    maximumFractionDigits: 0,
+  }).format(value);
 }
 
 function createProfileDraft(member: FamilyMember): ProfileDraft {

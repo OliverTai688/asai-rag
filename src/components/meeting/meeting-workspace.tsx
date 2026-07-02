@@ -2,22 +2,34 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { motion, useReducedMotion } from "motion/react";
+
+import { cn } from "@/lib/utils";
 import {
   AlertCircle,
   ArrowLeft,
+  AudioLines,
   CheckCircle2,
   ClipboardList,
   FileText,
+  Lightbulb,
+  ListChecks,
   Loader2,
   Mic,
   NotebookPen,
+  Plus,
   RefreshCcw,
+  ScrollText,
   ShieldCheck,
   Sparkles,
+  StickyNote,
+  Upload,
+  X,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import {
   MEETING_DATA_CLASS_LABEL,
@@ -43,6 +55,8 @@ import type { VisitRouteBRedLineContext } from "@/domains/visit/route-b-red-line
 import type { VisitRouteBStateProposalContext } from "@/domains/visit/route-b-state-proposal-context";
 import type { VisitRouteBFeedbackAdvisorContext } from "@/domains/visit/route-b-feedback-advisor-context";
 
+type MeetingPhase = "capture" | "summarize" | "act";
+type CaptureMode = "meeting" | "note";
 type TurnSource = "MANUAL_NOTE" | "VOICE_FINAL_TRANSCRIPT";
 type BootstrapState = "loading" | "ready" | "error";
 type RequestState = "idle" | "saving" | "summarizing";
@@ -468,22 +482,29 @@ export function MeetingWorkspace({
   const [finalTranscriptDraft, setFinalTranscriptDraft] = useState(DEFAULT_FINAL_TRANSCRIPT);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [lastAction, setLastAction] = useState("正在連接會議工作台");
+  const [mode, setMode] = useState<CaptureMode>("meeting");
 
   const sessionId = snapshot?.session.id ?? initialSessionId ?? "";
+  const phase: MeetingPhase =
+    (snapshot?.turns.length ?? 0) === 0 ? "capture" : summary ? "act" : "summarize";
   const isSaving = requestState === "saving";
   const isSummarizing = requestState === "summarizing";
   const canSubmit = Boolean(snapshot) && !isSaving && !isSummarizing;
   const turnCount = snapshot?.turns.length ?? 0;
+  const transcriptTurns = useMemo(
+    () => snapshot?.turns.filter((turn) => turn.transcriptFinal) ?? [],
+    [snapshot?.turns],
+  );
+  const noteTurns = useMemo(
+    () => snapshot?.turns.filter((turn) => !turn.transcriptFinal) ?? [],
+    [snapshot?.turns],
+  );
   const memoryRail = snapshot?.memoryRail;
   const workspaceScopeLabel = planId ? "準備包會議" : "客戶會議";
   const resolvedBackLabel = backLabel ?? (planId ? "回準備包" : "回客戶總覽");
   const workspaceDescription = planId
     ? "從這份準備包建立會議 session，捕捉手動筆記與 final transcript，並生成可引用摘要。"
     : "從客戶工作台直接建立會議 session，捕捉手動筆記與 final transcript，並生成可引用摘要。";
-  const transcriptFinalCount = useMemo(
-    () => snapshot?.turns.filter((turn) => turn.transcriptFinal).length ?? 0,
-    [snapshot?.turns],
-  );
   const noteDraft = hasTouchedNoteDraft
     ? editedNoteDraft
     : mergedInitialNoteDraft ?? DEFAULT_NOTE;
@@ -828,140 +849,198 @@ export function MeetingWorkspace({
   }
 
   return (
-    <div data-testid="meeting-workspace" className="mx-auto flex w-full max-w-7xl flex-col gap-5 px-4 py-5 sm:px-6 lg:px-8">
+    <div data-testid="meeting-workspace" className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8">
       <div data-testid="meeting-session-id" data-session-id={sessionId} className="sr-only">
         會議 session 已就緒
       </div>
 
-      <header className="grid gap-4 border-b border-hairline pb-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
-        <div>
+      <header className="flex items-center justify-between gap-4 border-b border-hairline pb-5">
+        <div className="flex items-center gap-3">
           <Button
             type="button"
             variant="ghost"
-            className="mb-3 h-9 rounded-lg px-2.5 text-muted-foreground"
+            size="icon"
+            className="-ml-1 rounded-lg text-muted-foreground"
             onClick={() => router.push(backHref)}
+            aria-label={resolvedBackLabel}
+            title={resolvedBackLabel}
           >
-            <ArrowLeft className="mr-2 size-4" aria-hidden="true" />
-            {resolvedBackLabel}
+            <ArrowLeft className="size-4" aria-hidden="true" />
           </Button>
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="secondary">AI 會議</Badge>
-            <Badge variant="outline">CLIENT_MEETING</Badge>
-            <Badge variant="outline">{workspaceScopeLabel}</Badge>
-            <Badge variant="outline">No provider</Badge>
-          </div>
-          <h1 className="mt-3 flex items-center gap-3 text-3xl font-semibold tracking-tight text-ink sm:text-4xl">
-            <Mic className="size-7 text-[#1A3A6B]" aria-hidden="true" />
-            會議工作台
+          <h1 className="flex items-center gap-3">
+            <span
+              className="flex size-10 items-center justify-center rounded-2xl bg-[#1A3A6B]/10 text-[#1A3A6B]"
+              title={`會議工作台 · ${workspaceScopeLabel}`}
+            >
+              <Mic className="size-5" aria-hidden="true" />
+            </span>
+            <span className="sr-only">
+              會議工作台 · {workspaceScopeLabel} · {workspaceDescription}
+            </span>
           </h1>
-          <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
-            {workspaceDescription}
-          </p>
         </div>
 
-        <div className="grid gap-2 text-sm text-muted-foreground sm:grid-cols-3 lg:min-w-[390px]">
-          <MetricCard label="段落" value={String(turnCount)} testId="meeting-turn-count" />
-          <MetricCard label="記憶" value={String(memoryRail?.total ?? 0)} />
-          <MetricCard label="Final" value={String(transcriptFinalCount)} />
+        <div className="flex items-center gap-3">
+          <StatChip icon={<ScrollText className="size-4" aria-hidden="true" />} label="會議段落" value={turnCount} testId="meeting-turn-count" />
+          <StatChip icon={<Lightbulb className="size-4" aria-hidden="true" />} label="已擷取重點" value={memoryRail?.total ?? 0} />
+          <span className="hidden h-6 w-px bg-hairline sm:block" aria-hidden="true" />
+          <StageTracker phase={phase} />
         </div>
       </header>
 
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)]">
-        <section className="min-w-0 rounded-lg border border-hairline bg-card">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-hairline px-4 py-3">
-            <div>
-              <p className="text-sm font-semibold text-ink">捕捉會議內容</p>
-              <p className="mt-1 text-xs text-muted-foreground">{lastAction}</p>
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(340px,380px)]">
+        <section className="min-w-0 space-y-4">
+          <Tabs value={mode} onValueChange={(value) => setMode(value as CaptureMode)}>
+            <div className="flex items-center justify-between gap-3">
+              <TabsList>
+                <TabsTrigger value="meeting">
+                  <Mic className="size-4" aria-hidden="true" />
+                  會議
+                </TabsTrigger>
+                <TabsTrigger value="note">
+                  <StickyNote className="size-4" aria-hidden="true" />
+                  隨筆
+                </TabsTrigger>
+              </TabsList>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                className="rounded-lg text-muted-foreground"
+                onClick={handleManualRefresh}
+                disabled={!canSubmit}
+                aria-label="重新讀取會議"
+                title={`重新讀取 · ${lastAction}`}
+              >
+                {requestState === "saving" ? (
+                  <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+                ) : (
+                  <RefreshCcw className="size-4" aria-hidden="true" />
+                )}
+              </Button>
             </div>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-9 rounded-lg"
-              onClick={handleManualRefresh}
-              disabled={!canSubmit}
-            >
-              {requestState === "saving" ? (
-                <Loader2 className="mr-2 size-4 animate-spin" aria-hidden="true" />
-              ) : (
-                <RefreshCcw className="mr-2 size-4" aria-hidden="true" />
-              )}
-              重新讀取
-            </Button>
-          </div>
 
-          <div className="grid gap-4 p-4 xl:grid-cols-2">
-            <CaptureBox
-              title="手動筆記"
-              description="用於顧問補充觀察、決策脈絡或待確認事項。"
-              icon={<NotebookPen className="size-4" aria-hidden="true" />}
-              value={noteDraft}
-              placeholder="輸入這場會議的手動筆記..."
-              disabled={!canSubmit}
-              buttonLabel="加入筆記"
-              onChange={handleNoteDraftChange}
-              onSubmit={() => handleAppendTurn("MANUAL_NOTE")}
-              isBusy={requestState === "saving"}
-              testId="meeting-note-input"
-            />
-            <CaptureBox
-              title="Final transcript"
-              description="用於貼上已完成的轉寫段落；不保存 raw audio。"
-              icon={<Mic className="size-4" aria-hidden="true" />}
-              value={finalTranscriptDraft}
-              placeholder="貼上 final transcript 段落..."
-              disabled={!canSubmit}
-              buttonLabel="加入 final transcript"
-              onChange={setFinalTranscriptDraft}
-              onSubmit={() => handleAppendTurn("VOICE_FINAL_TRANSCRIPT")}
-              isBusy={requestState === "saving"}
-              testId="meeting-transcript-input"
-            />
-          </div>
+            <TabsContent value="meeting" className="mt-4 space-y-4">
+              <div className="rounded-2xl border border-dashed border-hairline bg-paper/50 p-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="inline-flex items-center gap-2 text-sm font-medium text-ink">
+                    <AudioLines className="size-4 text-[#1A3A6B]" aria-hidden="true" />
+                    錄製整場會議或上傳音檔
+                  </span>
+                  <span className="rounded-full border border-hairline bg-card px-2 py-0.5 text-[11px] text-muted-foreground">
+                    需啟用語音服務
+                  </span>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Button type="button" variant="outline" size="sm" className="rounded-lg" disabled title="需啟用語音服務">
+                    <Mic className="mr-1.5 size-4" aria-hidden="true" />
+                    錄製會議
+                  </Button>
+                  <Button type="button" variant="outline" size="sm" className="rounded-lg" disabled title="需啟用語音服務">
+                    <Upload className="mr-1.5 size-4" aria-hidden="true" />
+                    上傳音檔
+                  </Button>
+                </div>
+                <p className="mt-2.5 text-xs leading-5 text-muted-foreground">
+                  語音轉文字尚未啟用；目前請在下方貼上或匯入逐字稿，即可生成摘要。
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-hairline bg-card p-4 sm:p-5">
+                <CaptureLane
+                  icon={<Mic className="size-4" aria-hidden="true" />}
+                  label="逐字稿"
+                  value={finalTranscriptDraft}
+                  placeholder="貼上或匯入會議逐字稿（不保存錄音）…"
+                  disabled={!canSubmit}
+                  isBusy={requestState === "saving"}
+                  buttonLabel="加入逐字稿"
+                  buttonAriaLabel="加入 final transcript"
+                  onChange={setFinalTranscriptDraft}
+                  onSubmit={() => handleAppendTurn("VOICE_FINAL_TRANSCRIPT")}
+                  testId="meeting-transcript-input"
+                />
+              </div>
+
+              <div className="rounded-2xl border border-hairline bg-card p-4 sm:p-5">
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <span className="inline-flex text-muted-foreground" title="會議逐字段落 · 自動儲存">
+                    <ScrollText className="size-5" aria-hidden="true" />
+                  </span>
+                  <span className="text-xs tabular-nums text-muted-foreground" title="逐字段落數">
+                    {transcriptTurns.length}
+                  </span>
+                </div>
+                {transcriptTurns.length ? (
+                  <ol className="space-y-2.5">
+                    {transcriptTurns.map((turn) => (
+                      <li key={turn.id}>
+                        <TurnCard turn={turn} memories={snapshot?.memories ?? []} />
+                      </li>
+                    ))}
+                  </ol>
+                ) : (
+                  <EmptyState
+                    icon={<ScrollText className="size-5" aria-hidden="true" />}
+                    title="尚無逐字段落"
+                    description="貼上逐字稿，或稍後啟用語音服務。"
+                  />
+                )}
+              </div>
+            </TabsContent>
+
+            <TabsContent value="note" className="mt-4 space-y-4">
+              <div className="rounded-2xl border border-hairline bg-card p-4 sm:p-5">
+                <CaptureLane
+                  icon={<StickyNote className="size-4" aria-hidden="true" />}
+                  label="隨筆"
+                  value={noteDraft}
+                  placeholder="隨手記下觀察、決策或待確認…"
+                  disabled={!canSubmit}
+                  isBusy={requestState === "saving"}
+                  buttonLabel="加入筆記"
+                  onChange={handleNoteDraftChange}
+                  onSubmit={() => handleAppendTurn("MANUAL_NOTE")}
+                  testId="meeting-note-input"
+                />
+              </div>
+
+              {noteTurns.length ? (
+                <div className="gap-3 sm:columns-2 [&>*]:mb-3">
+                  {noteTurns.map((turn) => (
+                    <KeepNoteCard key={turn.id} turn={turn} memories={snapshot?.memories ?? []} />
+                  ))}
+                </div>
+              ) : (
+                <EmptyState
+                  icon={<StickyNote className="size-5" aria-hidden="true" />}
+                  title="還沒有隨筆"
+                  description="在上方寫下想法，會像便利貼一樣收藏在這裡。"
+                />
+              )}
+            </TabsContent>
+          </Tabs>
 
           {errorMessage ? (
-            <div className="mx-4 mb-4 flex gap-2 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+            <div className="flex gap-2 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
               <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
               <p>{errorMessage}</p>
             </div>
           ) : null}
-
-          <div className="border-t border-hairline p-4">
-            <div className="mb-3 flex items-center justify-between gap-3">
-              <div>
-                <p className="text-sm font-semibold text-ink">會議逐字段落</p>
-                <p className="mt-1 text-xs text-muted-foreground">來源以 server-side BFF 持久化，refresh 後可讀回。</p>
-              </div>
-              <Badge variant="outline">{turnCount} 段</Badge>
-            </div>
-            <div className="max-h-[520px] space-y-3 overflow-y-auto pr-1">
-              {snapshot?.turns.length ? (
-                snapshot.turns.map((turn) => <TurnCard key={turn.id} turn={turn} memories={snapshot.memories} />)
-              ) : (
-                <EmptyState
-                  icon={<ClipboardList className="size-5" aria-hidden="true" />}
-                  title="還沒有會議內容"
-                  description="加入手動筆記或 final transcript 後，這裡會顯示已持久化段落。"
-                />
-              )}
-            </div>
-          </div>
         </section>
 
-        <aside className="min-w-0 space-y-5">
-          <section data-testid="meeting-memory-rail" className="rounded-lg border border-hairline bg-card p-4">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-sm font-semibold text-ink">Park 記憶軌</p>
-                <p className="mt-1 text-xs text-muted-foreground">只建立 member-private 候選記憶。</p>
-              </div>
-              <ShieldCheck className="size-5 text-[#1A3A6B]" aria-hidden="true" />
-            </div>
-            <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
-              <RailMetric label="已確認" value={memoryRail?.confirmed ?? 0} />
-              <RailMetric label="推論" value={memoryRail?.inferences ?? 0} />
-              <RailMetric label="未知" value={memoryRail?.unknowns ?? 0} />
-              <RailMetric label="私人" value={memoryRail?.memberPrivate ?? 0} />
+        <aside className="min-w-0 space-y-4 lg:sticky lg:top-6 lg:self-start">
+          <section
+            data-testid="meeting-memory-rail"
+            className="flex items-center justify-between gap-3 rounded-2xl border border-hairline bg-card px-4 py-3"
+          >
+            <span className="inline-flex text-[#1A3A6B]" title="會議重點只保留在你的私人工作區">
+              <ShieldCheck className="size-4" aria-hidden="true" />
+            </span>
+            <div className="flex items-center gap-4">
+              <DotStat tone="confirmed" label="已確認" value={memoryRail?.confirmed ?? 0} />
+              <DotStat tone="inference" label="推論" value={memoryRail?.inferences ?? 0} />
+              <DotStat tone="unknown" label="待確認" value={memoryRail?.unknowns ?? 0} />
             </div>
           </section>
 
@@ -983,26 +1062,32 @@ export function MeetingWorkspace({
             isLoading={routeBStateProposalContextLoading}
           />
 
-          <section data-testid="meeting-summary-panel" className="rounded-lg border border-hairline bg-card p-4">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <p className="text-sm font-semibold text-ink">會議摘要</p>
-                <p className="mt-1 text-xs text-muted-foreground">Deterministic no-provider，引用已持久化 turn/memory。</p>
-              </div>
+          <section
+            data-testid="meeting-summary-panel"
+            className={cn(
+              "rounded-2xl border bg-card p-4 transition-colors",
+              phase === "summarize" ? "border-[#1A3A6B]/40 ring-1 ring-[#1A3A6B]/15" : "border-hairline",
+            )}
+          >
+            <div className="flex items-center justify-between gap-3">
+              <span className="inline-flex text-[#1A3A6B]" title="會議摘要：自動整理決策、行動與待確認，並標註引用">
+                <FileText className="size-5" aria-hidden="true" />
+              </span>
               <Button
                 type="button"
                 variant="mono"
-                size="sm"
-              className="h-9 rounded-lg"
-              onClick={handleGenerateSummary}
-              disabled={!canSubmit || turnCount === 0}
-            >
+                size="icon"
+                className="rounded-lg"
+                onClick={handleGenerateSummary}
+                disabled={!canSubmit || turnCount === 0}
+                aria-label="生成摘要"
+                title="生成摘要"
+              >
                 {isSummarizing ? (
-                  <Loader2 className="mr-2 size-4 animate-spin" aria-hidden="true" />
+                  <Loader2 className="size-4 animate-spin" aria-hidden="true" />
                 ) : (
-                  <Sparkles className="mr-2 size-4" aria-hidden="true" />
+                  <Sparkles className="size-4" aria-hidden="true" />
                 )}
-                生成摘要
               </Button>
             </div>
 
@@ -1012,8 +1097,12 @@ export function MeetingWorkspace({
               <EmptyState
                 className="mt-4"
                 icon={<FileText className="size-5" aria-hidden="true" />}
-                title="尚未生成摘要"
-                description={EMPTY_SUMMARY_NOTICE}
+                title={turnCount === 0 ? "先加入會議內容" : "整理這場會議"}
+                description={
+                  turnCount === 0
+                    ? EMPTY_SUMMARY_NOTICE
+                    : `已有 ${turnCount} 段記錄，點「生成摘要」整理出決策、行動與待確認。`
+                }
               />
             )}
           </section>
@@ -1038,20 +1127,26 @@ export function MeetingWorkspace({
             onSubmit={handleSaveWritebacks}
           />
 
-          <section className="rounded-lg border border-hairline bg-card p-4">
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="size-5 text-[#1A3A6B]" aria-hidden="true" />
-              <p className="text-sm font-semibold text-ink">安全邊界</p>
-            </div>
-            <div className="mt-4 grid gap-2">
-              <SafetyRow testId="meeting-safety-provider" label="Provider call" value={snapshot?.safety.providerCallAttempted === false ? "未嘗試" : "未知"} />
-              <SafetyRow label="AiUsageLog" value={snapshot?.safety.aiUsageLogRequired === false ? "no-provider 不需要" : "未知"} />
-              <SafetyRow label="Raw audio" value={snapshot?.safety.rawAudioStored === false ? "未保存" : "未保存"} />
-              <SafetyRow label="CRM fact write" value={snapshot?.safety.writesConfirmedCrmFact === false ? "未寫回" : "未知"} />
-            </div>
-          </section>
         </aside>
       </div>
+
+      <footer className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-hairline pt-4 text-[11px] text-muted-foreground">
+        <span className="inline-flex text-[#1A3A6B]" title="隱私保護">
+          <ShieldCheck className="size-4" aria-hidden="true" />
+        </span>
+        <span data-testid="meeting-safety-provider" className="inline-flex items-center gap-1">
+          <CheckCircle2 className="size-3 text-[#1A3A6B]" aria-hidden="true" />
+          不呼叫外部 AI（未嘗試）
+        </span>
+        <span className="inline-flex items-center gap-1">
+          <CheckCircle2 className="size-3 text-[#1A3A6B]" aria-hidden="true" />
+          不保存錄音
+        </span>
+        <span className="inline-flex items-center gap-1">
+          <CheckCircle2 className="size-3 text-[#1A3A6B]" aria-hidden="true" />
+          不會自動寫入客戶資料
+        </span>
+      </footer>
     </div>
   );
 }
@@ -1468,70 +1563,154 @@ function RouteBFeedbackAdvisorWritebackBridgePanel({
   );
 }
 
-function MetricCard({ label, value, testId }: { label: string; value: string; testId?: string }) {
+const MEETING_STAGES: { id: MeetingPhase; label: string }[] = [
+  { id: "capture", label: "捕捉" },
+  { id: "summarize", label: "摘要" },
+  { id: "act", label: "行動" },
+];
+
+function StageTracker({ phase }: { phase: MeetingPhase }) {
+  const currentIndex = MEETING_STAGES.findIndex((stage) => stage.id === phase);
+
   return (
-    <div className="rounded-lg border border-hairline bg-card px-3 py-2">
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p data-testid={testId} className="mt-1 text-xl font-semibold tabular-nums text-ink">
-        {value}
-      </p>
-    </div>
+    <ol className="flex items-center" aria-label="會議進度">
+      {MEETING_STAGES.map((stage, index) => {
+        const status = index < currentIndex ? "done" : index === currentIndex ? "active" : "upcoming";
+
+        return (
+          <li key={stage.id} className="flex items-center">
+            <span
+              title={stage.label}
+              aria-label={stage.label}
+              aria-current={status === "active" ? "step" : undefined}
+              className={cn(
+                "flex size-6 items-center justify-center rounded-full border text-[11px] font-semibold tabular-nums transition-colors",
+                status === "active" && "border-[#1A3A6B] bg-[#1A3A6B] text-white",
+                status === "done" && "border-ink bg-ink text-paper",
+                status === "upcoming" && "border-hairline bg-card text-muted-foreground",
+              )}
+            >
+              {status === "done" ? <CheckCircle2 className="size-3.5" aria-hidden="true" /> : index + 1}
+            </span>
+            {index < MEETING_STAGES.length - 1 ? (
+              <span
+                className={cn("h-px w-4", index < currentIndex ? "bg-ink" : "bg-hairline")}
+                aria-hidden="true"
+              />
+            ) : null}
+          </li>
+        );
+      })}
+    </ol>
   );
 }
 
-function CaptureBox({
-  title,
-  description,
+function StatChip({
   icon,
+  label,
+  value,
+  testId,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: number;
+  testId?: string;
+}) {
+  return (
+    <span
+      className="inline-flex items-center gap-1.5 rounded-lg border border-hairline bg-card px-2.5 py-1 text-muted-foreground"
+      title={label}
+      aria-label={`${label} ${value}`}
+    >
+      {icon}
+      <span data-testid={testId} className="text-sm font-semibold tabular-nums text-ink">
+        {value}
+      </span>
+    </span>
+  );
+}
+
+function DotStat({
+  tone,
+  label,
+  value,
+}: {
+  tone: "confirmed" | "inference" | "unknown";
+  label: string;
+  value: number;
+}) {
+  return (
+    <span className="inline-flex items-center gap-1.5" title={label} aria-label={`${label} ${value}`}>
+      <span
+        aria-hidden="true"
+        className={cn(
+          "size-2 rounded-full",
+          tone === "confirmed" && "bg-[#1A3A6B]",
+          tone === "inference" && "bg-muted-foreground",
+          tone === "unknown" && "bg-amber-500",
+        )}
+      />
+      <span className="text-sm font-semibold tabular-nums text-ink">{value}</span>
+    </span>
+  );
+}
+
+function CaptureLane({
+  icon,
+  label,
   value,
   placeholder,
   disabled,
+  isBusy,
   buttonLabel,
+  buttonAriaLabel,
   onChange,
   onSubmit,
-  isBusy,
   testId,
 }: {
-  title: string;
-  description: string;
   icon: React.ReactNode;
+  label: string;
   value: string;
   placeholder: string;
   disabled: boolean;
+  isBusy: boolean;
   buttonLabel: string;
+  buttonAriaLabel?: string;
   onChange: (value: string) => void;
   onSubmit: () => void;
-  isBusy: boolean;
   testId: string;
 }) {
   return (
-    <div className="rounded-lg border border-hairline bg-paper p-3">
-      <div className="flex items-start gap-2">
-        <span className="mt-0.5 text-[#1A3A6B]">{icon}</span>
-        <div>
-          <p className="text-sm font-semibold text-ink">{title}</p>
-          <p className="mt-1 text-xs leading-5 text-muted-foreground">{description}</p>
-        </div>
-      </div>
+    <div className="flex flex-col rounded-xl border border-hairline bg-paper/60 p-2.5 transition-colors focus-within:border-[#1A3A6B]/40">
       <Textarea
         data-testid={testId}
-        className="mt-3 min-h-28 resize-y rounded-lg bg-card text-sm"
+        className="min-h-32 flex-1 resize-y rounded-lg border-hairline bg-card text-sm leading-6"
         value={value}
         placeholder={placeholder}
         disabled={disabled}
         onChange={(event) => onChange(event.target.value)}
       />
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        className="mt-3 h-9 rounded-lg"
-        onClick={onSubmit}
-        disabled={disabled || !value.trim()}
-      >
-        {isBusy ? <Loader2 className="mr-2 size-4 animate-spin" aria-hidden="true" /> : null}
-        {buttonLabel}
-      </Button>
+      <div className="mt-2 flex items-center justify-between">
+        <span className="text-[#1A3A6B]" title={label} aria-label={label}>
+          {icon}
+        </span>
+        <Button
+          type="button"
+          variant="outline"
+          size="icon-sm"
+          className="rounded-lg"
+          onClick={onSubmit}
+          disabled={disabled || !value.trim()}
+          aria-label={buttonAriaLabel ?? buttonLabel}
+          title={buttonLabel}
+        >
+          {isBusy ? (
+            <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+          ) : (
+            <Plus className="size-4" aria-hidden="true" />
+          )}
+        </Button>
+      </div>
     </div>
   );
 }
@@ -1539,22 +1718,34 @@ function CaptureBox({
 function TurnCard({ turn, memories }: { turn: MeetingTurnDto; memories: MeetingMemoryDto[] }) {
   const relatedMemories = memories.filter((memory) => memory.turnId === turn.id);
 
+  const isTranscript = turn.transcriptFinal;
+
   return (
-    <article className="rounded-lg border border-hairline bg-paper p-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge variant={turn.transcriptFinal ? "default" : "secondary"}>
-            {turn.transcriptFinal ? "Final transcript" : "Manual/Text"}
-          </Badge>
-          <Badge variant="outline">{turn.modality}</Badge>
-        </div>
+    <article
+      className={cn(
+        "rounded-lg border border-l-2 border-hairline bg-paper p-3",
+        isTranscript ? "border-l-[#1A3A6B]" : "border-l-hairline",
+      )}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <span
+          className="inline-flex"
+          title={isTranscript ? "逐字轉寫" : "手動筆記"}
+          aria-label={isTranscript ? "逐字轉寫" : "手動筆記"}
+        >
+          {isTranscript ? (
+            <Mic className="size-3.5 text-[#1A3A6B]" aria-hidden="true" />
+          ) : (
+            <NotebookPen className="size-3.5 text-muted-foreground" aria-hidden="true" />
+          )}
+        </span>
         <time className="text-xs tabular-nums text-muted-foreground" dateTime={turn.occurredAt}>
           {formatDateTime(turn.occurredAt)}
         </time>
       </div>
-      <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-ink">{turn.content}</p>
+      <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-ink">{turn.content}</p>
       {relatedMemories.length ? (
-        <div className="mt-3 flex flex-wrap gap-2">
+        <div className="mt-2.5 flex flex-wrap gap-1.5">
           {relatedMemories.slice(0, 4).map((memory) => (
             <Badge key={memory.id} variant="outline">
               {displayDataClass(memory.dataClass)}
@@ -1566,24 +1757,55 @@ function TurnCard({ turn, memories }: { turn: MeetingTurnDto; memories: MeetingM
   );
 }
 
-function SummaryPanel({ summary }: { summary: PersistedMeetingSummaryDto }) {
+function KeepNoteCard({ turn, memories }: { turn: MeetingTurnDto; memories: MeetingMemoryDto[] }) {
+  const relatedMemories = memories.filter((memory) => memory.turnId === turn.id);
+
   return (
-    <div className="mt-4 space-y-4">
+    <article className="break-inside-avoid rounded-xl border border-hairline bg-paper/70 p-3 transition-shadow hover:shadow-sm">
+      <p className="whitespace-pre-wrap text-sm leading-6 text-ink">{turn.content}</p>
+      <div className="mt-2.5 flex items-center justify-between gap-2">
+        <time className="text-[11px] tabular-nums text-muted-foreground" dateTime={turn.occurredAt}>
+          {formatDateTime(turn.occurredAt)}
+        </time>
+        {relatedMemories.length ? (
+          <div className="flex flex-wrap justify-end gap-1">
+            {relatedMemories.slice(0, 2).map((memory) => (
+              <Badge key={memory.id} variant="outline">
+                {displayDataClass(memory.dataClass)}
+              </Badge>
+            ))}
+          </div>
+        ) : null}
+      </div>
+    </article>
+  );
+}
+
+function SummaryPanel({ summary }: { summary: PersistedMeetingSummaryDto }) {
+  const prefersReducedMotion = useReducedMotion();
+
+  return (
+    <motion.div
+      className="mt-4 space-y-4"
+      initial={prefersReducedMotion ? false : { opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.25, ease: "easeOut" }}
+    >
       <div className="rounded-lg border border-hairline bg-paper p-3">
         <p data-testid="meeting-summary-headline" className="text-base font-semibold leading-6 text-ink">
           {summary.headline}
         </p>
         <p className="mt-2 text-sm leading-6 text-muted-foreground">{summary.summary}</p>
-        <div className="mt-3 flex flex-wrap gap-2">
-          <Badge variant="outline">{summary.citations.length} citations</Badge>
-          <Badge variant="outline">{summary.sourceTurnIds.length} source turns</Badge>
-          <Badge variant="outline">{summary.provider ?? "no provider"}</Badge>
-        </div>
+        {summary.citations.length ? (
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Badge variant="outline">{summary.citations.length} 則引用</Badge>
+          </div>
+        ) : null}
       </div>
       <SummaryList title="決策" items={summary.decisions} />
       <ActionList items={summary.actionItems} />
       <SummaryList title="待確認問題" items={summary.openQuestions} />
-    </div>
+    </motion.div>
   );
 }
 
@@ -1622,24 +1844,26 @@ function WritebackPanel({
   const selectedCount = selectedIds.length;
 
   return (
-    <section data-testid="meeting-writeback-panel" className="rounded-lg border border-hairline bg-card p-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <p className="text-sm font-semibold text-ink">寫回確認</p>
-          <p className="mt-1 text-xs leading-5 text-muted-foreground">
-            由顧問選擇哪些摘要項目成為 CRM 候選、洞察或追蹤任務。
-          </p>
-        </div>
+    <section data-testid="meeting-writeback-panel" className="rounded-2xl border border-hairline bg-card p-4">
+      <div className="flex items-center justify-between gap-3">
+        <span className="inline-flex text-[#1A3A6B]" title="寫回確認：選擇摘要項目成為 CRM 候選、洞察或追蹤任務">
+          <ListChecks className="size-5" aria-hidden="true" />
+        </span>
         <Button
           type="button"
-          variant="outline"
-          size="sm"
-          className="h-9 rounded-lg"
+          variant="ghost"
+          size="icon-sm"
+          className="rounded-lg text-muted-foreground"
           onClick={onRefresh}
           disabled={!summary || isLoading || isSaving}
+          aria-label="更新候選"
+          title="更新候選"
         >
-          {isLoading ? <Loader2 className="mr-2 size-4 animate-spin" aria-hidden="true" /> : <RefreshCcw className="mr-2 size-4" aria-hidden="true" />}
-          更新候選
+          {isLoading ? (
+            <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+          ) : (
+            <RefreshCcw className="size-4" aria-hidden="true" />
+          )}
         </Button>
       </div>
 
@@ -1670,21 +1894,34 @@ function WritebackPanel({
             <RailMetric label="待確認" value={readyPreview.sourceCounts.openQuestions} />
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-2">
             <Button
               type="button"
               variant="outline"
-              size="sm"
-              className="h-8 rounded-lg"
+              size="icon-sm"
+              className="rounded-lg"
               onClick={onSelectAll}
               disabled={isSaving || readyPreview.candidates.every((candidate) => !candidate.canSelect)}
+              aria-label="全選可寫回"
+              title="全選可寫回"
             >
-              全選可寫回
+              <ListChecks className="size-4" aria-hidden="true" />
             </Button>
-            <Button type="button" variant="ghost" size="sm" className="h-8 rounded-lg" onClick={onClear} disabled={isSaving || selectedCount === 0}>
-              清除
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              className="rounded-lg"
+              onClick={onClear}
+              disabled={isSaving || selectedCount === 0}
+              aria-label="清除選取"
+              title="清除選取"
+            >
+              <X className="size-4" aria-hidden="true" />
             </Button>
-            <Badge variant="outline">{selectedCount} 已選</Badge>
+            <span className="text-xs tabular-nums text-muted-foreground" title="已選取">
+              {selectedCount}
+            </span>
           </div>
 
           <div className="space-y-3">
@@ -1725,9 +1962,14 @@ function WritebackPanel({
             className="h-10 w-full rounded-lg"
             onClick={onSubmit}
             disabled={isSaving || selectedCount === 0}
+            aria-label="確認寫回"
+            title="確認寫回"
           >
-            {isSaving ? <Loader2 className="mr-2 size-4 animate-spin" aria-hidden="true" /> : <CheckCircle2 className="mr-2 size-4" aria-hidden="true" />}
-            確認寫回
+            {isSaving ? (
+              <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+            ) : (
+              <CheckCircle2 className="size-4" aria-hidden="true" />
+            )}
           </Button>
         </div>
       ) : (
@@ -1778,9 +2020,7 @@ function WritebackCandidateCard({
           <p className="mt-2 break-words text-sm leading-6 text-ink">{candidate.text}</p>
           <div className="mt-3 flex flex-wrap gap-2">
             <Badge variant="outline">{MEETING_DATA_CLASS_LABEL[candidate.dataClass]}</Badge>
-            <Badge variant="outline">{candidate.citationTurnIds.length} citations</Badge>
-            <Badge variant="outline">{candidate.supportingMemoryIds.length} memories</Badge>
-            {candidate.writesConfirmedCrmFact === false ? <Badge variant="success">不寫正式 CRM fact</Badge> : null}
+            <Badge variant="outline">{candidate.citationTurnIds.length} 則引用</Badge>
           </div>
           {candidate.blockedReason ? <p className="mt-2 text-xs leading-5 text-destructive">{candidate.blockedReason}</p> : null}
           {candidate.reviewContext?.length ? (
@@ -1950,17 +2190,6 @@ function RailMetric({ label, value }: { label: string; value: number }) {
     <div className="rounded-lg border border-hairline bg-paper px-3 py-2">
       <p className="text-xs text-muted-foreground">{label}</p>
       <p className="mt-1 text-lg font-semibold tabular-nums text-ink">{value}</p>
-    </div>
-  );
-}
-
-function SafetyRow({ label, value, testId }: { label: string; value: string; testId?: string }) {
-  return (
-    <div className="flex items-center justify-between gap-3 rounded-lg border border-hairline bg-paper px-3 py-2 text-sm">
-      <span className="text-muted-foreground">{label}</span>
-      <span data-testid={testId} className="font-medium text-ink">
-        {value}
-      </span>
     </div>
   );
 }

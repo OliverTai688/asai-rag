@@ -265,9 +265,17 @@ async function assertStageViewport(browser, viewportName, viewport) {
         await sourceBrowser.waitFor({ state: "visible", timeout: 10000 });
         push(await sourceBrowser.isVisible(), `${viewportName} source evidence tab renders single source browser`);
         let visibleSourceTabCount = 0;
-        for (const sourceLabel of ["會議訊號", "人物 profile", "關係邊"]) {
+        const expectedSourceLabels = ["會議訊號", "人物 profile", "關係邊"];
+        const sourceTabProofLabels = {
+          會議訊號: "source browser exposes 會議訊號 source tab",
+          "人物 profile": "source browser exposes 人物 profile source tab",
+          關係邊: "source browser exposes 關係邊 source tab",
+        };
+        for (const sourceLabel of expectedSourceLabels) {
           const sourceTab = page.getByRole("tab", { name: sourceLabel });
-          if ((await sourceTab.count()) === 0) continue;
+          const sourceTabExists = (await sourceTab.count()) > 0;
+          push(sourceTabExists, `${viewportName} ${sourceTabProofLabels[sourceLabel]}`);
+          if (!sourceTabExists) continue;
           visibleSourceTabCount += 1;
           await sourceTab.click();
           if (sourceLabel === "會議訊號") {
@@ -318,9 +326,89 @@ async function assertStageViewport(browser, viewportName, viewport) {
               fullPage: true,
             });
           }
+          if (sourceLabel === "人物 profile") {
+            const familyProfileSource = sourceBrowser.locator('[data-route-b-family-profile-source-grounding="true"]');
+            await familyProfileSource.waitFor({ state: "visible", timeout: 10000 });
+            const familyProfileRowList = familyProfileSource.locator('[data-route-b-family-profile-row-list="true"]');
+            const familyProfileRows = familyProfileRowList.locator('[data-route-b-family-profile-row="true"]');
+            const familyProfileRowCount = await familyProfileRows.count();
+            push(familyProfileRowCount >= 1, `${viewportName} source browser family profile renders compact row list`);
+            push(
+              (await familyProfileRowList.locator('[data-route-b-inline-metrics="true"]').count()) ===
+                familyProfileRowCount,
+              `${viewportName} source browser family profile rows use inline metric rails`,
+            );
+            push(
+              (await familyProfileSource.locator('[data-route-b-inline-metrics="true"]').count()) >=
+                familyProfileRowCount + 2,
+              `${viewportName} source browser family profile summary and boundary use inline metric rails`,
+            );
+            const familyProfileSourceText = await familyProfileSource.innerText({ timeout: 10000 });
+            push(
+              ["Fact status", "Source refs", "Raw metadata", "CRM fact write"].every((label) =>
+                familyProfileSourceText.includes(label),
+              ),
+              `${viewportName} source browser family profile keeps source boundary labels`,
+            );
+            push(
+              (await familyProfileSource.locator('[class*="rounded-full"][class*="border"]').count()) === 0,
+              `${viewportName} source browser family profile view avoids pill clusters`,
+            );
+            push(
+              !(await hasElementHorizontalOverflow(familyProfileRowList)),
+              `${viewportName} source browser family profile rows have no internal horizontal overflow`,
+            );
+            await clearPointerState(page);
+            await page.screenshot({
+              path: resolve(screenshotDir, `route-b-session-stage-source-family-rows-${viewportName}.png`),
+              fullPage: true,
+            });
+          }
+          if (sourceLabel === "關係邊") {
+            const edgeShadowSource = sourceBrowser.locator('[data-route-b-edge-shadow-source-grounding="true"]');
+            await edgeShadowSource.waitFor({ state: "visible", timeout: 10000 });
+            const edgeShadowRowList = edgeShadowSource.locator('[data-route-b-edge-shadow-row-list="true"]');
+            const edgeShadowRows = edgeShadowRowList.locator('[data-route-b-edge-shadow-row="true"]');
+            const edgeShadowRails = edgeShadowSource.locator('[data-route-b-inline-metrics="true"]');
+            const edgeShadowText = await edgeShadowSource.innerText({ timeout: 10000 });
+            const edgeShadowRowCount = await edgeShadowRows.count();
+            push(edgeShadowRowCount >= 2, `${viewportName} source browser edge shadow renders compact row list`);
+            push(
+              (await edgeShadowRowList.locator('[data-route-b-inline-metrics="true"]').count()) ===
+                edgeShadowRowCount,
+              `${viewportName} source browser edge shadow rows use inline metric rails`,
+            );
+            push(
+              (await edgeShadowRails.count()) >= edgeShadowRowCount + 1,
+              `${viewportName} source browser edge shadow summary and boundary use inline metric rails`,
+            );
+            push(
+              ["Edge types", "Fact status", "Warnings", "Draft edges returned", "CRM fact write"].every((label) =>
+                edgeShadowText.includes(label),
+              ),
+              `${viewportName} source browser edge shadow keeps source boundary labels`,
+            );
+            push(
+              (await edgeShadowSource.locator('[class*="rounded-full"][class*="border"]').count()) === 0,
+              `${viewportName} source browser edge shadow view avoids pill clusters`,
+            );
+            push(
+              !(await hasElementHorizontalOverflow(edgeShadowRowList)) &&
+                !(await hasElementHorizontalOverflow(edgeShadowSource)),
+              `${viewportName} source browser edge shadow rows have no internal horizontal overflow`,
+            );
+            await clearPointerState(page);
+            await page.screenshot({
+              path: resolve(screenshotDir, `route-b-session-stage-source-edge-rails-${viewportName}.png`),
+              fullPage: true,
+            });
+          }
           push(!(await hasHorizontalOverflow(page)), `${viewportName} source browser ${sourceLabel} view has no horizontal overflow`);
         }
-        push(visibleSourceTabCount > 0, `${viewportName} source browser exposes at least one source tab`);
+        push(
+          visibleSourceTabCount === expectedSourceLabels.length,
+          `${viewportName} source browser exposes all source tabs`,
+        );
       }
       if (tabLabel === "質化回饋") {
         const reviewBrowser = page.locator('[data-route-b-review-browser="true"]');

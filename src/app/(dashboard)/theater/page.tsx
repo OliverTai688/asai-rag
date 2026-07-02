@@ -4,6 +4,8 @@ import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "reac
 import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
+  ArrowLeft,
+  ArrowRight,
   BrainCircuit,
   Check,
   ChevronDown,
@@ -12,6 +14,7 @@ import {
   Clock3,
   FileText,
   History,
+  Info,
   Lightbulb,
   MessageSquare,
   Play,
@@ -27,6 +30,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { FormattedTime } from "@/components/ui/formatted-time";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { clientService } from "@/domains/client/service";
 import type { ClientSensitivityLevel } from "@/domains/client/types";
 import { getQuickstartTheaterFixture } from "@/domains/demo/quickstart";
@@ -132,6 +137,16 @@ export default function TheaterListPage() {
   return <TheaterListContent />;
 }
 
+type RouteBEnterableSession = {
+  id: string;
+  focusName: string;
+  clientName: string | null;
+  characterCount: number;
+  status: string;
+  isDemo: boolean;
+  updatedAt: string;
+};
+
 function TheaterListContent() {
   const router = useRouter();
   const searchParams = useCurrentSearchParams();
@@ -141,6 +156,8 @@ function TheaterListContent() {
   const spinIdParam = searchParams.get("spinId");
   const spinSessions = useSpinStore((state) => state.sessions);
   const theaterSessions = useTheaterStore((state) => state.sessions);
+  const [surface, setSurface] = useState<"BUILD" | "ENTER">(searchParams.get("surface") === "enter" ? "ENTER" : "BUILD");
+  const [step, setStep] = useState<1 | 2>(1);
   const createSession = useTheaterStore((state) => state.createSession);
   const addTurn = useTheaterStore((state) => state.addTurn);
   const updateTension = useTheaterStore((state) => state.updateTension);
@@ -159,6 +176,8 @@ function TheaterListContent() {
   const [complianceReviewQueue, setComplianceReviewQueue] = useState<RouteBComplianceReviewQueue | null>(null);
   const [complianceReviewQueueLoading, setComplianceReviewQueueLoading] = useState(true);
   const [complianceReviewQueueError, setComplianceReviewQueueError] = useState<string | null>(null);
+  const [routeBSessions, setRouteBSessions] = useState<RouteBEnterableSession[]>([]);
+  const [routeBSessionsLoading, setRouteBSessionsLoading] = useState(true);
   const quickstartCreatedRef = useRef(false);
 
   const completedSpinSessions = useMemo(() => {
@@ -183,13 +202,6 @@ function TheaterListContent() {
     [clients, selectedClientId],
   );
   const clientBuildBlocked = clientBuildReview?.build.status === "BLOCKED_SENSITIVE";
-
-  const recentSessions = useMemo(() => {
-    return theaterSessions
-      .slice()
-      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-      .slice(0, 5);
-  }, [theaterSessions]);
 
   useEffect(() => {
     let cancelled = false;
@@ -216,6 +228,29 @@ function TheaterListContent() {
         }
       } finally {
         if (!cancelled) setComplianceReviewQueueLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void (async () => {
+      setRouteBSessionsLoading(true);
+      try {
+        const response = await fetch("/api/theater/route-b/sessions", { cache: "no-store" });
+        const data = (await response.json().catch(() => null)) as { sessions?: RouteBEnterableSession[] } | null;
+
+        if (cancelled) return;
+        setRouteBSessions(response.ok && Array.isArray(data?.sessions) ? data.sessions : []);
+      } catch {
+        if (!cancelled) setRouteBSessions([]);
+      } finally {
+        if (!cancelled) setRouteBSessionsLoading(false);
       }
     })();
 
@@ -372,292 +407,475 @@ function TheaterListContent() {
   }, [mode, selectedSpin, selectedClientId, clientBuildReview, clientBuildLoading, clientBuildBlocked]);
 
   return (
-    <div className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8">
+    <TooltipProvider delay={120}>
+    <div className="mx-auto flex min-h-[calc(100vh-6rem)] w-full max-w-3xl flex-col gap-6 px-4 py-6 sm:px-6">
       {demoParam === "quickstart" ? <QuickstartGuide currentStepId="theater" /> : null}
 
-      <header className="grid gap-5 border-b border-hairline pb-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">Theater practice</p>
-          <h1 className="mt-3 text-3xl font-semibold tracking-tight text-ink sm:text-4xl">AI 劇場演練</h1>
-          <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
-            選建場方式 → 確認素材 → 開始演練。可以直接用半結構訪綱建場，客戶資料是選填，不必先完成 SPIN。
-          </p>
+      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-hairline pb-4">
+        <div className="flex min-w-0 items-center gap-2">
+          <h1 className="truncate text-xl font-semibold tracking-tight text-ink sm:text-2xl">AI 劇場演練</h1>
+          <Tooltip>
+            <TooltipTrigger
+              type="button"
+              aria-label="劇場演練說明"
+              className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <Info className="h-4 w-4" />
+            </TooltipTrigger>
+            <TooltipContent className="max-w-[240px] leading-5">
+              選建場方式 → 確認素材 → 開始演練。可直接用半結構訪綱建場，客戶資料為選填，不必先完成 SPIN。
+            </TooltipContent>
+          </Tooltip>
         </div>
-        <Button
-          type="button"
-          variant="mono"
-          className="h-10 rounded-full"
-          onClick={handlePrimary}
-          disabled={primary.disabled}
-        >
-          <Play className="mr-2 h-4 w-4 fill-current" />
-          {primary.label}
-        </Button>
-      </header>
 
-      <main className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
-        <section className="space-y-4">
-          <Card className="border-hairline shadow-none">
-            <CardContent className="p-5">
-              <SetupStep eyebrow="01" icon={<Clapperboard className="h-4 w-4" />} title="選建場方式" />
-              <div className="mt-4 grid gap-2 md:grid-cols-3">
-                {BUILD_MODES.map((item) => {
-                  const active = mode === item.value;
-                  const recommended = item.value === "interview" && hasMaterial;
-                  return (
-                    <button
-                      key={item.value}
-                      type="button"
-                      className={cn(
-                        "flex min-h-32 flex-col rounded-lg border border-hairline p-4 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                        active ? "bg-ink text-paper" : "bg-background hover:bg-muted/30",
-                      )}
-                      onClick={() => setMode(item.value)}
-                      aria-pressed={active}
-                    >
-                      <span className="flex items-center gap-2">
-                        <span
-                          className={cn(
-                            "flex h-7 w-7 items-center justify-center rounded-full",
-                            active ? "bg-paper text-ink" : "bg-ink text-paper",
-                          )}
-                        >
-                          {item.icon}
-                        </span>
-                        <span className="text-sm font-semibold">{item.label}</span>
-                        {active ? <Check className="ml-auto h-4 w-4" /> : null}
-                      </span>
-                      <span className={cn("mt-3 block text-sm leading-6", active ? "text-paper/70" : "text-muted-foreground")}>
-                        {item.summary}
-                      </span>
-                      {recommended ? (
-                        <Badge
-                          variant="outline"
-                          className={cn("mt-3 w-fit rounded-full", active ? "border-paper/30 text-paper" : "")}
-                        >
-                          已有可用素材
-                        </Badge>
-                      ) : null}
-                    </button>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
-
-          {mode === "outline" ? <OutlineModePanel /> : null}
-          {mode === "client" ? (
-            <ClientModePanel
-              clients={clients}
-              clientsLoaded={clientsLoaded}
-              selectedClientId={selectedClientId}
-              onSelect={handleSelectClient}
-              selectedClient={selectedClient}
-              buildError={clientBuildError}
-              buildLoading={clientBuildLoading}
-              buildReview={clientBuildReview}
-              onSkip={() => router.push("/theater/build")}
-            />
-          ) : null}
-
-          {mode === "interview" ? (
-            <>
-              <Card className="border-hairline shadow-none">
-                <CardContent className="p-5">
-                  <SetupStep eyebrow="02" icon={<MessageSquare className="h-4 w-4" />} title="選資料來源" />
-                  <div className="mt-4 grid gap-2">
-                    {completedSpinSessions.length ? (
-                      completedSpinSessions.map((session) => (
-                        <SpinSourceRow
-                          key={session.id}
-                          selected={session.id === selectedSpin?.id}
-                          session={session}
-                          onSelect={() => setSelectedSpinId(session.id)}
-                        />
-                      ))
-                    ) : (
-                      <div className="rounded-lg border border-dashed border-hairline bg-muted/20 p-5 text-sm leading-6 text-muted-foreground">
-                        目前沒有可轉入的 AI 了解客戶 / SPIN 摘要。你不必等它——切到「用劇場訪綱建場」就能直接開始一場演練。
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="border-hairline shadow-none">
-                <CardContent className="p-5">
-                  <SetupStep eyebrow="03" icon={<Target className="h-4 w-4" />} title="選演練目標" />
-                  <div className="mt-4 grid gap-2 md:grid-cols-3">
-                    {GOALS.map((goal) => (
-                      <button
-                        key={goal.id}
-                        type="button"
-                        className={cn(
-                          "min-h-24 rounded-lg border border-hairline p-4 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                          selectedGoal === goal.id ? "bg-ink text-paper" : "bg-background hover:bg-muted/30",
-                        )}
-                        onClick={() => setSelectedGoal(goal.id)}
-                      >
-                        <span className="text-sm font-semibold">{goal.label}</span>
-                        <span className={cn("mt-2 block text-sm leading-6", selectedGoal === goal.id ? "text-paper/70" : "text-muted-foreground")}>
-                          {goal.summary}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="border-hairline shadow-none">
-                <CardContent className="p-5">
-                  <SetupStep eyebrow="04" icon={<Settings2 className="h-4 w-4" />} title="設定難度" />
-                  <div className="mt-4 grid rounded-lg border border-hairline bg-muted/20 p-1 md:grid-cols-3">
-                    {DIFFICULTIES.map((item) => (
-                      <button
-                        key={item.value}
-                        type="button"
-                        className={cn(
-                          "min-h-16 rounded-md px-3 py-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                          difficulty === item.value ? "bg-background text-ink shadow-sm" : "text-muted-foreground hover:text-ink",
-                        )}
-                        onClick={() => setDifficulty(item.value)}
-                        aria-pressed={difficulty === item.value}
-                      >
-                        <span className="block text-sm font-semibold">{item.label}</span>
-                        <span className="mt-1 block text-xs leading-5">{item.summary}</span>
-                      </button>
-                    ))}
-                  </div>
-                  <details className="group mt-4 rounded-lg border border-hairline bg-background">
-                    <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-medium text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
-                      <span>進階設定・AI 會依客戶資料自動選 persona</span>
-                      <ChevronDown className="h-4 w-4 text-muted-foreground transition group-open:rotate-180" />
-                    </summary>
-                    <div className="border-t border-hairline p-4">
-                      <PersonaPreview selectedPersona={derivedPersona} />
-                    </div>
-                  </details>
-                </CardContent>
-              </Card>
-            </>
-          ) : null}
-        </section>
-
-        <aside className="space-y-4">
-          <ComplianceReviewQueuePanel
+        <div className="flex flex-wrap items-center justify-end gap-1.5">
+          <ReviewQueuePopover
             queue={complianceReviewQueue}
             loading={complianceReviewQueueLoading}
             error={complianceReviewQueueError}
             onOpenSession={(sessionId) => router.push(`/theater/${sessionId}`)}
           />
+          <HistoryPopover sessions={theaterSessions} />
+          <div
+            className="ml-1 inline-flex rounded-full border border-hairline bg-paper p-1"
+            role="group"
+            aria-label="劇場模式"
+          >
+            <button
+              type="button"
+              onClick={() => {
+                setSurface("BUILD");
+                setStep(1);
+              }}
+              aria-pressed={surface === "BUILD"}
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                surface === "BUILD" ? "bg-ink text-paper" : "text-muted-foreground hover:text-ink",
+              )}
+            >
+              <Clapperboard className="h-4 w-4" />
+              建立
+            </button>
+            <button
+              type="button"
+              onClick={() => setSurface("ENTER")}
+              aria-pressed={surface === "ENTER"}
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                surface === "ENTER" ? "bg-ink text-paper" : "text-muted-foreground hover:text-ink",
+              )}
+            >
+              <Play className="h-4 w-4" />
+              進入
+            </button>
+          </div>
+        </div>
+      </header>
 
-          <Card className="border-hairline shadow-none">
-            <CardContent className="p-5">
-              <h2 className="text-sm font-semibold text-ink">啟動摘要</h2>
-              <div className="mt-4 space-y-4">
-                <SummaryLine label="建場方式" value={BUILD_MODES.find((item) => item.value === mode)?.label ?? "用劇場訪綱建場"} />
+      {surface === "ENTER" ? (
+        <EnterTheaterView
+          sessions={routeBSessions}
+          loading={routeBSessionsLoading}
+          onBuild={() => {
+            setSurface("BUILD");
+            setStep(1);
+          }}
+        />
+      ) : (
+        <div className="flex flex-1 flex-col gap-6">
+          <StageRail step={step} onGoStep={setStep} />
+
+          <div
+            key={step}
+            className="motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-1 motion-safe:duration-200"
+          >
+            {step === 1 ? (
+              <section className="space-y-5">
+                <div className="text-center">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Step 1</p>
+                  <h2 className="mt-2 text-lg font-semibold text-ink">這場演練，素材從哪裡來？</h2>
+                  <p className="mt-1 text-sm text-muted-foreground">選一種建場方式，下一步再確認素材；隨時能回來換。</p>
+                </div>
+
+                <div className="space-y-2.5">
+                  {BUILD_MODES.map((item) => {
+                    const active = mode === item.value;
+                    const recommended = item.value === "interview" && hasMaterial;
+                    return (
+                      <button
+                        key={item.value}
+                        type="button"
+                        onClick={() => setMode(item.value)}
+                        aria-pressed={active}
+                        className={cn(
+                          "flex w-full items-start gap-4 rounded-xl border p-4 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                          active
+                            ? "border-ink bg-ink text-paper"
+                            : "border-hairline bg-background text-ink hover:border-ink/40 hover:bg-muted/30",
+                        )}
+                      >
+                        <span
+                          className={cn(
+                            "flex h-10 w-10 shrink-0 items-center justify-center rounded-full",
+                            active ? "bg-paper text-ink" : "bg-muted text-ink",
+                          )}
+                        >
+                          {item.icon}
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="flex flex-wrap items-center gap-2">
+                            <span className="text-sm font-semibold">{item.label}</span>
+                            {recommended ? (
+                              <Badge
+                                variant="outline"
+                                className={cn("rounded-full", active ? "border-paper/30 text-paper" : "")}
+                              >
+                                已有素材
+                              </Badge>
+                            ) : null}
+                          </span>
+                          <span
+                            className={cn(
+                              "mt-1 block text-sm leading-6",
+                              active ? "text-paper/70" : "text-muted-foreground",
+                            )}
+                          >
+                            {item.summary}
+                          </span>
+                        </span>
+                        <span
+                          aria-hidden
+                          className={cn(
+                            "mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition",
+                            active ? "border-paper bg-paper text-ink" : "border-hairline text-transparent",
+                          )}
+                        >
+                          <Check className="h-3.5 w-3.5" />
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="flex justify-end pt-1">
+                  <Button
+                    type="button"
+                    variant="monoOutline"
+                    className="h-11 rounded-full px-6"
+                    onClick={() => setStep(2)}
+                  >
+                    下一步：確認素材
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </div>
+              </section>
+            ) : (
+              <section className="space-y-5">
+                <div className="flex items-center justify-between gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setStep(1)}
+                    className="inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-sm font-medium text-muted-foreground transition-colors hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    <ArrowLeft className="h-4 w-4" />
+                    返回選方式
+                  </button>
+                  <span className="inline-flex items-center gap-2 rounded-full border border-hairline bg-paper px-3 py-1 text-xs text-muted-foreground">
+                    建場方式
+                    <span className="font-semibold text-ink">{BUILD_MODES.find((m) => m.value === mode)?.label}</span>
+                  </span>
+                </div>
+
+                {mode === "outline" ? <OutlineModePanel /> : null}
+                {mode === "client" ? (
+                  <ClientModePanel
+                    clients={clients}
+                    clientsLoaded={clientsLoaded}
+                    selectedClientId={selectedClientId}
+                    onSelect={handleSelectClient}
+                    selectedClient={selectedClient}
+                    buildError={clientBuildError}
+                    buildLoading={clientBuildLoading}
+                    buildReview={clientBuildReview}
+                    onSkip={() => router.push("/theater/build")}
+                  />
+                ) : null}
                 {mode === "interview" ? (
-                  <>
-                    <SummaryLine label="客戶" value={selectedSpin?.clientName ?? "尚未選擇"} />
-                    <SummaryLine label="演練目標" value={GOALS.find((goal) => goal.id === selectedGoal)?.label ?? "異議處理"} />
-                    <SummaryLine label="難度" value={DIFFICULTIES.find((item) => item.value === difficulty)?.label ?? "標準"} />
-                    <SummaryLine
-                      label="Persona"
-                      value={derivedPersona ? theaterService.getPersonaDetails(derivedPersona).label : "自動判斷"}
-                    />
-                  </>
-                ) : (
-                  <>
-                    <SummaryLine
-                      label="客戶"
-                      value={mode === "client" ? selectedClient?.name ?? "選填・尚未選擇" : "演練中由訪綱補齊"}
-                    />
-                    {mode === "client" && clientBuildReview ? (
-                      <SummaryLine
-                        label="來源審查"
-                        value={clientBuildReview.build.status === "BLOCKED_SENSITIVE" ? "需高敏感確認" : "已載入"}
-                      />
-                    ) : null}
-                  </>
-                )}
-              </div>
-              <p className="mt-5 rounded-lg border border-hairline bg-muted/20 p-3 text-sm leading-6 text-muted-foreground">
-                {mode === "interview"
-                  ? "確認設定後，使用頁首的「開始演練」進入對話。"
-                  : "確認設定後，使用頁首的按鈕進入訪綱建場；建場完成才會進入演練。"}
-              </p>
-            </CardContent>
-          </Card>
+                  <InterviewSetupPanel
+                    sessions={completedSpinSessions}
+                    selectedSpin={selectedSpin ?? null}
+                    onSelectSpin={setSelectedSpinId}
+                    selectedGoal={selectedGoal}
+                    onSelectGoal={setSelectedGoal}
+                    difficulty={difficulty}
+                    onSelectDifficulty={setDifficulty}
+                    derivedPersona={derivedPersona}
+                  />
+                ) : null}
 
-          <Card className="border-hairline shadow-none">
-            <CardContent className="p-5">
-              <div className="flex items-center gap-2">
-                <History className="h-4 w-4 text-muted-foreground" />
-                <h2 className="text-sm font-semibold text-ink">最近演練</h2>
-              </div>
-              <div className="mt-4 space-y-2">
-                {recentSessions.length ? (
-                  recentSessions.map((session) => <RecentSessionRow key={session.id} session={session} />)
-                ) : (
-                  <p className="rounded-lg border border-dashed border-hairline bg-muted/20 p-4 text-sm leading-6 text-muted-foreground">
-                    尚無歷史演練。
-                  </p>
-                )}
-              </div>
-              {theaterSessions.length > 5 ? (
-                <details className="group mt-3 rounded-lg border border-hairline">
-                  <summary className="flex min-h-10 cursor-pointer list-none items-center justify-between px-3 text-sm font-medium text-muted-foreground [&::-webkit-details-marker]:hidden">
-                    <span>完整歷史・{theaterSessions.length} 場</span>
-                    <ChevronDown className="h-4 w-4 transition group-open:rotate-180" />
-                  </summary>
-                  <div className="border-t border-hairline p-2">
-                    {theaterSessions.slice(5).map((session) => (
-                      <RecentSessionRow key={session.id} session={session} compact />
-                    ))}
+                <div className="rounded-2xl border border-ink bg-ink p-5 text-paper">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <dl className="flex flex-wrap gap-x-6 gap-y-2">
+                      <LaunchStat label="方式" value={BUILD_MODES.find((m) => m.value === mode)?.label ?? ""} />
+                      {mode === "interview" ? (
+                        <>
+                          <LaunchStat label="客戶" value={selectedSpin?.clientName ?? "尚未選擇"} />
+                          <LaunchStat label="目標" value={GOALS.find((g) => g.id === selectedGoal)?.label ?? ""} />
+                          <LaunchStat label="難度" value={DIFFICULTIES.find((d) => d.value === difficulty)?.label ?? ""} />
+                        </>
+                      ) : (
+                        <LaunchStat
+                          label="客戶"
+                          value={mode === "client" ? selectedClient?.name ?? "選填・未選" : "訪綱中補齊"}
+                        />
+                      )}
+                    </dl>
+                    <Button
+                      type="button"
+                      variant="mono"
+                      className="h-11 shrink-0 rounded-full bg-paper px-7 text-ink hover:bg-paper hover:opacity-90"
+                      onClick={handlePrimary}
+                      disabled={primary.disabled}
+                    >
+                      <Play className="mr-2 h-4 w-4 fill-current" />
+                      {primary.label}
+                    </Button>
                   </div>
-                </details>
-              ) : null}
-            </CardContent>
-          </Card>
-        </aside>
-      </main>
+                  <p className="mt-3 text-xs leading-5 text-paper/60">
+                    {mode === "interview"
+                      ? "按下後直接進入對話演練。"
+                      : "按下後進入訪綱建場；建場完成才會進入演練。"}
+                  </p>
+                </div>
+              </section>
+            )}
+          </div>
+        </div>
+      )}
     </div>
+    </TooltipProvider>
   );
 }
 
 function OutlineModePanel() {
+  const segments = theaterFieldBuildOutline.segments;
+
   return (
     <Card className="border-hairline shadow-none">
       <CardContent className="p-5">
-        <SetupStep eyebrow="02" icon={<Clapperboard className="h-4 w-4" />} title="劇場訪綱建場" />
+        <div className="flex items-start justify-between gap-3">
+          <PanelHeading icon={<Clapperboard className="h-4 w-4" />} title="劇場訪綱建場" />
+          <Badge variant="outline" className="shrink-0 rounded-full tabular-nums">
+            {segments.length} 段訪綱
+          </Badge>
+        </div>
         <p className="mt-4 text-sm leading-6 text-muted-foreground">
-          由 AI 導演訪談員帶你跑「{theaterFieldBuildOutline.name}」訪綱，逐段建出焦點客戶、場景、陪演角色、關係與可能異議，最後產生可確認的場域建構包。資料不足時只補問，不杜撰客戶細節。
+          AI 導演訪談員逐段帶出焦點客戶、場景、角色與可能異議，產生可確認的場域建構包；資料不足時只補問，不杜撰。
         </p>
-        <ol className="mt-4 grid gap-2">
-          {theaterFieldBuildOutline.segments.map((segment) => (
-            <li
-              key={segment.id}
-              className="flex items-start gap-3 rounded-lg border border-hairline bg-muted/20 p-3"
-            >
-              <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-ink text-xs font-semibold tabular-nums text-paper">
-                {segment.order + 1}
-              </span>
-              <span className="min-w-0">
-                <span className="block text-sm font-semibold text-ink">{segment.title}</span>
-                <span className="mt-1 block text-sm leading-6 text-muted-foreground">{segment.goal}</span>
-              </span>
+
+        <ol className="mt-4 flex flex-wrap gap-2" aria-label="訪綱段落">
+          {segments.map((segment) => (
+            <li key={segment.id}>
+              <Tooltip>
+                <TooltipTrigger
+                  type="button"
+                  className="inline-flex items-center gap-2 rounded-full border border-hairline bg-background py-1.5 pl-1.5 pr-3 text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  aria-label={`第 ${segment.order + 1} 段・${segment.title}：${segment.goal}`}
+                >
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-ink text-[11px] font-semibold tabular-nums text-paper">
+                    {segment.order + 1}
+                  </span>
+                  <span className="text-xs font-medium text-ink">{segment.title}</span>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-[220px] leading-5">
+                  {segment.goal}
+                </TooltipContent>
+              </Tooltip>
             </li>
           ))}
         </ol>
-        <p className="mt-4 rounded-lg border border-hairline bg-muted/20 p-3 text-xs leading-5 text-muted-foreground">
-          使用頁首的「開始建場」進入訪綱對話。多角色演練（Route B）尚未啟用，建場完成會先停在可確認的場域建構包。
+        <p className="mt-3 text-xs leading-5 text-muted-foreground">
+          滑過或聚焦每段看目的。按下方「開始建場」進入訪綱對話。
         </p>
+
+        <details className="group mt-4 rounded-lg border border-hairline bg-background">
+          <summary className="flex min-h-10 cursor-pointer list-none items-center justify-between gap-3 px-4 py-2.5 text-sm font-medium text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
+            <span>多角色演練（Route B）狀態</span>
+            <ChevronDown className="h-4 w-4 transition group-open:rotate-180" />
+          </summary>
+          <p className="border-t border-hairline p-4 text-xs leading-5 text-muted-foreground">
+            多角色演練（Route B）尚未啟用，建場完成會先停在可確認的場域建構包。
+          </p>
+        </details>
       </CardContent>
     </Card>
   );
 }
 
-function ComplianceReviewQueuePanel({
+function StageRail({ step, onGoStep }: { step: 1 | 2; onGoStep: (s: 1 | 2) => void }) {
+  const stages: Array<{ n: 1 | 2; label: string }> = [
+    { n: 1, label: "選建場方式" },
+    { n: 2, label: "確認並開始" },
+  ];
+
+  return (
+    <nav aria-label="建場步驟" className="flex items-center justify-center gap-1">
+      {stages.map((stage, index) => {
+        const active = step === stage.n;
+        const done = step > stage.n;
+        return (
+          <div key={stage.n} className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => onGoStep(stage.n)}
+              aria-current={active ? "step" : undefined}
+              className={cn(
+                "inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                active ? "text-ink" : "text-muted-foreground hover:text-ink",
+              )}
+            >
+              <span
+                className={cn(
+                  "flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold tabular-nums",
+                  active || done ? "bg-ink text-paper" : "border border-hairline text-muted-foreground",
+                )}
+              >
+                {done ? <Check className="h-3.5 w-3.5" /> : stage.n}
+              </span>
+              <span className={cn("font-medium", active ? "inline" : "hidden sm:inline")}>{stage.label}</span>
+            </button>
+            {index < stages.length - 1 ? <span aria-hidden className="h-px w-6 bg-hairline sm:w-10" /> : null}
+          </div>
+        );
+      })}
+    </nav>
+  );
+}
+
+function LaunchStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="min-w-0">
+      <dt className="text-[11px] uppercase tracking-wide text-paper/50">{label}</dt>
+      <dd className="mt-0.5 truncate text-sm font-semibold text-paper">{value}</dd>
+    </div>
+  );
+}
+
+function InterviewSetupPanel({
+  derivedPersona,
+  difficulty,
+  onSelectDifficulty,
+  onSelectGoal,
+  onSelectSpin,
+  selectedGoal,
+  selectedSpin,
+  sessions,
+}: {
+  derivedPersona: TheaterPersonaType | null;
+  difficulty: TheaterDifficulty;
+  onSelectDifficulty: (value: TheaterDifficulty) => void;
+  onSelectGoal: (value: string) => void;
+  onSelectSpin: (value: string) => void;
+  selectedGoal: string;
+  selectedSpin: SpinSession | null;
+  sessions: SpinSession[];
+}) {
+  return (
+    <Card className="border-hairline shadow-none">
+      <CardContent className="divide-y divide-hairline p-0">
+        <section className="p-5">
+          <PanelHeading icon={<MessageSquare className="h-4 w-4" />} title="資料來源" />
+          <div className="mt-3 grid gap-2">
+            {sessions.length ? (
+              sessions.map((session) => (
+                <SpinSourceRow
+                  key={session.id}
+                  selected={session.id === selectedSpin?.id}
+                  session={session}
+                  onSelect={() => onSelectSpin(session.id)}
+                />
+              ))
+            ) : (
+              <div className="rounded-lg border border-dashed border-hairline bg-muted/20 p-5 text-sm leading-6 text-muted-foreground">
+                目前沒有可轉入的摘要。返回上一步，改用「劇場訪綱建場」即可直接開始。
+              </div>
+            )}
+          </div>
+        </section>
+
+        <section className="p-5">
+          <PanelHeading icon={<Target className="h-4 w-4" />} title="演練目標" />
+          <div className="mt-3 grid gap-2 sm:grid-cols-3">
+            {GOALS.map((goal) => {
+              const active = selectedGoal === goal.id;
+              return (
+                <button
+                  key={goal.id}
+                  type="button"
+                  onClick={() => onSelectGoal(goal.id)}
+                  aria-pressed={active}
+                  className={cn(
+                    "min-h-20 rounded-lg border p-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                    active ? "border-ink bg-ink text-paper" : "border-hairline bg-background hover:bg-muted/30",
+                  )}
+                >
+                  <span className="text-sm font-semibold">{goal.label}</span>
+                  <span className={cn("mt-1 block text-xs leading-5", active ? "text-paper/70" : "text-muted-foreground")}>
+                    {goal.summary}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+
+        <section className="p-5">
+          <PanelHeading icon={<Settings2 className="h-4 w-4" />} title="難度" />
+          <div className="mt-3 grid rounded-lg border border-hairline bg-muted/20 p-1 sm:grid-cols-3">
+            {DIFFICULTIES.map((item) => {
+              const active = difficulty === item.value;
+              return (
+                <button
+                  key={item.value}
+                  type="button"
+                  onClick={() => onSelectDifficulty(item.value)}
+                  aria-pressed={active}
+                  className={cn(
+                    "min-h-14 rounded-md px-3 py-2.5 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                    active ? "bg-paper text-ink ring-1 ring-inset ring-hairline" : "text-muted-foreground hover:text-ink",
+                  )}
+                >
+                  <span className="block text-sm font-semibold">{item.label}</span>
+                  <span className="mt-0.5 block text-xs leading-5">{item.summary}</span>
+                </button>
+              );
+            })}
+          </div>
+          <details className="group mt-3 rounded-lg border border-hairline bg-background">
+            <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-medium text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
+              <span>進階・AI 會依客戶資料自動選 persona</span>
+              <ChevronDown className="h-4 w-4 text-muted-foreground transition group-open:rotate-180" />
+            </summary>
+            <div className="border-t border-hairline p-4">
+              <PersonaPreview selectedPersona={derivedPersona} />
+            </div>
+          </details>
+        </section>
+      </CardContent>
+    </Card>
+  );
+}
+
+function PanelHeading({ icon, title }: { icon: React.ReactNode; title: string }) {
+  return (
+    <div className="flex items-center gap-2">
+      <span className="flex h-7 w-7 items-center justify-center rounded-full bg-ink text-paper">{icon}</span>
+      <h3 className="text-sm font-semibold text-ink">{title}</h3>
+    </div>
+  );
+}
+
+function ReviewQueuePopover({
   error,
   loading,
   queue,
@@ -670,63 +888,78 @@ function ComplianceReviewQueuePanel({
 }) {
   const items = queue?.items ?? [];
   const reviewBoundary = queue?.reviewBoundary;
+  const boundaryFlags: Array<{ label: string; ok: boolean }> = [
+    { label: "不建立正式 finding", ok: reviewBoundary?.createsFormalFinding === false },
+    { label: "不發真實通知", ok: reviewBoundary?.triggersExternalNotification === false },
+    { label: "不寫入 CRM fact", ok: reviewBoundary?.writesConfirmedCrmFact === false },
+    { label: "不呼叫 provider", ok: reviewBoundary?.providerCallAttempted === false },
+  ];
+  const count = queue?.candidateCount ?? 0;
+  const hasUnmetBoundary = Boolean(reviewBoundary) && boundaryFlags.some((flag) => !flag.ok);
 
   return (
-    <Card className="border-hairline shadow-none">
-      <CardContent className="p-5">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <ShieldCheck className="h-4 w-4 text-muted-foreground" />
-              <h2 className="text-sm font-semibold text-ink">審閱佇列</h2>
-            </div>
-            <p className="mt-2 text-xs leading-5 text-muted-foreground">
-              只整理 Route B 待審閱候選；不代表正式法遵處置，也不會發真實通知。
-            </p>
-          </div>
-          <Badge variant="outline" className="rounded-full">
-            {queue?.status ?? "NO_PROVIDER"}
-          </Badge>
+    <Popover>
+      <PopoverTrigger
+        type="button"
+        aria-label={count ? `審閱佇列，${count} 項待審閱` : "審閱佇列"}
+        className="relative inline-flex h-9 w-9 items-center justify-center rounded-full border border-hairline bg-paper text-muted-foreground transition-colors hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        <ShieldCheck className="h-4 w-4" />
+        {count > 0 || hasUnmetBoundary ? (
+          <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-ink px-1 text-[10px] font-semibold tabular-nums text-paper">
+            {count > 0 ? count : "!"}
+          </span>
+        ) : null}
+      </PopoverTrigger>
+      <PopoverContent side="bottom" align="end" className="max-h-[70vh] w-80 overflow-y-auto">
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-sm font-semibold text-ink">審閱佇列</p>
+          <Badge variant="outline" className="rounded-full">{queue?.status ?? "NO_PROVIDER"}</Badge>
         </div>
+        <p className="text-xs leading-5 text-muted-foreground">
+          只整理 Route B 待審閱候選，不代表正式法遵處置，也不會發真實通知。
+        </p>
 
-        <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+        <div className="grid grid-cols-3 gap-2 text-center">
           <ReviewCount label="待審閱" value={queue?.candidateCount ?? 0} />
           <ReviewCount label="需要佐證" value={queue?.needsEvidenceCount ?? 0} />
           <ReviewCount label="升級候選" value={queue?.escalationCount ?? 0} />
         </div>
 
+        {hasUnmetBoundary ? (
+          <p className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/5 p-2.5 text-xs leading-5 text-destructive">
+            <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+            <span>有安全邊界未確認，請檢查下方清單。</span>
+          </p>
+        ) : null}
+
         {loading ? (
-          <p className="mt-4 rounded-lg border border-dashed border-hairline bg-muted/20 p-4 text-sm leading-6 text-muted-foreground">
+          <p className="rounded-lg border border-dashed border-hairline bg-muted/20 p-3 text-sm leading-6 text-muted-foreground">
             正在整理待審閱候選…
           </p>
         ) : null}
 
         {error ? (
-          <p className="mt-4 rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm leading-6 text-destructive">
+          <p className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm leading-6 text-destructive">
             {error}
           </p>
         ) : null}
 
         {!loading && !error && items.length === 0 ? (
-          <p className="mt-4 rounded-lg border border-dashed border-hairline bg-muted/20 p-4 text-sm leading-6 text-muted-foreground">
-            目前沒有待審閱候選。只有被標示為需要佐證或升級審閱的 Route B 紅線，才會出現在這裡。
+          <p className="rounded-lg border border-dashed border-hairline bg-muted/20 p-3 text-sm leading-6 text-muted-foreground">
+            目前沒有待審閱候選。
           </p>
         ) : null}
 
         {items.length ? (
-          <div className="mt-4 space-y-3">
+          <div className="space-y-2">
             {items.slice(0, 3).map((item) => (
               <div key={item.sessionId} className="rounded-lg border border-hairline bg-background p-3">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold text-ink">Route B session</p>
-                    <p className="mt-1 truncate text-xs text-muted-foreground">{item.sessionId}</p>
-                  </div>
-                  <Badge variant="outline" className="rounded-full">
-                    {item.candidateCount} 項
-                  </Badge>
+                <div className="flex items-center justify-between gap-2">
+                  <p className="truncate text-xs text-muted-foreground">{item.sessionId}</p>
+                  <Badge variant="outline" className="rounded-full">{item.candidateCount} 項</Badge>
                 </div>
-                <div className="mt-3 space-y-2">
+                <div className="mt-2 space-y-2">
                   {item.candidates.slice(0, 2).map((candidate) => (
                     <div key={candidate.id} className="rounded-md border border-hairline bg-muted/20 p-2">
                       <div className="flex flex-wrap items-center gap-2">
@@ -735,14 +968,14 @@ function ComplianceReviewQueuePanel({
                         </Badge>
                         <span className="text-xs font-semibold text-ink">{candidate.label}</span>
                       </div>
-                      <p className="mt-2 text-xs leading-5 text-muted-foreground">{candidate.safeSummary}</p>
+                      <p className="mt-1.5 text-xs leading-5 text-muted-foreground">{candidate.safeSummary}</p>
                     </div>
                   ))}
                 </div>
                 <Button
                   type="button"
                   variant="outline"
-                  className="mt-3 h-9 w-full rounded-full"
+                  className="mt-2.5 h-9 w-full rounded-full"
                   onClick={() => onOpenSession(item.sessionId)}
                 >
                   開啟劇場檢視
@@ -752,14 +985,66 @@ function ComplianceReviewQueuePanel({
           </div>
         ) : null}
 
-        <div className="mt-4 grid gap-2 rounded-lg border border-hairline bg-muted/20 p-3 text-xs leading-5 text-muted-foreground">
-          <span>未建立正式 finding：{reviewBoundary?.createsFormalFinding === false ? "是" : "未確認"}</span>
-          <span>未發通知：{reviewBoundary?.triggersExternalNotification === false ? "是" : "未確認"}</span>
-          <span>未寫入 CRM fact：{reviewBoundary?.writesConfirmedCrmFact === false ? "是" : "未確認"}</span>
-          <span>未呼叫 provider：{reviewBoundary?.providerCallAttempted === false ? "是" : "未確認"}</span>
+        <div className="border-t border-hairline pt-2.5">
+          <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">安全邊界</p>
+          <ul className="grid gap-1">
+            {boundaryFlags.map((flag) => (
+              <li key={flag.label} className="flex items-center gap-2 text-xs text-ink">
+                <Check className={cn("h-3.5 w-3.5 shrink-0", flag.ok ? "text-[#2E7D32]" : "text-muted-foreground")} />
+                <span>{flag.label}</span>
+                {!flag.ok ? <span className="ml-auto text-[11px] text-muted-foreground">未確認</span> : null}
+              </li>
+            ))}
+          </ul>
         </div>
-      </CardContent>
-    </Card>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+function HistoryPopover({ sessions }: { sessions: TheaterSession[] }) {
+  const ordered = sessions
+    .slice()
+    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+  const recent = ordered.slice(0, 5);
+
+  return (
+    <Popover>
+      <PopoverTrigger
+        type="button"
+        aria-label={ordered.length ? `最近演練，${ordered.length} 場` : "最近演練"}
+        className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-hairline bg-paper text-muted-foreground transition-colors hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        <History className="h-4 w-4" />
+      </PopoverTrigger>
+      <PopoverContent side="bottom" align="end" className="max-h-[70vh] w-80 overflow-y-auto">
+        <p className="text-sm font-semibold text-ink">最近演練</p>
+        {recent.length ? (
+          <div className="grid gap-1.5">
+            {recent.map((session) => (
+              <RecentSessionRow key={session.id} session={session} />
+            ))}
+          </div>
+        ) : (
+          <p className="rounded-lg border border-dashed border-hairline bg-muted/20 p-4 text-sm leading-6 text-muted-foreground">
+            尚無歷史演練。
+          </p>
+        )}
+        {ordered.length > 5 ? (
+          <details className="group rounded-lg border border-hairline">
+            <summary className="flex min-h-10 cursor-pointer list-none items-center justify-between px-3 text-sm font-medium text-muted-foreground [&::-webkit-details-marker]:hidden">
+              <span>完整歷史・{ordered.length} 場</span>
+              <ChevronDown className="h-4 w-4 transition group-open:rotate-180" />
+            </summary>
+            <div className="grid gap-1.5 border-t border-hairline p-2">
+              {ordered.slice(5).map((session) => (
+                <RecentSessionRow key={session.id} session={session} compact />
+              ))}
+            </div>
+          </details>
+        ) : null}
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -787,7 +1072,7 @@ function ClientModePanel({
   return (
     <Card className="border-hairline shadow-none">
       <CardContent className="p-5">
-        <SetupStep eyebrow="02" icon={<Users className="h-4 w-4" />} title="選一位客戶（選填）" />
+        <PanelHeading icon={<Users className="h-4 w-4" />} title="選一位客戶（選填）" />
         <p className="mt-4 text-sm leading-6 text-muted-foreground">
           載入既有客戶後，AI 會把已確認資料帶入建場、只追問缺口；推論不會被當成事實。也可以略過，直接用訪綱建場。
         </p>
@@ -980,18 +1265,6 @@ function getClientBuildStatusLabel(status: ClientTheaterBuildStatus) {
   return "需補資料";
 }
 
-function SetupStep({ eyebrow, icon, title }: { eyebrow: string; icon: React.ReactNode; title: string }) {
-  return (
-    <div className="flex items-center gap-3">
-      <span className="flex h-8 w-8 items-center justify-center rounded-full border border-hairline bg-background text-xs font-semibold tabular-nums text-muted-foreground">
-        {eyebrow}
-      </span>
-      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-ink text-paper">{icon}</span>
-      <h2 className="text-base font-semibold text-ink">{title}</h2>
-    </div>
-  );
-}
-
 function SpinSourceRow({
   onSelect,
   selected,
@@ -1063,12 +1336,87 @@ function PersonaPreview({ selectedPersona }: { selectedPersona: TheaterPersonaTy
   );
 }
 
-function SummaryLine({ label, value }: { label: string; value: string }) {
+function EnterTheaterView({
+  sessions,
+  loading,
+  onBuild,
+}: {
+  sessions: RouteBEnterableSession[];
+  loading: boolean;
+  onBuild: () => void;
+}) {
+  if (loading && sessions.length === 0) {
+    return (
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3" aria-busy="true">
+        {[0, 1, 2].map((index) => (
+          <div key={index} className="min-h-32 animate-pulse rounded-lg border border-hairline bg-muted/30" />
+        ))}
+      </div>
+    );
+  }
+
+  if (sessions.length === 0) {
+    return (
+      <Card className="border-dashed border-hairline shadow-none">
+        <CardContent className="flex flex-col items-center gap-3 p-10 text-center">
+          <Play className="h-6 w-6 text-muted-foreground" />
+          <div>
+            <h2 className="text-base font-semibold text-ink">還沒有可進入的劇場</h2>
+            <p className="mt-1 text-sm leading-6 text-muted-foreground">
+              先建立一個劇場，進入後就能看到客戶的關係圖，並和場上的每個角色說話或觀察他們互動。
+            </p>
+          </div>
+          <Button type="button" variant="mono" className="rounded-full" onClick={onBuild}>
+            <Clapperboard className="mr-2 h-4 w-4" />
+            建立劇場
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
-    <div className="flex items-start justify-between gap-3 border-b border-hairline pb-3 last:border-b-0 last:pb-0">
-      <span className="text-sm text-muted-foreground">{label}</span>
-      <span className="text-right text-sm font-semibold text-ink">{value}</span>
-    </div>
+    <section className="space-y-4">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h2 className="text-base font-semibold text-ink">進入劇場</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            選一個已建立的劇場進入：焦點客戶居中的關係圖、和各角色對話、或觀察角色自然互動。
+          </p>
+        </div>
+        <Button type="button" variant="outline" className="rounded-full" onClick={onBuild}>
+          <Clapperboard className="mr-2 h-4 w-4" />
+          建立新劇場
+        </Button>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        {sessions.map((session) => (
+          <a
+            key={session.id}
+            href={`/theater/${session.id}`}
+            className="group flex min-h-32 flex-col justify-between gap-3 rounded-lg border border-hairline bg-background p-4 transition hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <div className="flex items-start justify-between gap-2">
+              <span className="truncate text-sm font-semibold text-ink">{session.focusName} 的多角色劇場</span>
+              <Badge variant="outline" className="shrink-0 rounded-full">
+                {session.status === "COMPLETED" ? "完成" : "可進入"}
+              </Badge>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+              <Users className="h-3.5 w-3.5" />
+              {session.characterCount} 位角色
+              <span>・</span>
+              <Clock3 className="h-3.5 w-3.5" />
+              <FormattedTime isoString={session.updatedAt} format="date" />
+            </div>
+            <span className="inline-flex items-center gap-1.5 text-sm font-medium text-ink">
+              <Play className="h-4 w-4 fill-current" />
+              進入劇場
+            </span>
+          </a>
+        ))}
+      </div>
+    </section>
   );
 }
 

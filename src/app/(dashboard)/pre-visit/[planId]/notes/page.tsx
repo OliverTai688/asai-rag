@@ -5,14 +5,10 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import {
   AlertCircle,
   ArrowLeft,
-  Brain,
+  Check,
   CheckCircle2,
-  FileText,
-  MessageSquare,
+  ChevronRight,
   NotebookPen,
-  Save,
-  ShieldCheck,
-  Target,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -24,8 +20,8 @@ import {
 } from "@/components/meeting/meeting-workspace";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 import type { Client } from "@/domains/client/types";
 import { useClientStore } from "@/domains/client/store";
 import { VisitService } from "@/domains/visit/service";
@@ -637,291 +633,224 @@ function PostVisitNotesWorkspace({
     }
   };
 
+  const canSyncMeeting = !isSendingMeetingQuickNote && !isQuickstart && !plan.id.startsWith("plan-") && Boolean(notes.trim());
+
   return (
-    <div className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8">
-      <header className="grid gap-5 border-b border-hairline pb-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
-        <div>
-          <Button
-            type="button"
-            variant="ghost"
-            className="mb-4 h-10 rounded-full px-3 text-muted-foreground"
-            onClick={() => router.push(`/pre-visit/${plan.id}${isQuickstart ? "?demo=quickstart" : ""}`)}
-          >
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            回準備包
-          </Button>
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-            {client.name}・{PURPOSE_LABELS[plan.purpose]}
-          </p>
-          <h1 className="mt-3 text-3xl font-semibold tracking-tight text-ink sm:text-4xl">拜訪後筆記</h1>
-          <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
-            先收斂摘要與下一步，再補完整觀察。需要交給 AI 記憶時，只選歸屬與確認邊界，不輸入 raw ID。
-          </p>
-        </div>
+    <div className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-4 py-5 sm:px-6">
+      {/* Notion-style slim toolbar */}
+      <div className="flex items-center justify-between gap-3">
+        <button
+          type="button"
+          className="inline-flex items-center gap-1.5 rounded-md py-1 pr-2 text-sm text-muted-foreground transition-colors hover:text-ink"
+          onClick={() => router.push(`/pre-visit/${plan.id}${isQuickstart ? "?demo=quickstart" : ""}`)}
+        >
+          <ArrowLeft className="h-4 w-4" />
+          <span className="tabular-nums">{client.name}</span>
+          <span className="text-hairline-2">/</span>
+          <span>{PURPOSE_LABELS[plan.purpose]}</span>
+        </button>
         <Button
           type="button"
-          variant="mono"
-          className="h-10 rounded-full"
+          variant="ghost"
+          size="sm"
+          className="h-8 gap-1.5 rounded-md px-2.5 text-muted-foreground hover:text-ink"
           onClick={handleSave}
           disabled={isSaving}
           data-testid="post-visit-notes-save"
         >
-          <Save className="mr-2 h-4 w-4" />
-          儲存筆記
+          <Check className="h-4 w-4" />
+          {isSaving ? "儲存中" : "儲存"}
         </Button>
-      </header>
+      </div>
 
-      <section className="grid gap-3 lg:grid-cols-2">
-        <Card className="border-hairline shadow-none">
-          <CardContent className="p-5">
-            <div className="flex items-center gap-2">
-              <MessageSquare className="h-4 w-4 text-muted-foreground" />
-              <h2 className="text-sm font-semibold text-ink">拜訪摘要</h2>
-            </div>
-            <p className="mt-3 text-sm leading-6 text-muted-foreground">{summaryLine}</p>
-          </CardContent>
-        </Card>
-        <Card className="border-hairline shadow-none">
-          <CardContent className="p-5">
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
-              <h2 className="text-sm font-semibold text-ink">下一步</h2>
-            </div>
-            <p className="mt-3 text-sm leading-6 text-muted-foreground">{nextStepLine}</p>
-          </CardContent>
-        </Card>
-      </section>
+      {/* Document */}
+      <div>
+        <h1 className="text-[2rem] font-semibold tracking-tight text-ink">拜訪後筆記</h1>
+        <dl className="mt-4 space-y-1 text-sm">
+          <div className="flex gap-4">
+            <dt className="w-12 shrink-0 text-muted-foreground">摘要</dt>
+            <dd className="truncate text-ink/80">{summaryLine}</dd>
+          </div>
+          <div className="flex gap-4">
+            <dt className="w-12 shrink-0 text-muted-foreground">下一步</dt>
+            <dd className="truncate text-ink/80">{nextStepLine}</dd>
+          </div>
+        </dl>
 
-      <main className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
-        <Card className="border-hairline shadow-none">
-          <CardContent className="p-5">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-hairline pb-4">
-              <div>
-                <h2 className="text-base font-semibold text-ink">完整紀錄</h2>
-                <p className="mt-1 text-sm text-muted-foreground">建議用三段：摘要、客戶反應、下一步跟進。</p>
+        <Textarea
+          data-testid="post-visit-notes-textarea"
+          value={notes}
+          onChange={(event) => setNotes(event.target.value)}
+          placeholder={`摘要：\n客戶反應：\n下一步跟進：`}
+          className="mt-6 min-h-[420px] resize-none rounded-none border-0 bg-transparent px-0 py-0 text-base leading-8 shadow-none focus-visible:ring-0"
+          autoFocus
+        />
+
+        <div className="flex items-center justify-between gap-3 border-t border-hairline pt-3">
+          <span className="text-xs tabular-nums text-muted-foreground">{notes.length} 字</span>
+          <button
+            type="button"
+            className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-muted-foreground transition-colors hover:text-ink disabled:cursor-not-allowed disabled:opacity-40"
+            onClick={handleSendMeetingQuickNote}
+            disabled={!canSyncMeeting}
+            data-testid="post-visit-notes-send-meeting"
+          >
+            <NotebookPen className="h-3.5 w-3.5" />
+            {isSendingMeetingQuickNote ? "同步中" : "同步到 AI 會議"}
+          </button>
+        </div>
+
+        {meetingQuickNoteResult ? (
+          <div
+            data-testid="post-visit-meeting-quick-note-result"
+            className="mt-4 rounded-xl border border-hairline bg-paper p-4 text-sm"
+          >
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2 font-medium text-ink">
+                <CheckCircle2 className="h-4 w-4" />
+                已同步到 AI 會議
               </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs tabular-nums text-muted-foreground">{notes.length} 字</span>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-9 rounded-full"
-                  onClick={handleSendMeetingQuickNote}
-                  disabled={isSendingMeetingQuickNote || isQuickstart || plan.id.startsWith("plan-") || !notes.trim()}
-                  data-testid="post-visit-notes-send-meeting"
-                >
-                  <NotebookPen className="mr-2 h-4 w-4" />
-                  {isSendingMeetingQuickNote ? "同步中..." : "同步到 AI 會議"}
-                </Button>
+              <div className="flex flex-wrap gap-1.5 text-xs text-muted-foreground">
+                <span>{meetingQuickNoteResult.appended.reusedExistingSession ? "重用會議" : "建立會議"}</span>
+                <span className="text-hairline-2">·</span>
+                <span className="tabular-nums">{meetingQuickNoteResult.snapshot.turns.length} 段</span>
+                <span className="text-hairline-2">·</span>
+                <span className="tabular-nums">{meetingQuickNoteResult.snapshot.memoryRail.total} 記憶</span>
               </div>
             </div>
-            <Textarea
-              data-testid="post-visit-notes-textarea"
-              value={notes}
-              onChange={(event) => setNotes(event.target.value)}
-              placeholder={`摘要：\n客戶反應：\n下一步跟進：`}
-              className="mt-5 min-h-[460px] resize-y rounded-lg border-hairline bg-background text-base leading-7 focus-visible:ring-ring"
-              autoFocus
-            />
-            {meetingQuickNoteResult ? (
-              <div
-                data-testid="post-visit-meeting-quick-note-result"
-                className="mt-4 rounded-lg border border-hairline bg-paper p-3 text-sm"
-              >
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex items-center gap-2 font-semibold text-ink">
-                    <CheckCircle2 className="h-4 w-4" />
-                    已同步到 AI 會議
-                  </div>
-                  <Badge variant="success">No provider</Badge>
-                </div>
-                <div className="mt-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
-                  <Badge variant="outline">
-                    {meetingQuickNoteResult.appended.reusedExistingSession ? "重用會議" : "建立會議"}
-                  </Badge>
-                  <Badge variant="outline">{meetingQuickNoteResult.snapshot.turns.length} 段</Badge>
-                  <Badge variant="outline">{meetingQuickNoteResult.snapshot.memoryRail.total} 記憶</Badge>
-                  <Badge variant="outline">browser session id: none</Badge>
-                </div>
-                <div
-                  data-testid="post-visit-meeting-writeback-bridge"
-                  className="mt-3 rounded-lg border border-hairline bg-background p-3"
-                >
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                      <p className="text-xs font-semibold text-ink">下一步：摘要到寫回確認卡</p>
-                      <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                        這則筆記已進會議 session。先在 AI 會議工作台生成可引用摘要，再從 writeback
-                        cards 選擇 CRM 候選、洞察或追蹤任務。
-                      </p>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="h-8 rounded-lg"
-                      onClick={() => router.push(meetingQuickNoteResult.writebackBridge.acceptedWorkspaceHref)}
-                    >
-                      前往工作台
-                    </Button>
-                  </div>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    <Badge variant="secondary">{meetingQuickNoteResult.writebackBridge.status}</Badge>
-                    <Badge variant="secondary">summary required</Badge>
-                    <Badge variant="secondary">advisor confirmation</Badge>
-                    <Badge variant="secondary">CRM fact: no direct write</Badge>
-                  </div>
-                </div>
-              </div>
-            ) : null}
-          </CardContent>
-        </Card>
-
-        <aside className="space-y-4">
-          <Card className="border-hairline shadow-none">
-            <CardContent className="p-5">
-              <div className="flex items-center gap-2">
-                <Brain className="h-4 w-4 text-muted-foreground" />
-                <h2 className="text-sm font-semibold text-ink">送進 Park 記憶</h2>
-              </div>
-              <p className="mt-3 text-sm leading-6 text-muted-foreground">
-                從這份筆記建立安全的 memory candidate。系統會用目前工作區推導客戶與拜訪，不需要手填 ID。
+            <div
+              data-testid="post-visit-meeting-writeback-bridge"
+              className="mt-3 flex items-center justify-between gap-3 border-t border-hairline pt-3"
+            >
+              <p className="text-xs leading-5 text-muted-foreground">
+                先生成可引用摘要，再從 writeback 卡片選 CRM 候選、洞察或追蹤任務。
               </p>
-              <div
-                data-testid="post-visit-notes-saved-state"
-                className="mt-3 rounded-lg border border-hairline bg-paper px-3 py-2 text-xs leading-5 text-muted-foreground"
-              >
-                legacy postVisitNotes：{notes.trim() ? "已在此頁編輯，可儲存後刷新讀回" : "尚未填寫"}
-              </div>
-
-              <fieldset className="mt-4 space-y-2" aria-label="筆記歸屬">
-                {CAPTURE_ASSIGNMENTS.map((option) => (
-                  <label
-                    key={option.value}
-                    className="flex cursor-pointer items-start gap-3 rounded-lg border border-hairline p-3 text-sm transition-colors hover:bg-paper-2 has-[:checked]:border-ink has-[:checked]:bg-ink has-[:checked]:text-paper"
-                  >
-                    <input
-                      type="radio"
-                      name="quick-capture-assignment"
-                      value={option.value}
-                      checked={captureAssignment === option.value}
-                      onChange={() => setCaptureAssignment(option.value)}
-                      className="mt-1 size-3.5 accent-current"
-                    />
-                    <span>
-                      <span className="block font-semibold">{option.label}</span>
-                      <span className="mt-1 block text-xs leading-5 opacity-70">{option.description}</span>
-                    </span>
-                  </label>
-                ))}
-              </fieldset>
-
-              {captureAssignment !== "PRIVATE_DRAFT" ? (
-                <div className="mt-4 rounded-lg border border-hairline bg-muted/20 p-3">
-                  <div className="flex items-center gap-2 text-xs font-semibold text-ink">
-                    <ShieldCheck className="h-3.5 w-3.5" />
-                    確認邊界
-                  </div>
-                  <Textarea
-                    value={captureReason}
-                    onChange={(event) => setCaptureReason(event.target.value)}
-                    placeholder="若內容涉及高敏感資料，寫下本次內部使用理由。"
-                    className="mt-3 min-h-[76px] resize-y rounded-lg border-hairline bg-background text-sm leading-6"
-                  />
-                  <label className="mt-3 flex items-start gap-2 text-xs leading-5 text-muted-foreground">
-                    <input
-                      type="checkbox"
-                      checked={captureRiskAccepted}
-                      onChange={(event) => setCaptureRiskAccepted(event.target.checked)}
-                      className="mt-1 size-3.5 accent-current"
-                    />
-                    我確認這則筆記只建立內部記憶與待確認交接，不直接寫成 CRM confirmed fact。
-                  </label>
-                </div>
-              ) : null}
-
               <Button
                 type="button"
-                variant="mono"
-                className="mt-4 h-10 w-full rounded-full"
-                onClick={handleSendQuickCapture}
-                disabled={isCapturing}
-                data-testid="quick-capture-submit"
+                variant="outline"
+                size="sm"
+                className="h-8 shrink-0 rounded-lg"
+                onClick={() => router.push(meetingQuickNoteResult.writebackBridge.acceptedWorkspaceHref)}
               >
-                {isCapturing ? "送出中..." : "送進 Park 記憶"}
+                前往工作台
               </Button>
-
-              {captureResult ? <QuickCaptureResultPanel result={captureResult} /> : null}
-            </CardContent>
-          </Card>
-
-          <Card className="border-hairline shadow-none">
-            <CardContent className="p-5">
-              <div className="flex items-center gap-2">
-                <Target className="h-4 w-4 text-muted-foreground" />
-                <h2 className="text-sm font-semibold text-ink">原拜訪目標</h2>
-              </div>
-              <div className="mt-4 space-y-3">
-                {plan.objectives.length ? (
-                  plan.objectives.slice(0, 3).map((objective) => (
-                    <p key={objective.id} className="rounded-lg border border-hairline p-3 text-sm leading-6 text-muted-foreground">
-                      {objective.description}
-                    </p>
-                  ))
-                ) : (
-                  <p className="text-sm leading-6 text-muted-foreground">這份準備包尚未生成目標。</p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-hairline shadow-none">
-            <CardContent className="p-5">
-              <div className="flex items-center gap-2">
-                <FileText className="h-4 w-4 text-muted-foreground" />
-                <h2 className="text-sm font-semibold text-ink">已使用材料</h2>
-              </div>
-              <div className="mt-4 flex flex-wrap gap-2">
-                {checkedMaterials.length ? (
-                  checkedMaterials.map((material) => (
-                    <span key={material.id} className="rounded-full border border-hairline px-3 py-1 text-xs font-medium text-muted-foreground">
-                      {material.name}
-                    </span>
-                  ))
-                ) : (
-                  <p className="text-sm leading-6 text-muted-foreground">尚未標記使用材料。</p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-hairline bg-muted/20 shadow-none">
-            <CardContent className="p-5">
-              <h2 className="text-sm font-semibold text-ink">記錄提示</h2>
-              <ul className="mt-3 space-y-2 text-sm leading-6 text-muted-foreground">
-                <li>客戶是否確認痛點或需求？</li>
-                <li>還缺哪份資料或誰的同意？</li>
-                <li>下一次跟進的日期與目的？</li>
-              </ul>
-            </CardContent>
-          </Card>
-        </aside>
-      </main>
-
-      <section
-        data-testid="notes-meeting-bridge"
-        className="border-t border-hairline pt-6"
-      >
-        <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <Badge variant="secondary">CLIENT_MEETING</Badge>
-            <h2 className="mt-3 text-2xl font-semibold tracking-tight text-ink">AI 會議工作台</h2>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-              同一頁保留原本拜訪後筆記，同時接回這份準備包的會議 session、摘要與寫回確認。手動筆記只保存處理後文字，不保存 raw transcript 或 raw provider payload。
-            </p>
+            </div>
           </div>
-          <Badge variant="outline">不需要手填 session ID</Badge>
+        ) : null}
+      </div>
+
+      {/* Memory transfer — kept visible & minimal */}
+      <section aria-label="送進 Park 記憶" className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-medium text-ink">送進 Park 記憶</h2>
+          <span data-testid="post-visit-notes-saved-state" className="text-xs text-muted-foreground">
+            {notes.trim() ? "草稿已編輯" : "尚未填寫"}
+          </span>
+        </div>
+
+        <fieldset className="grid grid-cols-2 gap-2 sm:grid-cols-4" aria-label="筆記歸屬">
+          {CAPTURE_ASSIGNMENTS.map((option) => (
+            <label
+              key={option.value}
+              title={option.description}
+              className={cn(
+                "flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-hairline px-3 py-2 text-center text-sm transition-colors hover:bg-paper-2",
+                "has-[:checked]:border-ink has-[:checked]:bg-ink has-[:checked]:text-paper",
+              )}
+            >
+              <input
+                type="radio"
+                name="quick-capture-assignment"
+                value={option.value}
+                checked={captureAssignment === option.value}
+                onChange={() => setCaptureAssignment(option.value)}
+                className="size-3.5 shrink-0 accent-current"
+              />
+              {option.label}
+            </label>
+          ))}
+        </fieldset>
+
+        {captureAssignment !== "PRIVATE_DRAFT" ? (
+          <div className="space-y-2">
+            <Textarea
+              value={captureReason}
+              onChange={(event) => setCaptureReason(event.target.value)}
+              placeholder="若內容涉及高敏感資料，寫下本次內部使用理由。"
+              className="min-h-[64px] resize-y rounded-lg border-hairline bg-background text-sm leading-6"
+            />
+            <label className="flex items-start gap-2 text-xs leading-5 text-muted-foreground">
+              <input
+                type="checkbox"
+                checked={captureRiskAccepted}
+                onChange={(event) => setCaptureRiskAccepted(event.target.checked)}
+                className="mt-0.5 size-3.5 accent-ink"
+              />
+              我確認這則筆記只建立內部記憶與待確認交接，不直接寫成 CRM confirmed fact。
+            </label>
+          </div>
+        ) : null}
+
+        <Button
+          type="button"
+          variant="mono"
+          className="h-10 w-full rounded-lg"
+          onClick={handleSendQuickCapture}
+          disabled={isCapturing}
+          data-testid="quick-capture-submit"
+        >
+          {isCapturing ? "送出中..." : "送進 Park 記憶"}
+        </Button>
+
+        {captureResult ? <QuickCaptureResultPanel result={captureResult} /> : null}
+      </section>
+
+      {/* Background — collapsed by default to keep first screen clean */}
+      <details className="group border-t border-hairline pt-4">
+        <summary className="flex cursor-pointer list-none items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-ink [&::-webkit-details-marker]:hidden">
+          <ChevronRight className="h-4 w-4 transition-transform group-open:rotate-90" />
+          拜訪背景與提示
+        </summary>
+        <div className="mt-4 grid gap-5 sm:grid-cols-2">
+          <div>
+            <p className="text-xs font-medium text-muted-foreground">原拜訪目標</p>
+            <ul className="mt-2 space-y-1.5 text-sm leading-6 text-ink/80">
+              {plan.objectives.length ? (
+                plan.objectives.slice(0, 3).map((objective) => <li key={objective.id}>· {objective.description}</li>)
+              ) : (
+                <li className="text-muted-foreground">尚未生成目標</li>
+              )}
+            </ul>
+          </div>
+          <div>
+            <p className="text-xs font-medium text-muted-foreground">已使用材料</p>
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {checkedMaterials.length ? (
+                checkedMaterials.map((material) => (
+                  <span key={material.id} className="rounded-full border border-hairline px-2.5 py-0.5 text-xs text-muted-foreground">
+                    {material.name}
+                  </span>
+                ))
+              ) : (
+                <span className="text-sm text-muted-foreground">尚未標記使用材料</span>
+              )}
+            </div>
+          </div>
+          <ul className="space-y-1.5 text-sm leading-6 text-muted-foreground sm:col-span-2">
+            <li>· 客戶是否確認痛點或需求？</li>
+            <li>· 還缺哪份資料或誰的同意？</li>
+            <li>· 下一次跟進的日期與目的？</li>
+          </ul>
+        </div>
+      </details>
+
+      <section data-testid="notes-meeting-bridge" className="border-t border-hairline pt-6">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <Badge variant="secondary">CLIENT_MEETING</Badge>
+            <h2 className="text-lg font-semibold tracking-tight text-ink">AI 會議工作台</h2>
+          </div>
+          <Badge variant="outline">不需手填 session ID</Badge>
         </div>
         <MeetingWorkspace
           key={`${plan.id}:${meetingSessionId ?? "auto"}:${meetingBridgeVersion}`}

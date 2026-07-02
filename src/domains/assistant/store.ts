@@ -25,6 +25,7 @@ interface AssistantState {
 
   addMessage: (message: AssistantMessage) => void;
   updateLastMessage: (content: string) => void;
+  patchLastMessage: (patch: Partial<AssistantMessage>) => void;
   replaceLastMessage: (message: AssistantMessage) => void;
   createConversation: () => string;
   switchConversation: (id: string) => void;
@@ -73,6 +74,17 @@ export const useAssistantStore = create<AssistantState>()(
             const last = c.messages[c.messages.length - 1];
             if (!last) return c;
             return { ...c, messages: [...c.messages.slice(0, -1), { ...last, content }], updatedAt: new Date().toISOString() };
+          }),
+        }));
+      },
+
+      patchLastMessage: (patch) => {
+        set((state) => ({
+          conversations: state.conversations.map(c => {
+            if (c.id !== state.activeConversationId) return c;
+            const last = c.messages[c.messages.length - 1];
+            if (!last) return c;
+            return { ...c, messages: [...c.messages.slice(0, -1), { ...last, ...patch }], updatedAt: new Date().toISOString() };
           }),
         }));
       },

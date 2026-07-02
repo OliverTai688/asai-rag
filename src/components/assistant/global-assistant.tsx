@@ -1,10 +1,17 @@
 "use client";
 
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { useReducedMotion } from "motion/react";
 import { useAssistantStore } from "@/domains/assistant/store";
 import { useClientStore } from "@/domains/client/store";
 import { assistantService } from "@/domains/assistant/service";
-import { AssistantMessage } from "@/domains/assistant/types";
+import {
+  AssistantMessage,
+  AssistantStreamEvent,
+  AssistantRunStep,
+  AssistantArtifact,
+} from "@/domains/assistant/types";
+import { StepTrail, VisitPackageCard } from "./assistant-artifacts";
 import {
   Bot,
   X,
@@ -48,6 +55,51 @@ async function describeChatError(res: Response): Promise<{ message: string; shou
   return { message: serverMessage ?? "助理暫時無法回應，請稍後再試。", shouldRelogin: false };
 }
 
+function parseStreamEvent(line: string): AssistantStreamEvent | null {
+  try {
+    return JSON.parse(line) as AssistantStreamEvent;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Apply one streamed event to the in-flight assistant message. Steps and
+ * artifacts are written straight to the store (so they render live); the final
+ * text / error are returned to the caller for the typewriter / toast.
+ */
+function applyStreamEvent(event: AssistantStreamEvent): { text?: string; error?: string } {
+  const store = useAssistantStore.getState();
+  const conv = store.conversations.find((c) => c.id === store.activeConversationId);
+  const last = conv?.messages[conv.messages.length - 1];
+
+  switch (event.type) {
+    case "step": {
+      const existing: AssistantRunStep[] = last?.steps ?? [];
+      const idx = existing.findIndex((s) => s.id === event.id);
+      const nextSteps: AssistantRunStep[] =
+        idx >= 0
+          ? existing.map((s, i) =>
+              i === idx ? { ...s, status: event.status, label: event.label ?? s.label } : s,
+            )
+          : [...existing, { id: event.id, label: event.label ?? "", status: event.status }];
+      store.patchLastMessage({ steps: nextSteps });
+      return {};
+    }
+    case "artifact": {
+      const existing: AssistantArtifact[] = last?.artifacts ?? [];
+      store.patchLastMessage({ artifacts: [...existing, event.artifact] });
+      return {};
+    }
+    case "text":
+      return { text: event.content };
+    case "error":
+      return { error: event.message };
+    default:
+      return {};
+  }
+}
+
 export function GlobalAssistant() {
   const pathname = usePathname();
   const router = useRouter();
@@ -85,7 +137,55 @@ export function GlobalAssistant() {
   const [isTyping, setIsTyping] = useState(false);
   const [activeTab, setActiveTab] = useState("insights");
   const [showHistory, setShowHistory] = useState(false);
+  // Id of the assistant message currently being revealed with the typewriter
+  // effect. Drives the blinking caret and suppresses the "awaiting" dots.
+  const [streamingId, setStreamingId] = useState<string | null>(null);
   const messageIdCounter = useRef(0);
+  const typewriterRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const prefersReducedMotion = useReducedMotion();
+
+  // Clear any running typewriter interval when the panel unmounts.
+  useEffect(() => {
+    return () => {
+      if (typewriterRef.current) clearInterval(typewriterRef.current);
+    };
+  }, []);
+
+  // Reveal the assistant's reply progressively, like a copilot typing back.
+  // Speed adapts to length so short replies feel snappy and long ones stay
+  // under a couple of seconds. Reduced-motion users get the full text at once.
+  const revealReply = useCallback(
+    (messageId: string, fullText: string) =>
+      new Promise<void>((resolve) => {
+        if (typewriterRef.current) {
+          clearInterval(typewriterRef.current);
+          typewriterRef.current = null;
+        }
+
+        if (prefersReducedMotion || fullText.length <= 2) {
+          useAssistantStore.getState().updateLastMessage(fullText);
+          resolve();
+          return;
+        }
+
+        setStreamingId(messageId);
+        const total = fullText.length;
+        const step = Math.min(6, Math.max(1, Math.ceil(total / 60)));
+        let index = 0;
+
+        typewriterRef.current = setInterval(() => {
+          index = Math.min(total, index + step);
+          useAssistantStore.getState().updateLastMessage(fullText.slice(0, index));
+          if (index >= total) {
+            if (typewriterRef.current) clearInterval(typewriterRef.current);
+            typewriterRef.current = null;
+            setStreamingId(null);
+            resolve();
+          }
+        }, 24);
+      }),
+    [prefersReducedMotion],
+  );
 
   useEffect(() => {
     const context = { route: pathname };
@@ -124,7 +224,8 @@ export function GlobalAssistant() {
       createdAt: new Date().toISOString(),
     };
 
-    addMessage({ ...assistantMsg, content: "...思考中" });
+    // Empty placeholder — while it is blank the bouncing dots stand in for it.
+    addMessage({ ...assistantMsg });
 
     try {
       const res = await fetch("/api/ai/chat", {
@@ -156,16 +257,46 @@ export function GlobalAssistant() {
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
 
-      let fullText = "";
+      // The server streams newline-delimited JSON events (step / artifact / text).
+      // We apply steps + artifacts to the assistant message live so the reasoning
+      // trail appears as it happens, and hold the final text for the typewriter.
+      let buffer = "";
+      let finalText = "";
+      let streamError: string | null = null;
+
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        const chunk = decoder.decode(value);
-        fullText += chunk;
-        useAssistantStore.getState().updateLastMessage(fullText);
+        buffer += decoder.decode(value, { stream: true });
+        let newlineIndex: number;
+        while ((newlineIndex = buffer.indexOf("\n")) >= 0) {
+          const line = buffer.slice(0, newlineIndex).trim();
+          buffer = buffer.slice(newlineIndex + 1);
+          if (!line) continue;
+          const event = parseStreamEvent(line);
+          if (!event) continue;
+          const outcome = applyStreamEvent(event);
+          if (outcome.text !== undefined) finalText = outcome.text;
+          if (outcome.error !== undefined) streamError = outcome.error;
+        }
+      }
+      const tail = buffer.trim();
+      if (tail) {
+        const event = parseStreamEvent(tail);
+        if (event) {
+          const outcome = applyStreamEvent(event);
+          if (outcome.text !== undefined) finalText = outcome.text;
+          if (outcome.error !== undefined) streamError = outcome.error;
+        }
       }
 
-      const tools = assistantService.parseTools(fullText);
+      if (streamError) {
+        useAssistantStore.getState().patchLastMessage({ content: streamError });
+        toast.error(streamError);
+        return;
+      }
+
+      const tools = assistantService.parseTools(finalText);
       tools.forEach(tool => {
         if (tool.action === 'NAVIGATE') {
           toast.info(`正在導航至 ${tool.params}`);
@@ -173,8 +304,8 @@ export function GlobalAssistant() {
         }
       });
 
-      const finalContent = assistantService.cleanResponse(fullText);
-      useAssistantStore.getState().replaceLastMessage({ ...assistantMsg, content: finalContent });
+      const finalContent = assistantService.cleanResponse(finalText);
+      await revealReply(assistantMsg.id, finalContent);
 
     } catch {
       const message = "助理連線失敗，請稍後再試。";
@@ -195,6 +326,18 @@ export function GlobalAssistant() {
     setActiveTab("chat");
     setShowHistory(h => !h);
   };
+
+  // Show the bouncing dots only while waiting for the very first stream event;
+  // once a step / text / artifact lands, the reasoning trail takes over.
+  const lastMessage = messages[messages.length - 1];
+  const awaitingFirstEvent =
+    isTyping &&
+    !streamingId &&
+    (!lastMessage ||
+      lastMessage.role !== 'assistant' ||
+      (lastMessage.content.length === 0 &&
+        (lastMessage.steps?.length ?? 0) === 0 &&
+        (lastMessage.artifacts?.length ?? 0) === 0));
 
   return (
     <div
@@ -342,27 +485,56 @@ export function GlobalAssistant() {
                     </div>
                   )}
 
-                  {messages.map((m) => (
-                    <div key={m.id} className={cn("flex flex-col", m.role === 'user' ? "items-end" : "items-start")}>
-                      <div className={cn(
-                        "max-w-[90%] px-4 py-3 rounded-2xl text-sm leading-relaxed shadow-sm whitespace-pre-wrap",
-                        m.role === 'user'
-                          ? "bg-[#EBF3FB] dark:bg-[#1A3A6B]/50 text-[#0A2342] dark:text-[#E8F0FE] rounded-tr-sm font-medium"
-                          : "bg-[#1A3A6B] text-white rounded-tl-sm ring-4 ring-[#EBF3FB] dark:ring-[#1A3A6B]/20"
-                      )}
-                        dangerouslySetInnerHTML={{
-                          __html: m.content
-                            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                            .replace(/\n/g, '<br/>')
-                        }}
-                      />
-                      <span className="text-[9px] font-semibold text-[#546E7A] mt-1 uppercase tracking-tighter">
-                        {m.role} · <FormattedTime isoString={m.createdAt} />
-                      </span>
-                    </div>
-                  ))}
+                  {messages.map((m) => {
+                    const isAssistant = m.role === 'assistant';
+                    const hasContent = m.content.length > 0;
+                    const steps = m.steps ?? [];
+                    const artifacts = m.artifacts ?? [];
 
-                  {isTyping && (
+                    // A blank assistant message with no steps / artifacts is the
+                    // placeholder awaiting a reply — the dots represent it.
+                    if (isAssistant && !hasContent && steps.length === 0 && artifacts.length === 0) {
+                      return null;
+                    }
+
+                    const caret =
+                      m.id === streamingId
+                        ? '<span class="inline-block w-[2px] h-[1em] -mb-[2px] ml-0.5 align-baseline bg-current animate-pulse rounded-full"></span>'
+                        : '';
+
+                    return (
+                      <div key={m.id} className={cn("flex flex-col", m.role === 'user' ? "items-end" : "items-start")}>
+                        {isAssistant && steps.length > 0 && <StepTrail steps={steps} />}
+
+                        {hasContent && (
+                          <div className={cn(
+                            "max-w-[90%] px-4 py-3 rounded-2xl text-sm leading-relaxed shadow-sm whitespace-pre-wrap",
+                            m.role === 'user'
+                              ? "bg-[#EBF3FB] dark:bg-[#1A3A6B]/50 text-[#0A2342] dark:text-[#E8F0FE] rounded-tr-sm font-medium"
+                              : "bg-[#1A3A6B] text-white rounded-tl-sm ring-4 ring-[#EBF3FB] dark:ring-[#1A3A6B]/20"
+                          )}
+                            dangerouslySetInnerHTML={{
+                              __html: m.content
+                                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                                .replace(/\n/g, '<br/>') + caret
+                            }}
+                          />
+                        )}
+
+                        {isAssistant && artifacts.map((a) => (
+                          <div key={a.id} className="mt-2 w-full max-w-full">
+                            {a.kind === 'visit_package' && <VisitPackageCard artifact={a} />}
+                          </div>
+                        ))}
+
+                        <span className="text-[9px] font-semibold text-[#546E7A] mt-1 uppercase tracking-tighter">
+                          {m.role} · <FormattedTime isoString={m.createdAt} />
+                        </span>
+                      </div>
+                    );
+                  })}
+
+                  {awaitingFirstEvent && (
                     <div className="flex items-center gap-1.5 pl-1">
                       <div className="w-2 h-2 bg-[#1565C0] rounded-full animate-bounce [animation-delay:-0.3s]" />
                       <div className="w-2 h-2 bg-[#1565C0] rounded-full animate-bounce [animation-delay:-0.15s]" />
