@@ -174,6 +174,33 @@ async function assertStageViewport(browser, viewportName, viewport) {
       (await stageLaneBrowser.getAttribute("data-route-b-stage-lane")) === "group",
       `${viewportName} stage lane switcher returns to group lane`,
     );
+    const composerDock = page.locator('[data-route-b-composer-dock="true"]');
+    await composerDock.waitFor({ state: "visible", timeout: 10000 });
+    const modeDock = composerDock.locator('[data-route-b-mode-dock="true"]');
+    const modeTabs = modeDock.locator('[data-route-b-mode-tabs="true"]');
+    push(await modeDock.isVisible(), `${viewportName} composer renders mode dock`);
+    push((await modeTabs.getByRole("button").count()) === 3, `${viewportName} composer mode dock exposes three icon tabs`);
+    push(
+      (await modeDock.getByRole("button", { name: "下一回合預覽" }).count()) === 1 &&
+        (await modeDock.getByRole("button", { name: "待 provider proof" }).count()) === 1,
+      `${viewportName} composer mode dock keeps next-turn actions as icons`,
+    );
+    push(!(await hasElementHorizontalOverflow(modeDock)), `${viewportName} composer mode dock has no internal horizontal overflow`);
+    await modeDock.getByRole("button", { name: "觀察模式", exact: true }).click();
+    push(
+      (await composerDock.innerText({ timeout: 10000 })).includes("觀察模式"),
+      `${viewportName} composer mode dock switches to observe mode`,
+    );
+    await modeDock.getByRole("button", { name: "對話模式", exact: true }).click();
+    push(
+      (await composerDock.locator('[data-route-b-advisor-composer="true"]').count()) === 1,
+      `${viewportName} composer mode dock returns to advisor composer`,
+    );
+    await clearPointerState(page);
+    await page.screenshot({
+      path: resolve(screenshotDir, `route-b-session-stage-mode-dock-${viewportName}.png`),
+      fullPage: true,
+    });
     await clearPointerState(page);
     await page.screenshot({
       path: resolve(screenshotDir, `route-b-session-stage-runtime-metrics-${viewportName}.png`),

@@ -518,7 +518,6 @@ function RouteBSessionStage({
   snapshot: RouteBSessionSnapshot;
 }) {
   const focusCharacter = snapshot.characters.find((character) => character.isFocus) ?? snapshot.characters[0];
-  const latestTurn = latestRouteBTurn(snapshot.turns);
   const [stageMode, setStageMode] = useState<RouteBStageMode>("CONVERSE");
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
   const [privateFocusCharacterId, setPrivateFocusCharacterId] = useState<string | null>(null);
@@ -556,6 +555,7 @@ function RouteBSessionStage({
   const familyProfileGrounding = snapshot.scene.sourceGrounding?.familyProfiles ?? null;
   const directorTurns = snapshot.turns.filter((turn) => turn.visibilityScope === "DIRECTOR_ONLY");
   const groupTurns = snapshot.turns.filter((turn) => turn.visibilityScope === "GROUP" || !turn.visibilityScope);
+  const latestTurn = latestRouteBTurn(snapshot.turns);
   const provider = snapshot.session.provider;
   const handlePrivateFocus = (routeBCharacterId: string) => {
     setPrivateFocusCharacterId(routeBCharacterId);
@@ -883,32 +883,6 @@ function RouteBSessionStage({
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 lg:justify-end">
-          <div
-            className="inline-flex rounded-full border border-hairline bg-paper p-1"
-            role="group"
-            aria-label="劇場模式"
-          >
-            <RouteBModeIconButton
-              active={stageMode === "CONVERSE"}
-              icon={<MessageSquare className="h-4 w-4" />}
-              label="對話模式"
-              onClick={() => setStageMode("CONVERSE")}
-            />
-            <RouteBModeIconButton
-              active={stageMode === "OBSERVE"}
-              icon={<Eye className="h-4 w-4" />}
-              label="觀察模式"
-              onClick={() => setStageMode("OBSERVE")}
-            />
-            <RouteBModeIconButton
-              active={stageMode === "COMMENT"}
-              icon={<StickyNote className="h-4 w-4" />}
-              label="Comment"
-              onClick={() => setStageMode("COMMENT")}
-            />
-          </div>
-        </div>
       </header>
 
       <main
@@ -942,28 +916,17 @@ function RouteBSessionStage({
         </section>
 
         <section className="flex min-h-[640px] flex-col overflow-hidden">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-hairline px-4 py-3">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Stage Runtime</p>
-                <h2 className="mt-1 text-base font-semibold text-ink">群聊／私聊舞台</h2>
-              </div>
-              <Badge variant="outline" className="rounded-full">
-                {snapshot.session.status}
-              </Badge>
-            </div>
-
-            <RouteBGameChatHud
-              latestTurn={latestTurn}
-              privateFocusCharacterId={privateFocusCharacterId}
-              snapshot={snapshot}
-              stageMode={stageMode}
-            />
-
             <div
               className="flex min-h-0 flex-1 flex-col"
               data-route-b-stage-lane-browser="true"
               data-route-b-stage-lane={stageLane.toLowerCase()}
             >
+              <RouteBGameChatHud
+                latestTurn={latestTurn}
+                privateFocusCharacterId={privateFocusCharacterId}
+                snapshot={snapshot}
+                stageMode={stageMode}
+              />
               <div className="flex items-center justify-between gap-3 border-b border-hairline px-4 py-3">
                 <div>
                   <h3 className="flex items-center gap-2 text-sm font-semibold text-ink">
@@ -1056,7 +1019,7 @@ function RouteBSessionStage({
               )}
             </div>
 
-            <div className="space-y-3 border-t border-hairline bg-paper p-3">
+            <div className="space-y-3 border-t border-hairline bg-paper p-3" data-route-b-composer-dock="true">
               {stageMode === "CONVERSE" ? (
                 <RouteBAdvisorComposer
                   snapshot={snapshot}
@@ -1091,36 +1054,66 @@ function RouteBSessionStage({
                   </p>
                 </div>
               )}
-              <div className="mx-auto flex max-w-3xl items-center justify-end gap-2">
-                <RouteBNextTurnPopover
-                  appendCandidate={pendingAppendCandidate}
-                  appendUsageLogId={pendingAppendUsageLogId}
-                  draft={nextTurnDraft}
-                  error={nextTurnError}
-                  isAppending={isConfirmingNextTurnAppend}
-                  onConfirmAppend={handleConfirmNextTurnAppend}
-                  onGenerateProviderCandidate={generateNextTurnProviderCandidate}
-                  onRefresh={fetchNextTurnDraft}
-                  providerCandidateError={providerCandidateError}
-                  providerCandidateStatus={providerCandidateStatus}
-                  snapshot={snapshot}
-                  status={nextTurnStatus}
-                />
-                <Button
-                  type="button"
-                  variant="mono"
-                  className="h-10 w-10 rounded-full p-0"
-                  disabled
-                  aria-label={
-                    stageMode === "OBSERVE"
-                      ? "讓角色自然互動（待 provider）"
-                      : stageMode === "COMMENT"
-                        ? "Comment 不觸發 provider"
-                        : "待 provider proof"
-                  }
+              <div
+                className="mx-auto flex max-w-3xl flex-wrap items-center justify-between gap-2"
+                data-route-b-mode-dock="true"
+              >
+                <div
+                  className="inline-flex rounded-full border border-hairline bg-background p-1"
+                  role="group"
+                  aria-label="劇場模式"
+                  data-route-b-mode-tabs="true"
                 >
-                  <Sparkles className="h-4 w-4" />
-                </Button>
+                  <RouteBModeIconButton
+                    active={stageMode === "CONVERSE"}
+                    icon={<MessageSquare className="h-4 w-4" />}
+                    label="對話模式"
+                    onClick={() => setStageMode("CONVERSE")}
+                  />
+                  <RouteBModeIconButton
+                    active={stageMode === "OBSERVE"}
+                    icon={<Eye className="h-4 w-4" />}
+                    label="觀察模式"
+                    onClick={() => setStageMode("OBSERVE")}
+                  />
+                  <RouteBModeIconButton
+                    active={stageMode === "COMMENT"}
+                    icon={<StickyNote className="h-4 w-4" />}
+                    label="Comment"
+                    onClick={() => setStageMode("COMMENT")}
+                  />
+                </div>
+                <div className="flex items-center gap-2" data-route-b-composer-actions="true">
+                  <RouteBNextTurnPopover
+                    appendCandidate={pendingAppendCandidate}
+                    appendUsageLogId={pendingAppendUsageLogId}
+                    draft={nextTurnDraft}
+                    error={nextTurnError}
+                    isAppending={isConfirmingNextTurnAppend}
+                    onConfirmAppend={handleConfirmNextTurnAppend}
+                    onGenerateProviderCandidate={generateNextTurnProviderCandidate}
+                    onRefresh={fetchNextTurnDraft}
+                    providerCandidateError={providerCandidateError}
+                    providerCandidateStatus={providerCandidateStatus}
+                    snapshot={snapshot}
+                    status={nextTurnStatus}
+                  />
+                  <Button
+                    type="button"
+                    variant="mono"
+                    className="h-10 w-10 rounded-full p-0"
+                    disabled
+                    aria-label={
+                      stageMode === "OBSERVE"
+                        ? "讓角色自然互動（待 provider）"
+                        : stageMode === "COMMENT"
+                          ? "Comment 不觸發 provider"
+                          : "待 provider proof"
+                    }
+                  >
+                    <Sparkles className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             </div>
           </section>

@@ -248,6 +248,72 @@ export async function appendMeetingTurnForMember(
   };
 }
 
+export const updateMeetingNoteInputSchema = z
+  .object({ content: z.string().trim().min(1).max(12000) })
+  .strict();
+
+export type UpdateMeetingNoteInput = z.infer<typeof updateMeetingNoteInputSchema>;
+
+/**
+ * Edit a manual meeting note (隨筆) in place. Only member-owned, non-transcript
+ * turns are editable. Derived memories are cleared so the summary never cites
+ * stale text; the caller should regenerate the summary afterwards.
+ */
+export async function updateMeetingNoteTurnForMember(
+  session: AppSession,
+  sessionId: string,
+  turnId: string,
+  input: UpdateMeetingNoteInput,
+): Promise<MeetingSessionSnapshotDto | null> {
+  const snapshot = await getMeetingSessionSnapshotForMember(session, sessionId);
+
+  if (!snapshot) {
+    return null;
+  }
+
+  const turn = snapshot.turns.find((candidate) => candidate.id === turnId);
+
+  if (!turn || turn.transcriptFinal) {
+    return null;
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.interviewMemory.deleteMany({ where: { turnId, sessionId } });
+    await tx.interviewTurn.update({ where: { id: turnId }, data: { content: input.content } });
+  });
+
+  return getMeetingSessionSnapshotForMember(session, sessionId);
+}
+
+/**
+ * Delete a manual meeting note (隨筆) and its derived memories. Only member-owned,
+ * non-transcript turns are deletable.
+ */
+export async function deleteMeetingNoteTurnForMember(
+  session: AppSession,
+  sessionId: string,
+  turnId: string,
+): Promise<MeetingSessionSnapshotDto | null> {
+  const snapshot = await getMeetingSessionSnapshotForMember(session, sessionId);
+
+  if (!snapshot) {
+    return null;
+  }
+
+  const turn = snapshot.turns.find((candidate) => candidate.id === turnId);
+
+  if (!turn || turn.transcriptFinal) {
+    return null;
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.interviewMemory.deleteMany({ where: { turnId, sessionId } });
+    await tx.interviewTurn.delete({ where: { id: turnId } });
+  });
+
+  return getMeetingSessionSnapshotForMember(session, sessionId);
+}
+
 export async function appendVisitMeetingQuickNoteForMember(
   session: AppSession,
   visitPlanId: string,

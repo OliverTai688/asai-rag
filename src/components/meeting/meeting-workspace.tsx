@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { motion, useReducedMotion } from "motion/react";
 
@@ -9,6 +9,7 @@ import {
   AlertCircle,
   ArrowLeft,
   AudioLines,
+  Check,
   CheckCircle2,
   ClipboardList,
   FileText,
@@ -17,9 +18,12 @@ import {
   Loader2,
   Mic,
   NotebookPen,
+  Pencil,
+  Pin,
   Plus,
   RefreshCcw,
   ScrollText,
+  Trash2,
   ShieldCheck,
   Sparkles,
   StickyNote,
@@ -483,6 +487,13 @@ export function MeetingWorkspace({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [lastAction, setLastAction] = useState("正在連接會議工作台");
   const [mode, setMode] = useState<CaptureMode>("meeting");
+  const [pinnedNoteIds, setPinnedNoteIds] = useState<Set<string>>(() => new Set());
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [audioNotice, setAudioNotice] = useState<string | null>(null);
+  const audioInputRef = useRef<HTMLInputElement>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
 
   const sessionId = snapshot?.session.id ?? initialSessionId ?? "";
   const phase: MeetingPhase =
@@ -499,6 +510,11 @@ export function MeetingWorkspace({
     () => snapshot?.turns.filter((turn) => !turn.transcriptFinal) ?? [],
     [snapshot?.turns],
   );
+  const sortedNoteTurns = useMemo(() => {
+    const pinned = noteTurns.filter((turn) => pinnedNoteIds.has(turn.id));
+    const rest = noteTurns.filter((turn) => !pinnedNoteIds.has(turn.id));
+    return [...pinned, ...rest];
+  }, [noteTurns, pinnedNoteIds]);
   const memoryRail = snapshot?.memoryRail;
   const workspaceScopeLabel = planId ? "準備包會議" : "客戶會議";
   const resolvedBackLabel = backLabel ?? (planId ? "回準備包" : "回客戶總覽");
@@ -826,6 +842,147 @@ export function MeetingWorkspace({
     }
   }, [refreshSnapshot, snapshot]);
 
+  const handleTogglePinNote = useCallback((turnId: string) => {
+    setPinnedNoteIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(turnId)) next.delete(turnId);
+      else next.add(turnId);
+      return next;
+    });
+  }, []);
+
+  const handleEditNote = useCallback(
+    async (turnId: string, content: string) => {
+      if (!sessionId) return;
+
+      setRequestState("saving");
+      setErrorMessage(null);
+
+      try {
+        const next = await updateMeetingNote(sessionId, turnId, content);
+        setSnapshot(next);
+        setLastAction("已更新隨筆");
+        if (summary) {
+          setSummary(null);
+          resetWritebacks();
+        }
+      } catch (error) {
+        setErrorMessage(error instanceof Error ? error.message : "MEETING_NOTE_UPDATE_FAILED");
+      } finally {
+        setRequestState("idle");
+      }
+    },
+    [resetWritebacks, sessionId, summary],
+  );
+
+  const handleDeleteNote = useCallback(
+    async (turnId: string) => {
+      if (!sessionId) return;
+
+      setRequestState("saving");
+      setErrorMessage(null);
+
+      try {
+        const next = await deleteMeetingNote(sessionId, turnId);
+        setSnapshot(next);
+        setLastAction("已刪除隨筆");
+        setPinnedNoteIds((prev) => {
+          if (!prev.has(turnId)) return prev;
+          const updated = new Set(prev);
+          updated.delete(turnId);
+          return updated;
+        });
+        if (summary) {
+          setSummary(null);
+          resetWritebacks();
+        }
+      } catch (error) {
+        setErrorMessage(error instanceof Error ? error.message : "MEETING_NOTE_DELETE_FAILED");
+      } finally {
+        setRequestState("idle");
+      }
+    },
+    [resetWritebacks, sessionId, summary],
+  );
+
+  const handleTranscribeAudio = useCallback(
+    async (file: File) => {
+      if (!sessionId) return;
+
+      setIsTranscribing(true);
+      setErrorMessage(null);
+      setAudioNotice(null);
+
+      try {
+        const result = await transcribeMeetingAudio(sessionId, file);
+
+        if (result.status === "disabled") {
+          setAudioNotice("語音轉文字服務尚未啟用，請改為貼上逐字稿。");
+          return;
+        }
+
+        await refreshSnapshot(sessionId);
+        setLastAction("已從音檔擷取逐字稿");
+        if (summary) {
+          setSummary(null);
+          resetWritebacks();
+        }
+      } catch (error) {
+        setErrorMessage(error instanceof Error ? error.message : "MEETING_TRANSCRIBE_FAILED");
+      } finally {
+        setIsTranscribing(false);
+      }
+    },
+    [refreshSnapshot, resetWritebacks, sessionId, summary],
+  );
+
+  const stopRecording = useCallback(() => {
+    const recorder = mediaRecorderRef.current;
+    if (recorder && recorder.state !== "inactive") {
+      recorder.stop();
+    }
+    mediaRecorderRef.current = null;
+    setIsRecording(false);
+  }, []);
+
+  const startRecording = useCallback(async () => {
+    if (
+      typeof navigator === "undefined" ||
+      !navigator.mediaDevices?.getUserMedia ||
+      typeof MediaRecorder === "undefined"
+    ) {
+      setAudioNotice("此瀏覽器不支援錄音，請改用上傳音檔或貼上逐字稿。");
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      audioChunksRef.current = [];
+
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) audioChunksRef.current.push(event.data);
+      };
+      recorder.onstop = () => {
+        stream.getTracks().forEach((track) => track.stop());
+        const chunks = audioChunksRef.current;
+        audioChunksRef.current = [];
+        const type = recorder.mimeType || "audio/webm";
+        const blob = new Blob(chunks, { type });
+        if (blob.size > 0) {
+          void handleTranscribeAudio(new File([blob], "meeting-recording.webm", { type }));
+        }
+      };
+
+      mediaRecorderRef.current = recorder;
+      recorder.start();
+      setIsRecording(true);
+      setAudioNotice(null);
+    } catch {
+      setAudioNotice("無法取得麥克風權限，請改用上傳音檔或貼上逐字稿。");
+    }
+  }, [handleTranscribeAudio]);
+
   if (bootstrapState === "loading") {
     return (
       <div className="mx-auto flex min-h-[60vh] max-w-xl flex-col items-center justify-center px-6 text-center">
@@ -921,28 +1078,65 @@ export function MeetingWorkspace({
             </div>
 
             <TabsContent value="meeting" className="mt-4 space-y-4">
-              <div className="rounded-2xl border border-dashed border-hairline bg-paper/50 p-4">
+              <div className="rounded-2xl border border-hairline bg-card p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="inline-flex items-center gap-2 text-sm font-medium text-ink">
                     <AudioLines className="size-4 text-[#1A3A6B]" aria-hidden="true" />
-                    錄製整場會議或上傳音檔
+                    錄製或上傳會議音檔
                   </span>
-                  <span className="rounded-full border border-hairline bg-card px-2 py-0.5 text-[11px] text-muted-foreground">
-                    需啟用語音服務
-                  </span>
+                  {isTranscribing ? (
+                    <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />
+                      轉寫中…
+                    </span>
+                  ) : isRecording ? (
+                    <span className="inline-flex items-center gap-1.5 text-xs text-[#1A3A6B]">
+                      <span className="size-2 animate-pulse rounded-full bg-[#1A3A6B]" aria-hidden="true" />
+                      錄製中
+                    </span>
+                  ) : null}
                 </div>
                 <div className="mt-3 flex flex-wrap gap-2">
-                  <Button type="button" variant="outline" size="sm" className="rounded-lg" disabled title="需啟用語音服務">
+                  <Button
+                    type="button"
+                    variant={isRecording ? "mono" : "outline"}
+                    size="sm"
+                    className="rounded-lg"
+                    onClick={isRecording ? stopRecording : startRecording}
+                    disabled={!canSubmit || isTranscribing}
+                    aria-label={isRecording ? "停止錄製並轉寫" : "錄製會議"}
+                    title={isRecording ? "停止錄製並轉寫" : "錄製會議"}
+                  >
                     <Mic className="mr-1.5 size-4" aria-hidden="true" />
-                    錄製會議
+                    {isRecording ? "停止並轉寫" : "錄製會議"}
                   </Button>
-                  <Button type="button" variant="outline" size="sm" className="rounded-lg" disabled title="需啟用語音服務">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="rounded-lg"
+                    onClick={() => audioInputRef.current?.click()}
+                    disabled={!canSubmit || isTranscribing || isRecording}
+                    aria-label="上傳音檔"
+                    title="上傳音檔"
+                  >
                     <Upload className="mr-1.5 size-4" aria-hidden="true" />
                     上傳音檔
                   </Button>
+                  <input
+                    ref={audioInputRef}
+                    type="file"
+                    accept="audio/*"
+                    className="sr-only"
+                    onChange={(event) => {
+                      const file = event.target.files?.[0];
+                      if (file) void handleTranscribeAudio(file);
+                      event.target.value = "";
+                    }}
+                  />
                 </div>
                 <p className="mt-2.5 text-xs leading-5 text-muted-foreground">
-                  語音轉文字尚未啟用；目前請在下方貼上或匯入逐字稿，即可生成摘要。
+                  {audioNotice ?? "音檔只會轉成逐字稿、不保存錄音；轉寫後會加入下方會議記錄。"}
                 </p>
               </div>
 
@@ -1005,10 +1199,19 @@ export function MeetingWorkspace({
                 />
               </div>
 
-              {noteTurns.length ? (
+              {sortedNoteTurns.length ? (
                 <div className="gap-3 sm:columns-2 [&>*]:mb-3">
-                  {noteTurns.map((turn) => (
-                    <KeepNoteCard key={turn.id} turn={turn} memories={snapshot?.memories ?? []} />
+                  {sortedNoteTurns.map((turn) => (
+                    <KeepNoteCard
+                      key={turn.id}
+                      turn={turn}
+                      memories={snapshot?.memories ?? []}
+                      pinned={pinnedNoteIds.has(turn.id)}
+                      disabled={!canSubmit}
+                      onTogglePin={handleTogglePinNote}
+                      onEdit={handleEditNote}
+                      onDelete={handleDeleteNote}
+                    />
                   ))}
                 </div>
               ) : (
@@ -1757,11 +1960,84 @@ function TurnCard({ turn, memories }: { turn: MeetingTurnDto; memories: MeetingM
   );
 }
 
-function KeepNoteCard({ turn, memories }: { turn: MeetingTurnDto; memories: MeetingMemoryDto[] }) {
+function KeepNoteCard({
+  turn,
+  memories,
+  pinned,
+  disabled,
+  onTogglePin,
+  onEdit,
+  onDelete,
+}: {
+  turn: MeetingTurnDto;
+  memories: MeetingMemoryDto[];
+  pinned: boolean;
+  disabled: boolean;
+  onTogglePin: (turnId: string) => void;
+  onEdit: (turnId: string, content: string) => void;
+  onDelete: (turnId: string) => void;
+}) {
   const relatedMemories = memories.filter((memory) => memory.turnId === turn.id);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(turn.content);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+
+  const saveEdit = () => {
+    const trimmed = draft.trim();
+    if (!trimmed || trimmed === turn.content) {
+      setEditing(false);
+      return;
+    }
+    onEdit(turn.id, trimmed);
+    setEditing(false);
+  };
+
+  if (editing) {
+    return (
+      <article className="break-inside-avoid rounded-xl border border-[#1A3A6B]/40 bg-card p-3">
+        <Textarea
+          className="min-h-24 resize-y rounded-lg border-hairline bg-card text-sm leading-6"
+          value={draft}
+          disabled={disabled}
+          onChange={(event) => setDraft(event.target.value)}
+          aria-label="編輯隨筆"
+        />
+        <div className="mt-2 flex justify-end gap-1.5">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            className="rounded-lg text-muted-foreground"
+            onClick={() => setEditing(false)}
+            aria-label="取消編輯"
+            title="取消"
+          >
+            <X className="size-4" aria-hidden="true" />
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="icon-sm"
+            className="rounded-lg"
+            onClick={saveEdit}
+            disabled={disabled || !draft.trim()}
+            aria-label="儲存隨筆"
+            title="儲存"
+          >
+            <Check className="size-4" aria-hidden="true" />
+          </Button>
+        </div>
+      </article>
+    );
+  }
 
   return (
-    <article className="break-inside-avoid rounded-xl border border-hairline bg-paper/70 p-3 transition-shadow hover:shadow-sm">
+    <article
+      className={cn(
+        "break-inside-avoid rounded-xl border bg-paper/70 p-3 transition-shadow hover:shadow-sm",
+        pinned ? "border-[#1A3A6B]/40" : "border-hairline",
+      )}
+    >
       <p className="whitespace-pre-wrap text-sm leading-6 text-ink">{turn.content}</p>
       <div className="mt-2.5 flex items-center justify-between gap-2">
         <time className="text-[11px] tabular-nums text-muted-foreground" dateTime={turn.occurredAt}>
@@ -1776,6 +2052,80 @@ function KeepNoteCard({ turn, memories }: { turn: MeetingTurnDto; memories: Meet
             ))}
           </div>
         ) : null}
+      </div>
+      <div className="mt-2 flex items-center justify-end gap-0.5 border-t border-hairline pt-2">
+        {confirmingDelete ? (
+          <>
+            <span className="mr-auto text-[11px] text-muted-foreground">刪除這則隨筆？</span>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              className="rounded-lg text-muted-foreground"
+              onClick={() => setConfirmingDelete(false)}
+              aria-label="取消刪除"
+              title="取消"
+            >
+              <X className="size-4" aria-hidden="true" />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              className="rounded-lg text-destructive"
+              onClick={() => {
+                setConfirmingDelete(false);
+                onDelete(turn.id);
+              }}
+              disabled={disabled}
+              aria-label="確認刪除"
+              title="確認刪除"
+            >
+              <Trash2 className="size-4" aria-hidden="true" />
+            </Button>
+          </>
+        ) : (
+          <>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              className={cn("rounded-lg", pinned ? "text-[#1A3A6B]" : "text-muted-foreground")}
+              onClick={() => onTogglePin(turn.id)}
+              aria-label={pinned ? "取消釘選" : "釘選"}
+              title={pinned ? "取消釘選" : "釘選"}
+            >
+              <Pin className={cn("size-4", pinned && "fill-current")} aria-hidden="true" />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              className="rounded-lg text-muted-foreground"
+              onClick={() => {
+                setDraft(turn.content);
+                setEditing(true);
+              }}
+              disabled={disabled}
+              aria-label="編輯隨筆"
+              title="編輯"
+            >
+              <Pencil className="size-4" aria-hidden="true" />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              className="rounded-lg text-muted-foreground"
+              onClick={() => setConfirmingDelete(true)}
+              disabled={disabled}
+              aria-label="刪除隨筆"
+              title="刪除"
+            >
+              <Trash2 className="size-4" aria-hidden="true" />
+            </Button>
+          </>
+        )}
       </div>
     </article>
   );
@@ -2288,6 +2638,52 @@ async function appendMeetingTurn(sessionId: string, source: TurnSource, content:
   });
 
   await readRequiredJson<unknown>(response, "MEETING_TURN_APPEND_FAILED");
+}
+
+async function updateMeetingNote(
+  sessionId: string,
+  turnId: string,
+  content: string,
+): Promise<MeetingSessionSnapshotDto> {
+  const response = await fetch(
+    `/api/ai/meeting/sessions/${encodeURIComponent(sessionId)}/turns/${encodeURIComponent(turnId)}`,
+    {
+      method: "PATCH",
+      headers: requestHeaders,
+      body: JSON.stringify({ content }),
+    },
+  );
+
+  return readRequiredJson<MeetingSessionSnapshotDto>(response, "MEETING_NOTE_UPDATE_FAILED");
+}
+
+async function deleteMeetingNote(sessionId: string, turnId: string): Promise<MeetingSessionSnapshotDto> {
+  const response = await fetch(
+    `/api/ai/meeting/sessions/${encodeURIComponent(sessionId)}/turns/${encodeURIComponent(turnId)}`,
+    { method: "DELETE" },
+  );
+
+  return readRequiredJson<MeetingSessionSnapshotDto>(response, "MEETING_NOTE_DELETE_FAILED");
+}
+
+async function transcribeMeetingAudio(
+  sessionId: string,
+  file: File,
+): Promise<{ status: "ok" } | { status: "disabled" }> {
+  const form = new FormData();
+  form.append("audio", file, file.name || "meeting-audio.webm");
+
+  const response = await fetch(`/api/ai/meeting/sessions/${encodeURIComponent(sessionId)}/transcribe`, {
+    method: "POST",
+    body: form,
+  });
+
+  if (response.status === 503) {
+    return { status: "disabled" };
+  }
+
+  await readRequiredJson<unknown>(response, "MEETING_TRANSCRIBE_FAILED");
+  return { status: "ok" };
 }
 
 async function readMeetingSummary(sessionId: string, signal?: AbortSignal): Promise<PersistedMeetingSummaryDto | null> {
